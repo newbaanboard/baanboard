@@ -1,0 +1,167 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Date field Mapping not working against Zero Value, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Date field Mapping not working against Zero Value Tools Development" />
+	
+	<title>Date field Mapping not working against Zero Value [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.php/">Baanboard.com</a> &gt; <a href="f-1.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="f-8.html">Tools Development</a> &gt; Date field Mapping not working against Zero Value</div>
+<hr />
+<div class="pda"><a href="?login=1" rel="nofollow">Log in</a></div>
+<p class="largefont">View Full Version : <a href="http://www.baanboard.com/baanboard/showthread.php?t=55999">Date field Mapping not working against Zero Value</a></p>
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">1st June 2009, 19:56</div></div><div class="posttext">Hi<br />
+<br />
+Previously our Baan Application was on informix(Source Servers) but recently we had migrated our BaaN applications on Oracle 9i with HP AIX 5.3 (Target Server) as the OS. <br />
+<br />
+During one of the Baan Session execution we found out that the date fields of the Table when mapped against the &quot;zero&quot; value dont work. For example,While Maintaining Outbound Lines this query gets executed in one of the fields &quot;Check.input&quot;. The control is supposed to go inside the Selectdo.<br />
+<br />
+select  tdilc101.*<br />
+from    tdilc101<br />
+where   tdilc101.cwar = :tdilc401.cwar<br />
+and tdilc101.loca = :tdilc401.loca<br />
+and tdilc101.item = :tdilc401.item<br />
+and tdilc101.stun = :tdilc401.stun<br />
+and tdilc101.date = :tdilc401.date<br />
+selectdo<br />
+            return(true)<br />
+endselect<br />
+<br />
+<br />
+Now there are records in tdilc101 which match to the corresponding values of tdilc401. For both the records the corresponding &quot;date&quot; field value is 0 at BaaN level.<br />
+<br />
+When i perform a query without the date field mapping<br />
+<br />
+select  tdilc101.*<br />
+from    tdilc101<br />
+where   tdilc101.cwar = :tdilc401.cwar<br />
+and tdilc101.loca = :tdilc401.loca<br />
+and tdilc101.item = :tdilc401.item<br />
+and tdilc101.stun = :tdilc401.stun<br />
+selectdo<br />
+            return(true)<br />
+endselect<br />
+<br />
+The control does goes inside as it should be.<br />
+<br />
+<br />
+I had also observed this thing in some other issue.<br />
+<br />
+Like this would work<br />
+<br />
+select tibom010.*<br />
+from    tibom010<br />
+where  tibom010._index1 = {:tdsls041.item}<br />
+and      tibom010.indt &lt;= :tdsls041.odat<br />
+and      tibom010.sitm refers to tiitm001<br />
+and      tibom010.seqn = (  select min(tb010.seqn)<br />
+                            from   tibom010 tb010<br />
+                          where  tb010._index1 ={ tibom010.mitm, tibom010.pono}<br />
+                          and    tb010.indt &lt;= :tdsls041.odat<br />
+                          and    (tb010.exdt &gt;= :tdsls041.odat<br />
+                          ))<br />
+selectdo<br />
+      tdsls041.odat = tdsls041.odat<br />
+endselect<br />
+<br />
+But this wouldnt<br />
+<br />
+select tibom010.*<br />
+from    tibom010<br />
+where  tibom010._index1 = {:tdsls041.item}<br />
+and      tibom010.indt &lt;= :tdsls041.odat<br />
+and      tibom010.sitm refers to tiitm001<br />
+and      tibom010.seqn = (  select min(tb010.seqn)<br />
+                            from   tibom010 tb010<br />
+                          where  tb010._index1 ={ tibom010.mitm, tibom010.pono}<br />
+                          and    tb010.indt &lt;= :tdsls041.odat<br />
+                          and    (tb010.exdt &gt;= :tdsls041.odat<br />
+                          or tb010.exdt = 0))<br />
+selectdo<br />
+        tdsls041.odat = tdsls041.odat<br />
+endselect<br />
+<br />
+<br />
+Because of this &quot;or tb010.exdt = 0&quot; <br />
+<br />
+Any help would be greatly appreciated.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd June 2009, 15:19</div></div><div class="posttext">Never really thought about it - but are the dates really 0 or are they empty? Did you at the records thru table maintenance?  On our system the .exdt field is empty.  Let me try a query or two.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd June 2009, 15:34</div></div><div class="posttext">Interesting - it appears to work for me or at least I get results using &quot;and     tibom010.exdt = 0 &quot;. So it looks like it works for me.  In my case the date fields are empty, so I am not sure what is up.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">3rd June 2009, 07:22</div></div><div class="posttext">The date fields are empty and while debugging when the value for the field is checked it is shown as zero.<br />
+<br />
+One more thing, we had migrated the Database from Informix to Oracle. And at the time we observed that the &quot;Zero&quot; date field had the value of 01-01-01 at the informix level and when we had uploaded it to Oracle the date field at Baan level instead of showing zero or empty value was showing 01-01-01.<br />
+<br />
+So we had contacted Infor Support regarding this issue. They reverted us by saying all the date fields with value zero needs to be updated to 01-01-12 which is (01-Jan--4712), which is the minimum supported date by Oracle. <br />
+<br />
+But now when i am modifying the record manually and making it zero from the Baan end the value at the Oracle level is being shown as 01-Jan-99 and at Baan level the date field shows zero value and the query has also started working.<br />
+<br />
+So does this mean i have to update all the date fields with zero value to (01-Jan-99)?<br />
+<br />
+I have asked infor Support too regarding this.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd June 2009, 16:28</div></div><div class="posttext">I have never tried this, but could you set a date field to empty?  You tibom010.exdt=empty - then do a db.update.  Just wondering if that would reset the date.  I know I can do a select where tibom010.exdt = empty.  I wond if that would fix your problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">3rd June 2009, 22:40</div></div><div class="posttext">Check with Baan Support if you can use this script - $BSE/lib/cnvdate.sql<br />
+<br />
+[DEV:BSP]/app/lms/lmss/opt/bse/lib/ora&gt;cat cnvdate.sql<br />
+-- **************************************************************************<br />
+-- *<br />
+-- * File       : cnvdate.sql   ( for BaanERP )<br />
+-- *<br />
+-- * Purpose    : Convert old representation of the empty Baan date to the new one.<br />
+-- *<br />
+-- *              The Baan-Oracle driver used to use the date Jan. 1st -9999 as the<br />
+-- *              representation of the empty Baan date. The new representation<br />
+-- *              is Jan. 1st -4712.<br />
+-- *              This is done because PL/SQL, SQL*Plus and SQL*Loader are not able<br />
+-- *              to handle dates before Jan. 1st -4712. This gave so many problems<br />
+-- *              for users with external software and for the BaanIV - BaanERP<br />
+-- *              conversion, that we decided to change the empty date representation.<br />
+-- *<br />
+-- *              In previous Baan versions this could already be configured by<br />
+-- *              specifying ora_date:1 in the $BSE/lib/defaults/db_resource file.<br />
+-- *<br />
+-- *              When users still need the old representation of the empty Baan-date,<br />
+-- *              users explicitely have to specify<br />
+-- *              ora_date:0 in the $BSE/lib/defaults/db_resource file.<br />
+-- *              This is strongly discouraged, and the support of dates before<br />
+-- *              Jan. 1st -4712 might be discontinued in future releases.<br />
+-- *<br />
+-- * Author     : Anthon Ouwendijk, Baan Tech<br />
+-- * Date       : May 1998<br />
+-- *<br />
+-- **************************************************************************<br />
+-- *<br />
+-- *    --&gt;     This script must be run from SQL*Plus. Connect as 'SYS'<br />
+-- *<br />
+-- * !!!!!!!!!!!! WARNING !!!!!!!!!!!!<br />
+-- *<br />
+-- *    --&gt;     The database tables of ALL BaanERP owners are updated by this script<br />
+-- *<br />
+-- **************************************************************************</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">9th June 2009, 19:32</div></div><div class="posttext">We did some R&amp;D on our part and found out that a variable ,ORA_DATE, if set to 1 will treat the zero value of date field at Baan Level as 01-01--4712 00:00:00 or it will treat it as 01-01--9999 00:00:00 . And that variable was empty in our case. That might be the reason Baan was storing all the value as <br />
+01-01--9999 00:00:00. Now we have set the value as 1. So at the moment the solution is working.<br />
+<br />
+And Mark when we update the date field manually to make it zero. It showed a value of &quot;01-01--9999 00:00:00&quot; at the Back end. The query worked. Kind of similar from what you suggested.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>
