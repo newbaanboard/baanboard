@@ -1,0 +1,774 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="BaaN Report Issue, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] BaaN Report Issue Tools Development" />
+	
+	<title>BaaN Report Issue [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; BaaN Report Issue</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">countnikon</div><div class="date">20th July 2007, 19:35</div></div><div class="posttext">I have a report that I'm working on that I need the text from the sales order to appear on the sales order lines but not on the installment lines.<br />
+<br />
+Is this possible?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th July 2007, 20:00</div></div><div class="posttext">Maybe I do not understand the question - but my answer would be - you can put text were you want it and suppress it using the output expression.  So if for example I wanted to print all production orders, but only print text for complete orders - I would put tisfc001.txta on the report with an output express with tisfc001.osta = tcosta.ready.  So maybe I do not understand the question.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">countnikon</div><div class="date">20th July 2007, 20:14</div></div><div class="posttext">Thanks for the quick response mark.  <br />
+<br />
+The first line is the High Level Item from the Sales Order Lines.<br />
+<br />
+The lines under it are the installment data.  The installment data still has the Sales Order Lines Text printing under it.  That is what I'm trying to get rid of.<br />
+<br />
+here's some code<br />
+<br />
+<br />
+|******************************************************************************<br />
+|* tdsls9401  0  VRC B40C c4 csi0<br />
+|* Print Order Acknowledgement<br />
+|* bsp<br />
+|* 06-17-05 [09:03]<br />
+|******************************************************************************<br />
+|* Script Type: 4<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** DECLARATION SECTION ***************************<br />
+declaration:<br />
+<br />
+	table	ttccom010<br />
+	table	ttcmcs002<br />
+	table	ttcmcs039<br />
+	table	ttdsls040<br />
+	table	ttdsls041<br />
+	table	ttdsls045<br />
+	table	ttdsls048<br />
+	table	ttipcs021<br />
+	table 	ttdsls020<br />
+	table	ttcmcs046<br />
+<br />
+<br />
+|******************************	form variables ********************************<br />
+<br />
+	extern domain tccuno		cuno.f fixed	| From customer<br />
+	extern domain tccuno		cuno.t fixed	| To customer<br />
+	extern domain tcorno		orno.f		| From order number<br />
+	extern domain tcorno		orno.t		| To order number<br />
+	extern domain tcncmp		comp.f	        | Fin.comp.to<br />
+	extern domain tcncmp    	comp.t		| Fin.comp.f<br />
+	extern domain tcyesno		hide.prices.f	| Show pricing info?<br />
+	extern domain tdsls.kofl	printed		| Already printed bills<br />
+	extern domain tcyesno		selection	| Select spec. order no.<br />
+	extern domain tcyesno		prnt.options	| Print	variant	options<br />
+	extern domain tcyesno		prnt.sellpr	| Print	variant	prices<br />
+	extern domain tdsls.koqu	quan.to.print<br />
+<br />
+|******************************	prog variables ********************************<br />
+<br />
+	long				copies<br />
+	long				open.mode<br />
+	domain tcorno			s.orno<br />
+	domain tcmcs.st45		exag.4401<br />
+	extern	domain tcstno		stno.4401<br />
+	extern domain tcbool		apdx<br />
+	extern domain tcmcs.long	line<br />
+	extern domain tcmcs.long	nr.copy<br />
+	extern domain tcmcs.st20	orco<br />
+	extern domain tcdsun		prun.print<br />
+	extern domain tcdsun		quun.print<br />
+	extern domain tccrnd		crnd.orno<br />
+	extern domain tctxtn		txtn.ptr	| Pointer to text file<br />
+	extern domain tcdsca		header.text	| for EDI hardcopy<br />
+	domain tcorno			save.orno,zoom.orno<br />
+	domain tcorno			lsp.orno	| last printed value<br />
+	domain tcpono			lsp.pono	| last printed value<br />
+	domain tcsrnb			lsp.srnb	| last printed value<br />
+	extern long     stand.desc<br />
+	extern long     itm.txtn<br />
+	extern domain	tcnama		isls.cdel.nama.l	|#10023304.n<br />
+<br />
+<br />
+|******************************	zoom variables ********************************<br />
+<br />
+	extern domain tcorno	orno.1,	orno.2,	orno.3,	orno.4,	orno.5,<br />
+				orno.6,	orno.7,	orno.8,	orno.9,	orno.10<br />
+<br />
+<br />
+|****************************** PROGRAM     SECTION ***************************<br />
+<br />
+<br />
+before.program:<br />
+	<br />
+|****************************** ZOOM FROM   SECTION ***************************<br />
+zoom.from.all:<br />
+on.entry:<br />
+	import(&quot;tdsls040.orno&quot;,zoom.orno)<br />
+	<br />
+<br />
+<br />
+|****************************** FORM	     SECTION ***************************<br />
+form.1:<br />
+init.form:<br />
+	if orno.f = 0 then<br />
+		get.screen.defaults()<br />
+	endif<br />
+	if zoom.orno &lt;&gt; 0 then <br />
+		orno.f = zoom.orno<br />
+		orno.t = zoom.orno<br />
+		display(&quot;orno.f&quot;)<br />
+		display(&quot;orno.t&quot;)<br />
+	endif<br />
+<br />
+|****************************** CHOICE      SECTION ***************************<br />
+choice.cont.process:<br />
+on.choice:<br />
+	execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+	if rprt_open() then<br />
+		print.order.range()<br />
+		rprt_close()<br />
+	else<br />
+		choice.again()<br />
+	endif<br />
+<br />
+<br />
+|****************************** FIELD       SECTION ***************************<br />
+<br />
+field.cuno.f:<br />
+when.field.changes:<br />
+	cuno.t = cuno.f<br />
+<br />
+<br />
+<br />
+field.orno.f:<br />
+when.field.changes:<br />
+	orno.t = orno.f<br />
+<br />
+<br />
+<br />
+|****************************** MAIN TABLE  SECTION ***************************<br />
+<br />
+|****************************** FUNCTION    SECTION ***************************<br />
+functions:<br />
+<br />
+function print.order.selection()<br />
+{<br />
+	<br />
+	save.orno = 0<br />
+	select 	tdsls045.*, tdsls040.*, tdsls041.*, tccom010.*, tcmcs042.*<br />
+	from   	tdsls045 for update, tdsls040, tdsls041, tccom010, tcmcs042<br />
+	where 	(tdsls045._index1 = {:orno.1} or<br />
+		 tdsls045._index1 = {:orno.2} or<br />
+		 tdsls045._index1 = {:orno.3} or<br />
+		 tdsls045._index1 = {:orno.4} or<br />
+		 tdsls045._index1 = {:orno.5} or<br />
+		 tdsls045._index1 = {:orno.6} or<br />
+		 tdsls045._index1 = {:orno.7} or<br />
+		 tdsls045._index1 = {:orno.8} or<br />
+		 tdsls045._index1 = {:orno.9} or<br />
+		 tdsls045._index1 = {:orno.10}  )<br />
+	and    	tdsls045.cuno inrange :cuno.f and :cuno.t<br />
+	and    	tdsls045.srnb = 0<br />
+	and    	tdsls045.pono &lt;&gt; 0<br />
+	and    	tdsls045.orno refers to tdsls040<br />
+	and     tdsls040.cotp refers to tcmcs042<br />
+	and    	tdsls045.cuno refers to tccom010 unref skip<br />
+	and    	tdsls045.cmba refers to tdsls041<br />
+	order by tdsls045.orno,	tdsls045.pono, tdsls045.srnb<br />
+	selectdo<br />
+		update.tdsls041.taxcodes(tdsls045.orno,tdsls045.pono,tdsls045.pono)<br />
+		| Get Alt. Item by Item Code Systemq		| CSI.bn<br />
+		select	tiitm012.aitc<br />
+		from	tiitm012<br />
+		where	tiitm012.item = :tdsls041.item<br />
+	  	and	tiitm012.cntr = :tdsls041.cntr<br />
+	  	and	tiitm012.citt = :tdsls041.citt<br />
+		selectdo<br />
+		endselect	<br />
+		<br />
+		line	  = 1<br />
+		rprt_send()<br />
+		line	  = 0<br />
+		print.text.itemlines.isls0013()<br />
+	endselect<br />
+}<br />
+<br />
+function print.order.range()<br />
+{<br />
+	<br />
+	<br />
+	save.orno = 0<br />
+	select 	tdsls045.*, tdsls040.*, tdsls041.*, tccom010.*, tcmcs042.*<br />
+	from   	tdsls045, tdsls040, tdsls041, tccom010, tcmcs042<br />
+	where	tdsls045._index1 inrange {:orno.f} and {:orno.t}<br />
+	and    	tdsls045.cuno inrange :cuno.f and :cuno.t<br />
+	and    	tdsls045.srnb = 0<br />
+	and    	tdsls045.pono &lt;&gt; 0<br />
+	and    	tdsls045.orno refers to tdsls040<br />
+	and    	tdsls040.cotp refers to tcmcs042<br />
+	and    	tdsls045.cuno refers to tccom010 unref skip<br />
+	and    	tdsls045.cmba refers to tdsls041<br />
+	order by tdsls045.orno,	tdsls045.pono, tdsls045.srnb<br />
+	selectdo<br />
+		update.tdsls041.taxcodes(tdsls045.orno,tdsls045.pono,tdsls045.pono)<br />
+		| Get Alt. Item by Item Code Systemq		| CSI.bn<br />
+		select	tiitm012.aitc<br />
+		from	tiitm012<br />
+		where	tiitm012.item = :tdsls041.item<br />
+	  	and	tiitm012.cntr = :tdsls041.cntr<br />
+	  	and	tiitm012.citt = :tdsls041.citt<br />
+		selectdo<br />
+		endselect<br />
+		<br />
+		line	  = 1<br />
+		rprt_send()<br />
+		line	  = 0<br />
+		print.text.itemlines.isls0013()<br />
+		print.instalment.schedule()<br />
+		txtn.ptr = 0<br />
+		<br />
+	endselect<br />
+<br />
+	|select *<br />
+	|from tdsls048<br />
+	|where tdsls048._index1 inrange {:orno.f} and {:orno.t}<br />
+	|selectdo<br />
+	|	print.instalment.schedule()<br />
+	|endselect<br />
+	<br />
+}<br />
+<br />
+function print.text.itemlines.isls0013()<br />
+{<br />
+	stand.desc = true<br />
+	if tdsls041.sdsc = tcyesno.yes then<br />
+		print.standard.text.isls0013()<br />
+		isls.cdel.nama.l = &quot;&quot;				|#10023304.n<br />
+		| In several reports there is check on this variable.<br />
+		| When this variable isn't initialized, the delivery date would<br />
+		| be printed twice.<br />
+	endif<br />
+	print.itemline.text.isls0013()<br />
+}<br />
+<br />
+function print.standard.text.isls0013()<br />
+{<br />
+	search.textnumber.isls0013()<br />
+	if txtn.ptr &lt;&gt; 0 then<br />
+		rprt_send()<br />
+	else<br />
+		stand.desc = false<br />
+		rprt_send()<br />
+		stand.desc = true<br />
+	endif<br />
+}<br />
+<br />
+function search.textnumber.isls0013()<br />
+{<br />
+<br />
+	txtn.ptr = 0<br />
+	if not isspace(tdsls041.cprj) and tdsls041.opol = tcittc.customized then<br />
+		find.text.for.customized.item.isls0013()<br />
+	else<br />
+		tdsls020.item = tdsls041.item<br />
+		tdsls020.cntr = tdsls041.cntr<br />
+		fix.cuno.for.item.description.isls0013()<br />
+		read.sls020.1eq.isls0013()<br />
+		if tdsls020.txta &lt;&gt; 0 then<br />
+			txtn.ptr = tdsls020.txta<br />
+		else<br />
+			tdsls020.cuno = tdsls040.cuno<br />
+			read.sls020.1eq.isls0013()<br />
+			if tdsls020.txta &lt;&gt; 0 then<br />
+				txtn.ptr = tdsls020.txta<br />
+			else<br />
+				txtn.ptr = 0<br />
+			endif<br />
+		endif<br />
+	endif<br />
+}<br />
+<br />
+function fix.cuno.for.item.description.isls0013()<br />
+{<br />
+	if not isspace(tdsls040.pctx) then<br />
+		tdsls020.cuno = tdsls040.pctx<br />
+	else<br />
+		tdsls020.cuno = tdsls040.cuno<br />
+	endif<br />
+}<br />
+<br />
+function read.sls020.1eq.isls0013()<br />
+{<br />
+	table ttdsls020<br />
+	<br />
+	select	tdsls020.txta<br />
+	from	tdsls020<br />
+	where	tdsls020._index1 = {:tdsls020.cuno, :tdsls020.item,<br />
+				    :tdsls020.cntr}<br />
+								|HYDRPD_3.sn<br />
+	as set with 1 rows<br />
+								|HYDRPD_3.en<br />
+	selectdo<br />
+	selectempty<br />
+		tdsls020.txta = 0<br />
+	endselect<br />
+}<br />
+<br />
+function find.text.for.customized.item.isls0013()<br />
+{<br />
+	table	ttipcs021<br />
+	domain	tctxtn		hold.tiitm001.txts<br />
+<br />
+	if not isspace(tipcs021.cpvr) then<br />
+		txtn.ptr = itm.txtn<br />
+		return<br />
+	endif<br />
+	if isspace(tipcs021.dfit) then<br />
+		txtn.ptr = itm.txtn<br />
+		return<br />
+	endif<br />
+<br />
+	select	tiitm001.txts:hold.tiitm001.txts<br />
+	from	tiitm001<br />
+	where	tiitm001.item = :tipcs021.dfit<br />
+								|HYDRPD_3.sn<br />
+	as set with 1 rows<br />
+								|HYDRPD_3.en<br />
+	selectdo<br />
+	selectempty<br />
+		txtn.ptr = itm.txtn<br />
+		return<br />
+	endselect<br />
+<br />
+	tdsls020.item = tipcs021.dfit<br />
+	tdsls020.cntr = &quot;&quot;<br />
+	fix.cuno.for.item.description.isls0013()<br />
+	read.sls020.1eq.isls0013()<br />
+	if tdsls020.txta &lt;&gt; 0 then<br />
+		txtn.ptr = tdsls020.txta<br />
+	else<br />
+		tdsls020.cuno = tdsls040.cuno<br />
+		read.sls020.1eq.isls0013()<br />
+		if tdsls020.txta &lt;&gt; 0 then<br />
+			txtn.ptr = tdsls020.txta<br />
+		else<br />
+			txtn.ptr = hold.tiitm001.txts<br />
+		endif<br />
+	endif<br />
+}<br />
+<br />
+function print.itemline.text.isls0013()<br />
+{<br />
+ 	if tdsls041.txta then<br />
+		txtn.ptr = tdsls041.txta<br />
+		rprt_send()<br />
+	endif<br />
+}<br />
+<br />
+|*************************** deal instalments **********************************<br />
+<br />
+function print.instalment.schedule()<br />
+{<br />
+	table	ttdsls048<br />
+	domain tcpono save.pono<br />
+<br />
+	line	  = 2			| header<br />
+	save.pono = tdsls045.pono<br />
+	set.max(tdsls045.pono)		| to force to end of acknowledgement<br />
+	select tdsls048.*, tcmcs036.*<br />
+	from   tdsls048, tcmcs036<br />
+	where  tdsls048._index1	= {:tdsls045.orno}<br />
+	and    tdsls048.srnb = 0<br />
+	and    tdsls048.cmba refers to tcmcs036<br />
+	order by tdsls048.orno,	tdsls048.srna, tdsls048.srnb<br />
+	selectdo<br />
+<br />
+		tdsls041.cvat =	tdsls048.cvat<br />
+		rprt_send()<br />
+		if line	= 2 then<br />
+			line = 3	| detail<br />
+			rprt_send()<br />
+		endif<br />
+	endselect<br />
+	tdsls045.pono =	save.pono<br />
+}<br />
+<br />
+|**** end of include ****<br />
+<br />
+|**** end of source ****<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+|******************************************************************************<br />
+|* tdsls940101000   VRC B40C c4 csi0<br />
+|* Sales Order Acknowledgement<br />
+|* bsp<br />
+|* 06-17-05 [10:21]<br />
+|******************************************************************************<br />
+|<br />
+|*<br />
+declaration:<br />
+	double 			good.total<br />
+	string			date(10)<br />
+<br />
+	long			array.length<br />
+	long			disc.ind<br />
+	long			disc.array			|#10229340.n<br />
+	long			dummy.long<br />
+	string			dummy.string(1)<br />
+	domain	tcdiam 		discount		|10227874.n<br />
+	<br />
+	domain	tcmcs.str30	disc.difo<br />
+	domain	tcmcs.str30	pric.difo<br />
+	<br />
+	extern	domain	tcmcs.str12	disc.expr	fixed<br />
+	extern	domain	tcaitm		tiitm012.aitc		| CSI <br />
+	extern	domain	tcdsca		tcmcs080.dsca		| CSI<br />
+	extern	domain	tcnama		tccom001.nama		| CSI<br />
+	extern	domain	tcnama		billing.address(5)	| CSI<br />
+	extern	domain	tcnama		delivery.address(5)	| CSI<br />
+	extern	domain	tcnama		delivery.label		| CSI<br />
+<br />
+<br />
+	<br />
+	long			tx.ctr	<br />
+	extern  double		cvat.totl			|#TAXP.en<br />
+<br />
+  	#include &quot;itdsls0006&quot;	| calculate invoice totals<br />
+<br />
+before.program:<br />
+	date = sprintf$(&quot;%D001,&quot; &amp; lattr.language$,date.num())<br />
+	array.length = tdsls.dll0022.array.length()<br />
+	rdi.domain(&quot;tcdisc&quot;,disc.difo,dummy.string,dummy.string,dummy.long,<br />
+		   dummy.string,dummy.long)<br />
+	rdi.domain(&quot;tcdiam&quot;,pric.difo,dummy.string,dummy.string,dummy.long,<br />
+							|10227874.n<br />
+		   dummy.string,dummy.long)<br />
+<br />
+detail.10:<br />
+before.layout:<br />
+	| Get Alt. Item by Item Code System		<br />
+	select	tiitm012.aitc<br />
+	from	tiitm012<br />
+	where	tiitm012.item = :tdsls041.item<br />
+	  and	tiitm012.cntr = :tdsls041.cntr<br />
+	  and	tiitm012.citt = :tdsls041.citt<br />
+	selectdo<br />
+	endselect	<br />
+<br />
+	if trim(tdsls041.cprj) = &quot;&quot; then<br />
+		itm.dsca = get.itemdesc(tdsls041.item)<br />
+	else<br />
+		itm.dsca = get.projectitemdesc(tdsls041.cprj,tdsls041.item)<br />
+	endif<br />
+	<br />
+<br />
+	if tdsls041.disc(1) &lt;&gt; 0 then<br />
+		discount  = tdsls041.disc(1)<br />
+		disc.expr = sprintf$(&quot;%@&quot;&amp;disc.difo&amp;&quot;@&quot;,discount)<br />
+		disc.expr = shiftr$(disc.expr)<br />
+	else<br />
+		discount  = tdsls041.ldam(1)<br />
+		disc.expr = pric.difo &amp; &quot;,&quot; &amp; tdsls040.ccur<br />
+		disc.expr = sprintf$(disc.expr,discount)<br />
+	endif<br />
+	<br />
+<br />
+	disc.ind = 1<br />
+        if ( line = 1 ) then<br />
+                fill.incl.variables.isls0006()<br />
+  		update.line.totals.isls0006()<br />
+        endif<br />
+	<br />
+before.field.tdsls045.orno.5:<br />
+before.layout:<br />
+	message(&quot;get tax&quot;&amp;str(tdsls045.orno)&amp;str(tdsls045.pono))<br />
+	| Get Tax Codes<br />
+	update.tdsls041.taxcodes(tdsls045.orno,tdsls045.pono,tdsls045.pono)<br />
+	| Get Alt. Item by Item Code Systemq		| CSI.bn<br />
+	select	tiitm012.aitc<br />
+	from	tiitm012<br />
+	where	tiitm012.item = :tdsls041.item<br />
+	  and	tiitm012.cntr = :tdsls041.cntr<br />
+	  and	tiitm012.citt = :tdsls041.citt<br />
+	selectdo<br />
+	endselect<br />
+<br />
+detail.11:<br />
+before.layout:<br />
+	<br />
+<br />
+	disc.ind = disc.ind + 1<br />
+	if disc.ind &lt;= array.length then<br />
+		if tdsls041.disc(disc.ind) &lt;&gt; 0 then<br />
+			<br />
+			discount  = tdsls041.disc(disc.ind)<br />
+			disc.expr = sprintf$(&quot;%@&quot;&amp;disc.difo&amp;&quot;@&quot;, discount)<br />
+			disc.expr = shiftr$(disc.expr)<br />
+			<br />
+		else<br />
+			discount  = tdsls041.ldam(disc.ind)<br />
+			disc.expr = pric.difo &amp; &quot;,&quot; &amp; tdsls040.ccur<br />
+			disc.expr = sprintf$(disc.expr,discount)<br />
+		endif<br />
+		if discount = 0 then<br />
+			lattr.print = false<br />
+			<br />
+								|#10229340.sn<br />
+			for disc.array = disc.ind to array.length<br />
+				if tdsls041.disc(disc.array) &lt;&gt; 0 then<br />
+					lattr.print = true<br />
+				endif<br />
+								|#11961-1.sn<br />
+				if tdsls041.ldam(disc.array) &lt;&gt; 0 then<br />
+					lattr.print = true<br />
+				endif<br />
+								|#11961-1.en<br />
+			endfor					|#10229340.en<br />
+		endif<br />
+	else<br />
+		lattr.print = false<br />
+	endif<br />
+<br />
+after.layout:<br />
+	if disc.ind + 1 &lt;= array.length then<br />
+		layout.again()<br />
+	endif<br />
+<br />
+detail.35:							|#10224135.sn<br />
+before.layout:<br />
+        if tdsls041.sdsc = tcyesno.yes and tdsls041.txta and<br />
+           not tdsls041.txta = txtn.ptr then<br />
+                lattr.print = false<br />
+        endif                                                   |#10224135.en<br />
+<br />
+detail.140:							|#TAXP.sn<br />
+before.layout:<br />
+	lattr.print = (tcmcs010.pltx.l = tcyesno.yes) and<br />
+		      tccom999.txpr = tcyesno.yes and<br />
+		      line = 1 and<br />
+		      cvat.amount &lt;&gt; 0 ? true : false<br />
+<br />
+after.orco.1:<br />
+before.layout:<br />
+	cuno.isls0006 = tdsls040.cuno				|#31bglo.sn<br />
+	tax.exempt.isls0006 = true				|#31bglo.en<br />
+	calculate.invoice.totals.isls0006()<br />
+<br />
+<br />
+after.orco.4:			<br />
+before.layout:<br />
+	lattr.print = false<br />
+	if print.ctau.header.isls0006() then<br />
+		lattr.print = true<br />
+		tx.ctr = 1<br />
+	else <br />
+		tx.ctr = max.cvat<br />
+	endif<br />
+<br />
+after.orco.5: 			<br />
+before.layout:<br />
+	lattr.print = false<br />
+	while tx.ctr &lt;&gt; max.cvat and not lattr.print<br />
+		if print.ctau.line.isls0006(tx.ctr) then<br />
+			lattr.print = true <br />
+		else <br />
+			tx.ctr = tx.ctr + 1<br />
+		endif<br />
+	endwhile<br />
+<br />
+after.layout:<br />
+	if tx.ctr &lt;&gt; max.cvat then<br />
+		tx.ctr = tx.ctr + 1<br />
+		layout.again()<br />
+	endif				<br />
+<br />
+after.orco.8:			<br />
+before.layout:<br />
+	lattr.print = false<br />
+	if print.ctau.header.isls0006() then<br />
+		lattr.print = true<br />
+	endif							|#TAXP.en<br />
+<br />
+after.orco.20:							|EV#10229818<br />
+before.layout:<br />
+	if tdsls000.oatd.4 = tdpur.pram.gross.and.disc then	|#4.0.n<br />
+		good.total = grgo.totl<br />
+		cost.totl  = grco.totl<br />
+	else<br />
+		good.total = good.totl<br />
+	endif<br />
+	if ( tdsls000.oatd.4 ) = tdpur.pram.nett.no.disc then	|#10229818.sn<br />
+		oatd = 1<br />
+	endif							|#10229818.en<br />
+	r.head.control()<br />
+	skip.to(spool.pg.length - 11)<br />
+<br />
+after.layout:<br />
+  	init.all.totals.isls0006()<br />
+	lattr.pageno = 0<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+before.orco.70:<br />
+before.layout:<br />
+	<br />
+	|message(str$(tdsls040.orno))<br />
+<br />
+	| Sales Order<br />
+	select	tdsls040.cfrw, tdsls040.crep<br />
+	from	tdsls040<br />
+	where	tdsls040._index1 = {:tdsls040.orno}<br />
+	selectdo<br />
+	endselect<br />
+	<br />
+<br />
+	| Get Forwarding Agent description<br />
+	select	tcmcs080.dsca<br />
+	from	tcmcs080<br />
+	where	tcmcs080._index1 = {:tdsls040.cfrw}<br />
+	selectdo<br />
+	endselect<br />
+<br />
+	| Get Sales Rep name<br />
+	select	tccom001.nama<br />
+	from	tccom001<br />
+	where	tccom001._index1 = {:tdsls040.crep}<br />
+	selectdo<br />
+	endselect<br />
+<br />
+	|Fill in addresses<br />
+	if fill.sales.delivery.address(tdsls040.orno, tdsls040.cuno, tdsls040.ccor, delivery.address ) then<br />
+		delivery.label = &quot;Delivery&quot;<br />
+		|message(worksite.label)<br />
+	else<br />
+		delivery.label = &quot;&quot;<br />
+	endif<br />
+	<br />
+	if not fill.sales.postal.address(tdsls040.orno, tdsls040.cuno, tdsls040.ccor, billing.address ) then<br />
+		fill.customer.address(tdsls040.cuno,billing.address )	<br />
+	endif<br />
+	billing.address(1,1) = billing.address(1,1)<br />
+<br />
+<br />
+field.tdsls040.txta:<br />
+before.print:<br />
+	validate.textline()<br />
+<br />
+field.tdsls040.txtb:<br />
+before.print:<br />
+	validate.textline()<br />
+<br />
+field.txtn.ptr:<br />
+before.print:<br />
+	validate.textline()<br />
+<br />
+field.tdsls048.txta:<br />
+before.print:<br />
+	validate.textline()<br />
+<br />
+|*** functions *****************************************************************<br />
+<br />
+functions:<br />
+<br />
+function validate.textline()<br />
+{<br />
+	if ( lattr.prline(1;1) = &quot;&gt;&quot; ) then<br />
+		lattr.prline = lattr.prline(2)<br />
+	else<br />
+		if ( lattr.prline(1;1) = &quot;&lt;&quot; ) then<br />
+			lattr.print = false<br />
+		endif<br />
+	endif<br />
+}<br />
+<br />
+function fill.incl.variables.isls0006()				|EV#46666<br />
+{<br />
+	date.isls0006 = tdsls040.odat<br />
+	ccty.isls0006 = tdsls041.ccty<br />
+	ccur.isls0006 = tdsls040.ccur<br />
+        rate.isls0006 = tdsls045.rats<br />
+        ratf.isls0006 = tdsls045.ratf<br />
+        crnd.isls0006 = tcmcs002.crnd<br />
+        if ( tdsls040.cvyn = tcyesno.yes ) then<br />
+                cvat.isls0006 = tdsls041.cvat<br />
+        else<br />
+		cvat.isls0006 = &quot;&quot;<br />
+        endif<br />
+<br />
+	if ( tdsls041.pric &lt;&gt; 0 and tdsls041.oqua &lt;&gt; 0 ) then<br />
+<br />
+		tdsls.dll0022.calc.net.amount(	tdsls041.cvqs,	|#4.0.sn<br />
+						tdsls041.cvps,<br />
+						tdsls041.oqua,<br />
+						tdsls041.pric,<br />
+						tdsls040.ccur,<br />
+						crnd.orno,<br />
+						tdsls041.dmth,<br />
+						tdsls041.disc,<br />
+						tdsls041.ldam,<br />
+						amnt.isls0006,<br />
+						ldam.isls0006)	|#4.0.en<br />
+<br />
+<br />
+	else<br />
+		amnt.isls0006 = tdsls041.amta<br />
+		ldam.isls0006 = 0.0<br />
+	endif<br />
+	if itm.kitm &lt;&gt; tckitm.cost and itm.kitm &lt;&gt; tckitm.service then<br />
+<br />
+		odam.isls0006 = amnt.isls0006 - imcs0010.amnt.min.odis(<br />
+							   amnt.isls0006,<br />
+								|#46666.en<br />
+							   tdsls040.odis,<br />
+							   tdsls040.ccur,<br />
+							   crnd.orno)<br />
+	else<br />
+		odam.isls0006 = 0<br />
+	endif<br />
+}<br />
+<br />
+|**** end of report ****</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th July 2007, 21:27</div></div><div class="posttext">Okay - this is in the report somewhere.  Can you tell which layout prints which fields?  What are the output expresions? What it looks like is there are several detail layouts to print all of the information.  Is the text information you are referring to in a detail layout? If it is then you have to look at the output expression to see why it is true for each of these layouts.  My first thought was that the sales order lines (and text) should be in a before.field layout.  Keep in mind I really do not know how the sales stuff works, but you should certainly be able to turn off that text.  To me it looks like it is in the output expression.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">countnikon</div><div class="date">20th July 2007, 21:55</div></div><div class="posttext">I believe that it is detail.20 printing the text.<br />
+<br />
+Also the print expression is txtn.ptr I believe.<br />
+<br />
+detail.60 is printing the installment lines.<br />
+<br />
+detail.70 is printing the installment text.<br />
+<br />
+I'm editing this report that my boss did and I've never messed with the BaaN reports before so I'm really struggling with this.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th July 2007, 22:10</div></div><div class="posttext">So then I would say you need to change the print expression on detail.20 that is printing the text.  Evidently the text.ptr is set for both types of detail lines.  Usually like some of the bom reports you have print expressions like k.of.data - depending on which detail you print on what you sent in k.of.data.  So you might be able to look at the out expression for detail.60 - see that what it says.  The change detail.20 output expression to be something like text.ptr and not (detail.20 output expression).  So try playing with combining the two output expressions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">countnikon</div><div class="date">20th July 2007, 23:39</div></div><div class="posttext">Mark,<br />
+<br />
+It turns out I was a bit wrong on what field was what on this report.  Thanks for all your help.  If it weren't for you, I would have been in all the wrong places.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

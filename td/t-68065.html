@@ -1,0 +1,93 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to reduce time while exporting data on exchange schema, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to reduce time while exporting data on exchange schema Tools Development" />
+	
+	<title>How to reduce time while exporting data on exchange schema [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; How to reduce time while exporting data on exchange schema</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">satheeshv</div><div class="date">24th August 2015, 14:52</div></div><div class="posttext">Dear All,<br />
+<br />
+I have a situation to export all customer (tccom010) information from baan 4 using exchange schema along with last doument date, amount. these fields are from tfacr200.<br />
+<br />
+I created condition for  document date and amount.<br />
+<br />
+but the problem is total number of customer are around 16000 and number of records in tfacr200 are more than 20 lakhs. it is running more than 10 hrs for exporting data and client is not accepting  customization session for exporting.<br />
+<br />
+Condition maintained for Last document date:-<br />
+<br />
+select tfacr200.docd<br />
+from  tfacr200<br />
+where tfacr200._index2={:tccom010.cuno}<br />
+and tfacr200.trec =tfacr.trec.normal<br />
+or tfacr200.trec=tfacr.trec.invoice<br />
+or tfacr200.trec=tfacr.trec.anticipated<br />
+order by tfacr200.docd desc<br />
+as set with 1 rows<br />
+selectdo<br />
+            return(tfacr200.docd)<br />
+endselect.<br />
+<br />
+<br />
+Could you please suggest me how to reduce the time.   <br />
+<br />
+advance thanks for your help.<br />
+<br />
+Thanks,<br />
+sathish</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th August 2015, 15:18</div></div><div class="posttext">Any other fields you might have?  Are you doing this for each of the fields in tfacp200 that you have to return?  Is it possible(been a while since I messed with exchange schemes) to do one query and return all the fields needed.  My first thought was to build a new table with just the tfacp200 components in it that you needed - something that could be run in a batch job and build before the export.  Not sure the customer would let you do it.  There are other indexes, but it would get back to the same issue - sorting them descending each time.  We have an index 5 which starts with supplier, document date.  I am not sure an order by on that index descending would be any better.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">27th August 2015, 05:53</div></div><div class="posttext">Sathish,<br />
+<br />
+Did you run all your SQL's in profilers to see they are performing well?<br />
+<br />
+Checking your SQL code -<br />
+<br />
+<br />
+select tfacr200.docd<br />
+from tfacr200<br />
+where tfacr200._index2={:tccom010.cuno}<br />
+and tfacr200.trec =tfacr.trec.normal<br />
+or tfacr200.trec=tfacr.trec.invoice<br />
+or tfacr200.trec=tfacr.trec.anticipated<br />
+order by tfacr200.docd desc<br />
+as set with 1 rows<br />
+selectdo<br />
+return(tfacr200.docd)<br />
+endselect.<br />
+<br />
+order by tfacr200.docd desc<br />
+as set with 1 rows<br />
+Why do you need to order by descending date when you are expecting only 1 record?<br />
+You can always use the max(tfacr200.docd)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">27th August 2015, 07:39</div></div><div class="posttext">The problem is the order by clause itself. However, it is required because you need the last date of document for the customer.<br />
+<br />
+Try as follows:<br />
+<br />
+order by tfacr200._index2, tfacr200.docd desc<br />
+<br />
+<br />
+This will force the use of the index which happens to be your primary constraint.<br />
+<br />
+If that does not improve the performance, then try using max(tfacr200.docd). Then you will not need the order by clause - still recommend you use the same order by clause a above. You will of course need the group by. I am not familiar with Exchange, so not sure if max() is allowed. Also you will then have to assign the max value to a program variable.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

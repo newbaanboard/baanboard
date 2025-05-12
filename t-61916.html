@@ -1,0 +1,124 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Issues with Confirm Receipt AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Issues with Confirm Receipt AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>Issues with Confirm Receipt AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Issues with Confirm Receipt AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">raikar_raviraj</div><div class="date">13th February 2012, 13:33</div></div><div class="posttext">Hi,<br />
+<br />
+We have written an AFS code in ERP LN for execution of Confirm Receipt(tdpur4106m000) through PO Line Status session (tdpur4534m000).<br />
+But we are not able to achieve the end result. <br />
+<br />
+Process executes completely, but it doesnt perform the intended functionality. DAL is not activated on tables, hence AFS is being used.<br />
+<br />
+Find below the piece of code written.<br />
+<br />
+<br />
+function process()<br />
+|Function to call Print PO and Purchase Receipts session<br />
+{<br />
+		long		find.ret	|Find Ret Value<br />
+	domain tcmcs.st60m 	next.step 	|Next Step			<br />
+	<br />
+	stpapi.put.field(&quot;tdpur4534m000&quot;, &quot;tdpur401.orno&quot;, pord)<br />
+	stpapi.put.field(&quot;tdpur4534m000&quot;, &quot;tdpur401.pono&quot;, str$(poln))<br />
+	stpapi.put.field(&quot;tdpur4534m000&quot;, &quot;tdpur401.sqnb&quot;, str$(pops))<br />
+	find.ret = stpapi.find( &quot;tdpur4534m000&quot; , error)<br />
+	<br />
+	stpapi.get.field(&quot;tdpur4534m000&quot;, &quot;next.step&quot;, next.step )<br />
+	<br />
+	if pos(next.step,&quot;Print Purchase Orders&quot;) then<br />
+		execute.Print.Purchase.Orders()<br />
+		stpapi.get.field(&quot;tdpur4534m000&quot;, &quot;next.step&quot;, next.step )<br />
+	endif<br />
+	if pos(next.step,&quot;Purchase Receipts&quot;) then<br />
+		execute.Purchase.Receipts()<br />
+	endif	<br />
+	stpapi.end.session(&quot;tdpur4534m000&quot; , error)<br />
+}<br />
+<br />
+function execute.Print.Purchase.Orders()<br />
+|Function to execute Print PO <br />
+{<br />
+	stpapi.handle.subproc(&quot;tdpur4534m000&quot;, &quot;tdpur4401m000&quot;, &quot;add&quot;)<br />
+	stpapi.form.command(&quot;tdpur4534m000&quot;, 5, &quot;execute.next.step&quot;, error)<br />
+	stpapi.set.report(&quot;tdpur4401m000&quot;, &quot;rtdpur440101000&quot;, &quot;D&quot;, error)<br />
+	stpapi.print.report(&quot;tdpur4401m000&quot;, error)<br />
+	stpapi.end.session(&quot;tdpur4401m000&quot; , error)<br />
+}<br />
+<br />
+function execute.Purchase.Receipts()<br />
+||Function to execute Purchase Receipts<br />
+{<br />
+	domain tcdate t<br />
+	domain	tcorno	orno<br />
+	domain  tcpono	pono<br />
+	domain  tcpono	seqn<br />
+	long retval<br />
+	<br />
+	stpapi.form.command(&quot;tdpur4534m000&quot;, 5, &quot;execute.next.step&quot;, error)<br />
+	orno = tdpurf4106m000.get.Purchase_Order()<br />
+	pono = tdpurf4106m000.get.Order_Line_Receipt()<br />
+	seqn = tdpurf4106m000.get.Sequence()<br />
+	tdpurf4106m000.put.Purchase_Order(pord)<br />
+	tdpurf4106m000.put.Order_Line_Receipt(poln)<br />
+	tdpurf4106m000.put.Sequence(pops)<br />
+	t = utc.num()<br />
+	tdpurf4106m000.put.Actual_Receipt_Date(t)<br />
+	stpapi.put.field(&quot;tdpur4106m000&quot;, &quot;tdpur406.rcno&quot;, &quot;R3&quot;)<br />
+	stpapi.put.field(&quot;tdpur4106m000&quot;, &quot;tdpur406.fire&quot;, &quot;tcyesno.no&quot;)<br />
+	stpapi.put.field(&quot;tdpur4106m000&quot;, &quot;form.qodl&quot;, str$(num_unit))<br />
+	stpapi.put.field(&quot;tdpur4106m000&quot;, &quot;tdpur406.qidl&quot;, str$(num_unit))<br />
+	stpapi.form.command(&quot;tdpur4106m000&quot;, 5, &quot;confirm.receipts&quot;, error)<br />
+	stpapi.end.session(&quot;tdpur4106m000&quot; , error)<br />
+}<br />
+<br />
+One thing i have observed is values are not being passed in to the child session. Have written get.field function, but that doesnt return any value. <br />
+<br />
+Please help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th February 2012, 16:02</div></div><div class="posttext">Does the first step - print work?  I also notice on the second step you do not have a stpapi.handle.subproc for tdpur4106m000?  Probably need that first.  Also why are you getting fields, then turning around and putting them?  I mean if the fields are supposed to be already populated then I can see using the get field just to see what they are.  And if the fields are supposed to be populated then you don't need the put. BUT if the fields are not filled then you should put them first, then get them to see if they are populated. <br />
+<br />
+I won't be much help since this is LN. So I am not familiar with the sessions and the requirements.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">raikar_raviraj</div><div class="date">13th February 2012, 21:29</div></div><div class="posttext">The Print works perfectly fine. I used stpapi.handle.subproc, just before the stpapi.form.command, but that doesnt help either. I used the get functions, just to check if proper values are passed from main session to child session. But null values are returned. Hence put values for mandatory fields of Confirm Receipt are used. This is a peculiar problem. If anyone has worked with similar structure or necessity before, please help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th February 2012, 00:01</div></div><div class="posttext">Well usually the stpapi.handle.subproc sets up the communication link for the main session to the called session.  I was hoping that was it, but it sounds like you tried it. The only other thing I can think of is - do you have to call it this way - from tdpur4534m000 to tdpur4106m000?  I was wondering if you could just call tdpur4106m000 directly since it looks like a main session.  Then you would have to put all the fields, do an insert, etc. to get a receipt.  Sorry not much help, but never used LN and not sure how it works.<br />
+<br />
+Do you own source code?  You might be able to put the sessions in debug mode to see what is happening.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">raikar_raviraj</div><div class="date">14th February 2012, 09:54</div></div><div class="posttext">Mark,<br />
+<br />
+The session behaves and opens differently if called from a parent session and if called individually. Refer the attached screenshot. I would like it to be called from tdpur4534m000, as the Receipt Confirmation is done through this session.<br />
+<br />
+Also tdpur4106m000 is a main session in itself, hence handle subproc doesnt work either.<br />
+<br />
+When i manually operate it in the above fashion, it works perfectly fine. But fails to work through AFS. Have debugged the script, but cant trace the problem.<br />
+It operates successfully without giving any errors, but doesnt do the intended functionality.<br />
+<br />
+Also find attached the AFS Log.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th February 2012, 16:20</div></div><div class="posttext">I see what you are talking about in the log file.  Once tdpur4106m000 is up those fields should be viewed.  I am not sure what might solve it.  If you can debug tdpur4106m000 I would pay attention to when and how the session starts.  Checking at the start to make sure everything is filled correctly before the form starts coming up.  You might have to run it manually and document what happens, then run thru AFS and see what happens.  There has to be a difference to account for those fields being empty. YYou might even have to trace it all the way thru.  Not an easy task.  Sorry not much help, but just not seeing many options.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

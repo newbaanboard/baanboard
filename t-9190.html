@@ -1,0 +1,236 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Maintain Stock Transfers by Lot and Location by AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Maintain Stock Transfers by Lot and Location by AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>Maintain Stock Transfers by Lot and Location by AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Maintain Stock Transfers by Lot and Location by AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">hantes</div><div class="date">10th March 2003, 17:33</div></div><div class="posttext">Hi everybody,<br />
+<br />
+i tried to start the Subsession tdilc1122s000 via AFS. <br />
+<br />
+When inserting the recordset an error message apears: &quot;Session not available&quot;. <br />
+See Code:<br />
+stpapi.put.field( &quot;tdilc1122s000&quot;, &quot;tdilc103.cprj&quot;, value )<br />
+...<br />
+stpapi.put.field( &quot;tdilc1122s000&quot;, &quot;tdilc103.strt&quot;, value )<br />
+retval = stpapi.insert(&quot;tdilc1122s000&quot;, 1, error)		<br />
+stpapi.get.mess.code(&quot;tdilc1122s000&quot;, error)<br />
+<br />
+if not isspace(error) then<br />
+     message(&quot;%s&quot;,error)<br />
+endif<br />
+<br />
+Does anybody have experience with this Subsession? Because i can´t control the backgroundmode.<br />
+<br />
+thank you in advance<br />
+<br />
+Hantes<br />
+<br />
+<br />
+<br />
+ <br />
+:confused: :confused: :confused: :confused: :confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">10th March 2003, 17:55</div></div><div class="posttext">Subsessions are started from Main sessions in Baan, this is also true in AFS. Try starting the main session proceeding on to this subsession.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th March 2003, 19:43</div></div><div class="posttext">Yes - Gordon is correct you need to start the main session first.  Below is a sample from my very first API type function server - bin to bin transfers.  Also I use ttstpcreatdll to create libraries for the sessions - so dll1120 is really for tdilc1120m000 and dll1122 is really for tdilc1122s000.<br />
+<br />
+Good Luck!<br />
+<br />
+Mark<br />
+<br />
+<br />
+| Handle sub session<br />
+		dll1120.handle.sub.process(&quot;tdilc1122s000&quot;,&quot;add&quot;)<br />
+| Put Data<br />
+		dll1120.put.item(xfer.item)<br />
+		dll1120.put.Input_Date(date.num())<br />
+<br />
+| Attempt to put default<br />
+		dll1120.put.warehouse(xfer.fwh)<br />
+		dll1120.put.tdinv100.kowt(tckowt.wrh.transfer)<br />
+		dll1120.put.reason_code(&quot;   &quot;)<br />
+		dll1120.put.Order_date(date.num())<br />
+		dll1120.put.Planned_Quantity(pqty)<br />
+		dll1120.put.tdinv100.dwar(xfer.twh)<br />
+<br />
+| Now add record.<br />
+		dll1120.insert(1,err)<br />
+		if(strip$(err)&lt;&gt;&quot;&quot;) then<br />
+			sess_error(&quot;Insert: &quot;&amp; strip$(err),&quot;tdilc1120m000&quot;)<br />
+			continue<br />
+		endif<br />
+<br />
+| Continue and init sub-session.<br />
+		dll1120.continue(err)<br />
+		if(strip$(err)&lt;&gt;&quot;&quot;) then<br />
+			sess_error(&quot;Continue: &quot;&amp; strip$(err),&quot;tdilc1120m000&quot;)<br />
+			continue<br />
+		endif<br />
+<br />
+| Put info on subsession.<br />
+		dll1122s.put.From_Location(xfer.floc)<br />
+		dll1122s.put.To_Location(xfer.tloc)<br />
+| Put Lot if needed.<br />
+		if(tiitm001.kltc = tckltc.batch) then<br />
+			dll1122s.put.From_lot(xfer.lots)<br />
+		endif<br />
+		dll1122s.insert(1,err)<br />
+		if(strip$(err)&lt;&gt;&quot;&quot;) then<br />
+			sess_error(&quot;Insert Sub: &quot;&amp; strip$(err),&quot;tdilc1122s000&quot;)<br />
+			continue<br />
+		endif<br />
+<br />
+| Save subsesssion data to proc it.<br />
+		dll1122s.save(err)<br />
+		if(strip$(err)&lt;&gt;&quot;&quot;) then<br />
+			sess_error(&quot;Save: &quot;&amp; strip$(err),&quot;tdilc1122s000&quot;)<br />
+			continue<br />
+		endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">hantes</div><div class="date">13th March 2003, 15:07</div></div><div class="posttext">Hello,<br />
+<br />
+it works. My mistake was calling the Subsession directly from my own Baansession via AFS. <br />
+<br />
+Thank you for the tip.<br />
+<br />
+Hantes<br />
+:p</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">psehouri</div><div class="date">24th December 2003, 01:26</div></div><div class="posttext">Hello,<br />
+I was reading this and I have a question about the same session transaction...<br />
+<br />
+I made a VBScript to use AFS to do 1 stock transfers reading value in a file...<br />
+<br />
+When I Create and Quit a new connection with BaaN for each transfers, everything is OK,<br />
+but, when I try to use the same connection to insert 2 transfers, the second time, the subsession is not saved and an error message appears...<br />
+<br />
+Is it normal ???<br />
+<br />
+:confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th December 2003, 03:55</div></div><div class="posttext">Well I can not really speak for VB. I have never really processed records this way.  But in my Baan sessions which run AFS code for this session for Bin to Bin xfers it aborts after about 400 transactions.  This started happening within the last year, not really sure what Baan changed. Still I would expect more than two transactions, what error do you actually get?  Maybe you could post the VB code and one of the experts will see what the problem is.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">psehouri</div><div class="date">24th December 2003, 10:11</div></div><div class="posttext">Ok, I post you this code, but it works...<br />
+I just read again my code and make some corrections, and everything is OK now...<br />
+If you see thing wrong , tell me !!!<br />
+Maybe, it will help someone....<br />
+<br />
+VBScript<br />
+<br />
+Public Function CorrectionStock() <br />
+<br />
+SessionCorrection = &quot;tdilc1120m000&quot;<br />
+SousSession = &quot;tdilc1121s000&quot;<br />
+ErrMessage1 = Space(30)<br />
+<br />
+Dim BaanObj<br />
+Const ForReading = 1<br />
+Const TAB = &quot;|&quot;<br />
+Set fso = CreateObject(&quot;Scripting.FileSystemObject&quot;)<br />
+Set ListeOK = fso.OpenTextFile(&quot;corrections.txt&quot;, ForReading)<br />
+<br />
+	  ' DEBUT DE LA GESTION DES ERREURS<br />
+    	  On Error Resume Next<br />
+	  Set BaanObj = CreateObject(&quot;Baan4.Application&quot;) <br />
+	  BaanObj.Timeout = 1000<br />
+	  'GESTION DE L ERREUR SI BAAN NE PEUT ETRE LANCE<br />
+	  cpt1=0<br />
+	  Do While Err.Number &gt; 0<br />
+	    Err.Clear<br />
+	    cpt1 = cpt1 + 1<br />
+	    If cpt1 &gt;= 100 Then<br />
+	      MsgBox &quot;Impossible de lancer BaaN&quot;<br />
+	      Exit Function<br />
+	    End If<br />
+	    Set BaanObj = CreateObject(&quot;Baan4.Application&quot;) <br />
+	    BaanObj.Timeout = 1000<br />
+	  LOOP<br />
+	  'FIN DE LA GESTION DE L'ERREUR<br />
+<br />
+<br />
+Do WHILE ListeOK.AtEndOfStream &lt;&gt; TRUE <br />
+<br />
+'LIT LE CONTENU DE CORRECTIONS.TXT en séquence...<br />
+   LIGNE_LUE = ListeOK.ReadLine<br />
+   LIGNE_LUE = replace(LIGNE_LUE,&quot; &quot;,&quot;&quot;)<br />
+	   Essai =  InStr(1, LIGNE_LUE, Tab)-1<br />
+   CODEART = Mid(LIGNE_LUE, 1, Essai)<br />
+   MAG = Mid(LIGNE_LUE, Essai+2, InStr(Essai+2,LIGNE_LUE,Tab)-Essai-2)<br />
+	   Essai =  InStr(Essai+2, LIGNE_LUE, Tab)-1<br />
+   QTE = Mid(LIGNE_LUE, Essai+2, InStr(Essai+2,LIGNE_LUE,Tab)-Essai-2)<br />
+<br />
+	    Key = &quot;tdinv100.item&quot;<br />
+	    Value = CODEART<br />
+	    BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; SessionCorrection &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; Key &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; Value &amp; Chr(34) &amp; &quot;)&quot; <br />
+<br />
+	    Key = &quot;tdinv100.cwar&quot;<br />
+	    Value = MAG<br />
+	    BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; SessionCorrection &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; Key &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; Value &amp; Chr(34) &amp; &quot;)&quot; <br />
+<br />
+	    Key = &quot;tdinv100.kowt&quot;<br />
+	    Value = 5<br />
+	    BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; SessionCorrection &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; Key &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; Value &amp; Chr(34) &amp; &quot;)&quot; <br />
+<br />
+	    Key = &quot;tdinv100.pqan&quot;<br />
+	    Value = QTE<br />
+	    BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; SessionCorrection &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; Key &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; Value &amp; Chr(34) &amp; &quot;)&quot; <br />
+<br />
+	    BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.insert(&quot; &amp; Chr(34) &amp; SessionCorrection &amp; Chr(34) &amp; &quot;,1,&quot; &amp; Chr(34) &amp; ErrMessage1 &amp; Chr(34) &amp; &quot;)&quot;<br />
+<br />
+	    option1 = &quot;add&quot;<br />
+	    BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.handle.subproc(&quot; &amp; Chr(34) &amp; SessionCorrection &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; SousSession &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; option1 &amp; Chr(34) &amp; &quot;)&quot;<br />
+	    BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.continue.process(&quot; &amp; Chr(34) &amp; SessionCorrection &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; ErrMessage1 &amp; Chr(34) &amp; &quot;)&quot; <br />
+<br />
+	    Key = &quot;tdilc102.loca&quot;<br />
+	    Value = &quot;DIV&quot;<br />
+	    BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; SousSession &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; Key &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; Value &amp; Chr(34) &amp; &quot;)&quot; <br />
+<br />
+	    Key = &quot;tdilc102.qstr&quot;<br />
+	    Value = QTE<br />
+	    BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; SousSession &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; Key &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; Value &amp; Chr(34) &amp; &quot;)&quot; <br />
+<br />
+	    BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.insert(&quot; &amp; Chr(34) &amp; SousSession &amp; Chr(34) &amp; &quot;,1,&quot; &amp; Chr(34) &amp; ErrMessage1 &amp; Chr(34) &amp; &quot;)&quot;<br />
+	    BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.end.session(&quot; &amp; Chr(34) &amp; SousSession &amp; Chr(34) &amp; &quot;)&quot; <br />
+<br />
+	    BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.end.session(&quot; &amp; Chr(34) &amp; SessionCorrection &amp; Chr(34) &amp; &quot;)&quot; <br />
+<br />
+loop<br />
+<br />
+	    BaanObj.Quit<br />
+	    Set BaanObj = Nothing<br />
+<br />
+End Function <br />
+<br />
+Call CorrectionStock()</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th December 2003, 18:00</div></div><div class="posttext">Thanks for posting the code even though you got it working.  It will make a good example for others.<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

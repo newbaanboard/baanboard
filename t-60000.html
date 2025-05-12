@@ -1,0 +1,418 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Session goes directly to after.program, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Session goes directly to after.program AFS/DDC/OLE: Function servers" />
+	
+	<title>Session goes directly to after.program [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Session goes directly to after.program</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Thomasm</div><div class="date">8th February 2011, 20:33</div></div><div class="posttext">I have created a simple session (session A) and then a second session (session B) that calls the first session.<br />
+<br />
+I have both sessions in debug and I see that for each call from session B with stpapi.put.field (&quot;session A&quot;, ...) session A comes up in debugger at before.program and then goes directly to after.program and then dies. This happens at each call. Remvoving before.program only means it goes directly to after.program.<br />
+<br />
+What am I missing? :confused:<br />
+<br />
+Greatful for help.<br />
+/Thomas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th February 2011, 20:57</div></div><div class="posttext">Post the API code. And how does session b call the first session.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Thomasm</div><div class="date">8th February 2011, 21:24</div></div><div class="posttext">Thanks for your time Mark. Here is a simplified example of my two sessions.<br />
+<br />
+Session A, the session that is called via afs<br />
+<br />
+|******************************************************************************<br />
+|* Thomas Mårtensson             <br />
+|* 2010-11-12<br />
+|******************************************************************************<br />
+|* Main table tipcs020 Projects, Form Type 4<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+#pragma used dll ottstpapihand<br />
+<br />
+#include &lt;bic_tt&gt;	|include tools functions<br />
+<br />
+	table	ttipcs020	| Projects<br />
+<br />
+	extern	domain	tccprj        	cprj.f	fixed<br />
+	extern	domain	tccprj        	cprj.t	fixed<br />
+	extern	domain	tcpsta        	psta.f<br />
+	extern	domain	tcpsta        	psta.t<br />
+	extern	domain	tcmcs.str14        	f.device<br />
+<br />
+<br />
+	| Script<br />
+	extern  domain  tcmcs.str132    boi.call<br />
+	long 	dummy<br />
+	long	err.id<br />
+	string	err.msg(500)<br />
+<br />
+<br />
+<br />
+#include &quot;itssma0003&quot;			| Generate Area from Postcode<br />
+	<br />
+<br />
+|****************************** program section ********************************<br />
+before.program:<br />
+	_p.desc = sattr.descr$ | entry point when called via afs<br />
+	<br />
+| and then it goes directly to here<br />
+after.program:<br />
+	stpapi.end.session( &quot;tssma3101m000&quot;, err.msg )<br />
+<br />
+|****************************** ZOOM FROM   SECTION ***************************<br />
+zoom.from.all:<br />
+on.entry:<br />
+	get.screen.defaults()<br />
+	<br />
+	cprj.f = &quot;&quot;<br />
+	cprj.t = &quot;&quot;<br />
+	import(&quot;cprj.f&quot;, cprj.f)<br />
+	import(&quot;cprj.t&quot;, cprj.t)<br />
+<br />
+|****************************** form section **********************************<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+<br />
+|****************************** choice section ********************************<br />
+choice.cont.process:<br />
+on.choice:<br />
+	execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+	if rprt_open() then<br />
+		read.main.table()<br />
+		rprt_close()<br />
+	else<br />
+		choice.again()<br />
+	endif<br />
+<br />
+<br />
+choice.end.program:<br />
+before.choice:<br />
+	stpapi.end.session( &quot;tssma3101m000&quot;, err.msg )<br />
+	<br />
+choice.abort.program:<br />
+before.choice:<br />
+	stpapi.end.session( &quot;tssma3101m000&quot;, err.msg )<br />
+<br />
+<br />
+<br />
+|****************************** field section *********************************<br />
+<br />
+field.cprj.f:<br />
+when.field.changes:<br />
+	cprj.t = cprj.f<br />
+<br />
+field.psta.f:<br />
+when.field.changes:<br />
+	psta.t = psta.f<br />
+<br />
+field.f.device:<br />
+check.input:<br />
+	if not ( deviceExists( f.device ) ) then<br />
+		set.input.error(&quot;tcedis3012&quot;)<br />
+	endif<br />
+<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{<br />
+	<br />
+	select<br />
+		*<br />
+	from<br />
+		tipcs020<br />
+	where<br />
+		tipcs020._index1 inrange {:cprj.f} and {:cprj.t}<br />
+		and tipcs020.psta inrange :psta.f and :psta.t<br />
+	order by<br />
+		tipcs020._index1<br />
+	selectdo<br />
+		createServiceOrders(tipcs020.cprj)<br />
+	endselect<br />
+}<br />
+<br />
+function long createServiceOrders( domain tccprj cprj  )<br />
+{<br />
+| create a service order via tssma3101m000<br />
+}<br />
+<br />
+Then the session that is calling the above session via afs:<br />
+<br />
+|******************************************************************************<br />
+|* bxbmsb604m333  0  VRC B40O DV bsm1<br />
+|* Process 1-Sales<br />
+|* Thomas Mårtensson             <br />
+|* 2011-02-08<br />
+|******************************************************************************<br />
+|* Main table bxbms603 1-Sales Process Settings, Form Type 4<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+<br />
+#pragma used dll ottstpapihand<br />
+<br />
+	table	tbxbms603	| 1-Sales Process Settings<br />
+	table	ttipcs020	| Projects<br />
+	table	ttdsls041	| Sales Order Lines<br />
+<br />
+<br />
+	extern	domain	tcorno        	orno.f<br />
+	extern	domain	tcorno        	orno.t<br />
+	extern	domain	tcpsta        	psta.f	fixed<br />
+	extern	domain	tcpsta        	psta.t	fixed<br />
+<br />
+	domain	tccprj	hold.cprj<br />
+	long			more.to.process<br />
+<br />
+<br />
+	extern  domain  tcmcs.str132    boi.call<br />
+	string active.sessions.array( 13, 100 )<br />
+	long	num.active.sessions<br />
+<br />
+|****************************** PROGRAM     SECTION ***************************<br />
+before.program:<br />
+	num.active.sessions = 0<br />
+<br />
+after.program:<br />
+	closeAllSessions()<br />
+<br />
+|****************************** ZOOM FROM   SECTION ***************************<br />
+<br />
+<br />
+|****************************** form section **********************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+	if rprt_open() then<br />
+		<br />
+		more.to.process = true<br />
+		<br />
+		while more.to.process<br />
+			processAll()<br />
+		endwhile<br />
+<br />
+		rprt_close()<br />
+	else<br />
+		choice.again()<br />
+	endif<br />
+<br />
+<br />
+choice.end.program:<br />
+before.choice:<br />
+	closeAllSessions()<br />
+	<br />
+choice.abort.program:<br />
+before.choice:<br />
+	closeAllSessions()<br />
+<br />
+<br />
+|****************************** field section *********************************<br />
+<br />
+field.orno.f:<br />
+when.field.changes:<br />
+	orno.t = orno.f<br />
+<br />
+field.psta.f:<br />
+when.field.changes:<br />
+	psta.t = psta.f<br />
+<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function processAll()<br />
+{<br />
+	more.to.process = false<br />
+	<br />
+	db.retry.point()<br />
+	<br />
+	select<br />
+		*<br />
+	from<br />
+		tipcs020 for update,<br />
+		bxbms603,<br />
+		tdsls041<br />
+	where<br />
+		bxbms603._index1 inrange {:psta.f} and {:psta.t}<br />
+		and tdsls041._index1 inrange {:orno.f} and {:orno.t}<br />
+		and tipcs020.psta = bxbms603.psta<br />
+		and tipcs020.cprj = tdsls041.cprj<br />
+	order by<br />
+		bxbms603._index1<br />
+	selectdo<br />
+		if ( tdsls041.cprj &lt;&gt; &quot;&quot; and tdsls041.cprj &lt;&gt; hold.cprj ) then<br />
+			message( bxbms603.sess &amp; &quot; &quot; &amp; str$(tdsls041.cprj) )<br />
+			if ( processOneProject(tipcs020.cprj, bxbms603.sess) ) then<br />
+				tipcs020.psta = bxbms603.pstb<br />
+				db.update(ttipcs020, db.retry)<br />
+				commit.transaction()<br />
+			else<br />
+				break | error is NOT handled<br />
+			endif<br />
+			<br />
+			hold.cprj = tdsls041.cprj<br />
+			<br />
+			more.to.process = true<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+function long processOneProject( domain	tccprj cprj, domain	tcmcs.st13 sess )<br />
+{<br />
+	domain	tcmcs.str50 set.report.msg<br />
+	domain	tcmcs.s256 err.msg<br />
+	domain	tcmcs.s256 end.msg<br />
+	domain	tcmcs.s256 continue.msg<br />
+	domain	tcmcs.s256 recover.msg<br />
+	long recov<br />
+<br />
+	registerSession( sess )<br />
+	err.msg = &quot;&quot;<br />
+	set.report.msg = &quot;&quot;<br />
+	<br />
+	stpapi.put.field( sess, &quot;cprj.f&quot;, cprj )<br />
+	stpapi.put.field( sess, &quot;cprj.t&quot;, cprj )<br />
+	stpapi.put.field( sess, &quot;psta.f&quot;, &quot;&quot; )<br />
+	stpapi.put.field( sess, &quot;psta.t&quot;, &quot;zzz&quot; )<br />
+	stpapi.put.field( sess, &quot;f.device&quot;, &quot;NULL&quot; )<br />
+ <br />
+	| set the report hard, there is only one<br />
+	stpapi.set.report( sess, &quot;rbxcomb99011333&quot;, spool.device, set.report.msg)<br />
+	if isspace(set.report.msg) then<br />
+		stpapi.continue.process(sess, continue.msg)<br />
+	else<br />
+		err.msg = &quot;Could not set report: set.report.msg: &quot; &amp; set.report.msg<br />
+		return( false )<br />
+	endif<br />
+<br />
+	| Manage errors in case of not continued<br />
+	if not (isspace(continue.msg) ) then<br />
+		recov = stpapi.recover( sess, recover.msg)<br />
+		err.msg =  &quot;Continue.msg: &quot; &amp; continue.msg &amp; &quot; Recov.msg: &quot; &amp; recover.msg<br />
+		stpapi.end.session( sess, end.msg )<br />
+		if not ( isspace( end.msg ) or end.msg = &quot;Process is gone&quot; ) then<br />
+			err.msg = err.msg &amp; &quot; End.msg: &quot; &amp; end.msg<br />
+			return( false )<br />
+		endif<br />
+		return(false)<br />
+	endif<br />
+<br />
+return(true)<br />
+}<br />
+<br />
+<br />
+| *********** session handling<br />
+<br />
+<br />
+<br />
+<br />
+function extern closeAllSessions()<br />
+{<br />
+	string dummy<br />
+	long enum.answer<br />
+<br />
+	endAllRegisteredSessions()<br />
+<br />
+	| make sure we allways can exit without processing on the below session<br />
+	| answer no to question 'Process warehouse cycle counting data immediately?'<br />
+	enum.answer = stpapi.enum.answer( &quot;tdinv1120m000&quot;, &quot;tdinv11202&quot;, tcyesno.no )<br />
+	stpapi.end.session( &quot;tdinv1120m000&quot;, dummy )<br />
+}<br />
+<br />
+function registerSession( const string session )<br />
+{<br />
+	if not ( sessionExistsInArray(session) ) then<br />
+		num.active.sessions = num.active.sessions + 1<br />
+		active.sessions.array(1,num.active.sessions) = session<br />
+	endif<br />
+}<br />
+function long sessionExistsInArray( const string session )<br />
+{<br />
+	long i<br />
+	<br />
+	for i = 1 to num.active.sessions<br />
+		if ( active.sessions.array(1, i) = session ) then<br />
+			return(true)<br />
+		endif<br />
+	endfor<br />
+	<br />
+	return(false)<br />
+}<br />
+function endAllRegisteredSessions()<br />
+{<br />
+	long i<br />
+	string dummy<br />
+	<br />
+	i = 1<br />
+	while (i &lt;= num.active.sessions)<br />
+		stpapi.end.session( active.sessions.array(1,i), dummy )<br />
+		i = i + 1<br />
+	endwhile<br />
+	<br />
+	num.active.sessions = 0<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Thomasm</div><div class="date">8th February 2011, 22:22</div></div><div class="posttext">Baah, silly... By mistake I had removed the form from the session that is called via afs, so that is why it did not initialise the form but instead went directly out again.<br />
+<br />
+Mark, first of all thank you for your time. Your advice are always valuable. Would it be clearer for the case if your comment and my second posting with the code was removed from this thread (along with this comment...)?<br />
+<br />
+Thx,<br />
+/Thomas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th February 2011, 22:39</div></div><div class="posttext">What is the session name for session A started by session b?  What is the start option and what is flag for main session is it checked?  What happens if you start session A normally - not thru afs?<br />
+<br />
+I do not think I have written an AFS session that calls a session that uses ASF.  I pretty much keep all my routines in Libraries and call them one at a time. Don't see why it wouldn't work just never done it myself.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th February 2011, 22:41</div></div><div class="posttext">Baah, silly... By mistake I had removed the form from the session that is called via afs, so that is why it did not initialise the form but instead went directly out again.<br />
+<br />
+Mark, first of all thank you for your time. Your advice are always valuable. Would it be clearer for the case if your comment and my second posting with the code was removed from this thread (along with this comment...)?<br />
+<br />
+Thx,<br />
+/Thomas<br />
+<br />
+Nahhh - if someone would just read the whole thread they will see the solution.  I got distracted in the middle of the post and did not see your post.  This should be fine.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

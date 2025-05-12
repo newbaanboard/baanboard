@@ -1,0 +1,150 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Printing Woes..., baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Printing Woes... Tools Development" />
+	
+	<title>Printing Woes... [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Printing Woes...</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">23rd August 2002, 19:18</div></div><div class="posttext">I tried to set up a Baan direct type print device.  We are on Baan IVc4 on a Unix platform.  The device queue reads:<br />
+<br />
+lp -dislaser -s %s<br />
+<br />
+Everything prints fine.  I wanted to also send a copy of the report to another printer and I thought I could get away with this:<br />
+<br />
+lp -dislaser -s %s; lp -dsyslaser -s %s<br />
+<br />
+Nothing prints...<br />
+<br />
+I typed that command line in directly at a command prompt replacing the %s with an actual file name and it printed a copy of the file to both printers...<br />
+<br />
+I wanted to try to get around coding the reports with brp.xxx commands.  Any help??<br />
+<br />
+Thanks!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">~Vamsi</div><div class="date">23rd August 2002, 19:41</div></div><div class="posttext">Eddie,<br />
+<br />
+I am no expert in these matters. But try with a shell script which has those two commands in sequence.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Brendan Shine</div><div class="date">24th August 2002, 00:52</div></div><div class="posttext">Sounds like what may be happening is by the time the 2nd lp command executes the file has already passed through the spooler.<br />
+<br />
+You might try putting parenthesis (lp;lp) around the command as this will submit it at the same time to the shell.<br />
+<br />
+Or, and this is the approach we use at my company, you might have the print device actually be a shell script.  In the script you can first save a copy of the %s file and then you can print multiple copies to whatever printers you want.<br />
+<br />
+If you need more details, send me an e-mail.<br />
+<br />
+Cheers,<br />
+Brendan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">26th August 2002, 11:31</div></div><div class="posttext">There is processing needed before the Baan files can be printed. The step that causes the problem, is imo the filehandling with filter6.1. This binary transfers the printerindependent tmp####### file in the $BSE/tmp dir into an printerdependent file format that is being passed to the lp command.<br />
+<br />
+For other purposes (explore what code is put in the file exactly by filter6.1) I created this alternative shell script:#!/bin/ksh<br />
+# script filter6.1 to catch the argument list,<br />
+# inputfile and outputfile from the filter6.1 binary.<br />
+# usage:<br />
+# $ mv ${BSE}/bin/filter6.1 ${BSE}/bin/filter6.1.org<br />
+# $ vi ${BSE}/bin/filter6.1 &lt; copy this textfile<br />
+# $ chmod 755 ${BSE}/bin/filter6.1<br />
+#<br />
+# results:<br />
+# - for every run a line is written to ${BSE_TMP}/argfile.filter<br />
+#   with runnumber and argument line used<br />
+# - for every run a file is written to ${BSE_TMP}/input###.filter<br />
+#   containing the input file used (printer independent format)<br />
+# - for every run a file is written to ${BSE_TMP}/output###.filter<br />
+#   containing the generated output file (printer dependent format)<br />
+# where the runnumber is used in the filenames (instead of ###)<br />
+#<br />
+# DO NOT FORGET to<br />
+# $ cp -p ${BSE}/bin/filter6.1.org ${BSE}/bin/filter6.1<br />
+# $ rm ${BSE_TMP}/*filter<br />
+# when done testing.<br />
+<br />
+# get last runnum<br />
+runnum=`basename \`ls ${BSE_TMP}/output???.filter | tail -1\` | cut -c7-9`<br />
+# Format number with preceding zero's (illegal becomes 000)<br />
+runnum=`printf &quot;%03d&quot; ${runnum}`<br />
+# Raise runname with one<br />
+let runnum=runnum+1<br />
+# Format number with preceding zero's<br />
+runnum=`printf &quot;%03d&quot; ${runnum}`<br />
+echo ${runnum}: $* &gt;&gt; ${BSE_TMP}/argfile.filter<br />
+cp -p ${10} ${BSE_TMP}/input${runnum}.filter<br />
+filter6.1.org $*<br />
+cp -p ${12} ${BSE_TMP}/output${runnum}.filterAt the point where it comes to copying the outputfile to  output${runnum}.filter file you can also put it in the copy queue with a lp command.<br />
+<br />
+This adapted filter6.1 binary (script) will be used by all prints, but you will only want to make copies when you use a certain device: In that case the script should be changed like:filter6.1.org $*<br />
+if [ ${2}=SYSCOPY ]<br />
+then lp -dsyslaser -s ${12}<br />
+fiHope this works ;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Juergen</div><div class="date">26th August 2002, 14:14</div></div><div class="posttext">below a simple example to print BAAN reports to various printers.<br />
+<br />
+BAAN Setup:<br />
+Maintain Device Data (ttaad3100m000):<br />
+Device : EDVTEST<br />
+Description : Test printer to send Reports to various printers<br />
+Device Type : Direct<br />
+Locale : ISO-8859-1 Western Europe - 8 bit<br />
+Printer <br />
+Driver : hp_lj4<br />
+Device Queue : /tlf/script/clptest %d %s<br />
+Paper Type : A4 A4 format Portrait<br />
+Left Margin : 0 Form Feed : No<br />
+File <br />
+Driver :<br />
+Shell Command :<br />
+4GL Program :<br />
+Argument :<br />
+Path :<br />
+Change allowed :<br />
+Page Length : 0<br />
+<br />
+<br />
+Script clptest:<br />
+#<br />
+# @(#) clptest - Example to print BAAN reports to various printers<br />
+#<br />
+# Parameter given from BAAN:<br />
+# $1 - Number of copies<br />
+# $2 - Filename ($BSE/tmp/tmp.......)<br />
+#<br />
+#<br />
+TMPFILE=/tmp/lptmp<br />
+cat $2 &gt;$TMPFILE<br />
+#<br />
+#List of printers<br />
+lp -d edv01 -n $1 $TMPFILE<br />
+#<br />
+lp -d edv02 -n $1 $TMPFILE<br />
+#<br />
+lp -d edv03 -n $1 $TMPFILE<br />
+#<br />
+<br />
+<br />
+This is only a simple example thats works on our Unixware system. Maybe you have to adjust the script for your environment.<br />
+<br />
+Disadvantage:Your printers must use the same driver.<br />
+<br />
+Juergen</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

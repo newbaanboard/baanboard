@@ -1,0 +1,192 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Company, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Company Distribution, Transportation &amp; Warehousing" />
+	
+	<title>Company [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Distribution, Transportation &amp; Warehousing</a> &gt; Company</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">intamikol</div><div class="date">6th April 2005, 15:22</div></div><div class="posttext">Hey Guys,<br />
+<br />
+i m new to Baan<br />
+could u plz help me out <br />
+i m extracting data from tfacr200 tables to Flat files. my problem is whenever i gave from company to company range it gives me the duplicated record. like same invoice with different company numbers..<br />
+what would be the problem ??<br />
+<br />
+Thanks<br />
+Ams</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manojsharma</div><div class="date">7th April 2005, 11:01</div></div><div class="posttext">Hi Ams,<br />
+<br />
+Can you paste your script, it may be due to initilization problem</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">intamikol</div><div class="date">7th April 2005, 12:15</div></div><div class="posttext">Hi Manoj,<br />
+<br />
+Thanks for ur reply..<br />
+<br />
+here are the code<br />
+<br />
+function	read.company()<br />
+{<br />
+	CompanyId	= get.compnr()<br />
+	domain tcmcs.long	ret<br />
+	select	tccom000.*<br />
+	from	tccom000<br />
+	where	TCCOM000._index1 inrange {:comp.f}<br />
+	and	{:comp.t}<br />
+	order by tccom000._index1<br />
+	selectdo<br />
+		Company = tccom000.ncmp<br />
+		ret = SWITCH.TO.COMPANY(Company)<br />
+|		Company	= get.compnr()<br />
+		CompanyId	= Company<br />
+	 	read.main.table()<br />
+	endselect<br />
+}<br />
+<br />
+| This the main function to extract Open transactions and Links dat files.  <br />
+<br />
+function 	read.main.table()<br />
+{<br />
+	Company		= get.compnr()<br />
+	<br />
+	domain	tccuno	OldCustomer<br />
+	OldCustomer = &quot;&quot;<br />
+	<br />
+	select	tfacr200.*, tccom010.* <br />
+	from	tfacr200, tccom010<br />
+	where   tfacr200._index2 inrange {:cust.f, :ttyp.f, :ninv.f} <br />
+	and 	{:cust.t, :ttyp.t, :ninv.t} <br />
+	and 	tfacr200.balc &lt;&gt; 0 <br />
+	and 	tfacr200.balh &lt;&gt; 0<br />
+	and	tfacr200.tdoc = &quot;   &quot;<br />
+	and	tfacr200.cuno refers to tccom010<br />
+|	and 	tccom010.cbrn &lt;&gt; &quot;   AFC&quot;<br />
+|	and 	tccom010.cfcg &lt;&gt; &quot;RNA&quot;<br />
+	and	tfacr200._compnr = :Company<br />
+	order by tfacr200._index2<br />
+	selectdo<br />
+		get.documenttype(tfacr200.ttyp)<br />
+		customer	= tfacr200.cuno<br />
+		TranTypeInvoice	= tfacr200.ttyp<br />
+		DocInvoice 	= tfacr200.ninv<br />
+		LineInvoice 	= tfacr200.line<br />
+		OrgTransType	= strip$(shiftl$(tfacr200.ttyp))<br />
+|		if OrgTransType = &quot;KKC&quot; then<br />
+|			get.original.docmnt(Company, TranTypeInvoice, DocInvoice)<br />
+|		else<br />
+			Tran		= strip$(shiftl$(TranTypeInvoice))<br />
+			Doc		= strip$(shiftl$(str$(DocInvoice)))<br />
+			Line		= strip$(shiftl$(str$(lineinvoice)))<br />
+|		endif<br />
+		TranNumInvoice	= Tran &amp; Doc<br />
+		TranNumInvoice  = strip$(shiftl$(TranNumInvoice))<br />
+		TranIdInvoice	= (TranNumInvoice) &amp; strip$(shiftl$(str$(Line)))<br />
+		TranIdInvoice   = strip$(shiftl$(TranIdInvoice))<br />
+		<br />
+|		read.sales.order()<br />
+<br />
+		SONum = strip$(shiftl$(str$(tfacr200.orno)))<br />
+		PONum = strip$(shiftl$(tdsls040.refa)) &amp; strip$(shiftl$(tdsls040.refb))<br />
+<br />
+|		if (TransactionType = &quot;INV&quot;) or (TransactionType = &quot;CM&quot;) then<br />
+|			get.sales.orderinfo()<br />
+|		endif<br />
+		if ISSPACE(AreaCode) then<br />
+			AreaCode	= strip$(shiftl$(tccom010.creg))<br />
+		endif<br />
+		if ISSPACE(AreaCode) then<br />
+			AreaCode	= &quot;*N/A*&quot;<br />
+		endif<br />
+		FiscalYear	= strip$(shiftl$(str$(tfacr200.year)))<br />
+		OriginalCompany	= strip$(shiftl$(str$(Company)))<br />
+		DocDate		= get.transaction.dates(tfacr200.docd)<br />
+		if tfacr200.dued = 0 then<br />
+			DueDate = DocDate	<br />
+		else<br />
+			DueDate	= get.transaction.dates(tfacr200.dued)<br />
+		endif<br />
+		AmountInvCur	= strip$(shiftl$(str$(tfacr200.amti)))<br />
+		AmountHomCur	= strip$(shiftl$(str$(tfacr200.amth)))<br />
+		BillToCust	= strip$(shiftl$(tfacr200.cuno)) <br />
+		TermsOfPay	= get.terms.of.pay(tfacr200.cpay)<br />
+		if ISSPACE(TermsOfPay) then<br />
+			TermsOfPay	= get.terms.of.pay(tccom010.cpay)<br />
+		endif<br />
+		if ISSPACE(TermsOfPay) then<br />
+			TermsOfPay	= &quot;* Not Available *&quot; <br />
+		endif<br />
+		ExchRate 	= strip$(shiftl$(str$(tfacr200.rate)))<br />
+		Currency	= strip$(shiftl$(tfacr200.ccur))<br />
+		get.complete.flag()	<br />
+		get.due.amount.status()  <br />
+ 		CheckNo		= strip$(shiftl$(tfacr200.refr))<br />
+		LineOfBus	= strip$(shiftl$(tccom010.cbrn))<br />
+		PostalAdd	= get.postaladd(tfacr200.adrs)<br />
+		if ISSPACE(PostalAdd) then <br />
+			PostalAdd	= get.postaladd(tccom010.ccor)<br />
+		endif<br />
+		if ISSPACE(PostalAdd) then <br />
+			PostalAdd	= &quot;B N/A&quot;<br />
+		endif<br />
+		BillToSite	= &quot;BT1&quot;<br />
+		final.date()<br />
+		if ISSPACE(FinalDate) then<br />
+			FinalDate = DocDate<br />
+		endif<br />
+		get.Period()					   <br />
+		FinCustGroup	= strip$(shiftl$(tccom010.cfcg))<br />
+		if	isspace(tfacr200.tdoc)	then		   <br />
+			get.CheckNo()<br />
+		else<br />
+			if	not isspace(tfacr200.refr)	then<br />
+				clean.check.number()<br />
+				InternalNotes = strip$(shiftl$(tfacr200.refr))<br />
+			endif<br />
+		endif						   <br />
+		if OldCustomer &lt;&gt; tfacr200.cuno then	<br />
+			get.latest.payment()	<br />
+		endif<br />
+		DateOfFinalization 	= get.transaction.dates(tfacr200.pdat)<br />
+		Balance = strip$(shiftl$(str$(tfacr200.balc)))<br />
+		default.values()	<br />
+		write.to.ascii()<br />
+		get.Invoice.initvalue()<br />
+		<br />
+		if (complete.flag = &quot;P&quot;) and (TransactionType &lt;&gt; &quot;UNAPP&quot;) then<br />
+			get.receipts.links()<br />
+		endif<br />
+		OldCustomer = tfacr200.cuno<br />
+|		SONum		= strip$(shiftl$(str$(tfacr200.orno)))<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manojsharma</div><div class="date">8th April 2005, 08:10</div></div><div class="posttext">Hi AMS<br />
+<br />
+If you remove company = get.compnr() from function read.main.table(), then I think it will work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">intamikol</div><div class="date">8th April 2005, 13:27</div></div><div class="posttext">Hey manoj,<br />
+<br />
+still same problem <br />
+<br />
+Ams</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

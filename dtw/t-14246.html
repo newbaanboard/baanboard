@@ -1,0 +1,150 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Reset Stock Inventory, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Reset Stock Inventory Distribution, Transportation &amp; Warehousing" />
+	
+	<title>Reset Stock Inventory [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Distribution, Transportation &amp; Warehousing</a> &gt; Reset Stock Inventory</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Harley</div><div class="date">20th January 2004, 10:38</div></div><div class="posttext">Hi guys<br />
+<br />
+I would like to reset all of my inventory stock back to 0. But I don't want to use cycle count order, because I have many receipt transaction in my system and it seems impossible to do it using cycle counting order.<br />
+<br />
+Do you have any alternative to solve my problem? <br />
+<br />
+Thanks,<br />
+Harley</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">21st January 2004, 09:35</div></div><div class="posttext">Dear Harley,<br />
+<br />
+First of all; you're doing this on a test system, right? You'd better be<br />
+<br />
+Well, If I had to do the same thing (on a test system), in fact I'd use cycle counting indeed. Of course with the help of Exchange.<br />
+<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Harley</div><div class="date">21st January 2004, 09:46</div></div><div class="posttext">dear Paul,<br />
+<br />
+Unfortunately, we are not in a test system but in a live environment.<br />
+<br />
+Many thanks for your advice.<br />
+Harley</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baandude</div><div class="date">27th January 2004, 08:04</div></div><div class="posttext">Hi Harley,<br />
+<br />
+I gather the fact that you probably want to remove all the records that have the inventory on order status, given pending receipts, etc, but if you do need to reset status, what specific problem requires you to take such drastic measures, pls detail your specific problem. <br />
+<br />
+If for instance, there is a problem with a small number of receipts that is incorrect, you could post negative receipts to clear the receipts. <br />
+<br />
+Clearly GTM, or Cycle counting are not suitable in your case, so send more details of problems encountered.<br />
+<br />
+Best Regards,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gentercz</div><div class="date">6th February 2004, 15:01</div></div><div class="posttext">Hi,<br />
+<br />
+we created a session that starts other BaaN sessions via AFS to create cycle counting and process them with quan = 0.<br />
+<br />
+here is the key logic:<br />
+<br />
+choice.cont.process:<br />
+before.choice:<br />
+on.choice:<br />
+|*** Inventuraufträge erstellen<br />
+	stpapi.put.field( &quot;tdinv1220m000&quot;, &quot;cwar.f&quot;, str$(cwar.f) )<br />
+	stpapi.put.field( &quot;tdinv1220m000&quot;, &quot;cwar.t&quot;, str$(cwar.f) )<br />
+	stpapi.put.field( &quot;tdinv1220m000&quot;, &quot;wloc.f&quot;, &quot;&quot; )<br />
+	stpapi.put.field( &quot;tdinv1220m000&quot;, &quot;wloc.t&quot;, &quot;zzzzzzzz&quot; )<br />
+	stpapi.put.field( &quot;tdinv1220m000&quot;, &quot;citg.f&quot;, &quot;&quot; )<br />
+	stpapi.put.field( &quot;tdinv1220m000&quot;, &quot;citg.t&quot;, &quot;zzzzzz&quot; )<br />
+	stpapi.put.field( &quot;tdinv1220m000&quot;, &quot;item.f&quot;, &quot;&quot; )<br />
+	stpapi.put.field( &quot;tdinv1220m000&quot;, &quot;item.t&quot;, &quot;zzzzzzzzzzzzzzzz&quot; )<br />
+	stpapi.put.field( &quot;tdinv1220m000&quot;, &quot;var.count.whro&quot;, str$(999) )<br />
+	stpapi.put.field( &quot;tdinv1220m000&quot;, &quot;max.count.totl&quot;, str$(99999999) )<br />
+<br />
+	stpapi.continue.process( &quot;tdinv1220m000&quot;, error )<br />
+<br />
+	mess.code = stpapi.get.mess.code( &quot;tdinv1220m000&quot; )<br />
+	if strip$( mess.code ) &lt;&gt; &quot;&quot;<br />
+	then<br />
+		mess( mess.code, 1 )<br />
+	endif<br />
+	stpapi.end.session( &quot;tdinv1220m000&quot; )<br />
+<br />
+|*** Inventuraufträge auf Verarbeitet setzen<br />
+	db.retry.point()<br />
+	select	tdinv120.*<br />
+	from	tdinv120 for update<br />
+	where	tdinv120._index3 = { :cwar.f }<br />
+	  and	tdinv120.csts &lt;&gt; tcyesno.yes<br />
+	selectdo<br />
+		tdinv120.csts = tcyesno.yes<br />
+		db.update( ttdinv120, db.retry )<br />
+	endselect<br />
+	commit.transaction()<br />
+<br />
+|*** Inventuraufträge Verarbeiten<br />
+| Set the print parameters<br />
+	spool.report = &quot;rtdinv122101000&quot;<br />
+	spool.device = &quot;D&quot;<br />
+	<br />
+	boi.call = &quot;tdboidll100004.processnonilc&quot;<br />
+	export( &quot;boi.call&quot;, boi.call )<br />
+	stpapi.put.field( &quot;tdinv1221m000&quot;, &quot;orno.f&quot;, str$(700000) )<br />
+	stpapi.put.field( &quot;tdinv1221m000&quot;, &quot;orno.t&quot;, str$(799999) )<br />
+| Continue and init sub-session.<br />
+        stpapi.set.report( &quot;tdinv1221m000&quot;,<br />
+			spool.report, spool.device, mess.code )<br />
+	<br />
+	if ( strip$( mess.code ) &lt;&gt; &quot;&quot; )<br />
+	then<br />
+		mess( mess.code, 1 )<br />
+	endif<br />
+<br />
+	mess.code = stpapi.get.mess.code( &quot;ticst0201m000&quot; )<br />
+	if strip$( mess.code ) &lt;&gt; &quot;&quot;<br />
+	then<br />
+		mess( mess.code, 1 )<br />
+	endif<br />
+<br />
+	stpapi.continue.process( &quot;tdinv1221m000&quot;, error )<br />
+<br />
+	mess.code = stpapi.get.mess.code( &quot;tdinv1221m000&quot; )<br />
+	if strip$( mess.code ) &lt;&gt; &quot;&quot;<br />
+	then<br />
+		mess( mess.code, 1 )<br />
+	endif<br />
+	stpapi.end.session( &quot;tdinv1221m000&quot; )<br />
+<br />
+	message( &quot;Verabeitung beendet !&quot;)<br />
+	execute( end.program )<br />
+<br />
+|*** END OF SCRIPT ***</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Harley</div><div class="date">9th February 2004, 04:16</div></div><div class="posttext">Dear gentercz,<br />
+<br />
+Unfortunately, I am not familiar with AFS. I highly appreciate for your kind attention if you could help me with what I have to do with your below script.<br />
+<br />
+Thanks<br />
+Harley</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

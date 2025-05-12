@@ -1,0 +1,136 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Granting permissions to a group of users, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Granting permissions to a group of users Tools Administration &amp; Installation" />
+	
+	<title>Granting permissions to a group of users [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Granting permissions to a group of users</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">deeboss</div><div class="date">24th September 2001, 22:43</div></div><div class="posttext">Hey, Gang!  A co-worker of mine who does our DEM flows and grants user permissions asked me to post the following question:<br />
+<br />
+I use session ttaad2131m000 to assign session permissions to users.  Is there an easy way to grant permission for one session to 500 users all at once without having to add permissions individually?  For instance, if a subsession is added to a main session in which 500 users have access I need an easy way to make sure everyone with access to the main session also has access to the new subsession without having to add permissions one at a time.<br />
+<br />
+<br />
+<br />
+I'm not familiar with permissions, but I know what she is trying to do is add permissions to a group of users.  I asked if users could be assigned to groups, and she said she was not sure how to do this...  We are exercise strict security, so her job is very tedious.<br />
+<br />
+Thanks!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">25th September 2001, 14:40</div></div><div class="posttext">Dee,<br />
+<br />
+I am not sure about the DEM possibilities here. If you are using BaanERP, you can assign the extra session to a role which in its turn is linked to a group of users. Someone correct me if I am wrong.<br />
+<br />
+Another option is to change some of the tools tables outside Baan:<br />
+<br />
+[LIST=1] Dump the table ttaad231 (Session authorizations) and add all the records for the one extra session through a shell script. Then upload the table again.<br />
+<br />
+ Then add for each change you made in ttaad230 a corresponding record into the ttaad400 table which contains the runtime conversion flags. To know which values go into each field of ttaad400, you can do the authorization change for 1 user in regular fashion through ttaad2131m000 and then check the contents of ttaad4100 in GTM. Based on that you can then build yourself another little shell script to add all the required records the ttaad400 table.<br />
+<br />
+ You must convert the changed authorizations to runtime (-&gt; ttadv999) by running Convert User Data to Runtime for the users that have been changed. Baan will automatically pick up the conversion flags from ttaad400 and convert to runtime for the correct users.[/LIST=1]<br />
+<br />
+Note 1: all tables are in company 000 of course.<br />
+Note 2: this method is a hack, so be careful!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">deeboss</div><div class="date">25th September 2001, 16:06</div></div><div class="posttext">Sorry, forgot to mention version.  Just dug around in the menus...does not appear to be any user groups, only users.  So, I guess the only solution is a hack solution?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">25th September 2001, 16:08</div></div><div class="posttext">I have little experience with DEM on IVc4. I have used the 'hack' solution myself, although time consuming it is not that difficult if you have a good way with shell scripting. Umm, hope you are not running on NT :p</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">deeboss</div><div class="date">25th September 2001, 16:14</div></div><div class="posttext">No NT.  But, as a &quot;Baan Developer&quot;, do not have the rights to do what is suggested.  I'll have to pass this along to our DB Admin.  Thanks!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">victor_cleto</div><div class="date">26th September 2001, 09:24</div></div><div class="posttext">OK, here it is an example on how I do that task.<br />
+<br />
+NOTE: check if the dump of your tables look like my ones (BaanIV c4). Run everything below as bsp user and make sure what you are doing!<br />
+<br />
+1. Run 'ttaad4226m000' (Create Sequential Dump of Table) and export table ttaad400 from company 000 (convert to runtime table) using:<br />
+- Fixed Length Records<br />
+- Separator '|' (without the quotes)<br />
+- All other defaults to No<br />
+- Specify a directory (I will allways assume /tmp)<br />
+This will generate a dump file /tmp/tttaad400000.S<br />
+<br />
+2. Using same session export table ttaad231 from company 000 (session authorizations) using:<br />
+- Fixed Legth Records<br />
+- Separator '|' (without the quotes)<br />
+- All other defaults to No<br />
+This will generate dump file /tmp/tttaad231000.S<br />
+<br />
+3. Do a backup of those files by copying them to /tmp/tttaad400000.S.org and /tmp/tttaad231000.S.org<br />
+<br />
+4. Generate a list of users you want to add new authorizations, as example, /tmp/list.txt<br />
+<br />
+5. Add users that will need to be converted to runtime by doing (now includes a removal of duplicate entries):<br />
+<br />
+# cat /tmp/list.txt | while read LINE<br />
+&gt; do<br />
+&gt; echo $LINE | awk '{ printf (&quot;a|u%-12s&quot;,$1) }' &gt;&gt; /tmp/tttaad400000.S<br />
+&gt; echo &quot;&lt;session&gt;|&lt;ini_time&gt;&lt;end_time&gt;||&quot; &gt;&gt;/tmp/tttaad400000.S<br />
+&gt; echo &quot;u|$LINE|||&quot; &gt;&gt;/tmp/tttaad400000.S<br />
+&gt; done<br />
+# sort -o /tmp/tttaad400000.S -u tttaad400000.S<br />
+<br />
+Note: each user needs 2 entries, one for the authorization (a|...) and another for the user change (u|...). It seems that the 1st line needs an exact number of characters before the &lt;session&gt; (12 exactly, including the user_name), so I use awk to do the trick.<br />
+<br />
+Replace &lt;session&gt; with you full session code and &lt;ini_time&gt; and &lt;end_time&gt; with your authorization access time. Notice that there are at least 4 spaces between the $LINE and the &lt;session&gt;!<br />
+<br />
+As example, granting authorization to dummy from 0:00 to 21:00 to session tfpur0540s000 would mean adding the lines:<br />
+a|udummy       tfpur0540s000|00002400||<br />
+u|dummy||||<br />
+<br />
+6. Add users to table of authorizations by doing (now includes a removal of duplicate entries - table ttaad231 has a unique index based on session, so duplicate entries will make your maintenance of users painfull):<br />
+<br />
+# cat /tmp/list.txt | while read LINE<br />
+&gt; do<br />
+&gt;echo '$LINE|1|&lt;package&gt;|&lt;module&gt;|&lt;session&gt;|&lt;ini_time&gt;|&lt;end_time&gt;|' &gt;&gt; /tmp/tttaad231000.S<br />
+&gt; done<br />
+# sort -o /tmp/tttaad231000.S -u /tmp/tttaad231000.S<br />
+<br />
+Replace the &lt;package&gt;, &lt;module&gt;, &lt;session&gt; by your authorization session. Replace &lt;ini_time&gt; and &lt;end_time&gt; by your allowed running session time.<br />
+<br />
+As example, granting authorization from 0:00 to 21:00 to session tfpur0540s000 would mean using the above line as<br />
+echo '$LINE|1|tf|pur|0540s000|0|2400|' &gt;&gt; ...<br />
+<br />
+7. Create a directory /tmp/import. Copy the /tmp/ttt*.S into it. Run ttaad4227m000 (Create Table from Sequential Dump) and import those tables using:<br />
+- Fixed Length Records<br />
+- Separator '|' (without the quotes)<br />
+- Delete existing tables to Yes<br />
+- Create rows before index to Yes<br />
+- Ignore referential integrity to Yes<br />
+- All remaining options to No<br />
+- Specify your directory /tmp/import<br />
+<br />
+8. Run ttaad4200m000 (Convert User Data to RTD) and convert to all users, Session and database Authorizations set to Yes.<br />
+<br />
+Be carefull and check the formats of those dumps before importing anything. The ....org tables are used as backup in case something goes wrong.<br />
+This is an example only to add inclusive authorizations and there is no responsability.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">deeboss</div><div class="date">26th September 2001, 15:46</div></div><div class="posttext">Victor,<br />
+<br />
+Thank you so much for your time and the example.  I won't be able to get to this for another week, but truly appreciate the attention!<br />
+<br />
+Thanks so much,<br />
+Susan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Jason</div><div class="date">26th September 2001, 20:46</div></div><div class="posttext">In theory if you add the session to a business process so the role is changed and you regenerate the users (including generate session authorisations) should the new session authorisations not be added automatically? Are you generating authorisations this way? I've tested this in b2 and c4 and found it unreliable as not all the sessions and subsessions were granted permission. It also took ages to generate just one user getting DEM to generate the authorisations as well so it did not seem a practical solution. It seems that the hack would be much more effective. Has anyone else had more success generating authorisations in DEM?</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

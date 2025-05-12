@@ -1,0 +1,245 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Need to replicate devices, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Need to replicate devices Tools Development" />
+	
+	<title>Need to replicate devices [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Need to replicate devices</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">BaanTech</div><div class="date">17th September 2002, 21:52</div></div><div class="posttext">We're in the process of centralizing all our print queues.  The process to migrate user settings is time consuming and we have decided to automate some elements based on our need to replicate this effort on other Baan instances.<br />
+<br />
+Here's what I need to do:<br />
+<br />
+Look for a record in ttaad300 (Devices) if it exists then use all values to create a new record (only the device name and queue will change).<br />
+<br />
+I could use holding variables to store all values prior to reselecting the ttaad300 for update (insert), but I would prefer to save the record into the buffer and retrieve as needed.  The only problem is I can't recall how.<br />
+<br />
+Could anyone send me an example of the logic or else direct me to a standard session that does this ?<br />
+<br />
+I've done this in the past, but it's been a while.<br />
+<br />
+Thanks in advance.<br />
+<br />
+BaanTech</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">17th September 2002, 22:04</div></div><div class="posttext">Yes, you can do multiple selects on the same table.<br />
+<br />
+an example -<br />
+<br />
+http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=5885&amp;highlight=distinct<br />
+<br />
+you can also use functions like -<br />
+<br />
+http://www.baanboard.com/programmers_manual_baanerp_help_functions_db_operations_on_main_table <br />
+<br />
+and<br />
+<br />
+http://www.baanboard.com/programmers_manual_baanerp_help_functions_db_operations_with_object_set_do <br />
+<br />
+<br />
+Table names and declarations<br />
+The naming syntax for tables, record buffers, and fields is: <br />
+<br />
+table tppmmmxxx        | table declaration<br />
+rcd.tppmmmxxx          | record buffer of table<br />
+ppmmmxxx.ffffffff      | logical field of table<br />
+where t stands for table, pp is the package code, mmm is the module code, xxx is the table number, and ffffffff is a field name.<br />
+<br />
+If a table is used in a script, it must be declared with the statement: table tppmmmxxx<br />
+<br />
+Declaration of a table implies declaration of all its fields and its record buffer. These do not need to be declared separately. <br />
+<br />
+There are no functions for opening or closing a table. A table is automatically opened the first time it is accessed. It is automatically closed when the program ends. <br />
+<br />
+<br />
+http://www.baanboard.com/programmers_manual_baanerp_help_functions_db_operations_overview</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanTech</div><div class="date">17th September 2002, 22:17</div></div><div class="posttext">Looks familar, but what I need to do is basically have the system take all values<br />
+<br />
+I can do this myself by basically storing all the field values before selecting the table again for update.  In my case I really don't care what happens to the original record as long as I can copy it to create the new record.  Can we somehow emulate the logic used in sessions when the copy option is selected via the form - in this case the copy would be within single-occurence.  Table ttaad300 is not the main table for this session.  Can I apply the stored values to a new record and have control of changing specific fields before updating ?<br />
+<br />
+Here is the code where tuxch950.odvn is the source device and tuxch950.ndvn is the target device.<br />
+<br />
+<br />
+	select ttaad300.*<br />
+	from	 ttaad300<br />
+	where	 ttaad300._index1 = {:tuxch950.odvn}<br />
+	and	 ttaad300._compr = 000<br />
+	order by ttaad300._index1 <br />
+	as set with 1 rows<br />
+	selectdo<br />
+		|*** Store old values<br />
+		select ttaad300.*<br />
+		from	 ttaad300 for update<br />
+		where	 ttaad300._index1 = {:tuxch950.ndvn}<br />
+		and	 ttaad300._compr = 000<br />
+		order by ttaad300._index1 <br />
+		as set with 1 rows<br />
+		selectdo<br />
+		selectempty<br />
+			|*** Use old values for new values<br />
+			db.insert(tttaad306, db.retry)<br />
+			commit.transaction()<br />
+		endselect<br />
+endselect<br />
+<br />
+Thanks.<br />
+<br />
+BaanTech</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">17th September 2002, 22:19</div></div><div class="posttext">The table buffers are always available for every table opened.<br />
+<br />
+<br />
+Can we somehow emulate the logic used in sessions when the copy option is selected via the form - in this case the copy would be within single-occurence.<br />
+<br />
+<br />
+--&gt; use AFS/API calls.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanTech</div><div class="date">17th September 2002, 22:36</div></div><div class="posttext">By reselecting the table for update I've lost my pointer to the original record selected.  Unless I save all values before the select I won't be able to use them for assigning values to the <br />
+new key.  This is unless of course they are still available for me<br />
+somewhere for retrieval.<br />
+<br />
+AFS/APIs sounds like another viable approach, but what functions are available for this specific issue?<br />
+<br />
+Surely someone out there has had a request to automate a mass copy.<br />
+<br />
+In my case I'm doing devices and the number of fields involved is not much, but hasn't anyone tried to do something like emulate a copy of the item master from a defined list. <br />
+<br />
+I'm creating this logic from scratch as we need to add additional<br />
+logic to also convert some default devices applicable to some of our customized processes.  The overhead needs to be one source file, minimal setup.  I'm not looking to have to create/setup AFS/APIS/DDCs etc.<br />
+<br />
+Thanks.<br />
+<br />
+BaanTech</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">17th September 2002, 22:44</div></div><div class="posttext">Yes you might loose the record pointers or values.<br />
+<br />
+as an example, so you have to use -<br />
+<br />
+db.row.length(ttccom130,l.rcd.tccom130.length)	<br />
+alloc.mem(l.save.rcd.tccom130, l.rcd.tccom130.length)<br />
+l.save.rcd.tccom130 = rcd.ttccom130<br />
+<br />
+<br />
+For the other info, you can search for the postings on the board.<br />
+<br />
+AFS/DDC/OLE: Function servers (http://www.baanboard.com/baanboard/forumdisplay.php?s=&amp;forumid=59)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">17th September 2002, 23:44</div></div><div class="posttext">How about...<br />
+<br />
+<br />
+	db.retry.point()<br />
+	select ttaad300.*<br />
+	from	 ttaad300<br />
+	where	 ttaad300._index1 = {:tuxch950.odvn}<br />
+	and	 ttaad300._compr = 000<br />
+	order by ttaad300._index1 <br />
+	as set with 1 rows<br />
+	selectdo<br />
+		ttaad300.???? = tuxch950.ndvn	|* key field?<br />
+		db.insert(tttaad300, db.retry)  |* you referenced ttaad306 before<br />
+		commit.transaction()<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanTech</div><div class="date">18th September 2002, 17:48</div></div><div class="posttext">Sorry all the code should have been for ttaad300, and ttaad306 was incorrect.  Don't I need to select the table for update at some point (not the main table) ? Or can I do a db.insert to a<br />
+table by simply changing the key ?<br />
+<br />
+PS. Other elements of my script are keeping my from compiling<br />
+at this point, plus because of meetings I'm basically checking<br />
+the forum for updates when I can.<br />
+<br />
+I'll have to try testing out if I can db.insert without update as<br />
+soon as I can.<br />
+<br />
+Regards,<br />
+<br />
+BaanTech</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanTech</div><div class="date">18th September 2002, 22:30</div></div><div class="posttext">No need to use rdi.column, or select for update etc.<br />
+<br />
+This works ...<br />
+<br />
+function update.device.data()<br />
+{<br />
+	switch.to.company(000)<br />
+<br />
+	db.retry.point()<br />
+	select ttaad300.*<br />
+	from	 ttaad300<br />
+	where	 ttaad300._index1 = {:tuxch950.odvn}<br />
+	order by ttaad300._index1 <br />
+	as set with 1 rows<br />
+	selectdo<br />
+		ttaad300.devc = tuxch950.ndvn<br />
+		ttaad300.pcom = tuxch950.ndvq<br />
+		db.insert(tttaad300, db.retry)<br />
+		commit.transaction()<br />
+	endselect<br />
+	switch.to.company(company.number)<br />
+}<br />
+<br />
+Thanks.<br />
+<br />
+BaanTech</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">18th September 2002, 22:33</div></div><div class="posttext">Good that you could fix it.<br />
+<br />
+Be aware of -<br />
+<br />
+<br />
+compnr.check() and switch.to.company() perform similar functions, but switch.to.company() performs additional checks. So switch.to.company() makes heavier demands on system resources.<br />
+<br />
+<br />
+You can improvize using -<br />
+<br />
+<br />
+where ttaad300._index1 = {:tuxch950.odvn}<br />
+and ttaad200._compnr = 000<br />
+....<br />
+db.insert(tttaad300, db.retry, db.skip.dupl)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanTech</div><div class="date">18th September 2002, 22:39</div></div><div class="posttext">Doesn't the switch to company go further and check that the login is authorized for the company (or something like that).  You're right, I guess in my case I could use *._compnr = 000<br />
+instead, but the majority of my selects &amp; updates will be in 000<br />
+so I figured two switch.tos shouldn't be too bad ... I am however<br />
+doing this for every record in tuxch950 ... you recommend to<br />
+try to avoid switch.to if possible ... when would this not be<br />
+an option ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">18th September 2002, 22:46</div></div><div class="posttext">I would recommend switch.to.company() if only I need to totally switch into the tools company to do more processing, updating  on tools tables etc. <br />
+<br />
+For light weight processing I prefer to use the compnr.check().<br />
+<br />
+for spot checks/values I use _compnr = 000. This is more preferred in my case as most of my own add-on code is located in my DLLs, and our sessions/utlities call them. who knows our developers might use my code too ;-) like my email/excel interfaces. My assumption this always works, because to work in BaaN even if you are super or normal user, you need to have atleast read access to the tools tables.<br />
+<br />
+yes the switch.to.company() is more secure but most of the time I use those sessions and not the common people/developers so I am a superuser and I have the full authority. So that makes my utilities performance. <br />
+<br />
+Ofcourse thats my own methodology of doing things, I believe everyone has one. <br />
+<br />
+Just wanted to share thoughts :p</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

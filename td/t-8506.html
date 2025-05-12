@@ -1,0 +1,176 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="how do you print errors if data not found, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] how do you print errors if data not found Tools Development" />
+	
+	<title>how do you print errors if data not found [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; how do you print errors if data not found</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">20th January 2003, 21:05</div></div><div class="posttext">I would like to create an additional report in my session that prints the errors.<br />
+Example:<br />
+<br />
+I have a session that prints sales items<br />
+<br />
+select tdsls045.*<br />
+from tdsls045<br />
+where tdsls045.item = :tiitm001.item<br />
+selectdo<br />
+<br />
+      if tiitm001.item = tdsls045.item<br />
+      and tiitm001.hatc = &quot;&quot;<br />
+     then????<br />
+<br />
+<br />
+How can I send this result to another report?<br />
+Report 1 will not be printed becuase items were found with hatc = &quot;&quot;<br />
+Report 2 is error report that prints items with no hatc.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">20th January 2003, 22:00</div></div><div class="posttext">You might have a flag to detect if that item was found or not.<br />
+<br />
+If the item was not found then the first report is not printed and you can redirect that message Item ABC is not found to another report. You can use the spooler functions - spool.open() (http://www.baanboard.com/programmers_manual_baanerp_help_functions_spooling_spool_open) so that the message shows up in a display browser or asks for a device.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">20th January 2003, 22:55</div></div><div class="posttext">Yes, there are several steps to this.<br />
+1.  Create both a regular report and an error report.<br />
+2.  Attach both reports to the session.   Put them in separate groups.  See session for Generate Outbound (tdilc4201m000) on how to attach the 2 reports.  (Report Button on form 1 of Maintain Sessions).<br />
+3.   Write the Baan code to open the reports, instead of the standard open reports.  Use the following:<br />
+<br />
+<br />
+ open.report( 1, &quot;&quot;, 1, language$, 1)    |* for report 1 in group 1<br />
+ open.report( 2, &quot;&quot;, 1, language$, 2)    |* for report 1 in group 2<br />
+<br />
+<br />
+These should go somewhere in the choice.print.data: / on.choice: section, replacing the standard generated commands.   This requires the #include &quot;itccom0010&quot;, a standard Baan function for report handling.  If you do not have the source for that, you can use the long hand version of these commands with the spool.open as NP suggests above.  I have found that Baan will issue customers  the source for this include function as needed, however.<br />
+<br />
+4.  To print to a report, use the print.record(#) command, where # is the report number.  In above, <br />
+<br />
+     print.record(1)                  |* to print to the first report<br />
+     print.record(2)                  |* to print to the second report<br />
+<br />
+Again, this requires the include, but there are corresponding spool.* commands that don't require the include.  I just don't have examples!<br />
+<br />
+5.  To close the reports, just issue the close.reports(0), (1) or (2) as described in the close.reports help, all reports are closed, the number tells the option of if the user is issued a message or not,etc.<br />
+<br />
+Hope that gets you going.  Your example, then, finished would be<br />
+<br />
+select tdsls045.*<br />
+from tdsls045<br />
+where tdsls045.item = :tiitm001.item<br />
+selectdo<br />
+    if tiitm001.hatc = &quot;&quot; then<br />
+            print.record(2)               |* error report<br />
+    else<br />
+            print.record(1)               |* normal report<br />
+    endif<br />
+endselect<br />
+<br />
+Could use some better construct - really don't need to do the select if the hatc is blank....open &amp; close reports would go in the choice.print.data as in the standard generated version.<br />
+<br />
+Good luck!<br />
+<br />
+<br />
+Edited:  The commands require the #include itccom0010.  The commands to do this without the include are the brp.*commands, not only the spool.* commands.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">21st January 2003, 00:18</div></div><div class="posttext">Here is a example for spool -<br />
+<br />
+if spool.open(&quot;&quot;,&quot;&quot;,1) then<br />
+	spool.pr.line = hostname$()<br />
+	spool.line()<br />
+	select	ttaad200.*<br />
+	from	ttaad200 <br />
+	where	ttaad200._compnr = 000<br />
+	order by ttaad200._index1<br />
+	selectdo<br />
+		spool.pr.line = ttaad200.user <br />
+		spool.line()<br />
+	endselect<br />
+endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">21st January 2003, 07:06</div></div><div class="posttext">I have added your suggestion to my script, and I can see both reports displaying on my device selection, but the proper report is not being called. I only want report 2 to display if there is an item with no hatc. If all items have hatc, then report 1 needs to print.<br />
+<br />
+I think my open reports is not correct<br />
+<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+<br />
+open.report( 1, &quot;&quot;, 1, language$, 1)<br />
+open.report( 2, &quot;&quot;, 1, language$, 2)<br />
+<br />
+if rprt_open<br />
+then read.main.table()<br />
+rprt_close()<br />
+else<br />
+choice.again()<br />
+endif<br />
+<br />
+After my select statment and in my if statment, do I need a rprt_send()</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">21st January 2003, 17:35</div></div><div class="posttext">The rprt_* commands are the simplest construct of the report open / print / close commands.  The open.report and print.record commands would replace the related rprt_* commands.   So, no rprt_* commands.  Without too much thought, something like the below will only open the error report if there are errors.  I did not check syntax or compile....<br />
+<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+<br />
+        if open.report( 1, &quot;&quot;, 1, language$, 1) then<br />
+              read.main.table()<br />
+              close.reports()<br />
+        else<br />
+              choice.again()<br />
+        endif<br />
+<br />
+...... <br />
+function read.main.table()<br />
+{<br />
+error.open = false<br />
+select tdsls045.*<br />
+from tdsls045<br />
+where tdsls045.item = :tiitm001.item<br />
+selectdo<br />
+    if tiitm001.hatc = &quot;&quot; then<br />
+           check.and.print.error()            <br />
+    else<br />
+            print.record(1)               |* normal report<br />
+    endif<br />
+endselect<br />
+}<br />
+<br />
+function check.and.print.error()<br />
+{<br />
+     if not error.open then<br />
+            if not open.report( 2, &quot;&quot;, 1, language$, 2) then<br />
+                  break out with errors....<br />
+            else<br />
+                  error.open = true<br />
+            endif<br />
+     endif <br />
+     print.record(2)               |* error report<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">21st January 2003, 23:02</div></div><div class="posttext">That seems to work well. How can I get just the error report to print if an error exists?<br />
+Now, the error report is printed and the regular reports with items that  have no errors. I would like to not send the good report if any items are in error.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">22nd January 2003, 01:15</div></div><div class="posttext">All the commands are valid from any function called from the choice print data section.  If you only want the 'good' report if there are good records, you need another construct like I did for the error report...like..  check.and.print.valid()<br />
+Then, if either report is opened when you return from read main table, you can issue the close reports command.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

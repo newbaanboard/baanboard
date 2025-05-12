@@ -1,0 +1,130 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Handling Two subsessions after single insert., baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Handling Two subsessions after single insert. AFS/DDC/OLE: Function servers" />
+	
+	<title>Handling Two subsessions after single insert. [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Handling Two subsessions after single insert.</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">arunprasath</div><div class="date">2nd December 2002, 17:12</div></div><div class="posttext">Hi,<br />
+When I put values in the session tfacr1110s000 and then say stpapi.insert(), it starts two subsessions one by one.<br />
+The First subsession is tfacr1102s000(Maintain One time customer) and after we enter values into this session and when we close this session, the next subsession pops up. This subsession is tfacr1111s000. so I need to enter values into this subsession and then close this session.<br />
+<br />
+I have created two handles for these two session in the main session.<br />
+As soon as I say insert in the parent session tfacr1110s000, the first subsession pops up and as I close this session after insertion, I am able to see the next subsession that has been started in the background .(using ps). <br />
+now when I use the line stpapi.put.field(&quot;&quot;) into this second session, I am getting a fatal error.<br />
+<br />
+index 0 out of dims[1] 3<br />
+Cannot continue<br />
+<br />
+I hope AFS can take care of two subsessions that will be popped up after a single insert.<br />
+<br />
+Here is my code<br />
+After putting values in the session tfacr1110s000, <br />
+		stpapi.handle.subproc(&quot;tfacr1110s000&quot;,&quot;tfacr1102s000&quot;,&quot;add&quot;)<br />
+		stpapi.handle.subproc(&quot;tfacr1110s000&quot;,&quot;tfacr1111s000&quot;,&quot;add&quot;)<br />
+ret=stpapi.insert(&quot;tfacr1110s000&quot;,true,error.code)<br />
+<br />
+Now first subsession starts up.<br />
+				stpapi.put.field(&quot;tfacr1102s000&quot;,&quot;tfacr202.ccty&quot;,str$(&quot; &quot;))<br />
+				stpapi.insert(&quot;tfacr1102s000&quot;,true,neglect)	<br />
+				stpapi.end.session(&quot;tfacr1102s000&quot;)<br />
+<br />
+Now in the background I am able to see the next subsession started.<br />
+here in this line below,when I try to put values, I am getting this fatal error.<br />
+			stpapi.put.field(&quot;tfacr1111s000&quot;,&quot;tfgld102.leac&quot;,str$(ledgeraccount))<br />
+<br />
+Where did I went wrong?<br />
+or is this again a bug with Baan?<br />
+thanks for your suggestions<br />
+regards,<br />
+s.arun prasath</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd December 2002, 17:46</div></div><div class="posttext">What happens when you do it manually? After inputing data into tfacr1110s000 and hitting insert does it then start the two sub-sessions one at time.  By this I mean does tfacr1102s000 start, then you do your insert, exit and return to tfacr1110s000.  Then the tfacr1111s000 sub-session starts.  If so I suspect it is a bug in Baan. It almost looks like if the session is running in the background it does not wait for data in one before continuing and starting the next session.<br />
+<br />
+I am not sure if you can do this, but maybe use kill on the second session.  Then do the first sub-session to finish it.  Then back in the main session (tfacr1110s000) run a zoom or something else to re-launch the second session to process the data thru it.<br />
+<br />
+Just a guess.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">arunprasath</div><div class="date">2nd December 2002, 17:53</div></div><div class="posttext">Thanks mark for your reply.<br />
+<br />
+Actually, when I run manually, <br />
+1.the first subsession pops up and <br />
+2.I do a save and exit and then <br />
+3.the second subsession pops up<br />
+4. I again insert data and then save and exit<br />
+5.now I come back to the main session.<br />
+<br />
+I have tried killing the second subsession mark, by issuing stpapi.handle.subsession(&quot;&quot;,&quot;&quot;,&quot;kill&quot;).<br />
+even then, after I close the first subsession the second session is still running. <br />
+so I tried issuing a stpapi.end.session(&quot;tfacr1111s000&quot;)<br />
+even then, this session is not getting closed.<br />
+<br />
+so I am unable to go back to the main session and then start the second subsession with continue option.<br />
+<br />
+I think I should kill this session programmatically, using kill command.<br />
+so donno what to do..<br />
+How many bugs does this AFS have??</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd December 2002, 18:29</div></div><div class="posttext">That makes we wonder, which session actually controls the tfacr1111s000. Hmm - went and glanced at the script for tfacr1110.  It looks like the session tfacr1102s000 is zoomed to from tfacr1110s000, which would make the session controlled by tfacr1110s000.  But the tfacr1111s000 session is declared in a pragma used statement, which means it is probably a back ground session.  This means the &quot;add&quot; and &quot;kill&quot; would not work since the session is not controlled by tfacr1110s000.  I would expect that if you just ended tfacr1110s000 right after tfacr1102s000 sub-session it would also end. Like this:<br />
+<br />
+stpapi.handle.subproc(&quot;tfacr1110s000&quot;,&quot;tfacr1102s000&quot;,&quot;add&quot;)<br />
+ret=stpapi.insert(&quot;tfacr1110s000&quot;,true,error.code)<br />
+stpapi.put.field(&quot;tfacr1102s000&quot;,&quot;tfacr202.ccty&quot;,str$(&quot; &quot;))<br />
+stpapi.insert(&quot;tfacr1102s000&quot;,true,neglect) <br />
+stpapi.end.session(&quot;tfacr1102s000&quot;)<br />
+stpapi.end.session(&quot;tfacr1110s000&quot;)<br />
+<br />
+<br />
+But then I do not know how you would go about getting data input into the tfacr1111s000 sub-session.  We do not have any code for the tfacr1111s000 session so I really do not know how you would control that sub-session.  Hoping this helps you.<br />
+<br />
+As for how many errors are in the AFS - well probably about as many programmers as Baan has, times the number of coding techniques you could use, times the number of lines of code in Baan. :) It probably is not that bad, but the coding is not standard all the way through all modules, so sometimes the sessions are not very friendly to the AFS style of coding.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">arunprasath</div><div class="date">3rd December 2002, 15:48</div></div><div class="posttext">Mark,<br />
+<br />
+After executing<br />
+stpapi.handle.subproc(&quot;tfacr1110s000&quot;,&quot;tfacr1102s000&quot;,&quot;add&quot;)<br />
+ret=stpapi.insert(&quot;tfacr1110s000&quot;,true,error.code)<br />
+stpapi.put.field(&quot;tfacr1102s000&quot;,&quot;tfacr202.ccty&quot;,str$(&quot; &quot;))<br />
+stpapi.insert(&quot;tfacr1102s000&quot;,true,neglect) <br />
+stpapi.end.session(&quot;tfacr1102s000&quot;)<br />
+stpapi.end.session(&quot;tfacr1111s000&quot;)<br />
+<br />
+the session tfacr1111s000 is still running in the background.<br />
+I have tried ending the parent session stpapi.end.session(&quot;tfacr1110s000&quot;). even then this session tfacr1111s000 is still running.<br />
+<br />
+so I found the process id of the session tfacr1111s000 and then killed it.<br />
+then I am closing the parent sessions tfacr1110s000 and also tfgld1101m000. I could come back to the session again.<br />
+when I come back again, the simultaneous popping up of two sessions is not there. Only one session is coming.(tfacr1111s000).<br />
+I could handle this.<br />
+I know using kill is not advised. but at times, I gotto...<br />
+thanks again</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd December 2002, 16:02</div></div><div class="posttext">As long as it works, use it.  I have done things to get these function servers to work, that really was not recommended - but I do not worry about it.  Just remember that new releases of these sessions may require changes to the function servers.<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

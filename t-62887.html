@@ -1,0 +1,123 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS - No Data with Selection, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS - No Data with Selection AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS - No Data with Selection [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS - No Data with Selection</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">baan2ion</div><div class="date">24th September 2012, 12:29</div></div><div class="posttext">AFS to run the customized Print report. I am not able to capture the message / error  &quot; No Data within Selection &quot;<br />
+<br />
+When the data is not found in the particular selection the baan report give by default the message that &quot;No Data within Selection &quot; I wanted to capture this message in the AFS.<br />
+<br />
+coding is :<br />
+ stpapi.put.field(&quot;whprn2400m002&quot;, &quot;spool.fileout&quot;, trim$(file.name))<br />
+ stpapi.put.field (&quot;whprn2400m002&quot;, &quot;repo&quot;, str$(etol(tcyesno.yes)))<br />
+ stpapi.set.report(&quot;whprn2400m002&quot;, &quot;rwhprn2400m0021&quot;, &quot;ASCIF&quot; , error.msg)<br />
+ stpapi.print.report(&quot;whprn2400m002&quot;, error.msg)<br />
+ stpapi.end.session(&quot;whprn2400m002&quot;, error.msg)<br />
+<br />
+The above coding does not capturing these message . Also checked with <br />
+ stpapi.continue.process(&quot;session code&quot;, error message) but with no use.<br />
+<br />
+Any other coding required to capture the message/error.<br />
+<br />
+thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th September 2012, 15:35</div></div><div class="posttext">First are you sure spool.fileout is really a form field ont he session?  I usually just set spool.fileout before running the report.<br />
+<br />
+Anyway this is a warning and not really an error.  After the continue.process statement try stpapi.get.mess.code(&quot;whprn2400m002&quot;, msg) to see if it gets the warning.  That is how I trap it. Something like this:<br />
+<br />
+<br />
+| calling code<br />
+	print_tisfc0418m000(zoom.orno, zoom.orno,errmsg)<br />
+	if errmsg(1;14) =&quot;No data within&quot; then<br />
+<br />
+|Last lines from the library<br />
+	stpapi.continue.process(&quot;tisfc0418m000&quot;,msg)<br />
+	stpapi.get.mess.code(&quot;tisfc0418m000&quot;,msg)<br />
+	stpapi.end.session(&quot;tisfc0418m000&quot;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baan2ion</div><div class="date">24th September 2012, 15:54</div></div><div class="posttext">thanks for your reply.<br />
+<br />
+I have tested with that also but the message comes is &quot;Command disabled&quot; in <br />
+<br />
+stpapi.get.mess.code(&quot;whprn2400m002&quot;, error.msg). If i directly run the print session the  &quot;No Data within selection&quot; comes.<br />
+<br />
+pasting the code. <br />
+<br />
+-------<br />
+<br />
+ stpapi.set.report(&quot;whprn2400m002&quot;, &quot;rwhprn2400m0021&quot;, &quot;ASCTXT&quot; , error.msg)<br />
+      stpapi.continue.process(&quot;whprn2400m002&quot;, error.msg)<br />
+      ret.str = stpapi.get.mess.code(&quot;whprn2400m002&quot;, error.msg)<br />
+      stpapi.print.report(&quot;whprn2400m002&quot;, error.msg)<br />
+      stpapi.end.session(&quot;whprn2400m002&quot;, error.msg)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th September 2012, 16:07</div></div><div class="posttext">Well you should only need the continue or the print.report command - I don't think both.  Maybe if you remove the continue and use the print.report followed by the get.mess.code.<br />
+<br />
+Is this LN or Baan 5?  The document I have says for BaanERP use the stpapi.form.command.  In either case the print.report should work - at least I think so.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">24th September 2012, 22:49</div></div><div class="posttext">I don't think that you can trap that error in AFS since it is a warning / result of an 'rprt_close' (where you can use the argument to disable it) or 'brp.close'.  You have an option when printing to a file to simply see if the file is present where you directed it to go when setting 'spool.fileout' using something like 'seq.fstat.local'.  Easier to find the file if you use a specific directory/folder when setting it (like $BSE_TMP&quot; - set with bse.tmp.dir$ call).  This works for standard and custom report sessions.<br />
+<br />
+Since you are running a custom report, you can add logic to provide your own message when no data found when you never call 'rprt_send' or 'brp.ready'.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cte sistemas</div><div class="date">25th September 2012, 01:58</div></div><div class="posttext">This is a warning.<br />
+The form to do that is using the function stpapi.get.mess.code() and with a debugger you'll see the error code generated.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baan2ion</div><div class="date">25th September 2012, 07:38</div></div><div class="posttext">thanks all,<br />
+<br />
+The &quot;No data within selection &quot; message is not captured in any set of command.  Tested with all combination using stpapi.get.mess.code syntax after print.report/ continue. It gives blank in error message.<br />
+<br />
+I have already done the alternative by checking the file size of txt report generated. But I wanted to capture the the message via AFS. So to reduce the processing and time.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th September 2012, 16:23</div></div><div class="posttext">stpapi.get.mess.code is how I trap this - if this is not working it could be because of several reasons.  The first is some how another message makes it into the buffer - I have never used this, but something else that might work is below.  I got this from the documentation.<br />
+<br />
+<br />
+stpapi.put.field(&quot;dtfsa1101s000&quot;, &quot;dtfsa101.seno&quot;, str$(i.seno)) <br />
+stpapi.put.field(&quot;dtfsa1101s000&quot;, &quot;dtfsa101.name&quot;, name)		<br />
+retval1 = stpapi.insert(&quot;dtfsa1101s000&quot;, true, error.msg)		<br />
+if not retval1 then								<br />
+     while true <br />
+            error.code = stpapi.get.mess.code(&quot;dtfsa1101s000&quot;, true, error.msg)<br />
+            if isspace(error.msg) then<br />
+                   break<br />
+            endif <br />
+			rep.message = error.msg<br />
+            rprt_send()<br />
+     endwhile<br />
+     retval2 = stpapi.recover(&quot;dtfsa1101s000&quot;, recover.msg)<br />
+endif<br />
+<br />
+<br />
+If the above does not work then you might need to update to the latest stpapi components.  Not sure how big a deal that would be, because even then it could be the session itself.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baan2ion</div><div class="date">26th September 2012, 08:25</div></div><div class="posttext">thanks mark,<br />
+<br />
+But not working. The message is not captured in &quot;stpapi.get.mess.code&quot;.<br />
+<br />
+Everything working expect capturing message, So empty file generated in fileout.  So i have gone alternative by checking file size after file generated.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

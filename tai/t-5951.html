@@ -1,0 +1,139 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="ba6.1 max users reached on init, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] ba6.1 max users reached on init Tools Administration &amp; Installation" />
+	
+	<title>ba6.1 max users reached on init [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; ba6.1 max users reached on init</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">tjbyfield</div><div class="date">25th July 2002, 16:11</div></div><div class="posttext">We run a cron job every 5 mins to transfer data from a non baan application with production details (quantity and lot serial no) via oracle table.  When processed successfully the records are deleted (it is treated like a processing push/pop stack)  <br />
+<br />
+The cron job initiates ba6.1 for a 3gl session that loads a dll to process the tranasctions in sfc/ilc/ltc. This all works well 24x7 and the loose coupling allows baan to be closed for short periods without stopping production operations and provides automatic processing of production recording transaction.  <br />
+<br />
+However, from time  to time  when the max users is reached the ba6.1 cannot run.  <br />
+<br />
+We need to know when it can not start so that we can shed non critical and/or non active users so the the cron job can get a licence.  Unfortunately,  ba6.1 does not return a non zero return code that would allow the script to alert us (via email and/or printer).    <br />
+<br />
+(A) IS THERE A WAY WE CAN GET b6.1 TELL US IT COULD NOT GET A LICENCE (other than the ba6.1 log) <br />
+<br />
+An in-eligant solution would be for the 3gl session to create a file. In the cron script we could check that it was created - then if not created we would know that ba6.1 could not start the session.<br />
+<br />
+A much better solution would be to keep the dll alive permenently and get it to spring into action whenever a record was written to the oracle table.  <br />
+<br />
+(B) IS THERE A WAY OF GETTING THE DLL TO SLEEP AND THEN BEING INITIATED WHEN RECORDS ARRIVE  OR  PERIODICALLY CHECKING FOR RECORDS (without a process intensive loop) <br />
+<br />
+We have baanIV4c4  with 6.1 porting set on IBM AIX oracle 8.0.5 <br />
+<br />
+I will appreciate your help<br />
+<br />
+Terry</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">garfield ruhr</div><div class="date">30th July 2002, 18:31</div></div><div class="posttext">Hi,<br />
+<br />
+this could be a job of the jobdaemon (ttaad5206m000). If you use the jobdaemon then the scheduling is done by Baan. The bshell (and so the licence) is taken while the jobdaemon is started. Afterwards all jobs running under control of the jobdaemon are running in the same bshell. <br />
+<br />
+The jobdaemon has some problems if it runs for a very long time with lots of different jobs. But if you want only your be started in the daemon then it would be the solution for me.<br />
+<br />
+The startup of the jobdaemon is in an example in $BSE/etc/rc.start_jobdaemon and must be maintained like the rc.start_job script.<br />
+<br />
+Bye,<br />
+<br />
+Garfield :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tjbyfield</div><div class="date">31st July 2002, 02:36</div></div><div class="posttext">Thank you for your reply: <br />
+<br />
+We initially ran the session from the job daemon but from time to time had problems with the jd hanging.  (We make extensive use of the job daemon)  Running this and a couple of other programs fron cron gives us worthwhile  improvement in operations.  The only problem we have had is the occassional licence problem.<br />
+<br />
+We have recently purchased extra licences and have also purchased 'closeidle'.  However, we would like to foolproof the licence unavailable  problem. (Unless we purchase a large no of spare licences we would still have a licence problem sometimes)  <br />
+<br />
+We have allocated 1 licence exclusively for BA but we sometimes have more than one running.  Whilst we could allocate more BA licences but that would not necessesarily make the best use of the licences. <br />
+<br />
+Terry:cool:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">31st July 2002, 03:07</div></div><div class="posttext">Hi Terry,<br />
+<br />
+You might try to explore using shell scripts in the cron which activate the BaaN jobs -<br />
+<br />
+<br />
+<br />
+#bshell6.2 -server ttaad5203m000 2&gt;${BSE_LOG}/rc.startjoberr &amp;<br />
+<br />
+ba6.2 -- -nodebug ttaad5203m000 2&gt;${BSE_LOG}/lmsjob_${BSH_JOB}.${ZDATE} &amp;<br />
+<br />
+# Use ba or bshell depending on your BaaN Version<br />
+<br />
+wait <br />
+<br />
+#Parse the $BSH_JOBOK file to test the job status.<br />
+if [[ -a $BSH_JOBOK ]]; then<br />
+  STATUS=`/bin/grep 'jobstat:' $BSH_JOBOK`<br />
+  if [[ $STATUS = 'jobstat:OK' ]]; then<br />
+    exit 0<br />
+  else<br />
+# maybe sleep or pause for few mintues and invoke the ba or bshell command again.<br />
+#bshell6.2 -server ttaad5203m000 2&gt;${BSE_LOG}/rc.startjoberr &amp;<br />
+ba6.2 -- -nodebug ttaad5203m000 2&gt;${BSE_LOG}/myjob_${BSH_JOB}.${ZDATE} &amp;<br />
+<br />
+    exit 1<br />
+  fi<br />
+else<br />
+  exit 2<br />
+fi<br />
+<br />
+<br />
+<br />
+You can put the bshell/ba commands in a function and call the function at intervals.<br />
+<br />
+But I am not sure whats the return values if the licence error message is flashed so that you can differentiate the return values between runtime errors and licence errors.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tjbyfield</div><div class="date">31st July 2002, 07:57</div></div><div class="posttext">:)  Thankyou  NPRao  No wonder why they made you a guru</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">3rd August 2002, 05:38</div></div><div class="posttext">Hi Terry,<br />
+<br />
+I wonder if you tried to use the timeout mechanisms on your BaaN installation.<br />
+<br />
+With these settings you might be able to logoff/kill inactive users and then you can get the licences free to that your job process can be executed.<br />
+<br />
+Here is the more information, which I accumulated from BaaN Support site etc.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Djie-En</div><div class="date">6th August 2002, 10:22</div></div><div class="posttext">Hi,<br />
+<br />
+If your clients are running by GUI and your JOBS only by ba6.1, you can solve your problem by relicensing your system.<br />
+If you have for example 10 licensies (Only 10 GUI licences) of which one needed for a batchjob, you should have a license for 1 ASCII and 9 GUI users.<br />
+A GUI user will not be able to use the ASCII licence, but a ASCII user will be able to use the GUI licence, if the ASCII licence is already in use.<br />
+So we've solved our problem with that.<br />
+<br />
+GN</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tjbyfield</div><div class="date">6th August 2002, 11:13</div></div><div class="posttext">Hi Djie-En<br />
+<br />
+Thank you for your reply.  We have allocated one ba licence for the job daemon but I like your idea. I wasn't counting the job daemon. We will increase the number of ba licences to cover the  the j/d and 2 ba run from cron. <br />
+<br />
+Since posting we have improved the cron initiated scripts to be able to tell when a licence is not available.<br />
+<br />
+Regards<br />
+<br />
+Terry</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

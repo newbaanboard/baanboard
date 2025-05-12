@@ -1,0 +1,181 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Strange requirement, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Strange requirement Tools Development" />
+	
+	<title>Strange requirement [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Strange requirement</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Renegade</div><div class="date">6th April 2004, 21:32</div></div><div class="posttext">Friends,<br />
+<br />
+I have a requirement in which there will be table names in ascii file which I have to read and later I need to find if those tables has records in a company.<br />
+<br />
+How can a script be written. Please help, if anyone knows. Would be nice if someone helps me with an idea. Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">6th April 2004, 21:57</div></div><div class="posttext">You would have to use seq.open() and read the file, get the table name - ppmmmxyz, then go through the table ttaad100 company-000 for all the companies or companies linked to the package combination and then compnr.check() or switch.to.company() and then count the number of rows for that table in that company using a dynamic sql or db.nr.rows()</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th April 2004, 22:03</div></div><div class="posttext">Use dynamic sql and pass the table name.  I think I actually have a routine that counts the rows.  Below is one sample:<br />
+<br />
+Mark<br />
+<br />
+|******************************************************************************<br />
+| Function to get a description or data field.<br />
+|******************************************************************************<br />
+function get.a.description(	string 	field.info(255),	| Field Information.<br />
+				string	ref.table(16),		| Ref. Table name to check<br />
+				string	ref.table.field(32),	| Field to find record.<br />
+				string	ref.table.desc(32))	| Field to select in ref. table<br />
+{<br />
+	string		sql(120)<br />
+	long		sql_id, found, expid<br />
+<br />
+|	error.message = ref.table.desc<br />
+|	expid = expr.compile(error.message &amp; &quot;:=&quot;&quot;&quot;&quot;&quot;)<br />
+	expid = expr.compile(ref.table.desc &amp; &quot;:=&quot;&quot;&quot;&quot;&quot;)<br />
+	sql = s.expr$(expid)<br />
+	expr.free(expid)<br />
+<br />
+	sql = 		&quot; select &quot; &amp; strip$(ref.table.desc)<br />
+	sql = sql &amp;	&quot; from   &quot; &amp; strip$(ref.table)<br />	sql = sql &amp; 	&quot; where  &quot; &amp; strip$(ref.table.field) &amp; &quot;=&quot; &amp; chr$(34) &amp; strip$(field.info) &amp; chr$(34)<br />
+	sql = sql &amp;     &quot; as set with 1 rows&quot;<br />
+	sql_id = sql.parse(sql)<br />
+	sql.exec(sql_id)<br />
+	found = sql.fetch(sql_id)<br />
+	error.bypass = 0<br />
+	sql.break(sql_id)<br />
+	sql.close(sql_id)<br />
+	display(ref.table.desc)<br />
+}<br />
+|******************************************************************************<br />
+| Function not yet used.<br />
+|******************************************************************************<br />
+function create.postfix.for.project()<br />
+{<br />
+			string	sql(120)<br />
+			long		sql_id<br />
+	domain	tcbool	found, new<br />
+<br />
+	error.bypass = 1<br />
+	found = false<br />
+ 	sql = &quot;select max(tppdm600.cprj) from tppdm600&quot;<br />
+	sql = sql &amp; &quot; where tppdm600.cprj like &quot;&quot;&quot; &amp; pref &amp; &quot;.*&quot;&quot; as set with 1 rows&quot;<br />
+	sql_id = sql.parse(sql)<br />
+	sql.exec(sql_id)<br />
+	sql.fetch(sql_id)<br />
+	error.bypass = 0<br />
+	sql.break(sql_id)<br />
+	sql.close(sql_id)<br />
+	post = tppdm600.cprj(3;4)<br />
+<br />
+	curr.char = 6<br />
+	new = false<br />
+	while curr.char&gt;2 and not new<br />
+		new = check.the.character()<br />
+		if not new then<br />
+			curr.char = curr.char - 1<br />
+		endif<br />
+<br />
+	endwhile<br />
+	if not new then<br />
+		message(&quot;Last 4 are filled, start a new range.&quot;)<br />
+		choice.again()<br />
+	endif<br />
+	display(&quot;post&quot;)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th April 2004, 22:06</div></div><div class="posttext">What I typically do in a case like this is to ask the user where the file is located.  I then copy it to the server (client2server) and the open it and read it.  Here is one routine you can modify for your needs - counting the rows.<br />
+<br />
+Mark<br />
+<br />
+<br />
+|******************************************************************************<br />
+| Use dynamic sql to count rows on a table.<br />
+|******************************************************************************<br />
+function double count_table_rows()<br />
+{<br />
+	string		sql(120)<br />
+	long		sql_id<br />
+	double		rows<br />
+<br />
+	<br />
+	rows = 0<br />
+	error.bypass = 1<br />
+	sql = &quot;select count(*):1 from &quot; &amp; table.name<br />
+	sql_id = sql.parse(sql)<br />
+	if sql_id&lt;&gt;0 then<br />
+		sql.select.bind(sql_id, 1, rows)<br />
+		sql.exec(sql_id)<br />
+		while true<br />
+			on case sql.fetch(sql_id)<br />
+				case eendfile:<br />
+					break<br />
+				case 0:<br />
+					break<br />
+				default:<br />
+			endcase<br />
+			break<br />
+		endwhile<br />
+		sql.break(sql_id)<br />
+		sql.close(sql_id)<br />
+	endif<br />
+	error.bypass = 0<br />
+	return(rows)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Renegade</div><div class="date">6th April 2004, 22:18</div></div><div class="posttext">Thanks a lot Prasanth. That was an excellent idea.<br />
+<br />
+My code is like this:<br />
+<br />
+String fie(9)<br />
+long value, nr_rows<br />
+<br />
+fie =  &quot;t&quot;&amp;&quot;tf&quot;&amp;&quot;gld&quot;&amp;&quot;106&quot;<br />
+value = db.bind( fie )  <br />
+db.nr.rows( value, nr_rows, 125 )<br />
+<br />
+Great.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">6th April 2004, 22:25</div></div><div class="posttext">Make sure to check the return values of db.bind() and also use db.unbind() for each operation.<br />
+<br />
+You might get some fatal errors like 512 if runtimes arent successfully or DD mismatches.<br />
+long db.bind( string table_name(9) [, ref string buffer(.) [, long comp_nr]] )<br />
+Description<br />
+This creates a pointer to a specified table. It returns a table ID that you use in other database calls to identify the table. The pointer is to a table with a particular company number and record buffer. You can create additional pointers to the same table by calling the function with a different company number and/or record buffer. <br />
+Note<br />
+When you create more than one pointer to a table, you must use a different record buffer for each one. <br />
+  <br />
+These are like the low level &quot;C&quot; pointers and you have to unbind/free them carefully.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Renegade</div><div class="date">6th April 2004, 22:29</div></div><div class="posttext">Thank you very much. Excellent solutions from you and Prasanth.<br />
+<br />
+Hats  off !</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">victor_cleto</div><div class="date">7th April 2004, 13:15</div></div><div class="posttext">This is coding not admin, moved thread to tools development.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th April 2004, 17:06</div></div><div class="posttext">Merged these threads as best I could.<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

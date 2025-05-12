@@ -1,0 +1,132 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How can I lock a table while I'm updating it?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How can I lock a table while I'm updating it? Tools Development" />
+	
+	<title>How can I lock a table while I'm updating it? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; How can I lock a table while I'm updating it?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">simona</div><div class="date">18th June 2008, 14:17</div></div><div class="posttext">Hello there,<br />
+I'm using Baan IV c4. <br />
+How can I lock the table while I;m updating it. I want to avoid that another user  try update it in the same time.<br />
+There is something like db.check.row.dlocked() or sometrhing else for Baan IV?<br />
+<br />
+Thank you,<br />
+Simona</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ulrich.fuchs</div><div class="date">18th June 2008, 14:27</div></div><div class="posttext">db.retry.point ()<br />
+select tiitm001.*<br />
+from   tiitm001 for update    | Creates a &quot;delayed lock&quot; on the record<br />
+where ...<br />
+order by tiitm001._index1 with retry | resume at the current item when a locking conflict occurs<br />
+selectdo<br />
+    tiitm001.dsca = &quot;foo&quot;<br />
+    db.update (ttiitm001, db.retry) | Actually locks the record<br />
+    commit.transaction () <br />
+endselect<br />
+<br />
+<br />
+should do<br />
+<br />
+Uli</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kozure Ohashi</div><div class="date">18th June 2008, 14:28</div></div><div class="posttext">long db.lock.table( long table_id )<br />
+<br />
+Description<br />
+<br />
+This locks a specified table. Other users cannot then write to or delete the table or any parts of the table. Nor can they lock the table or any parts of the table. The lock is released by commit.transaction() or abort.transaction().<br />
+<br />
+Return values<br />
+<br />
+    0	success<br />
+&lt;&gt;0	error<br />
+<br />
+Regards,<br />
+<br />
+Kozure</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">simona</div><div class="date">18th June 2008, 15:11</div></div><div class="posttext">Hi Kozure,<br />
+I tried with db.lock.table() but I get error 203=&quot;Action not allowed within transaction&quot;.<br />
+my script is:<br />
+<br />
+ db.lock.table(ttfcmg000)<br />
+select	tfcmg000.*<br />
+from	tfcmg000 for update<br />
+selectdo<br />
+	tfcmg000.bdir = tfcmg000.bdir + 1<br />
+	db.update(ttfcmg000, db.retry)<br />
+<br />
+	select	tfcmg409.*<br />
+	from	tfcmg409<br />
+	where	tfcmg409._index1 = {:tfcmg000.bdir}<br />
+	selectempty<br />
+		tfcmg409.btno = tfcmg000.bdir<br />
+		tfcmg409.user = user<br />
+		tfcmg409.stdd = tfcmg.stdd.selected<br />
+		tfcmg409.date = date.num()<br />
+		db.insert(ttfcmg409, db.retry)<br />
+	endselect<br />
+endselect<br />
+commit.transaction()<br />
+<br />
+regards,<br />
+simona</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th June 2008, 15:18</div></div><div class="posttext">You don't need to use db.lock.  Use db.retry.point () insteand just like Ulrich.fuchs recommended.  This will lock the table while you do an update.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kozure Ohashi</div><div class="date">18th June 2008, 18:00</div></div><div class="posttext">My understanding was, you want to lock the whole table while processing your statements.<br />
+<br />
+Regards,<br />
+<br />
+Kozure</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vaishali_sftdev</div><div class="date">17th July 2008, 12:17</div></div><div class="posttext">Hi,<br />
+<br />
+This thread is very old. But it raised question in my mind that all these are  used for the same purpose? for update also locks the table as db.lock.. but db.retry.point is has some other purpose? Plz, can someone make it clear.. :confused: And when do we require db.lock if its purpose is to update the whole table? Any example.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cyprus</div><div class="date">17th July 2008, 13:25</div></div><div class="posttext">Hi,<br />
+<br />
+This thread is very old. But it raised question in my mind that all these are  used for the same purpose? for update also locks the table as db.lock.. but db.retry.point is has some other purpose? Plz, can someone make it clear.. :confused: And when do we require db.lock if its purpose is to update the whole table? Any example.<br />
+<br />
+db.lock.table() locks the entire table, so that no other user can modify/delete any record from that table till this lock exists...<br />
+<br />
+&quot;for update&quot; (delayed locking) locks the particular record selected thru the select query (not all records), so that this particular record cannot be modified/deleted by other users. Other records in table can still be modified/deleted while this lock is on.:cool:<br />
+<br />
+Hope u got some clearity ...:)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vaishali_sftdev</div><div class="date">21st July 2008, 08:57</div></div><div class="posttext">You don't need to use db.lock.  Use db.retry.point () insteand just like Ulrich.fuchs recommended.  This will lock the table while you do an update.<br />
+<br />
+yes, cyprus.. thank u for reply.. And as mark said that instead of using db.lock, he has suggested db.retry.point. So, what advantage it will provide over db.lock except reexecuting a transaction? Since, it is used for reexecuting a transaction.. But locking a record is done here by for update clause in the query. right? Does he mean same?<br />
+<br />
+Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cyprus</div><div class="date">21st July 2008, 09:16</div></div><div class="posttext">Hi Vaishali,<br />
+<br />
+If you are updating a record in a table, there is no point in locking the entire table using db.lock(), instead you will prefer locking the particular record which you can do by using &quot;for update&quot; and db.retry.point() so that others can still work on the remaining records of the table ... <br />
+<br />
+Both the locking are important and have their advantages depending on their use ...</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

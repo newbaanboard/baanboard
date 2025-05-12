@@ -1,0 +1,121 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="utf8 charset?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] utf8 charset? Tools Administration &amp; Installation" />
+	
+	<title>utf8 charset? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; utf8 charset?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">eppesuiG</div><div class="date">9th November 2007, 10:59</div></div><div class="posttext">Hi,<br />
+I already described this problem in &quot;Tools development&quot; forum, but probably this is a better place for this kind of questions.<br />
+<br />
+I guess there is a problem with charset encoding since I keep having this error message when I try to insert a new value to a string field. The new value include a letter &quot;è&quot; that is stored as a two byte in our oracle database setup with utf-8 encoding.<br />
+<br />
+This message is correctly stored in oracle, and I can query it with sqlplus in both NLS_LANG=american_america.we8iso88591 and NLS_LANG=american_america.utf-8. sqlplus convert the value according to my &quot;ALTER SESSION SET NLS_LANGUAGE=...&quot; statement.<br />
+<br />
+When running the session in baan, I get the following error logged:<br />
+Log message called from view/port.8.4a.01/vobs/tt/lib/dbc/c_dd_chk.c: #105 keyword: Check dd<br />
+Pid 27228 Uid 145 Euid 145 Gid 125 Egid 125 Pset diego@DAKKAR2:6700<br />
+user_type S language 6 user_name info004 tty ote locale ISO88591/NULL<br />
+session: &quot;tinpr0220m000&quot;;object: &quot;tinpr0220m000&quot;; company number: 200<br />
+Errno 0 bdb_errno 0<br />
+Log_mesg: tinpr020.rjcerror not according to NOHI (value 'Non Ã&quot;possibile processare record con stato &quot;Completato&quot; o successivo')<br />
+<br />
+Log message called from view/port.8.4a.01/vobs/tt/lib/dbc/c_dd_chk.c: #105 keyword: Check dd<br />
+Pid 27228 Uid 145 Euid 145 Gid 125 Egid 125 Pset diego@DAKKAR2:6700<br />
+user_type S language 6 user_name info004 tty ote locale ISO88591/NULL<br />
+session: &quot;tinpr0220m000&quot;;object: &quot;tinpr0220m000&quot;; company number: 200<br />
+Errno 0 bdb_errno 205 (Out of range)<br />
+Log_mesg: Error 205 (Out of range) on tinpr020200 in db_update(51)<br />
+The error message is written when calling db.update on tinpr020 as shown here:<br />
+ db.retry.point()<br />
+ <br />
+ select tinpr020.*<br />
+ from tinpr020 for update<br />
+ where tinpr020._index2 = {0}<br />
+<br />
+ selectdo<br />
+   ret.string = form.text$( &quot;tinpr.0002&quot;, language$)<br />
+   tinpr020.rjcerror = ret.string<br />
+<br />
+   |a few lines of code ...<br />
+   <br />
+   db.update( ttinpr020, db.retry)<br />
+   commit.transaction()<br />
+Any suggestion?<br />
+<br />
+Thanks a lot</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">12th November 2007, 17:50</div></div><div class="posttext">Well.. Main problem is that baan doesn't have a TSS encoding for UTF8<br />
+as it's not a supported character set. <br />
+<br />
+in your db_resource file have you set your nls_lang: to anything? <br />
+if you set it to <br />
+nls_lang:american_america.we8iso8859p1<br />
+<br />
+it might make the errors go away since baan will just use that character set.<br />
+And Oracle should be ok with it since we8 is a subset of utf8.<br />
+BUT if you try to encode something that's in utf8 and not in we8 from<br />
+an extenrnal program, baan won't be able to read it.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eppesuiG</div><div class="date">12th November 2007, 18:04</div></div><div class="posttext">We have nls_lang:american_america.al32utf8 in db_resource file, so this means that baan tell oracle that he is able to manage utf-8 characters.<br />
+<br />
+I think you are right: I know baanIV isn't able to manage utf8, while I though baan LN was improved. I'll switch db_resource to we8iso88591 and will hopefully get everything working.<br />
+<br />
+I will post here again after I try this change.<br />
+<br />
+Thanks,<br />
+Giuseppe</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eppesuiG</div><div class="date">12th November 2007, 19:16</div></div><div class="posttext">Hi dave_23,<br />
+when I change nls_lang in db_resource I get a brand new error that I never saw before:<br />
+<br />
+2007-11-12[18:55:50(UTC-01:00)]:E:inf004: ******* S T A R T of Error message *******<br />
+2007-11-12[18:55:50(UTC-01:00)]:E:inf004: Log message called from /view/port.8.4a.01/vobs/tt/servers/ORACLE_2/ora_native.c: #2258 keyword: Oracl<br />
+e NLS configuration<br />
+2007-11-12[18:55:50(UTC-01:00)]:E:inf004: Pid 27173 Uid 145 Euid 145 Gid 125 Egid 125 Pset diego@DAKKAR2:8108<br />
+2007-11-12[18:55:50(UTC-01:00)]:E:inf004: user_type S language 6 user_name inf004 tty ote locale ISO88591/NULL<br />
+2007-11-12[18:55:50(UTC-01:00)]:E:inf004: Errno 25 (Not a typewriter) bdb_errno 0<br />
+2007-11-12[18:55:50(UTC-01:00)]:E:inf004: <br />
+2007-11-12[18:55:50(UTC-01:00)]:E:inf004: dbs_errno = 0, Error 402 occurred: <br />
+2007-11-12[18:55:50(UTC-01:00)]:E:inf004: Incompatible NLS Characterset settings:<br />
+2007-11-12[18:55:50(UTC-01:00)]:E:inf004: Client: NLS_LANG = 'american_america.WE8ISO8859P15' --&gt; characterset 'WE8ISO8859P15'<br />
+2007-11-12[18:55:50(UTC-01:00)]:E:inf004: Server: NLS_CHARACTERSET = 'AL32UTF8'<br />
+2007-11-12[18:55:50(UTC-01:00)]:E:inf004: Logon failed; errno 402<br />
+2007-11-12[18:55:50(UTC-01:00)]:E:inf004: Flushed at /view/port.8.4a.01/vobs/tt/servers/ORACLE_2/ora_driver.c : #267.<br />
+2007-11-12[18:55:50(UTC-01:00)]:E:inf004: ******* E N D of Error message *******<br />
+<br />
+so, it seems that once configured oracle with charset AL32UTF8, than you cannot use baan in latin9 (iso8859p15) nor utf8 (iso8859p1).<br />
+<br />
+Any suggestions about this?<br />
+<br />
+Thanks,<br />
+Giuseppe</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">12th November 2007, 19:30</div></div><div class="posttext">Bah, they put in a check for that..<br />
+<br />
+So only way to fix it in my opinion is to convert your database character set to we8iso8859X.<br />
+<br />
+Dave</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

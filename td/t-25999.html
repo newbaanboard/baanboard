@@ -1,0 +1,289 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Error 201 - Record Changed after delayed lock, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Error 201 - Record Changed after delayed lock Tools Development" />
+	
+	<title>Error 201 - Record Changed after delayed lock [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Error 201 - Record Changed after delayed lock</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th January 2006, 17:19</div></div><div class="posttext">I have a program that I can not find what the problem is.  This piece of code aborts on the second run with with the record changed after delayed lock error:<br />
+<br />
+<br />
+	db.retry.point()<br />
+	select	tpbcr606.*<br />
+	from	tpbcr606 for update<br />
+	where	tpbcr606.gcid = :gcid.f<br />
+	selectdo<br />
+		tpbcr606.incl = tcyesno.no<br />
+		db.update(ttpbcr606, db.retry)<br />
+		commit.transaction()<br />
+	endselect<br />
+<br />
+<br />
+This program is the only one that can change this table - plus only one user can run it at a time.  Is this delayed lock error being caused by another query on this table?  There are other places that do updates on the table, but they all look like the above.  What am I missing?  I have read all the other posts on this topic, but see nothing that helps me.<br />
+<br />
+thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">george7a</div><div class="date">4th January 2006, 18:07</div></div><div class="posttext">This program is the only one that can change this table thanks<br />
+<br />
+Is there another place in the code that updates this table?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th January 2006, 18:28</div></div><div class="posttext">Yes - there are other places:<br />
+<br />
+<br />
+	| Get current billing cycle data to test which records are included and<br />
+	| which get skipped.<br />
+	select	tpppc980.*,tpbcr601.*<br />
+	from	tpppc980, tpbcr601<br />
+	where	tpppc980._index1 = {:date.f, :gcid.f}<br />
+	and	tpppc980.ninv = 0<br />
+	and	tpbcr601._index1 = {tpppc980.date, tpppc980.gcid, tpppc980.coty}<br />
+	selectdo<br />
+		| Find any bcr records<br />
+		select	tpbcr600.*<br />
+		from	tpbcr600<br />
+		where	tpbcr600._index1 = {:tpbcr601.gcid, :tpbcr601.cprj, :tpbcr601.clin}<br />
+		selectdo<br />
+			|Check for the key on table 606 using tpbcr600 records - for each BCR<br />
+			|look for a 606 record.  May need to add an index later.<br />
+			db.retry.point()<br />
+			select	tpbcr606.*<br />
+			from	tpbcr606 for update<br />
+			where	tpbcr606.gcid = :tpbcr601.gcid<br />
+			and	tpbcr606.coty = :tpbcr601.coty<br />
+			and	tpbcr606.cprj = :tpbcr600.nprj<br />
+			and	tpbcr606.clin = :tpbcr600.cln1<br />
+			and	tpbcr606.year = :tpbcr601.year<br />
+			and	tpbcr606.cotp = :tpbcr601.cotp<br />
+			and	tpbcr606.cobj = :tpbcr601.cobj<br />
+			and	tpbcr606.obsp = :tpbcr601.obsp<br />
+			selectdo<br />
+				tpbcr606.incl = tcyesno.yes<br />
+				db.update(ttpbcr606, db.retry)<br />
+				commit.transaction()<br />
+			endselect<br />
+		selectempty  | Means no BCR records<br />
+			|Check for the key on table 606 using tpbcr601 records<br />
+			db.retry.point()<br />
+			select	tpbcr606.*<br />
+			from	tpbcr606 for update<br />
+			where	tpbcr606.gcid = :tpbcr601.gcid<br />
+			and	tpbcr606.coty = :tpbcr601.coty<br />
+			and	tpbcr606.cprj = :tpbcr601.cprj<br />
+			and	tpbcr606.clin = :tpbcr601.clin<br />
+			and	tpbcr606.year = :tpbcr601.year<br />
+			and	tpbcr606.cotp = :tpbcr601.cotp<br />
+			and	tpbcr606.cobj = :tpbcr601.cobj<br />
+			and	tpbcr606.obsp = :tpbcr601.obsp<br />
+			selectdo<br />
+				tpbcr606.incl = tcyesno.yes<br />
+				db.update(ttpbcr606, db.retry)<br />
+				commit.transaction()<br />
+			endselect<br />
+		endselect<br />
+	endselect<br />
+<br />
+<br />
+and <br />
+<br />
+<br />
+	db.retry.point()<br />
+	select	tpbcr605.*<br />
+	from	tpbcr605<br />
+	where	tpbcr605._index1 = {:date.f, :gcid.f}<br />
+	selectdo<br />
+		rcd.ttpbcr606 = rcd.ttpbcr605<br />
+		if check.for.bcr() then<br />
+| 20050728.st Allow BCR to change Project.<br />
+			tpbcr606.cprj = tpbcr600.nprj	| 20050728.end<br />
+			tpbcr606.cln1 = tpbcr600.cln1<br />
+		else<br />
+| 20050728.st Allow BCR to change Project.<br />
+			tpbcr606.cprj = tpbcr605.cprj	| 20050728.end<br />
+			tpbcr606.cln1 = tpbcr605.clin<br />
+		endif<br />
+| 20051025.st All new differential records go to yes.<br />
+		tpbcr606.incl = tcyesno.yes	| 20051025.end<br />
+		db.insert(ttpbcr606,db.retry)<br />
+		commit.transaction()<br />
+	endselect<br />
+<br />
+<br />
+I have been playing with this puppy all day.  I have tried with and without retry in several places.  I know I am missing something, but I am not seeing it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">4th January 2006, 18:29</div></div><div class="posttext">You get a problem if you don't run in the selectdo because there is no commit after the endselect. If you call this piece of code again, there is always an open transaction... . Move the commit behind the endselect.<br />
+<br />
+<br />
+<br />
+Regards<br />
+csecgn</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">4th January 2006, 18:51</div></div><div class="posttext">Hello mark,<br />
+<br />
+i think, this will help:<br />
+<br />
+<br />
+.......................&gt;&gt;&gt;&gt;<br />
+		tpbcr606.incl = tcyesno.yes	| 20051025.end<br />
+		db.insert(ttpbcr606,db.retry)<br />
+		commit.transaction()<br />
+	endselect<br />
+             commit.transaction()<br />
+<br />
+}<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th January 2006, 19:05</div></div><div class="posttext">Every place I use this table I added a commit after the select.  Still the same error.<br />
+<br />
+thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th January 2006, 19:26</div></div><div class="posttext">I went through the complete program adding commits after the endselect for any update, insert or delete done on any table.  I still get this abort on this table.  This table does not have any references or anything.  Any other suggestions are welcome?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">4th January 2006, 19:32</div></div><div class="posttext">What the heck.  I'm glad it was not the commit after the endselect, because I do what you do all the time :)<br />
+<br />
+Maybe some more detail will talk it out..<br />
+<br />
+Is this an exact description - it runs ok the first time but then not again the second time?  Repeatable?  Does it work right after you exit the session and come back?  And, how does this look in the debugger...?  It should go back to the retry point on a 'dirty read', does it do that?  Are there multiple records for that 'gcid.f'?  If so, probably should put an 'order by' in there to resolve issues on a retry.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">4th January 2006, 19:32</div></div><div class="posttext">Is any call of any the selects inside the maintable.io section? If yes, remove the db.retry.points/commits.<br />
+<br />
+Regards<br />
+csecgn</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th January 2006, 20:09</div></div><div class="posttext">Yes - the first time I click process everything runs fine.  Click process again and boom.  The program hits the commit.transaction on the very first post and starts processing again at the db.retry.point.  <br />
+<br />
+I went through the program and added an order by clause for every query with a table selected for update.  Still have the error.  In this case for the contract there are multiple records.  As long as I process and exit the session it works every dang time.  <br />
+<br />
+No main table sections tried as both print and maintain session. Did I miss any questions?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th January 2006, 20:22</div></div><div class="posttext">Funny - if I comment out all of this code it will run twice in a row.<br />
+<br />
+<br />
+	db.retry.point()<br />
+	select	tpbcr606.*<br />
+	from	tpbcr606 for update<br />
+	where	tpbcr606.gcid = :gcid.f<br />
+	order by tpbcr606._index1<br />
+	selectdo<br />
+		tpbcr606.incl = tcyesno.no<br />
+		db.update(ttpbcr606, db.retry)<br />
+		commit.transaction()<br />
+	endselect<br />
+	commit.transaction()<br />
+<br />
+	<br />
+	| Get current billing cycle data to test which records are included and<br />
+	| which get skipped.<br />
+	select	tpppc980.*,tpbcr601.*<br />
+	from	tpppc980, tpbcr601<br />
+	where	tpppc980._index1 = {:date.f, :gcid.f}<br />
+	and	tpppc980.ninv = 0<br />
+	and	tpbcr601._index1 = {tpppc980.date, tpppc980.gcid, tpppc980.coty}<br />
+	selectdo<br />
+		| Find any bcr records<br />
+		select	tpbcr600.*<br />
+		from	tpbcr600<br />
+		where	tpbcr600._index1 = {:tpbcr601.gcid, :tpbcr601.cprj, :tpbcr601.clin}<br />
+		selectdo<br />
+			|Check for the key on table 606 using tpbcr600 records - for each BCR<br />
+			|look for a 606 record.  May need to add an index later.<br />
+			db.retry.point()<br />
+			select	tpbcr606.*<br />
+			from	tpbcr606 for update<br />
+			where	tpbcr606.gcid = :tpbcr601.gcid<br />
+			and	tpbcr606.coty = :tpbcr601.coty<br />
+			and	tpbcr606.cprj = :tpbcr600.nprj<br />
+			and	tpbcr606.clin = :tpbcr600.cln1<br />
+			and	tpbcr606.year = :tpbcr601.year<br />
+			and	tpbcr606.cotp = :tpbcr601.cotp<br />
+			and	tpbcr606.cobj = :tpbcr601.cobj<br />
+			and	tpbcr606.obsp = :tpbcr601.obsp<br />
+			order by tpbcr606._index1<br />
+			selectdo<br />
+				tpbcr606.incl = tcyesno.yes<br />
+				db.update(ttpbcr606, db.retry)<br />
+				commit.transaction()<br />
+			endselect<br />
+			commit.transaction()<br />
+		selectempty  | Means no BCR records<br />
+			|Check for the key on table 606 using tpbcr601 records<br />
+			db.retry.point()<br />
+			select	tpbcr606.*<br />
+			from	tpbcr606 for update<br />
+			where	tpbcr606.gcid = :tpbcr601.gcid<br />
+			and	tpbcr606.coty = :tpbcr601.coty<br />
+			and	tpbcr606.cprj = :tpbcr601.cprj<br />
+			and	tpbcr606.clin = :tpbcr601.clin<br />
+			and	tpbcr606.year = :tpbcr601.year<br />
+			and	tpbcr606.cotp = :tpbcr601.cotp<br />
+			and	tpbcr606.cobj = :tpbcr601.cobj<br />
+			and	tpbcr606.obsp = :tpbcr601.obsp<br />
+			order by tpbcr606._index1<br />
+			selectdo<br />
+				tpbcr606.incl = tcyesno.yes<br />
+				db.update(ttpbcr606, db.retry)<br />
+				commit.transaction()<br />
+			endselect<br />
+			commit.transaction()<br />
+		endselect<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">4th January 2006, 20:40</div></div><div class="posttext">Ok, for me there are some questions:<br />
+<br />
+What kind of Session you are using?<br />
+<br />
+What ist the maintable if any?<br />
+<br />
+Regards<br />
+csecgn</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th January 2006, 20:53</div></div><div class="posttext">Originally I had it defined as a maintain session, changed to print just for grins and giggles.  Script type is 4 as is the form.  All the user does is enter billing cycle date and contract.  The program pulls the tpppc981 records, stores them, does stuff to them, then puts them back in tpppc981.  The maintable defined on the session record is tpbcr600.  I have a whole series of tables to track what happens to keep things lined up for putting back into the tpppc981 table.<br />
+<br />
+Thanks for all the help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th January 2006, 21:10</div></div><div class="posttext">Solution found - it was the 	rcd.ttpbcr606 = rcd.ttpbcr605. Took this out and put in all 28 fields and it started working.  The table tpbcr605 and 606 used to be the same number of fields.  I added a couple to tpbcr606 and I guess those hidden fields like ._compnr were causing problems.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">toolswizard</div><div class="date">4th January 2006, 21:30</div></div><div class="posttext">Mark,<br />
+<br />
+You found it before I had a chance to reply.  I had a similar problem about 1 year ago.  When you use the record buffer there is a unique identifier for the lock id.  When you transfer it to the other table it looks for that lock and give you the error.  If you save the original lock id from the first record buffer and restore it after assigning the buffer it should also work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th January 2006, 21:40</div></div><div class="posttext">Mark,<br />
+<br />
+You found it before I had a chance to reply.  I had a similar problem about 1 year ago.  When you use the record buffer there is a unique identifier for the lock id.  When you transfer it to the other table it looks for that lock and give you the error.  If you save the original lock id from the first record buffer and restore it after assigning the buffer it should also work.<br />
+<br />
+<br />
+Thanks - I saw something about that mentioned.  The last time I had errors using the record buffer it was caused by the &quot;._compnr&quot;.  In that case the two tables were identical.<br />
+<br />
+Thanks to everyone for the assist.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

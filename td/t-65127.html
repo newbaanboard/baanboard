@@ -1,0 +1,95 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Import variable from MMT, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Import variable from MMT Tools Development" />
+	
+	<title>Import variable from MMT [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Import variable from MMT</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">tomaszb</div><div class="date">18th December 2013, 09:11</div></div><div class="posttext">Hi all,<br />
+Is there a way to import the selected record  in MMT satellite session (tdsls4101m000)  from sales order line (tdsls4100m900) to customization?<br />
+Import works only for variables from main session tdsls4100m900, so I can not pass to the customization variables from the sales line.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">19th December 2013, 02:14</div></div><div class="posttext">I saw a sample code in the latest Programmer's manual -<br />
+<br />
+Below a part of the 4GL-UI script of the MMT header session is shown<br />
+<br />
+table   ttdsls205                           |* Sales Order Templates<br />
+extern  domain  ttdyf.picture   image.field |* image form field<br />
+extern  domain  tcguid          image.guid  |* GUID of image <br />
+<br />
+before.program:<br />
+	|Subscribe to PRCM messages from satellite to pass a new image GUID.<br />
+	prcm.register(&quot;tdsls206:&quot; &amp; str$(pid) ) <br />
+<br />
+after.form.read:<br />
+	|Image is linked to the lines table: tdsls206.<br />
+	bind.image(&quot;image.field&quot;, &quot;image.guid&quot;, &quot;tdsls206&quot;) <br />
+<br />
+choice.bms:<br />
+on.choice:<br />
+    long node<br />
+    if prcm.bms.is.notification() then<br />
+        if prcm.get.subject() = &quot;tssls206:&quot; &amp; str$(pid) then<br />
+		|A new GUID is sent by the satellite<br />
+		node = prcm.getdata()<br />
+		image.guid=xmlData$(node)<br />
+		display(&quot;image.field&quot;)<br />
+	  endif<br />
+<br />
+In the satellite session the following code must be added to pass on the image GUID field to the header session.<br />
+<br />
+table   ttdsls206               |* Sales Order Template Lines<br />
+domain  tcguid      hold.guid   |* GUID of image <br />
+long    node<br />
+<br />
+before.program:<br />
+    node = xmlNewNode(&quot;guid&quot;)   |XML node to communicate new GUID to header session<br />
+<br />
+choice.mark.occur:<br />
+after.choice:<br />
+   if is.mmt.satellite() and<br />
+      hold.guid &lt;&gt; tdsls206.guid and<br />
+      sel.num.selected() = 1 then<br />
+            |Send a new GUID to the header session so the header session<br />
+            |can update the picture field.<br />
+            hold.guid = tdsls206.guid<br />
+            node = xmlRewriteDataElement(node, &quot;guid&quot;, tdsls206.guid)<br />
+            prcm.notify(&quot;tdsls206:&quot; &amp; str$(parent), &quot;&quot;, node)<br />
+   endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tomaszb</div><div class="date">20th December 2013, 10:33</div></div><div class="posttext">Thank you for your feedback. The session is a  standard session MMT (tdsls4101m000) . I have no sources for the session, so I can not add anything :).<br />
+However, thank you very much for your guidance.<br />
+<br />
+Best regards <br />
+Tomasz</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">20th December 2013, 11:48</div></div><div class="posttext">Hi tomaszb,<br />
+<br />
+Have you tried get.var() function?<br />
+<br />
+Follow this link:-<br />
+<br />
+Thread! (http://www.baanboard.com/baanboard/showthread.php?t=10032)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tomaszb</div><div class="date">21st December 2013, 12:25</div></div><div class="posttext">Yes I tried, but it seems that this function passes only the variables from the main session.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

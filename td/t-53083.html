@@ -1,0 +1,232 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Baan exchange EXCELjv490.sh unix script, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Baan exchange EXCELjv490.sh unix script Tools Development" />
+	
+	<title>Baan exchange EXCELjv490.sh unix script [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Baan exchange EXCELjv490.sh unix script</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">marwest98</div><div class="date">22nd July 2008, 18:24</div></div><div class="posttext">I need to convert the following script from unix to a .ba or a script that will run on Windows 2003 SqlServer 2005.  Has anyone converted these?  Or does anyone have one?   I am very short on time and also need to create a session to run these.  There are two parts.<br />
+Here is the first unix script.<br />
+<br />
+#!/bin/sh -x<br />
+<br />
+########################################<br />
+# exceljv490.sh for baan application file <br />
+# processing.  <br />
+########################################<br />
+<br />
+ORIG=/export/web/exceljv490<br />
+SOURCE=/u01/baan/bse/exchange/exceljv490/lseq/source<br />
+DEST=/u01/baan/bse/exchange/exceljv490/lseq/output<br />
+BSE=/u01/baan/bse/exchange/exceljv490/lseq<br />
+<br />
+##########################<br />
+#<br />
+# move original files<br />
+# to the $SOURCE directory<br />
+#<br />
+###########################<br />
+<br />
+/usr/bin/mv $ORIG/*.csv $SOURCE/<br />
+<br />
+##############################<br />
+#<br />
+# Loop through all the files<br />
+# Process the .csv file <br />
+# and copy the processed<br />
+# file to an output dir.<br />
+#<br />
+##############################<br />
+<br />
+FILE=`ls -tr $SOURCE | tail -1`<br />
+<br />
+while [ -n &quot;$FILE&quot; ]<br />
+do<br />
+<br />
+/usr/bin/dos2unix $SOURCE/$FILE $SOURCE/$FILE<br />
+$BSE/exceljv.pl $SOURCE/$FILE<br />
+/usr/bin/cp $BSE/exceljv490 $DEST/$FILE<br />
+<br />
+#########################<br />
+#<br />
+# Check to see which user<br />
+# the mail goes to<br />
+#<br />
+#########################<br />
+<br />
+INITIALS=`echo $FILE | cut -c7-8`<br />
+<br />
+########################<br />
+#<br />
+# Call the rc.start<br />
+#<br />
+########################<br />
+<br />
+/u01/baan/bse/exchange/exceljv490/lseq/rc.startjob490 EJV490<br />
+<br />
+################################<br />
+#<br />
+# Test to see when the job is complete<br />
+#<br />
+################################<br />
+<br />
+time=0<br />
+sleep 10<br />
+while [ &quot;$time&quot; -le &quot;5&quot; ]<br />
+do<br />
+if [ -f /usr/vsaini1/job_done ] <br />
+then<br />
+	echo &quot;It's done&quot;<br />
+	time=6<br />
+else<br />
+	time=`expr ${time} + 1`<br />
+fi<br />
+if [ &quot;$time&quot; -eq &quot;5&quot; ]<br />
+then<br />
+	mailx $INITIALS@perfectionbakeries.com&lt;&lt;EOMAIL<br />
+	Subject: Job failed<br />
+	From: EXCELJV490<br />
+<br />
+	`/usr/bin/date`<br />
+	The job took too long or there may be a problem.  Please see your administrator.<br />
+EOMAIL<br />
+	exit 0<br />
+fi<br />
+sleep 10<br />
+done<br />
+<br />
+#########################################<br />
+#<br />
+# Test to see if job_done or job_failed<br />
+#  and email appropriate user<br />
+#<br />
+#########################################<br />
+<br />
+if [ -f /usr/vsaini1/job_done ] <br />
+then<br />
+	STATUS='job_done'<br />
+	mailx -s $STATUS $INITIALS@perfectionbakeries.com&lt;&lt;EOMAIL<br />
+	From: EXCELJV490<br />
+<br />
+	`/usr/bin/date`<br />
+	$FILE<br />
+<br />
+EOMAIL<br />
+# then remove job_done file<br />
+rm /usr/vsaini1/job_done <br />
+fi<br />
+<br />
+##########################################<br />
+# the following is<br />
+# no longer needed because job never fails (ha)<br />
+##########################################<br />
+#if [ -f /home/vsaini1/job_failed ]<br />
+#then<br />
+#	STATUS='job_failed'<br />
+#	mailx -s $STATUS $INITIALS@perfectionbakeries.com&lt;&lt;EOMAIL<br />
+#<br />
+#	`/usr/bin/date`<br />
+#	$FILE<br />
+#<br />
+#EOMAIL<br />
+#fi<br />
+<br />
+######################################<br />
+#<br />
+# copy the file to the job_done or job_failed dir.<br />
+#<br />
+######################################<br />
+<br />
+/usr/bin/cp $DEST/$FILE $ORIG/$STATUS<br />
+<br />
+#####################################<br />
+#<br />
+# delete the source file<br />
+#<br />
+###################################<br />
+<br />
+rm /usr/vsaini1/$STATUS <br />
+rm $SOURCE/$FILE<br />
+FILE=`ls -tr $SOURCE | tail -1`<br />
+done<br />
+<br />
+exit 0<br />
+<br />
+<br />
+There is a second part too:  THis also has to be converted.<br />
+# rc.startjob, should be located in $BSE/etc<br />
+# version 94/06/29 (Erwin Derksen)<br />
+#  * added setting of TERM to this file<br />
+# version 94/04/21 (initial version)<br />
+#<br />
+# script to start a job in the background<br />
+# BAMODE=1 : No output to screen. <br />
+# Be sure to define the BSE, BSE_TMP and PATH variable, because when started<br />
+# from the crontab these variables often are not defined <br />
+<br />
+BSE=/u01/baan/bse<br />
+BSE_TMP=/u01/baan/bse/tmp<br />
+export BSE BSE_TMP<br />
+PATH=$BSE/bin:$PATH<br />
+export PATH<br />
+<br />
+# It turned out that the TERM variable could be unset when running in a cron<br />
+#TERM=vt100		;export TERM<br />
+<br />
+# If you want to use several companies you can create several users for e.g.<br />
+# root who probably is running this script. If so, copy this script and use<br />
+# the next line to define the USER variable (&lt;root100&gt; is just an example).<br />
+#USER=&lt;root100&gt;         ;export USER<br />
+USER=bsp         ;export USER<br />
+<br />
+if [ $# -lt 1 ];then<br />
+	echo &quot;Usage : rc.startjob &lt;jobname&gt; [jobok_file]&quot;<br />
+	exit 1<br />
+fi<br />
+if [ $1 = &quot;-U&quot; -o $1 = &quot;-u&quot; ];then<br />
+	echo &quot;Usage : rc.startjob &lt;jobname&gt; [jobok_file]&quot;<br />
+	exit 1<br />
+fi<br />
+<br />
+#jobok_file contains the characters &quot;OK&quot; if the job was successful !<br />
+#If jobok_file is not specified, then  output is written to $BSE/tmp/job<br />
+<br />
+<br />
+BAMODE=1		;export BAMODE<br />
+DS_SERVER=ba		;export DS_SERVER<br />
+BSH_JOB=$1		;export BSH_JOB<br />
+<br />
+if [ $# -gt 1 ];then<br />
+	BSH_JOBOK=$2	;export BSH_JOBOK<br />
+	echo $BSH_JOBOK<br />
+fi<br />
+<br />
+ba6.2 ttaad5203m000 2&gt;${BSE_TMP}/rc.startjoberr &amp;</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">22nd July 2008, 19:10</div></div><div class="posttext">Perhaps your admin allows you to install one of these products. At least you can use them to have more time to convert them.<br />
+<br />
+Han</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">marwest98</div><div class="date">22nd July 2008, 19:29</div></div><div class="posttext">Unfortunately, the admin won't allow me to install them.  In fact he is on vacation for the rest of the week.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">marwest98</div><div class="date">22nd July 2008, 19:47</div></div><div class="posttext">Is there another way to convert them?</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

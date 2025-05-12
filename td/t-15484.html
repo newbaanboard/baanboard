@@ -1,0 +1,245 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="update another table when opening a session, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] update another table when opening a session Tools Development" />
+	
+	<title>update another table when opening a session [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; update another table when opening a session</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">26th May 2004, 23:36</div></div><div class="posttext">I need to update a table when I open a session<br />
+I have a table that contains cheque numbers, When I open this session, I want the program to get the cheque numbers from the tfcmg100 table and load my wtgld999 table, but not overwrite what is there.<br />
+This is what I have, but it is not working when I execute the session.<br />
+<br />
+before.program:<br />
+	get.data()<br />
+<br />
+functions:<br />
+<br />
+function get.data()<br />
+{	<br />
+	long  count<br />
+	db.retry.point()<br />
+<br />
+	select tfcmg100.*<br />
+	from tfcmg100<br />
+	where tfcmg100.chst = 5<br />
+	selectdo<br />
+<br />
+	select wtgld999.*<br />
+	from wtgld999<br />
+	for update<br />
+	selectdo<br />
+	<br />
+	count = count + 1	<br />
+	if count &gt; 50 then<br />
+	count = 0<br />
+	endif<br />
+	selectempty<br />
+	<br />
+	wtgld999.cheq = tfcmg100.cheq<br />
+<br />
+	db.insert(twtgld999)<br />
+<br />
+	endselect<br />
+	commit.transaction()<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th May 2004, 15:02</div></div><div class="posttext">How does it fail?  I would do something like below.<br />
+<br />
+Mark<br />
+<br />
+<br />
+<br />
+function get.data()<br />
+{	<br />
+      long  count<br />
+      db.retry.point()<br />
+<br />
+     select tfcmg100.*<br />
+     from tfcmg100<br />
+     where tfcmg100.chst = 5<br />
+     selectdo<br />
+<br />
+	select wtgld999.*<br />
+	from wtgld999 for update<br />
+                where wtgld999.cheg = tfcmg100.cheg<br />
+                as set with 1 rows<br />
+	selectdo<br />
+	selectempty<br />
+	       wtgld999.cheq = tfcmg100.cheq<br />
+                       db.insert(twtgld999)<br />
+	endselect<br />
+	commit.transaction()<br />
+     endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">27th May 2004, 17:23</div></div><div class="posttext">I needed to make the relation between wtgld999.cheq and tfcmg100.cheq.<br />
+<br />
+Now it runs smooth<br />
+<br />
+Thanks again</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">31st May 2004, 22:29</div></div><div class="posttext">This session is now working, however, the data in the tfcmg100 table for field tfcmg100.chst has changed from 5 to something else. How can I delete that cheque number from my wtgld999 table when the session is being executed.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">1st June 2004, 14:42</div></div><div class="posttext">Something like this:<br />
+<br />
+<br />
+     db.retry.point()<br />
+     select wtgld999.*,tfcmg100.*<br />
+     from wtgld999 for update, tfcmg100<br />
+     where wtgld999.cheg = tfcmg100.cheg<br />
+     and tfcmg100.cheg &lt;&gt; 5<br />
+     selectdo<br />
+            db.delete(twtgld999)<br />
+            commit.transaction()<br />
+     endselect<br />
+<br />
+<br />
+You could put this before the insert.  Depending on how many records you could do the commit a better way.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">23rd June 2004, 21:31</div></div><div class="posttext">When using this, I get a fatal error.<br />
+Instead of deleting the record, how can I update a yes/no check box to be checked if the record tfcmg100.chst &lt;&gt; 5.<br />
+Currently the user checks this box if the status is no longer anticipated.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd June 2004, 23:41</div></div><div class="posttext">First of all in the db.delete code I posted should have had db.delete(twtgld999,db.retry).  I also see where I missed that in the first post on the insert. Anyway I would not expect that error you are getting.  <br />
+<br />
+Maybe something like this would work:<br />
+<br />
+<br />
+function get.data()<br />
+{	<br />
+      long  count<br />
+      db.retry.point()<br />
+<br />
+     select tfcmg100.*<br />
+     from tfcmg100<br />
+     where tfcmg100.chst = 5<br />
+     selectdo<br />
+<br />
+	select wtgld999.*<br />
+	from wtgld999 for update<br />
+                where wtgld999.cheg = tfcmg100.cheg<br />
+                as set with 1 rows<br />
+	selectdo<br />
+                 if tfcmg100.cheq &lt;&gt; 5 then<br />
+                     wtgld999.&lt;fieldname&gt;=tppdm.yeno.yes<br />
+                     db.update(twtgld999,db.retry)<br />
+                 endif<br />
+	selectempty<br />
+	       wtgld999.cheq = tfcmg100.cheq<br />
+                       db.insert(twtgld999,db.retry)<br />
+	endselect<br />
+	commit.transaction()<br />
+     endselect<br />
+}<br />
+<br />
+<br />
+I think I got the right domain for a yes/no check box but you should validate this.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">24th June 2004, 22:50</div></div><div class="posttext">The statment will not work because our first select was tfcmg100.chst = 5<br />
+Then we need to get data where tfcmg100.chst &lt;&gt; 5.<br />
+I tried to write this in a separate function before the instert, but I get an error 206 record is not locked. I have inculded the change I made.<br />
+<br />
+main.table.io:<br />
+after.read:<br />
+	read.valid.records()<br />
+<br />
+before.program:<br />
+	get.data()<br />
+	update.data()<br />
+<br />
+functions:<br />
+function update.data()<br />
+{<br />
+	<br />
+	select tfcmg100.*, wtgld999.*<br />
+	from tfcmg100, wtgld999<br />
+	where tfcmg100.cheq = wtgld999.cheq<br />
+	and tfcmg100.chst &lt;&gt; 5<br />
+	selectdo<br />
+		<br />
+		if tfcmg100.chst &lt;&gt; tfcmg.chst.anticipated <br />
+		and tfcmg100.cheq = wtgld999.cheq<br />
+		then<br />
+		wtgld999.cler = wtyenox.yes<br />
+		db.update(twtgld999, db.retry)<br />
+		endif<br />
+	commit.transaction()<br />
+	endselect<br />
+}<br />
+function get.data()<br />
+{	<br />
+	long  count<br />
+	db.retry.point()<br />
+<br />
+	select tfcmg100.*<br />
+	from tfcmg100<br />
+	where tfcmg100.chst = 5	  <br />
+	|order by tfcmg100._index2<br />
+	selectdo<br />
+<br />
+	select wtgld999.*<br />
+	from wtgld999<br />
+	for update<br />
+	where wtgld999.cheq = :tfcmg100.cheq<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	selectempty<br />
+	count = count + 1	<br />
+	if count &gt; 50 then<br />
+	count = 0<br />
+	endif<br />
+	<br />
+	wtgld999.cheq = tfcmg100.cheq<br />
+	wtgld999.suno = tfcmg100.suno  <br />
+	wtgld999.amnt = tfcmg100.amnt<br />
+	wtgld999.dout = tfcmg100.dout<br />
+	wtgld999.ccur = tfcmg100.ccur<br />
+	wtgld999.date = 0	<br />
+	db.insert(twtgld999)<br />
+	endselect<br />
+	commit.transaction()<br />
+	endselect<br />
+}<br />
+function read.valid.records()<br />
+{<br />
+	if wtgld999.cler = wtyenox.yes then<br />
+		skip.io(&quot;&quot;)<br />
+			endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">25th June 2004, 07:31</div></div><div class="posttext">In function update data, use for update for table wtgld999 . <br />
+Error 206 will not come.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th June 2004, 14:33</div></div><div class="posttext">As Hitesh recommended add wtgld999 for update in the from selection. So where you have &quot;from tfcmg100, wtgld999&quot; make it &quot;from tfcmg100, wtgld999 for update&quot;.  You probably should also add in a db.retry.point() before the select.<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

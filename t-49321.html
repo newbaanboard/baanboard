@@ -1,0 +1,131 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="-ve value in ticst0101m000 through AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] -ve value in ticst0101m000 through AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>-ve value in ticst0101m000 through AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; -ve value in ticst0101m000 through AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">raikar_raviraj</div><div class="date">13th March 2008, 04:47</div></div><div class="posttext">Hi,<br />
+<br />
+I am trying to achieve negative outbound functionality via AFS. <br />
+When i try to enter negative issue quantity  in ticst0101m000 - Enter Material Issue for Production Order it suppresses it to zero hence i am not able to do Maintain Outbound for the same. I checked the AFS log, i see no discrepancy in the log.<br />
+<br />
+here is the AFS code ive written.<br />
+<br />
+function enter.material.issue()<br />
+{<br />
+	msg1 = &quot;&quot;<br />
+	ret.mesg1 = &quot;&quot;<br />
+<br />
+	select ticst001.*<br />
+	from   ticst001<br />
+	where  ticst001._index1 = {:lhnst103.pdno} <br />
+	order by ticst001._index1 desc	<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	       run.order = lhnst103.pdno <br />
+	       stpapi.put.field(&quot;ticst0101m000&quot;,&quot;ticst001.pdno&quot;,str$(run.order))<br />
+	       rc = stpapi.change.view(&quot;ticst0101m000&quot;,msg1)<br />
+	       if isspace(msg1) then<br />
+	          run.pono = ticst001.pono + 10<br />
+	          run.item = lhnst103.item<br />
+	          run.qty = -1 * (lhnst103.quan + v_quan)<br />
+ 	          issu.qty = str$(run.qty)<br />
+	          stpapi.put.field(&quot;ticst0101m000&quot;,&quot;ticst001.pono&quot;,str$(run.pono))<br />
+	          stpapi.put.field(&quot;ticst0101m000&quot;,&quot;ticst001.sitm&quot;,str$(run.item))<br />
+	          stpapi.put.field(&quot;ticst0101m000&quot;,&quot;ticst001.cwar&quot;,str$(lhnst103.cwar))<br />
+	          stpapi.put.field(&quot;ticst0101m000&quot;,&quot;issu.quan&quot;,str$(run.qty))<br />
+	          stpapi.put.field(&quot;ticst0101m000&quot;,&quot;ticst001.bfls&quot;,str$(tcyesno.no))<br />
+	          stpapi.insert(&quot;ticst0101m000&quot;,true,msg1)<br />
+	          if isspace(msg1) then<br />
+	             stpapi.end.session(&quot;ticst0101m000&quot;)<br />
+	             update.issue.qty()<br />
+	             message(&quot;Production Order %d and Item %s Inserted on ticst0101m000&quot;,run.order,run.item) <br />
+	          else<br />
+	             message(&quot;&quot;&amp;msg1)<br />
+	             dsc1 = msg1 <br />
+	             stpapi.recover(&quot;ticst0101m000&quot;,ret.mesg1)<br />
+	             stpapi.end.session(&quot;ticst0101m000&quot;)<br />
+	          endif<br />
+	       else<br />
+	          stpapi.end.session(&quot;ticst0101m000&quot;)<br />
+	          message(&quot;Production Order could not be inserted on ticst0101m000&quot;)<br />
+	       endif<br />
+	selectempty<br />
+	       select max(ticst001.pono):maxpono <br />
+	       from ticst001 where	ticst001.pdno = :lhnst103.pdno <br />
+	       selectdo<br />
+	       endselect<br />
+	       run.order = lhnst103.pdno <br />
+	       stpapi.put.field(&quot;ticst0101m000&quot;,&quot;ticst001.pdno&quot;,str$(run.order))<br />
+	       rc = stpapi.change.view(&quot;ticst0101m000&quot;,msg1)<br />
+	          if isspace(msg1) then <br />
+	          run.pono = maxpono + 10<br />
+	          run.item = lhnst103.item<br />
+	          run.qty = -1 * (lhnst103.quan + v_quan)<br />
+ 	          stpapi.put.field(&quot;ticst0101m000&quot;,&quot;ticst001.pono&quot;,str$(run.pono))<br />
+	          stpapi.put.field(&quot;ticst0101m000&quot;,&quot;ticst001.sitm&quot;,str$(run.item))<br />
+	          stpapi.put.field(&quot;ticst0101m000&quot;,&quot;ticst001.cwar&quot;,str$(lhnst103.cwar))<br />
+	          stpapi.put.field(&quot;ticst0101m000&quot;,&quot;issu.quan&quot;,str$(run.qty))<br />
+	          stpapi.put.field(&quot;ticst0101m000&quot;,&quot;ticst001.bfls&quot;,str$(tcyesno.no))<br />
+	          stpapi.insert(&quot;ticst0101m000&quot;,true,msg1)<br />
+	          if isspace(msg1) then<br />
+	             update.issue.qty()<br />
+	             stpapi.end.session(&quot;ticst0101m000&quot;)<br />
+	             message(&quot;Production Order %d and Item %s Inserted on ticst0101m000&quot;,run.order,run.item) <br />
+	          else<br />
+	             message(&quot;&quot;&amp;msg1)<br />
+	             dsc1 = msg1 <br />
+	             stpapi.recover(&quot;ticst0101m000&quot;,ret.mesg1)<br />
+	             stpapi.end.session(&quot;ticst0101m000&quot;)<br />
+	          endif<br />
+	       else<br />
+	          stpapi.end.session(&quot;ticst0101m000&quot;)<br />
+	          message(&quot;Production Order could not be inserted on ticst0101m000&quot;)<br />
+	       endif<br />
+	endselect	<br />
+}<br />
+<br />
+Is negative value possible through AFS???</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th March 2008, 13:34</div></div><div class="posttext">It should be, but I am not sure I have AFS code that does that. We use negative quantities when yielding parts from a teardown.  When I get a chance later today I will try your code.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th March 2008, 15:21</div></div><div class="posttext">stpapi.put.field(&quot;ticst0101m000&quot;,&quot;ticst001.pdno&quot;,&quot;341410&quot;)<br />
+	rc = stpapi.change.view(&quot;ticst0101m000&quot;,err)<br />
+	if isspace(err) then<br />
+		stpapi.put.field(&quot;ticst0101m000&quot;,&quot;ticst001.pono&quot;,&quot;35&quot;)<br />
+		stpapi.put.field(&quot;ticst0101m000&quot;,&quot;ticst001.sitm&quot;,&quot;6302998+R&quot;)<br />
+		stpapi.put.field(&quot;ticst0101m000&quot;,&quot;ticst001.cwar&quot;,&quot;1LP&quot;)<br />
+		stpapi.put.field(&quot;ticst0101m000&quot;,&quot;issu.quan&quot;,&quot;-20&quot;)<br />
+		stpapi.put.field(&quot;ticst0101m000&quot;,&quot;ticst001.bfls&quot;,str$(tcyesno.no))<br />
+		stpapi.insert(&quot;ticst0101m000&quot;,true,err)<br />
+	endif<br />
+<br />
+The above worked for me. So it is either your objects(libraries, etc.) or your code.  Are you getting any errors at all?  Just make sure the position number does not exist before the insert.<br />
+<br />
+Also if the selectempty code is getting run - I would remove the below piece of code since you already know the production order number does not exist in ticst001 from the main select. Just set run.pono to 10.<br />
+<br />
+select max(ticst001.pono):maxpono <br />
+from ticst001 <br />
+where ticst001.pdno = :lhnst103.pdno <br />
+selectdo<br />
+endselect</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

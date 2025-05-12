@@ -1,0 +1,132 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Cost update not working through AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Cost update not working through AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>Cost update not working through AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Cost update not working through AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jmathew</div><div class="date">4th April 2005, 17:21</div></div><div class="posttext">Hi,<br />
+<br />
+I am trying to update cost of new purchased items through the session ticpr2210m000 using AFS. The code that is used is given below, can someone help me or is this not possible through AFS?<br />
+<br />
+stpapi.put.field(&quot;ticpr2210m000&quot;, &quot;item.f&quot;, item)<br />
+stpapi.put.field(&quot;ticpr2210m000&quot;, &quot;item.t&quot;, item)<br />
+stpapi.put.field(&quot;ticpr2210m000&quot;, &quot;calc.cd&quot;, sccc)<br />
+stpapi.put.field(&quot;ticpr2210m000&quot;, &quot;calc.meth&quot;, str$(3))<br />
+stpapi.put.field(&quot;ticpr2210m000&quot;, &quot;actualize.copr&quot;, str$(1))<br />
+stpapi.set.report(&quot;ticpr2210m000&quot;, &quot;rticpr221001000&quot;, prdev, error.msg)<br />
+if isspace(error.msg) then<br />
+    stpapi.continue.process(&quot;ticpr2210m000&quot;, error.msg)<br />
+endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th April 2005, 15:50</div></div><div class="posttext">Well - it should be possible.  Are you getting any error messages?  You might also want to try stpapi.get.mess.code after the continue.  I know I use this on my manual transfer session to see if there was a warning on why the transfer might not take place.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jmathew</div><div class="date">7th April 2005, 08:32</div></div><div class="posttext">Hi Mark,<br />
+<br />
+I debugged the program and it does not give any error messages at all, but the update is not taking place. I tried a lot, but not successful. Can someone try the same and see if the problem exists.<br />
+<br />
+The result of AFS debug is also attached with this mail from the afs.log file.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kbartelds</div><div class="date">7th April 2005, 12:00</div></div><div class="posttext">Did you check the print queue ttaad320 if there is any output? Did you check whether costprice has already been calculated for this date?<br />
+<br />
+Regards,<br />
+Klaas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th April 2005, 15:42</div></div><div class="posttext">I noticed that this session zooms to tipcr2220s000 - is it possible for you to run ticpr2220m000 instead?  Not familiar enough with these sessions.  It could be that you also have to set the report for ticpr2220s000, before it gets called.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shaboo</div><div class="date">7th April 2005, 16:19</div></div><div class="posttext">We created a Function Server based BOI that calculates and update cost price calculation based on ticpr2210m000 and it has been working just fine. The issue we faced during it was related to report handling and we wrote the report to disk to solve the issue. Here is how our function server call look in our BOI DLL.<br />
+<br />
+<br />
+    spool.fileout = &quot;costcalc.log&quot; &amp; &quot;.&quot; &amp; dte$()<br />
+    stpapi.put.field(&quot;ticpr2210m000&quot;, &quot;spool.fileout&quot;, spool.fileout)<br />
+    f2210m000.set.report(&quot;rticpr221001000&quot;, &quot;ASCIF&quot; , g.fs.error.message )<br />
+    f2210m000.continue( g.fs.error.message )</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Pieter van de L</div><div class="date">8th April 2005, 14:38</div></div><div class="posttext">We are using baan V and i update the costprices with the following script.<br />
+<br />
+dev.log = &quot;ASCIF&quot;<br />
+spooler.for.log = spool.open(&quot;&quot;,dev.log,0)<br />
+spool.fontnumber = 2<br />
+spool.pg.length = 66<br />
+<br />
+function do.calculation()<br />
+{<br />
+	domain	tcdsca	mes1, mes2, mes3<br />
+<br />
+	stpapi.put.field(&quot;ticpr2210m000&quot;, &quot;citg.f&quot;, &quot;      &quot;)<br />
+	stpapi.put.field(&quot;ticpr2210m000&quot;, &quot;citg.t&quot;, &quot;zzzzzz&quot;)<br />
+	stpapi.put.field(&quot;ticpr2210m000&quot;, &quot;item.f&quot;, tcibd977.item)<br />
+	stpapi.put.field(&quot;ticpr2210m000&quot;, &quot;item.t&quot;, tcibd977.item)<br />
+	stpapi.put.field(&quot;ticpr2210m000&quot;, &quot;calc.cd&quot;, &quot;001&quot;)<br />
+	stpapi.put.field(&quot;ticpr2210m000&quot;, &quot;calc.meth&quot;, str$(etol(tcccmt.single.level)))<br />
+	stpapi.put.field(&quot;ticpr2210m000&quot;, &quot;calc.date&quot;, str$(utc.num()))<br />
+	stpapi.put.field(&quot;ticpr2210m000&quot;, &quot;only.new.items&quot;, str$(etol(tcyesno.no)))<br />
+	stpapi.put.field(&quot;ticpr2210m000&quot;, &quot;actualize.copr&quot;, str$(etol(tcyesno.yes)))<br />
+<br />
+	stpapi.set.report(&quot;ticpr2210m000&quot;, &quot;rticpr221001000&quot;, &quot;ASCIF&quot;, mes1)<br />
+<br />
+	if isspace(mes1) then<br />
+		stpapi.form.command(&quot;ticpr2210m000&quot;, 5, &quot;continue.process&quot;, mes2)<br />
+		spooler.save = spool.id<br />
+		spool.id = spooler.for.log<br />
+		while true<br />
+			mes3 = stpapi.get.mess.code(&quot;ticpr2210m000&quot;, mes2)<br />
+			if isspace(mes3) and isspace(mes2) then<br />
+				break<br />
+			endif<br />
+				spool.pr.line = &quot;COSTPRICE &quot;&amp;tcibd977.item&amp;&quot; &quot;&amp; mes2 <br />
+				spool.line()<br />
+				mes2 = &quot;&quot;<br />
+				mes3 = &quot;&quot;<br />
+		endwhile<br />
+		spool.id = spooler.save<br />
+	else<br />
+		message(&quot;Report not found&quot;)<br />
+	endif<br />
+	stpapi.end.session(&quot;ticpr2210m000&quot;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jmathew</div><div class="date">9th April 2005, 09:07</div></div><div class="posttext">Hi all,<br />
+<br />
+I tried all the option given and still the cost update does not work. For the same item when i manually run the session ticpr2210m000 the cost is updated. I am still not sure why it is not working.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th April 2005, 04:02</div></div><div class="posttext">Contact Baan - it may be that you need updated stpapi libraries or a new session object.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sant123</div><div class="date">8th July 2005, 07:06</div></div><div class="posttext">James,<br />
+<br />
+Did you get this working??<br />
+<br />
+I am using the similar code to calculate the cost, I don't get any errors but nothing happens, std cost doesn't get updated.<br />
+<br />
+<br />
+I am on baan4c4, sp18 on tools &amp; sp13+weeks patch on application.<br />
+<br />
+<br />
+Appreciate any help.<br />
+<br />
+Thanks.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,210 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="excuting before.program(), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] excuting before.program() Tools Development" />
+	
+	<title>excuting before.program() [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; excuting before.program()</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">trchandra</div><div class="date">14th May 2003, 21:50</div></div><div class="posttext">Hi,<br />
+    I am trying to do something similar to Filter option available in every session.  Basically I want to filter the records on a session based on input from the user.  It is like dynamically building query.extend.where() function on fly.  But I cannot use this function in any other sections except before.program.  I am wondering is there any way to trigger before program from any part of the script.<br />
+<br />
+   Structure of program is like...<br />
+<br />
+<br />
+<br />
+   table  twhinr140<br />
+   extern  domain tcitem item<br />
+   <br />
+  string  query(80)<br />
+   long    fire.query<br />
+<br />
+before.program:<br />
+   if fire.query then<br />
+       query.extend.where(&quot;whinr140.item like &quot; &amp; query)<br />
+   endif<br />
+<br />
+field.item:<br />
+when.field.changes:<br />
+     if not isspace(item) then<br />
+         query = &quot;.*&quot; &amp; item &amp; &quot;.*&quot;<br />
+         fire.query=1<br />
+     else<br />
+         fire.query=0<br />
+     endif<br />
+|Here I should be able to reexcute before.program <br />
+|so that the records will be filtered with query.extend.where()<br />
+<br />
+<br />
+I created session of type multi-occ display session.<br />
+<br />
+I appreciate your help<br />
+<br />
+regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">14th May 2003, 22:17</div></div><div class="posttext">After you use query.extend.where() execute - rebuild.query() (http://www.baanboard.com/programmers_manual_baanerp_help_functions_sql_query_extensions_rebuild_query)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dnnslbrwn</div><div class="date">14th May 2003, 22:21</div></div><div class="posttext">Just curious... do the sections in 'on.main.table:' still exist in BAAN V?  Not a good solution at all, but would it work to use skip.io() in 'after.read:'?<br />
+<br />
+Cheers,<br />
+<br />
+-Dennis</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">klixy23</div><div class="date">15th May 2003, 10:35</div></div><div class="posttext">I'm on IVc4 and can only use the variable query.extension. Just this week I look for a solution to change the query.extension dynamically. I solve my problem as follow:<br />
+<br />
+<br />
+before.program:<br />
+	if strip$(argv$(1)) = &quot;in.prod&quot; then<br />
+		query.extension = &quot;tisfc001.osta &gt; tcosta.printed and tisfc001.osta &lt;= tcosta.ready&quot;<br />
+	else<br />
+		query.extension = &quot;tisfc001.osta &lt;= tcosta.printed&quot;<br />
+	endif<br />
+<br />
+...<br />
+| in a choice.section<br />
+before.choice:<br />
+	if background then<br />
+		execute(end.program)<br />
+	else<br />
+		if strip$(argv$(1)) = &quot;in.prod&quot; then<br />
+			p_id = wait.and.activate(prog.name$, &quot;&quot;)<br />
+		else<br />
+			p_id = wait.and.activate(prog.name$, &quot;in.prod&quot;)<br />
+		endif<br />
+	endif<br />
+	choice.again()<br />
+<br />
+<br />
+<br />
+If the user select the choice, the session starts again with an argument. <br />
+If the user select the choice in the restartet session the restartet session exits. <br />
+The first session can also start with the argument, then the session restarts without argument. <br />
+In the sample above there is a separation of planned and active production orders.<br />
+I think, the query.extension method is faster then to use skip.io() in main.table.io section.<br />
+<br />
+Hope this help others too.<br />
+<br />
+Have a nice day!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">15th May 2003, 19:44</div></div><div class="posttext">Thanks for the posts guys, I had this same problem.  Klixy that did work, but I guess not happy to have the second session pop up &amp; have 2 sessions open, etc.  <br />
+<br />
+I was able to make mine work with the rebuild.query in 1 session.<br />
+I have a button to toggle displaying items with signal code = &quot;OBS&quot;.  The session starts with the toggle not on (not displaying &quot;OBS&quot;).<br />
+<br />
+<br />
+before.program:<br />
+                toggle.on = false<br />
+	query.extension = &quot;tiitm001.cont = tcyesno.no&quot;	|** Standard query extension<br />
+	query.extension = &quot;tiitm001.csig &lt;&gt; &quot;&amp;chr$(34)&amp;&quot;OBS&quot;&amp;chr$(34)      |** Thanks, Mark H<br />
+<br />
+.....<br />
+<br />
+choice.cont.process:                   |** the Toggle OBS button<br />
+on.choice:<br />
+	if toggle.on then<br />
+		query.extension = &quot;&quot;<br />
+		query.extension = &quot;tiitm001.cont = tcyesno.no&quot;	<br />
+		query.extension = &quot;tiitm001.csig &lt;&gt; &quot;&amp;chr$(34)&amp;&quot;OBS&quot;&amp;chr$(34)<br />
+		toggle.on = false<br />
+	else	<br />
+		query.extension = &quot;&quot;<br />
+		query.extension = &quot;tiitm001.cont = tcyesno.no&quot;	<br />
+		toggle.on = true<br />
+	endif<br />
+	rebuild.query()<br />
+	execute(find.data)<br />
+<br />
+<br />
+<br />
+Hope that helps</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">klixy23</div><div class="date">16th May 2003, 11:14</div></div><div class="posttext">Hi lbencic,<br />
+<br />
+I changed my script to use rebuild.query() (http://www.baanboard.com/programmers_manual_baanerp_help_functions_sql_query_extensions_rebuild_query)  and it works great! I don't know about this function, it isn't documented in &quot;Tools Programmer's Manual&quot; manual for 4c4. Until my test I had not hope that rebuild.query() works correctly on 4c4  (Wscite don't display this as function).<br />
+<br />
+Here is my new code:<br />
+<br />
+|************* FORM SECTION **************<br />
+form.1:<br />
+init.form:<br />
+	if strip$(argv$(1)) = &quot;in.prod&quot; then<br />
+		to.form(2)<br />
+	endif<br />
+before.form:<br />
+	query.extension = &quot;&quot;<br />
+	query.extension = &quot;tisfc001.osta &lt;= tcosta.printed&quot;<br />
+	rebuild.query()<br />
+	execute(find.data)<br />
+<br />
+form.2:<br />
+before.form:<br />
+	query.extension = &quot;&quot;<br />
+	query.extension = &quot;tisfc001.osta &gt; tcosta.printed and tisfc001.osta &lt;= tcosta.ready&quot;<br />
+	rebuild.query()<br />
+	execute(find.data)<br />
+<br />
+ <br />
+The code in the choice section is no more longer needed.<br />
+BB have helped me again to learn more about BaaN and find a nice solution.<br />
+<br />
+Have a nice day!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">roysouvik</div><div class="date">11th October 2018, 14:41</div></div><div class="posttext">function extern void toggle.filter()        | Form command<br />
+{<br />
+static  boolean filter.active<br />
+<br />
+    | Toggle the filter<br />
+    filter.active = not filter.active<br />
+<br />
+    | Change the appearance of the form command<br />
+    set.checked.command(&quot;toggle.filter&quot;, filter.active)<br />
+    <br />
+    | The filter implementation...<br />
+    if filter.active then<br />
+        ...<br />
+    else<br />
+        ...<br />
+    endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">roysouvik</div><div class="date">11th October 2018, 14:56</div></div><div class="posttext">function extern void toggle.filter()        | Form command<br />
+{<br />
+static  boolean filter.active<br />
+<br />
+    | Toggle the filter<br />
+    filter.active = not filter.active<br />
+<br />
+    | Change the appearance of the form command<br />
+    set.checked.command(&quot;toggle.filter&quot;, filter.active)<br />
+    <br />
+    | The filter implementation...<br />
+    if filter.active then<br />
+        ...<br />
+    else<br />
+        ...<br />
+    endif<br />
+}<br />
+You Can Try This Code</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

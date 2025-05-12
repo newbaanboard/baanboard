@@ -1,0 +1,155 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Session hangs in purchase order upload, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Session hangs in purchase order upload AFS/DDC/OLE: Function servers" />
+	
+	<title>Session hangs in purchase order upload [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Session hangs in purchase order upload</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jatin_sanghi</div><div class="date">17th February 2005, 11:43</div></div><div class="posttext">Hi All,<br />
+<br />
+i'am trying to create an AFS script for uploading the purchase orders.<br />
+i'am able to get through the header ( tdpur4101m000) , but in purchase order lines ( tdpur4105s000) the session hangs at the end.session for lines.<br />
+<br />
+Also i'am trying to have multiple entries in lines for a single order, pertaing to a supplier. Please help m in solving these two issues.<br />
+<br />
+My script follow as below..:<br />
+<br />
+<br />
+|******************************************************************************<br />
+|* tdjub9918mpol  0  VRC B40C c4 jol <br />
+|* Upload purchase orders<br />
+|* Vivek Bhatt                   <br />
+|* 2005-02-17<br />
+|******************************************************************************<br />
+|* Main table tdjub906 Preffered supplier by item, Form Type 4<br />
+|******************************************************************************<br />
+|****************************** declaration section ***************************<br />
+<br />
+declaration:<br />
+<br />
+#pragma nowarnings<br />
+#pragma used dll ottstpapihand<br />
+<br />
+	table	ttdjub906	| Preffered supplier by item<br />
+	table   ttccom020<br />
+	table   ttdpur040<br />
+<br />
+<br />
+<br />
+	extern	domain	tcitem        	item.f	<br />
+	extern	domain	tcitem        	item.t	<br />
+	extern  domain  tcsuno		suno.f<br />
+	extern  domain  tcsuno		suno.t<br />
+	string  errmsg(80)<br />
+<br />
+|****************************** form section **********************************<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	read.main.table()<br />
+|	execute(print.data)<br />
+<br />
+<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+	if rprt_open() then<br />
+		read.main.table()<br />
+		rprt_close()<br />
+	else<br />
+		choice.again()<br />
+	endif<br />
+<br />
+<br />
+|****************************** field section *********************************<br />
+field.item.f:<br />
+when.field.changes:<br />
+	item.t = item.f<br />
+<br />
+<br />
+field.suno.f:<br />
+when.field.changes:<br />
+	suno.t = suno.f<br />
+<br />
+|****************************** function section ******************************<br />
+functions:<br />
+function read.main.table()<br />
+{<br />
+<br />
+	select	tccom020.*<br />
+	from	tccom020<br />
+	where   tccom020._index1 inrange {:suno.f}<br />
+	                             and {:suno.t}<br />
+	order by tccom020._index1<br />
+	selectdo<br />
+		insert_order()<br />
+|		rprt_send()<br />
+	endselect<br />
+<br />
+}<br />
+function void insert_order()<br />
+{<br />
+	stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.orno&quot;, &quot;19&quot;)<br />
+	stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.suno&quot;, str$(tccom020.suno))<br />
+	stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.cotp&quot;, &quot;HOT&quot;)<br />
+	stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.comp&quot;, &quot;999&quot;)<br />
+	stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.odat&quot;, str$(date.num()))<br />
+	stpapi.handle.subproc(&quot;tdpur4101m000&quot;, &quot;tdpurl102s002&quot;,  &quot;add&quot;)<br />
+	stpapi.insert(&quot;tdpurl102s002&quot;, true, errmsg)<br />
+	stpapi.end.session(&quot;tdpurl102s002&quot;)<br />
+	stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.ddat&quot;, str$(date.num()))<br />
+	stpapi.insert(&quot;tdpur4101m000&quot;,true,errmsg)<br />
+	stpapi.handle.subproc(&quot;tdpur4101m000&quot;, &quot;tdpur4105s000&quot;,  &quot;add&quot;)<br />
+	stpapi.continue.process(&quot;tdpur4101m000&quot;,errmsg)<br />
+<br />
+		<br />
+	select tdjub906.*<br />
+	from tdjub906<br />
+	where tdjub906._index1 inrange {:item.f, :tccom020.suno}<br />
+		and  {:item.t, :tccom020.suno}<br />
+	selectdo<br />
+	<br />
+		stpapi.put.field(&quot;tdpur4105s000&quot;,&quot;tdpur041.item&quot;, tdjub906.item)                   |&quot;            RITE&quot;)<br />
+		stpapi.put.field(&quot;tdpur4105s000&quot;,&quot;tdpur041.cwar&quot;,&quot;CWH&quot;)<br />
+		stpapi.put.field(&quot;tdpur4105s000&quot;,&quot;tdpur041.oqua&quot;,str$(tdjub906.oqty))<br />
+		stpapi.handle.subproc(&quot;tdpur4105s000&quot;, &quot;tdind0271s000&quot;, &quot;add&quot;)<br />
+		stpapi.put.field(&quot;tdind0271s000&quot;, &quot;tdind020.exci&quot;, str$(etol(tcyesno.no)))<br />
+		stpapi.put.field(&quot;tdind0271s000&quot;, &quot;tdind020.svyn&quot;, str$(etol(tcyesno.no)))<br />
+		stpapi.put.field(&quot;tdind0271s000&quot;, &quot;tdind020.ocyn&quot;, str$(etol(tcyesno.no)))<br />
+		stpapi.insert(&quot;tdind0271s000&quot;, true, errmsg)<br />
+		stpapi.end.session(&quot;tdind0271s000&quot;)<br />
+		stpapi.insert(&quot;tdpur4105s000&quot;, true, errmsg)<br />
+	endselect<br />
+	stpapi.end.session(&quot;tdpur4105s000&quot;)<br />
+	stpapi.end.session(&quot;tdpur4101m000&quot;)<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th February 2005, 18:18</div></div><div class="posttext">Not familiar with these sessions, but I did find this post (http://www.baanboard.com/baanboard/showthread.php?t=15558&amp;highlight=tdind0271s000).<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

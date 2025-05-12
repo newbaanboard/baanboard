@@ -1,0 +1,228 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="dynamic bind for dynamic sql problem, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] dynamic bind for dynamic sql problem Tools Development" />
+	
+	<title>dynamic bind for dynamic sql problem [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; dynamic bind for dynamic sql problem</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Andre.A</div><div class="date">20th May 2003, 14:47</div></div><div class="posttext">Hello !<br />
+<br />
+I encountered an interesting problem during programming with dynamic sql.<br />
+<br />
+the question is why does the bind function do not what it should !<br />
+the field_array var never be filled with the right values after sql_exe and sql_fetch statements except the last field in this 2 dim string array. <br />
+<br />
+for i = 1 to (count + nr_index)<br />
+   bind = sql.select.bind(sql_id, i, field_array(1,i))<br />
+endfor<br />
+<br />
+I need this to bind dynamically composed sql statements to variables.<br />
+<br />
+If anyone could help I would be VERY pleased:confused<br />
+<br />
+:confused: :confused: :confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">20th May 2003, 15:57</div></div><div class="posttext">If it is a 2D string array, then your syntax is wrong.  Remember that Baan adds what looks like an extra dimension when referring to strings.  So, if you really want the string array element at (1,i) starting at the first character, you should specify field_array(1, 1, i).<br />
+<br />
+from the Baan library Arrays (http://www.baanboard.com/programmers_manual_baanerp_help_3gl_features_arrays):<br />
+When referencing a string array, the first dimension indicates the start position in the string. The particular string to be accessed is indicated by the other dimensions. It is possible to specify a length for the string to be retrieved by using a semicolon [;] followed by the required length. If you omit the length, the total length of the string is taken.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Andre.A</div><div class="date">20th May 2003, 16:21</div></div><div class="posttext">thx for your supply !<br />
+<br />
+i ve tried it, but i ve got an error (152) : illegal number of subscripts in bind statement.<br />
+<br />
+string  field_array(1024,255)<br />
+<br />
+s1 = &quot;&quot;		<br />
+nr_index = rdi.column.combined(tabl.f &amp; &quot;._index1&quot;, prim_key_fields)	| find primary key fields<br />
+for i = 1 to nr_index<br />
+	s1 = s1 &amp; strip$(prim_key_fields(1,i)) &amp; &quot;:&quot; &amp; str$(i) &amp; &quot;,&quot;<br />
+endfor<br />
+s1(len(s1);1) = &quot;&quot;		| delete last colon<br />
+<br />
+sql_id = sql.parse(&quot;select &quot; &amp; s1 &amp;&quot; from &quot; &amp; tabl.f &amp; &quot; order by &quot; &amp; tabl.f &amp; &quot;._index1&quot;)<br />
+for i = 1 to (count + nr_index)<br />
+	bind = sql.select.bind(sql_id, i, field_array(1,1,i))<br />
+endfor<br />
+sql.exec(sql_id)<br />
+<br />
+while sql.fetch(sql_id) = 0<br />
+..........<br />
+<br />
+thats working except the bind function ! I am not very happy about this problem <br />
+could you check the bind statement by yourself ?<br />
+<br />
+thx in advance</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">20th May 2003, 20:56</div></div><div class="posttext">Andre,<br />
+<br />
+I think this was your original requirement-<br />
+could anyone tell me with which function I could find out the primary key of any tables in my db ? <br />
+<br />
+The problem in your script is with the variable field_array -  It is declared as a 2 dimensional array but used as a 3 dimensional array.<br />
+string  field_array(1024,255)<br />
+...<br />
+bind = sql.select.bind(sql_id, i, field_array(1,1,i))<br />
+ <br />
+There is not particular variable to which it is binded and I think you intended to use it as - field_array(1, i;1) or field_array(1, i).<br />
+<br />
+Your program would still fail because there is no check on the return value of rdi.column.combined() and variable - nr_index.<br />
+You did not test if the primary index of a table is a combined field or not.<br />
+<br />
+This link will give you more info - Query ttadv421 and Indexes (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=8888) <br />
+<br />
+Anyways, to make thing simple you can use the function from the standard tools dll - ttdllextint<br />
+<br />
+get.index.fields<br />
+long get.index.fields( domain ttadv.cpac cpac, <br />
+	domain ttadv.cmod cmod, domain ttadv.flno flno, <br />
+	domain ttadv.vers vers, domain ttadv.rele rele, <br />
+	domain ttadv.cust cust, ref string simple.flds() )<br />
+<br />
+Desc: get fields in first index<br />
+	also combined fields in combined fields are converted to simple fields<br />
+Par : cpac  : package code table<br />
+      cmod  : module code<br />
+      flno  : table name<br />
+      vers  : version code<br />
+      rele  : release code<br />
+      cust  : customer code<br />
+      simple.flds (output) : simple fields, each field (max. 32) takes 18 chars,<br />
+		padded with space<br />
+Returns: nr of simple fields in first index<br />
+		0 : no index found<br />
+<br />
+This takes away the complex logic you like to build.<br />
+<br />
+I hope this helps you out. :p</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Andre.A</div><div class="date">21st May 2003, 10:30</div></div><div class="posttext">Hi NPRao !<br />
+<br />
+I solved the problem with the primary key  already before. Thats not the main problem anymore. Now I encountered a problem with the &quot;sql.select.bind&quot; function.<br />
+I tried to use this function with a 2-dim string array, but it never works (!) and the return code is zero !!!!!<br />
+If I try to change the line<br />
+<br />
+bind = sql.select.bind(sql_id, i, field_array(1,i))<br />
+<br />
+to<br />
+<br />
+bind = sql.select.bind(sql_id, i, field_array_1)<br />
+<br />
+it works perfect !<br />
+Is it possible that bind don´t allow an assignment of 2-dim arrays ?? <br />
+Any ideas how to do a workaround ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Andre.A</div><div class="date">21st May 2003, 12:53</div></div><div class="posttext">SOLVED !!<br />
+<br />
+I tried to do a workaround for the bind command and found a solution:<br />
+<br />
+for i = 1 to count<br />
+    handle(i + nr_index) = expr.compile(col_array(1,i)) <br />
+endfor<br />
+<br />
+In the var &quot;col_array&quot; are the column names of the desired table. Now I assign with &quot;expr.compile&quot; the column names to a handle.<br />
+<br />
+for j = 1 to (count + nr_index)<br />
+   field_array(1,j) = s.expr$(handle(j))<br />
+endfor<br />
+<br />
+Now I assign the content of the handle referenced column at runtime to &quot;field_array(1,j)&quot;. <br />
+Now you are able to search in the content of a sql dynamic statement. The hint is that baan is generating variables , like &quot;tablename.col_name&quot; with the parse command !<br />
+<br />
+thx to all</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Bender</div><div class="date">8th January 2007, 15:26</div></div><div class="posttext">Hallo Andre,<br />
+<br />
+could you please be so kind and explain your workaround a little more?<br />
+I have the same problem an ran into the same issue <br />
+with the the array binding.<br />
+<br />
+Especially your last post with your solution irretates me.<br />
+Can you explain your variables and what you are doing there plz?<br />
+<br />
+greetz, <br />
+bender</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Andre.A</div><div class="date">8th January 2007, 15:57</div></div><div class="posttext">Hi Bender,<br />
+<br />
+main idea behind this program was to find out all string fields of a table. The table is given as an input on the form. The solution should also identify the main index fields.<br />
+<br />
+In this case we used dynamic SQL as a way to solve it.<br />
+<br />
+The way how to do it was to generate a string (s1 and s2) for the select statement.<br />
+<br />
+| find number of columns (nr.col = width of table)<br />
+ret_code = rdi.table(f.table, nr.indices, nr.col, int.length, real.length)	<br />
+<br />
+| find primary key fields<br />
+s1 = &quot;&quot;		<br />
+nr.pk.fields = rdi.column.combined(f.table &amp; &quot;._index1&quot;, pk.fields)	<br />
+for i = 1 to nr.pk.fields<br />
+	s1 = s1 &amp; strip$(pk.fields(1,i)) &amp; &quot;,&quot;<br />
+	handle(i) = expr.compile(strip$(pk.fields(1,i))) <br />
+endfor<br />
+s1(len(s1);1) = &quot;&quot;	| delete last colon<br />
+<br />
+| find string type columns in table<br />
+s2 = &quot;&quot;<br />
+str.fld.count = 0<br />
+for i = (5 + nr.indices) to nr.col				<br />
+   ret_code = rdi.table.column (f.table,i,column_name,domain_name,offset,size,dept,type,flag,    dummy)<br />
+   if type = DB.STRING or type = DB.MULTIBYTE or type = DB.TEXT then<br />
+	str.fld.count = str.fld.count + 1<br />
+	col_array(1,str.fld.count) = strip$(column_name)<br />
+	s2 = s2 &amp; &quot;,&quot; &amp; strip$(column_name)<br />
+    endif<br />
+endfor<br />
+<br />
+After this generate the statement :<br />
+| generate dynamic sql statement<br />
+sql.id = sql.parse(&quot;select &quot; &amp; s1 &amp; s2 &amp;&quot; from &quot; &amp; f.table &amp; &quot; order by &quot; &amp; f.table &amp; &quot;._index1&quot;)<br />
+for i = 1 to str.fld.count<br />
+	handle(i + nr.pk.fields) = expr.compile(col_array(1,i)) <br />
+endfor<br />
+sql.exec(sql.id)<br />
+while sql.fetch(sql.id) = 0				<br />
+     for i = 1 to str.fld.count		| step through all found string fields<br />
+	| assign at runtime field content to field_array<br />
+	for j = 1 to (str.fld.count + nr.pk.fields)<br />
+		field_array(1,j) = s.expr$(handle(j))<br />
+	endfor<br />
+          ........  some commands<br />
+     endfor<br />
+endwhile<br />
+<br />
+The expr.compile / s.expr$() commands are needed to get the content of the fields at runtime.<br />
+<br />
+hopefully this gives you a more detailed view on this topic<br />
+Andre</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Bender</div><div class="date">8th January 2007, 16:19</div></div><div class="posttext">thx for the detailed Info :)<br />
+I think i am trying to solve the same Problem.<br />
+I'll give it a try later and will response to you :)<br />
+Have a nice day.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

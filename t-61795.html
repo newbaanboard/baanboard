@@ -1,0 +1,106 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="tdpur1508s000 hangs on AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] tdpur1508s000 hangs on AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>tdpur1508s000 hangs on AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; tdpur1508s000 hangs on AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">thieuf</div><div class="date">18th January 2012, 17:19</div></div><div class="posttext">Hello All,<br />
+<br />
+For a customer I am buidling a session to create purchase quotes using AFS<br />
+on Baan IV SP 14 (and yes we have all the latest api's and what not ...) <br />
+<br />
+When inserting a purchase quote on a Baan IV, the session tdpur1508s000 stays alive in the background. When I try to end it using AFS the program &quot;hangs&quot;.  <br />
+<br />
+<br />
+xpono = xpono + 10<br />
+<br />
+stpapi.put.field(&quot;tdpur1101m000&quot;,&quot;tdpur001.qono&quot;,xqono.str)<br />
+<br />
+xretval = stpapi.find(&quot;tdpur1101m000&quot;,err.msg)<br />
+<br />
+stpapi.handle.subproc(&quot;tdpur1101m000&quot;,&quot;tdpur1102s000&quot;,&quot;add&quot;)<br />
+|stpapi.handle.subproc(&quot;tdpur1101m000&quot;,&quot;tdpur1508s000&quot;,&quot;add&quot;)<br />
+stpapi.continue.process(&quot;tdpur1101m000&quot;, err.msg)<br />
+<br />
+	if err.msg &lt;&gt; &quot;&quot; then<br />
+		message(err.msg)<br />
+	endif<br />
+	stpapi.put.field(&quot;tdpur1102s000&quot;,&quot;tdpur002.cprj&quot;, tisun800.cprj)<br />
+	stpapi.put.field(&quot;tdpur1102s000&quot;,&quot;tdpur002.item&quot;, tisun800.item)<br />
+	stpapi.put.field(&quot;tdpur1102s000&quot;,&quot;tdpur002.pono&quot;, str$(xpono))<br />
+	stpapi.put.field(&quot;tdpur1102s000&quot;,&quot;tdpur002.oqua&quot;, str$(tipcs520.oqan))<br />
+<br />
+	xretval = stpapi.insert(&quot;tdpur1102s000&quot;,true,err.msg)<br />
+<br />
+	if not isspace(err.msg) then<br />
+		stpapi.recover(&quot;tdpur1102s000&quot;,err.msg)<br />
+	else<br />
+		stpapi.get.field(&quot;tdpur1102s000&quot;,&quot;tdpur002.pono&quot;,xpono.str)<br />
+	endif<br />
+<br />
+	stpapi.end.session(&quot;tdpur1102s000&quot;)<br />
+	|stpapi.end.session(&quot;tdpur1508s000&quot;)<br />
+<br />
+stpapi.end.session(&quot;tdpur1101m000&quot;)<br />
+<br />
+I have &quot;piped&quot; out end session and handle process for now so I can finish the creation without problem, but a lot of &quot;tdpur1508s000&quot; processes keep &quot;hanging&quot;  in the background/shell. <br />
+<br />
+Anyone any ideas?<br />
+<br />
+thanks Thieu</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">thieuf</div><div class="date">19th January 2012, 10:54</div></div><div class="posttext">Hello All,<br />
+<br />
+found the solution and just wanted to share....<br />
+<br />
+first mistake <br />
+the subsession was not called by the main but by the first subsession:<br />
+tdpur1101m000 -&gt; tdpur1102s000 -&gt; tdpur1508s000<br />
+<br />
+second mistake<br />
+I used &quot;add&quot; in sub process but should have used &quot;kill&quot;<br />
+<br />
+third mistake<br />
+wrong location of the handle sub process<br />
+<br />
+here is the correct script...<br />
+<br />
+stpapi.handle.subproc(&quot;tdpur1101m000&quot;,&quot;tdpur1102s000&quot;,&quot;add&quot;)<br />
+stpapi.continue.process(&quot;tdpur1101m000&quot;, err.msg)<br />
+<br />
+	stpapi.put.field(&quot;tdpur1102s000&quot;,&quot;tdpur002.cprj&quot;, tisun800.cprj)<br />
+	stpapi.put.field(&quot;tdpur1102s000&quot;,&quot;tdpur002.item&quot;, tisun800.item)<br />
+	stpapi.put.field(&quot;tdpur1102s000&quot;,&quot;tdpur002.pono&quot;, str$(xpono))<br />
+	stpapi.put.field(&quot;tdpur1102s000&quot;,&quot;tdpur002.oqua&quot;, str$(tipcs520.oqan))<br />
+<br />
+	xretval = stpapi.insert(&quot;tdpur1102s000&quot;,true,err.msg)<br />
+<br />
+	if not isspace(err.msg) then<br />
+		stpapi.recover(&quot;tdpur1102s000&quot;,err.msg)<br />
+	else<br />
+		stpapi.get.field(&quot;tdpur1102s000&quot;,&quot;tdpur002.pono&quot;,xpono.str)<br />
+	endif<br />
+<br />
+	stpapi.handle.subproc(&quot;tdpur1102s000&quot;,&quot;tdpur1508s000&quot;,&quot;kill&quot;)<br />
+	stpapi.end.session(&quot;tdpur1102s000&quot;)<br />
+<br />
+stpapi.end.session(&quot;tdpur1101m000&quot;)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

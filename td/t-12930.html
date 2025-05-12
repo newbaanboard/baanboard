@@ -1,0 +1,138 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Form field values, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Form field values Tools Development" />
+	
+	<title>Form field values [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Form field values</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">morpheus</div><div class="date">11th September 2003, 09:32</div></div><div class="posttext">I have a maintain session, with multi occurance form. This field (status), on this form, is not a table field, but a form field. At the time of update.db I want all the values, i.e., for all occurances, of this field. How do I get this?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">11th September 2003, 09:37</div></div><div class="posttext">Use the function do.all.occ() (http://www.baanboard.com/programmers_manual_baanerp_help_functions_form_and_form_field_operations_do_all_occ) to iterate through the records, and in the sub-function, the formfields belonging to that occurance can be read and processed.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">morpheus</div><div class="date">11th September 2003, 09:45</div></div><div class="posttext">Saw you logged on, and expected a quick reply from you!!<br />
+Anyway, I used this function earlier, under section before.choice of choice.update.db, but could not achieve my objective. The problem is like -<br />
+<br />
+Main table is tdprq041.<br />
+Depending on the &quot;status&quot; field, I update tdprq041, tdprq043 &amp; tdprq040. Then fire commit.transaction(). Till now everything is fine.<br />
+After this, I get this bw error - 206 - Record not locked on tdprq041.<br />
+<br />
+Any idea where am I going wrong!?<br />
+<br />
+<br />
+choice.update.db:<br />
+before.choice:<br />
+	db.retry.point()<br />
+	do.all.occ(tdprq041)<br />
+	do.all.occ(tdprq043)<br />
+	tdprq040()<br />
+	commit.transaction()</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">11th September 2003, 10:06</div></div><div class="posttext">I presume that tdprq041, tdprq043 and tdprq040 are functions?  A general comment: try giving them names like update_tdprq041 instead!<br />
+<br />
+When firing the update.db() command, the standard program inserts a retry point and commit for the main table of the session.  Try one of the following:<br />
+<br />
+ Swap the sequence of the updating, leaving the 041 table to the last, but then remove the commit in the choice section.<br />
+ As a last command to the before.choice, issue a choice.again(), to stop the actual update.db() from being executed<br />
+ In the sub-function for tdprq041, use the on.main.table() construct.<br />
+<br />
+As for the fast reply, well.... :D</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">morpheus</div><div class="date">11th September 2003, 10:31</div></div><div class="posttext">1. Changing the function names did not help!!<br />
+2. Cannot put tdprq041 in the last. Updation of tdprq040 is dependent on tdprq041.<br />
+3. Had already tried choice.again(). But, this again does not help. No event is fired after this command.<br />
+4. Same result after using on.main.table().<br />
+<br />
+:mad: :confused: :o</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">11th September 2003, 10:41</div></div><div class="posttext">1. Changing the function names did not help!!Wouldn''t help! :D Just better for semantics!  That's why it is a general remark!<br />
+2. Cannot put tdprq041 in the last. Updation of tdprq040 is dependent on tdprq041.Point taken.  Have to try something else...<br />
+3. Had already tried choice.again(). But, this again does not help. No event is fired after this command.Funny!  Should have worked!  But, not out of options yet.  Try execute(find.data) or execute(first.set) before the choice.again().  This should re-instate the correct record of the main table.4. Same result after using on.main.table().Could you post the code?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">morpheus</div><div class="date">11th September 2003, 12:47</div></div><div class="posttext">|********** form section *********<br />
+<br />
+|********** field section *********<br />
+<br />
+field.stat:<br />
+before.field:<br />
+| Depending upon some values, the default value of &quot;stat&quot; is defined.<br />
+<br />
+check.input:<br />
+| Some check are made here.<br />
+<br />
+field.logn2:<br />
+before.display:<br />
+| Login names are selected &amp; displayed.<br />
+<br />
+|********* choice section*********<br />
+<br />
+choice.update.db:<br />
+before.choice:<br />
+	do.all.occ(tdprq043)<br />
+	do.all.occ(tdprq041)<br />
+	tdprq040()<br />
+	choice.again()    |See Comment<br />
+<br />
+|******** main table section *********<br />
+<br />
+main.table.io:<br />
+read.view:<br />
+	if (tdprq041.srqn = tdprq.srqn.cancelled) then<br />
+		skip.io(&quot;&quot;)<br />
+	endif<br />
+<br />
+|********** function section ********<br />
+<br />
+before.program:<br />
+|Login &amp; authorizations checked here<br />
+<br />
+functions:<br />
+<br />
+function tdprq041()<br />
+{<br />
+| tdprq041 is updated here<br />
+}<br />
+<br />
+function tdprq040()<br />
+{<br />
+| tdprq040 is updated here<br />
+}<br />
+<br />
+function tdprq043()<br />
+{<br />
+| And tdprq043 is updated here<br />
+}<br />
+<br />
+<br />
+Comment:<br />
+After this function is executed, the session waits for the &quot;choice&quot;. After firing the &quot;choice&quot;, the control is going back to &quot;check.input:&quot;<br />
+subsection, and is throwing the message : Transaction is on, can't continue.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">13th September 2003, 19:01</div></div><div class="posttext">The error Transaction on , can't continue will come when transaction is not finished with abort / commit and other transaction starts.<br />
+<br />
+So what I think in functions for updating in functions may be conditional . Depending on certain condition only u may be issuing commit. And those conditions may not be fulfilled. So when Baan standard program tries to set retry.point , ti gives this error.<br />
+<br />
+Further why do you wish to write choice.again in update.db unconditionally and why u update your main table in do.all.occ . Just a curiosity question.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

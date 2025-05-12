@@ -1,0 +1,281 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Question about program scripts (was: migration), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Question about program scripts (was: migration) Tools Development" />
+	
+	<title>Question about program scripts (was: migration) [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Question about program scripts (was: migration)</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">carice</div><div class="date">25th June 2002, 17:08</div></div><div class="posttext">Is it possible to know in a program script where the source of a script, dll,... is situating? Which script does a session used when you start from a certain VRC?<br />
+<br />
+I have to make a program that checks the number of different lines between a baan standard script (that can situated in the standard, update standard, localisation layer) and the customisated script. Aren't there any dll that can help me to do this job?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dhowells</div><div class="date">25th June 2002, 17:53</div></div><div class="posttext">Try calling the explode command (via shell command) from your program script.  This will tell you which object is running.  From there you could get the appropriate code.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">25th June 2002, 19:47</div></div><div class="posttext">Hi Carise,<br />
+<br />
+This is quite easy and there is no existing dll but you can build your own tool.<br />
+<br />
+Firstly, you need to use the function, vrc_search_session() function from the Tools DLL, ttdllvrcsearch and you have to set the package VRC (ttadv111).<br />
+<br />
+After you get a return value &gt; 0 then you need to find the script attached to the session, from the fields, ttadv200.cmop and ttadv200.cprs. <br />
+<br />
+Then you need to use the function, vrc_search_script() and then get the return values &gt; 0. This gives the last found script VRC.<br />
+<br />
+Then reset the VRC tree (ttadv111) to the VRC below the last found VRC, and then use the vrc_search_script again for &gt; 0.<br />
+<br />
+Now you found the last 2 VRC's of that script. <br />
+<br />
+So now get the script source paths using -<br />
+<br />
+1. get.envpath function from the tools DLL - ttdllenvpath (or)<br />
+2. BaaN Standard Function - long pathname( string file_basename(16), string file_type, ref string file_path(256) )<br />
+<br />
+Now you can use the shell() or run.prog() functions, to find the differences using -<br />
+<br />
+standard BaaN binary in $BSE/bin/diff[BaaN-version] - (or)<br />
+or call the unix command diff and redirect the output to a temporary file.<br />
+<br />
+Then you parse the temporary file to find the LOC, differences etc.<br />
+<br />
+I dont know which BaaN version you are on, I found a new Tools DLL, <br />
+Library ttdllnewer.vrc<br />
+Component present in newer VRC<br />
+<br />
+Good Luck!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">26th June 2002, 16:10</div></div><div class="posttext">Just a minor note of warning on the vrc_search functions.  They work great, but I believe that you need to be in (or be able to switch to) company zero to run them.  I had an application where I wanted to do something similar to your requirements, but it needed to work no matter who ran the script.  Since I couldn't count on every user to have the ability to switch to company 0, I had to write a lot of code myself.:( <br />
+<br />
+Good luck!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">carice</div><div class="date">26th June 2002, 16:17</div></div><div class="posttext">thanks for your response<br />
+<br />
+I have tried the dll but he always return zero. What am i doing wrong? Did you have an example?<br />
+function search.script.vrc()<br />
+{<br />
+ extern domain ttadv.cpac cpac1<br />
+ extern domain ttadv.cmod cmod1<br />
+ extern domain ttadv.cprs cprs1<br />
+ long tdep1<br />
+	<br />
+ extern domain ttadv.vers tver(50) fixed<br />
+ extern domain ttadv.rele trel(50) fixed<br />
+ extern domain ttadv.cust tcus(50) fixed<br />
+	<br />
+ cpac1 = ttadv176.sofc(1;2)<br />
+ cmod1 = ttadv176.sofc(3;3)<br />
+ cprs1 = ttadv176.sofc(6)<br />
+ tdep1 = 5<br />
+	<br />
+ retval =vrc_search_script(cpac1,cmod1,cprs1,tdep1,tver,trel,tcus)<br />
+	<br />
+ if retval &lt;&gt; 0 then<br />
+        message(&quot;found&quot;)<br />
+ endif<br />
+	<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th June 2002, 18:31</div></div><div class="posttext">Hello carice!<br />
+<br />
+Below is a sample of one I developed, but have not actually used.<br />
+<br />
+<br />
+function verify_script_in_vrc()<br />
+{<br />
+	domain	ttadv.vers	vers.f(2)	| Users current version<br />
+	domain	ttadv.rele	rele.f(2)	| Users current release<br />
+	domain	ttadv.cust	cust.f(2) 	| Users customer version<br />
+	<br />
+	vers.f(1,1) = parent.version<br />
+	rele.f(1,1) = parent.release<br />
+	cust.f(1,1) = parent.customer<br />
+	if(vrc_search_script(package,module,prog.script,1,vers.f,rele.f,cust.f))<br />
+        then<br />
+	else<br />
+		message(&quot;Script not found in parent VRC.&quot;)<br />
+		choice.again()<br />
+	endif<br />
+}<br />
+<br />
+<br />
+In this example the package, module and program script are form fields.  The parent variables are set in another routine, but should contain the package info I am searching.  It looks like you need to set the tver, trel, tcus variables.  It needs to know where to start the search.  In my example I am just verifying that it is in the input package and VRC.<br />
+<br />
+Good Luck!<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th June 2002, 18:33</div></div><div class="posttext">Thought I would also post the code to get the parent VRC.<br />
+<br />
+<br />
+function get_parent_pvrc()<br />
+{<br />
+	domain	ttadv.vers	vers.f,vers.t,vers.r	| Users current version<br />
+	domain	ttadv.rele	rele.f,rele.t,rele.r	| Users current release<br />
+	domain	ttadv.cust	cust.f,cust.t,cust.r 	| Users customer version<br />
+| Init stuff.<br />
+	vers.r = &quot;&quot;<br />
+	rele.r = &quot;&quot;<br />
+	cust.r = &quot;&quot;<br />
+| Find parent script.<br />
+	vers.f = first.version<br />
+	rele.f = first.release<br />
+	cust.f = first.customer<br />
+| Look all the way up to your current VRC.	<br />
+	vers.t = curr.version<br />
+	rele.t = curr.release<br />
+	cust.t = curr.customer<br />
+	if (script.present.in.newer.vrc(<br />
+			package,			| Users current package<br />
+			module,				| Current module.<br />
+			prog.script,			| Program Script<br />
+			vers.f,<br />
+			rele.f,<br />
+			cust.f,<br />
+			vers.t,<br />
+			rele.t,<br />
+			cust.t,<br />
+			vers.r,<br />
+			rele.r,<br />
+			cust.r)) then<br />
+			parent.version = vers.r <br />
+			parent.release = rele.r<br />
+			parent.customer= cust.r<br />
+	else<br />
+			parent.version = first.version<br />
+			parent.release = first.release<br />
+			parent.customer= first.customer<br />
+	endif<br />
+	display(&quot;parent.version&quot;)<br />
+	display(&quot;parent.release&quot;)<br />
+	display(&quot;parent.customer&quot;)<br />
+}<br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">26th June 2002, 19:46</div></div><div class="posttext">Carise,<br />
+<br />
+I am not aware of which BaaN version are you working up...<br />
+<br />
+When I checked our system (our version is BaaN-5.2) I found this info in the Program Scripts session - ttadv2130s000.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">26th June 2002, 20:05</div></div><div class="posttext">Checking back on Carise's and Mark's code, I suggest to use this code <br />
+<br />
+<br />
+|* Variables to store the tree depth<br />
+domain	ttadv.vers		tvers.f(40)<br />
+domain	ttadv.vers		tvers.t(40)<br />
+domain	ttadv.rele		trele.f(40)<br />
+domain	ttadv.rele		trele.t(40)<br />
+domain	ttadv.cust		tcust.f(40)<br />
+domain	ttadv.cust		tcust.t(40)<br />
+domain	ttadv.vers		vers.f<br />
+domain	ttadv.vers		vers.t<br />
+domain	ttadv.rele		rele.f<br />
+domain	ttadv.rele		rele.f<br />
+domain	ttadv.cust		cust.t<br />
+domain	ttadv.cust		cust.t<br />
+string				sourcevrc(10)<br />
+string				targetvrc(10)<br />
+|* source and target VRC<br />
+long				depth<br />
+long				tdep.f<br />
+long				tdep.t<br />
+<br />
+select	ttadv111.*<br />
+from	ttadv111<br />
+where	ttadv111._index1 = {:ttadv230.cpac,<br />
+		:vers.f, :rele.f, :cust.f}<br />
+as set with 1 rows<br />
+selectdo<br />
+	tdep.f = ttadv111.tdep<br />
+	copy.mem(tvers.f, ttadv111.tver)<br />
+	copy.mem(trele.f, ttadv111.trel)<br />
+	copy.mem(tcust.f, ttadv111.tcus)<br />
+endselect<br />
+<br />
+select	ttadv111.*<br />
+from	ttadv111<br />
+where	ttadv111._index1 = {:ttadv230.cpac,<br />
+	 :vers.t, :rele.t, :cust.t}<br />
+as set with 1 rows<br />
+selectdo<br />
+	tdep.t = ttadv111.tdep<br />
+	copy.mem(tvers.t, ttadv111.tver)<br />
+	copy.mem(trele.t, ttadv111.trel)<br />
+	copy.mem(tcust.t, ttadv111.tcus)<br />
+endselect<br />
+<br />
+|* First Version <br />
+depth = vrc_search_script(ttadv230.cpac, ttadv230.cmod,<br />
+		ttadv230.cprs, tdep.f, tvers.f,<br />
+		trele.f, tcust.f)<br />
+if depth &gt; 0 then<br />
+	sourcevrc = tvers.f(1,depth) &amp; trele.f(1,depth) &amp;<br />
+		    tcust.f(1,depth)<br />
+|* get the script source<br />
+|* you can use the function - search.path.program.script()<br />
+|* if depth &lt; 0 it means the components is expired in the first version<br />
+|* if depth = 0 it means the components is not found <br />
+endif<br />
+<br />
+|* Last Version <br />
+depth = vrc_search_script(ttadv230.cpac, ttadv230.cmod,<br />
+		ttadv230.cprs, tdep.t, tvers.t,<br />
+		trele.t, tcust.t)<br />
+if depth &gt; 0 then<br />
+	targetvrc = tvers.t(1,depth) &amp; trele.t(1,depth) &amp;<br />
+		    tcust.t(1,depth)<br />
+|* get the target source <br />
+|* you can use the function - search.path.program.script()<br />
+|* if depth &lt; 0 it means the components is expired in the last version<br />
+|* if depth = 0 it means the components is not found <br />
+endif<br />
+<br />
+|* find differences between these 2 scripts and redirect the diff output <br />
+|* file to a temporary file, ex- diff prog1 prog2 &gt; difffile<br />
+|* also check the various diff options using $man diff on Unix<br />
+|* or with the $BSE/bin/diff[baan-version] --help<br />
+|* Parse the diff output file - difffile and get the statistics<br />
+<br />
+<br />
+I hope this will help you out.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">27th June 2002, 10:23</div></div><div class="posttext">Do you know your tools?<br />
+Did you ever consider using session ttadv6450m000 (triton2.2, triton3.1, Baan IV, Baan ERP 5.x). It does what you want and even more!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">27th June 2002, 18:23</div></div><div class="posttext">OmeLuuk,<br />
+<br />
+The output of the sessions, shows the differences between the 2 VRCs of a script but it does not give you the statistical info.<br />
+<br />
+To get the statistical info one needs to parse the output of a diff between 2 files.<br />
+<br />
+Carise's requirement is <br />
+<br />
+I have to make a program that checks the number of different lines between a baan standard script (that can situated in the standard, update standard, localisation layer) and the customisated script. Aren't there any dll that can help me to do this job?</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

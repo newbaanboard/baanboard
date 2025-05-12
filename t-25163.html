@@ -1,0 +1,128 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Maintain lot through API, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Maintain lot through API AFS/DDC/OLE: Function servers" />
+	
+	<title>Maintain lot through API [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Maintain lot through API</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Kingsto88</div><div class="date">22nd September 2005, 05:58</div></div><div class="posttext">Dear experts,<br />
+<br />
+<br />
+I am using API in Baan 4c4 with latest Service Pack 18<br />
+<br />
+I am trying to enter inventory adjustment through API<br />
+So I call tdilc1120m000 which runs the subsession tdilc1121s000<br />
+<br />
+In tdilc1121s000, it zooms to Maint Lot tdltc0101s000. I want to enter the item here and save the session so that a Lot is automatically created and passed back to tdilc1121s000.<br />
+<br />
+It is not successful. Please see the code below.<br />
+<br />
+Thanks and regards,<br />
+function main()<br />
+{<br />
+stpapi.put.field(&quot;tdilc1120m000&quot;,&quot;tdinv100.item&quot;,ln.item)<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;,&quot;tdinv100.cwar&quot;,ln.cwar)<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;,&quot;tdinv100.idat&quot;,str$(date.num()))<br />
+	|stpapi.put.field(&quot;tdilc1120m000&quot;,&quot;tdinv100.sern&quot;,&quot;1&quot;)<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;,&quot;tdinv100.kowt&quot;,str$(etol(tckowt.stc.correction)))<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;,&quot;tdinv100.recd&quot;,ln.reason)<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;,&quot;tdinv100.odat&quot;,str$(date.num()))<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;,&quot;tdinv100.pdat&quot;,str$(date.num()))<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;,&quot;tdinv100.trdt&quot;,str$(date.num()))<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;,&quot;tdinv100.pqan&quot;,str$(var.quan))<br />
+	ret = stpapi.insert(&quot;tdilc1120m000&quot;,1,msg)<br />
+	if not ret then<br />
+		ret = stpapi.recover(&quot;tdilc1120m000&quot;,msg)<br />
+	else<br />
+		if var.quan &gt; 0 then<br />
+			get.location()<br />
+			if not isspace(ln.newloc) then<br />
+				if lot.opt = 1 then<br />
+					access.ltc0101()<br />
+				endif<br />
+				activate.child()<br />
+			else<br />
+				message(&quot;No location can be found in warehouse %s&quot;,ln.cwar)	<br />
+			endif<br />
+		else<br />
+			activate.child()<br />
+		endif<br />
+		if no.txt &lt;&gt; 0 then<br />
+			update.inv100.txta()<br />
+		endif<br />
+	endif<br />
+	stpapi.end.session(&quot;tdilc1120m000&quot;)<br />
+<br />
+}<br />
+<br />
+function access.ltc0101()<br />
+{<br />
+	string	tmp.serb(6)<br />
+<br />
+	message(&quot;ltc 01&quot;)<br />
+	|stpapi.get.field(&quot;tdilc1121s000&quot;,&quot;tdilc102.serb&quot;,tmp.serb)<br />
+	|stpapi.put.field(&quot;tdilc1121s000&quot;,&quot;tdilc102.serb&quot;,tmp.serb)<br />
+	|ret = stpapi.find(&quot;tdilc1121s000&quot;,msg)<br />
+	|message(&quot;me %s&quot;,msg)<br />
+	|if ret then<br />
+		message(&quot;ltc 02&quot;)<br />
+		stpapi.handle.subproc(&quot;tdilc1121s000&quot;, &quot;tdltc0101s000&quot;, &quot;add&quot;)<br />
+		stpapi.zoom.option(&quot;tdilc1121s000&quot;, 1, &quot;tdltc0101s000&quot;, msg)<br />
+		stpapi.put.field(&quot;tdltc0101s000&quot;,&quot;tdltc001.item&quot;,ln.item)<br />
+		ret = stpapi.find(&quot;tdltc0101s000&quot;,msg)<br />
+		|stpapi.continue.process(&quot;tdltc0101s000&quot;, msg)<br />
+		message(&quot;p %s&quot;,msg)<br />
+		|if isspace(msg) then<br />
+		stpapi.put.field(&quot;tdltc0101s000&quot;,&quot;tdltc001.olot&quot;,str$(etol(tdltc.olot.prod)))	<br />
+		stpapi.put.field(&quot;tdltc0101s000&quot;,&quot;tdltc001.item&quot;,ln.item)<br />
+		ret = stpapi.insert(&quot;tdltc0101s000&quot;,1,msg)<br />
+		message(&quot;ins %s&quot;,msg)<br />
+		stpapi.end.session(&quot;tdltc0101s000&quot;)<br />
+	|endif<br />
+}<br />
+<br />
+function activate.child()<br />
+{<br />
+	stpapi.get.field(&quot;tdilc1120m000&quot;,&quot;tdinv100.wrho&quot;,tmp.orno)<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;,&quot;tdinv100.wrho&quot;,tmp.orno)<br />
+	ret = stpapi.find(&quot;tdilc1120m000&quot;,msg)<br />
+	if ret then<br />
+		stpapi.handle.subproc(&quot;tdilc1120m000&quot;,&quot;tdilc1121s000&quot;,&quot;add&quot;)<br />
+		stpapi.continue.process(&quot;tdilc1120m000&quot;,msg)<br />
+		if isspace(msg) then<br />
+			if lot.opt = 1 then<br />
+				stpapi.put.field(&quot;tdilc1121s000&quot;,&quot;tdilc102.clot&quot;,&quot;LOTIT      09005&quot;)<br />
+			endif<br />
+			stpapi.put.field(&quot;tdilc1121s000&quot;,&quot;tdilc102.stun&quot;,ln.stun)	<br />
+			stpapi.put.field(&quot;tdilc1121s000&quot;,&quot;tdilc102.loca&quot;,ln.newloc)<br />
+			stpapi.put.field(&quot;tdilc1121s000&quot;,&quot;tdilc102.qstr&quot;,str$(var.quan))<br />
+			stpapi.put.field(&quot;tdilc1121s000&quot;,&quot;tdilc102.qstk&quot;,str$(var.quan))<br />
+			ret = stpapi.insert(&quot;tdilc1121s000&quot;,1,msg)<br />
+		endif<br />
+		stpapi.end.session(&quot;tdilc1121s000&quot;)<br />
+	endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">veyant</div><div class="date">22nd September 2005, 20:15</div></div><div class="posttext">Please use<br />
+<br />
+stpapi.save after inserting record. may be record is not getting saved.<br />
+<br />
+try this.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="return value from zoom, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] return value from zoom Tools Development" />
+	
+	<title>return value from zoom [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; return value from zoom</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">lauras</div><div class="date">10th February 2004, 20:17</div></div><div class="posttext">I have a session that needs to zoom to different sessions depending on the main &quot;type&quot; value.  One of the sessions zoomed to returns a number instead of a string.  I have entered 'on.exit' logic in the zoomed-to session to change the value to a string, but when the zoom returns, I still get an error because &quot;expecting STRING&quot;.<br />
+<br />
+  I have tried putting a statement in the after.zoom to convert to string, that doesn't work either.  How do I set the return value to a variable?  I don't see a predefined variable for that.  There are predefined variables for the zoom session, the zoom return field (meaning the table.field name of what will be returned), and the attribute variables.  I don't see a variable that holds the value when returning from the zoom.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dorleta</div><div class="date">11th February 2004, 12:36</div></div><div class="posttext">The standar solution.<br />
+<br />
+function extern long tgwms0004.start.application(const	string  application(),<br />
+						 const	string  arguments  (),<br />
+						 domain	tgyenox	local,<br />
+							long	mode,<br />
+							 [long  pop_up])<br />
+{<br />
+DLLUSAGE<br />
+This function starts the application with the given arguments. The given<br />
+application may not be empty, the arguments may be empty.<br />
+<br />
+Parameters:<br />
+application	the application which must be started<br />
+arguments	the arguments with which the application will be started<br />
+local		if tgyenox.yes then the application will be started on the<br />
+                local machine, otherwise it will be started on the server.<br />
+                Note that only on BW the tgyenox.yes should be used, in which<br />
+                case a: &quot;create.object(DsCapplication, 0, ...)&quot; will be done.<br />
+                In all other cases either a &quot;shell()&quot; or &quot;run.prog()&quot; will be<br />
+                done depending on the current Baan version.<br />
+                This function does NOT check whether the current platform is BW.<br />
+mode		the mode needed for &quot;shell()&quot; or &quot;run.prog()&quot;<br />
+pop_up		whether (if true) or not (if false) pop-ups on errors must be<br />
+                given. Default is: false.<br />
+<br />
+Return value:<br />
+= 0		successful completion, application started<br />
+&lt; 0		some error occurred<br />
+-------------------------------------------------------------------------------<br />
+ENDDLLUSAGE</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lauras</div><div class="date">11th February 2004, 16:25</div></div><div class="posttext">I don't understand the reply to my original post.  I'm not calling an outside application, and even if I was, I don't have enough information to know how/when to use this function.  If it's a function that would return a string value, I would need to know where to use it, and how.  Use it in the zoom from session or the zoom to session?  It just doesn't make sense to me.:confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">francishsu</div><div class="date">11th February 2004, 16:47</div></div><div class="posttext">It'd be helpful if you could post the zoom.to$ statement from the parent session and the code from the child session related to the variable you are trying to return on the parent.<br />
+<br />
+That being said..<br />
+<br />
+Personally, I like to use the import()/export() functions to &quot;pass&quot; values between parent and child.  Using import and export, there's no need to worry about converting to string and you can copy multiple variable values this way.<br />
+<br />
+Basically works as follows:<br />
+Parent session<br />
+declare variables to be made available to the child as extern<br />
+execute the zoom.to$ function to execute the child session<br />
+<br />
+Child session<br />
+declare variables for holding the values that will be imported from the parent session and exported to the parent<br />
+create the appropriate zoom.from section with import/export code<br />
+e.g.<br />
+zoom.from.&lt;parent zoom.to$ argument&gt;:<br />
+on.enter:<br />
+import(&quot;&lt;parent variable name 1&gt;&quot;, &lt;child variable 1&gt;)<br />
+import(&quot;&lt;parent variable name 2&gt;&quot;, &lt;child variable 2&gt;)<br />
+etc.<br />
+on.exit:<br />
+export(&quot;&lt;parent variable name A&gt;&quot;, &lt;child variable A&gt;)<br />
+export(&quot;&lt;parent variable name B&gt;&quot;, &lt;child variable B&gt;)<br />
+etc.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lauras</div><div class="date">11th February 2004, 17:06</div></div><div class="posttext">I'll paste in the code after a comment or two.  This zoom is on a field, so my options are limited to before.zoom and after.zoom in the calling session (as far as I know).  I don't actually code the zoom.to$ statement, I'm modifying the attribute variables to change where the zoom goes.  <br />
+<br />
+first session, field user zooms from -<br />
+<br />
+field.tcmcs960.bans:<br />
+before.checks:<br />
+  tcmcs960.bans = toupper$(tcmcs960.bans)<br />
+  display(&quot;tcmcs960.bans&quot;)<br />
+	<br />
+check.input:<br />
+  verify.input()<br />
+  set.ftyp()<br />
+	<br />
+before.zoom:<br />
+  set.zoom.fields() {defines zoomsession and zoomreturn}<br />
+  zoomfield$ = &quot;tcmcs960.bans&quot;<br />
+  zoomreturn$ = &quot;ret.field&quot;<br />
+  attr.zoomsession$ = z.sess<br />
+  attr.zoomreturn$ = z.fld<br />
+  attr.zoomcode = z.session + z.autoaccept<br />
+<br />
+after.zoom:<br />
+  import(&quot;tcmcs960.bans&quot;,ret.field)<br />
+	<br />
+(I've tried a bunch of different things, this is the current version)<br />
+<br />
+second session, zoom logic -<br />
+zoom.from.tcmcs960.bans:<br />
+on.exit:<br />
+  zoom.field = str$(tccom001.emno)<br />
+  export(&quot;tcmcs960.bans&quot;,zoom.field)<br />
+<br />
+  I hope that clears up what I'm doing, maybe someone can help!<br />
+Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dorleta</div><div class="date">12th February 2004, 10:00</div></div><div class="posttext">Sorry this reply is for another question about use external programs in baan . Excuse me.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

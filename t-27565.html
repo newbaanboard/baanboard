@@ -1,0 +1,159 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="page x of y, another solution., baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] page x of y, another solution. Code &amp; Utilities" />
+	
+	<title>page x of y, another solution. [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Code &amp; Utilities</a> &gt; page x of y, another solution.</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">dorleta</div><div class="date">11th July 2006, 18:12</div></div><div class="posttext">When baan is running a report, the report is saved in a tmp file, this tmp file is sent to the device when the report is closed.<br />
+<br />
+This solution is based in the modification of this tmp file before is sent to the device. In a first step I count the times that the &quot;tag&quot; &quot;Página&quot; (Spanish version&quot; ) appear. (It is posible avoid this step exporting the total pages from the report script) and after rewrite this tmp file adding the total pages.<br />
+<br />
+It´s a primitive solution but works fine. <br />
+<br />
+In the program script :<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+	if open.report(1,&quot;&quot;,1) then<br />
+		read.mcs010.leq()<br />
+		paginar()<br />
+		close.reports()<br />
+	else<br />
+		choice.again()<br />
+	endif<br />
+<br />
+and the function ( one include maybe a smart solution)<br />
+<br />
+function	paginar()<br />
+{<br />
+<br />
+<br />
+	table	tttaad320<br />
+	#define RECORD.LENGHT	2000<br />
+	long fichero<br />
+|	string carro(10)<br />
+	#define 	NEW.PAGE.ID  &quot;Página&quot;<br />
+<br />
+	long mipag<br />
+	domain	tcmcs.str100	file.name, file.tmp.str<br />
+	long file, file.tmp, ret , car<br />
+	string	record(RECORD.LENGHT)<br />
+<br />
+|	carro = ff$()<br />
+<br />
+<br />
+|	mipag = lattr.pageno<br />
+	mipag = 0<br />
+<br />
+	seq.close(g.lfn)<br />
+<br />
+	file.name  = g.tmp.file<br />
+<br />
+        	| ** contar el número de páginas tb podría obtenerse exportando desde listado<br />
+	file = seq.open( file.name, &quot;r&quot;)<br />
+	seq.gets( record, RECORD.LENGHT, file)<br />
+	while not seq.eof(file)<br />
+		car = rpos( record, NEW.PAGE.ID )<br />
+		if  car then<br />
+			mipag = mipag + 1<br />
+ 		endif<br />
+		seq.gets( record, RECORD.LENGHT, file)<br />
+	endwhile<br />
+	seq.close(file)<br />
+		| **<br />
+<br />
+<br />
+	file.tmp.str = creat.tmp.file$(bse.tmp.dir$() )<br />
+<br />
+	file = seq.open( file.name, &quot;r&quot;)<br />
+	file.tmp = seq.open(file.tmp.str, &quot;w&quot;)<br />
+<br />
+	seq.gets( record, RECORD.LENGHT, file)<br />
+<br />
+	while not seq.eof(file)<br />
+		car = rpos( record, &quot;Página&quot;)<br />
+		if  car then<br />
+			record = record &amp; cf$(1) &amp; &quot; de  &quot; &amp; str$(mipag) &amp; cf$(0)<br />
+ 		endif<br />
+<br />
+		seq.puts( record, file.tmp)<br />
+		record = &quot;&quot;<br />
+		seq.gets( record, RECORD.LENGHT, file)<br />
+	endwhile<br />
+	seq.puts( record, file.tmp)<br />
+<br />
+	seq.close(file)<br />
+	seq.close(file.tmp)<br />
+	ret = file.cp(file.tmp.str, file.name)<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">13th July 2006, 15:04</div></div><div class="posttext">Dorleta,<br />
+<br />
+you've done a great job! I just got it to work on my system and it looks good.<br />
+<br />
+I had to do the following changes:<br />
+1. Changed your #define NEW.PAGE.ID into german (...)<br />
+2. Changed the spanish string inside the second while-seq.gets-loop into the #define<br />
+3. added a seq.unlink(file.tmp.str) at the end of the function to remove the 2nd temp file<br />
+<br />
+And while using the debugger and output to &quot;DL&quot; and &quot;D&quot;, I deteced that directly to seq.close(g.lfn) the output got display with ttstpdisplay. So: <br />
+4. changed seq.close(g.lfn) into seq.flush(g.lfn)<br />
+<br />
+What remains open:<br />
+* The added &quot;of y&quot; (&quot;de y&quot;) is always on the right side of the line containing &quot;page ...&quot;. <br />
+* The Label is hard-coded via a #define. That might become a problem within sessions that switch the language e.g. based on the customer's language.<br />
+<br />
+But that is all for now. Thanks a lot!<br />
+<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">13th July 2006, 15:50</div></div><div class="posttext">And here comes my problem: When I set one of the report input fields to Ascending or Descending, the report uses a second temp file for sorting. In that case g.lfn seems to behave different and page x of y does not work.<br />
+<br />
+Any ideas?<br />
+<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">raikar_raviraj</div><div class="date">30th September 2006, 14:53</div></div><div class="posttext">hi,<br />
+<br />
+I had compiled the code which you had sent.. it gave some errors.. but actually when i ran the report.. it didnt show up any data.<br />
+<br />
+i used the function as it is i.e panigar<br />
+<br />
+The warnings that it gives are<br />
+return value of function seq.close ignored<br />
+return value of function seq.ret ignored<br />
+...<br />
+..<br />
+<br />
+can u please help me solve this query<br />
+<br />
+Regards<br />
+<br />
+Raviraj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pralash</div><div class="date">20th February 2018, 13:05</div></div><div class="posttext">Can you please explain, which one is added to the header layout instead of special variable &quot;page&quot; for getting the page number as Page 1 of 5.... etc<br />
+Thanks in advance,<br />
+Pralash</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

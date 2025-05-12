@@ -1,0 +1,161 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Fix for ODM JVM and installation Problem, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Fix for ODM JVM and installation Problem Tools Administration &amp; Installation" />
+	
+	<title>Fix for ODM JVM and installation Problem [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Fix for ODM JVM and installation Problem</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">hessenmob</div><div class="date">13th September 2010, 10:55</div></div><div class="posttext">Hi,<br />
+<br />
+after wasting a decent amount on installing the ODM Server Component as a service on a Windows 2008 Server i want to provide my findings and a solution to it.<br />
+<br />
+Problem: <br />
+ODM depends on MS JAVA. Infor states in the readme in the ODM installer, that it's not dependent on it and one can use the SUN/Oracle JVM. This is  wrong. The service wrapper (executable that the OS is triggering - after being triggered it starts up the JVM) is dependend on the MS JVM, so you will never be able to run ODM as a service. See the following incidents #726548, #691501, #719526<br />
+Infor is always suggesting to install MS JVM, this is not a viable fix, as it isn't supported anymore. See: http://www.microsoft.com/About/Legal/EN/US/Interoperability/Java/FAQ.aspx<br />
+http://www.microsoft.com/About/Legal/EN/US/Interoperability/Java/Default.aspx<br />
+<br />
+Fix:<br />
+Install ODM, Process fails to setup a working service. Download a different Service Wrapper. http://forge.ow2.org/projects/javaservice/. This wrapper resembles the broken one infor is using. It even exists in a 64 Bit Version.<br />
+<br />
+Generate a own &quot;Installer&quot; - <br />
+<br />
+install.bat<br />
+<br />
+<br />
+@rem echo off<br />
+<br />
+@echo .<br />
+<br />
+setlocal<br />
+set SERVICENAME=ODMService-ERPTEST <br />
+set JVMDLL=&quot;C:\Program Files\Java\jre6\bin\server\jvm.dll&quot;<br />
+set JVMCLSPATH=&quot;C:\Program Files (x86)\Infor\ERP LN ODM Vault Server\dmfsvs&quot;<br />
+set STARTCLASS=com.vault.server.VaultServer<br />
+set PARAM=&quot;C:\\Program Files (x86)\\Infor\\ERP LN ODM Vault Server\\dmfsvs\\com\\vault\\properties\\ODMService-ERPTEST.properties&quot;<br />
+set JSEXE=JavaService64.exe<br />
+set STDOUT=&quot;C:\Program Files (x86)\Infor\ERP LN ODM Vault Server\dmfsvs\out_ODMService-ERPTEST.txt&quot;<br />
+set STDERR=&quot;C:\Program Files (x86)\Infor\ERP LN ODM Vault Server\dmfsvs\err_ODMService-ERPTEST.txt&quot;<br />
+<br />
+cd %JVMCLSPATH%<br />
+<br />
+@echo . Using following version of JavaService executable:<br />
+@echo .<br />
+%JSEXE% -version<br />
+@echo .<br />
+<br />
+<br />
+@echo Installing service... Press Control-C to abort<br />
+@pause<br />
+@echo .<br />
+<br />
+%JSEXE% -install %SERVICENAME% %JVMDLL% -Djava.class.path=%JVMCLSPATH% -ea -start %STARTCLASS% -params %PARAM% -out %STDOUT% -err %STDERR%<br />
+@echo .<br />
+@pause<br />
+<br />
+%JSEXE% -queryconfig %SERVICENAME%<br />
+<br />
+@echo .<br />
+@pause<br />
+ <br />
+<br />
+Just maintain the Parameters on the script to relate to your prior installation.<br />
+<br />
+<br />
+For a manual Startup you will need a different startup script like this.<br />
+<br />
+<br />
+@echo off<br />
+<br />
+cls<br />
+<br />
+set CLASSPATH=.;%CLASSPATH%<br />
+<br />
+rem Second parameter of the following command line is a location <br />
+rem of a properties file in the Vault Server classes tree.<br />
+rem Extension of this file must be &quot;properties&quot;.<br />
+<br />
+echo Vault Server has been started with the &quot;Server4001.properties&quot; parameters file.<br />
+echo See output of the Vault Server in the log file.<br />
+echo To stop the Vault Server just close this window.<br />
+echo And now You can minimize the window...<br />
+<br />
+java com.vault.server.VaultServer com\vault\properties\ODMService-TURING.properties<br />
+<br />
+<br />
+Please exchange the properties scripts, they are per default called Server4001 or Server2001. I changed it to the names of the environments for which they are responsible. Naming it with ports is somewhat dangerous.<br />
+In my case after setup the Service ODMService-ERPTEST exists in the Control Panel - Services. <br />
+<br />
+Hope this helps, fixing it like the support does is quick and dirty.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jatin_sanghi</div><div class="date">6th October 2010, 22:32</div></div><div class="posttext">Hi,<br />
+<br />
+I hope this might help a bit in  ODM setup.<br />
+<br />
+We had setup the ODM for one of our clients. One thing that we found was ODM service was only available if we installed jre1.5 as java interface prior to ODM vault server installation. The rest of the installation was a straight forward process of running the .exe files.<br />
+Only, this version on Java was supported by the vault service and do not install any other versions or upgrades for jvm.<br />
+<br />
+You will need to provide the path for one of the properties files (2001.properties or 4001.properties) in the start command for the vault service in the services.msc<br />
+<br />
+Regards,<br />
+<br />
+Jatin</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evg123</div><div class="date">28th October 2010, 21:00</div></div><div class="posttext">Interesting information from both of you.  <br />
+<br />
+Infor is working on a fix for the Sun Java issue.  For others, you can indeed install MS JVM (reboot) and then install the ODM VS and the service will start.<br />
+<br />
+E</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Andy..</div><div class="date">8th January 2012, 23:07</div></div><div class="posttext">I'm trying to setup ODM from the latest Infor10 ERP LN server install media with foldername 'Infor_ERP_LN_ODM_Vault_Server_3.0'<br />
+<br />
+I have Java 6 update 29 installed on a fresh installed windows2003 R2 SE SP2 32bit server<br />
+<br />
+version.txt of in ODM directory says:<br />
+ERP LN ODM Vault Server<br />
+MAJOR_VERSION=61<br />
+MINOR_VERSION=0<br />
+BUILD=001... though looking in infolist.txt is suggests a 'not so fresh' version of ODM:<br />
+Version:	61.00.001<br />
+Release date:	November 2009<br />
+<br />
+The server is just for trial use, so quick fix would be helpful - but I notice that jre1.5 cannot be downloaded from reputable sites and neither can MSJVM.<br />
+<br />
+HELP!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vishal</div><div class="date">30th April 2012, 15:09</div></div><div class="posttext">Hi,<br />
+I recently installed ODM on 64 bit Windows Server 2008 R2 service pack 1 from FP5 media. Folder name of installable is 'Infor_ERP_LN_ODM_Vault_Server_3.0' I had installed JRE 6.31. I also faced similar problem of not able to run ODM Vault Server as a service.<br />
+<br />
+I did manage to resolve the problem after spending ample amount of time. Below are the steps i did to solve the problem.<br />
+<br />
+1. Refer the KB 22947048 and download the solution 253536_Infor_ODM_Vault_Server.zip from Infor Xtreme (inforxtreme.com)<br />
+2. There are 4 files inside this zip file. Unzip the files in a folder named &quot;install&quot; and place it under the directory where you installed ODM Vault Server. In my case it was f:\ERPLNODMVaultServer<br />
+3. So you will have 3 folders named dmfsvs, ntsrvs and install under the directory f:\ERPLNODMVaultServer<br />
+4. Go to install directory and run 'install.bat' file as an administrator. This will install the service InforODMVaultServer.<br />
+5. If installation is successfull, you will find ODMVaultServer and uninstallService.bat under install directory.<br />
+<br />
+I hope this will help.<br />
+<br />
+<br />
+Regards,<br />
+Vishal</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

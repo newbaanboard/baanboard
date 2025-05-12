@@ -1,0 +1,132 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="parse qptool output with awk?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] parse qptool output with awk? Operating Systems &amp; Databases" />
+	
+	<title>parse qptool output with awk? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; parse qptool output with awk?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">dnnslbrwn</div><div class="date">10th June 2003, 18:47</div></div><div class="posttext">I need to parse the output of a BAAN query and I would like to use awk.  The problem is that some of the fields that I need to work with are strings.  They contain spaces that I don't want awk to parse as field separators if they are inside the single quotes of a string.<br />
+<br />
+Thoughts?<br />
+<br />
+-Dennis</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">10th June 2003, 18:53</div></div><div class="posttext">Can you post some examples what the raw data looks like?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dnnslbrwn</div><div class="date">10th June 2003, 19:16</div></div><div class="posttext">Order  Country  Item       ItemDescripton              SafetyStk OrderQuantity<br />
+104047 '    NZ' 'part01    ' 'Desc of part 1 1000ml              ' 0.000000 368.000000 <br />
+104047 '    NZ' 'part02  ' 'Desc of part 2 500ml NZ     ' 6500.000000 9180.000000<br />
+<br />
+The first line is just a UNIX echo that I added in my script, but the 2nd and 3rd lines are part of the output... item codes changes to protect the innocent :) <br />
+<br />
+The output from qptool is great for loading into excel as the text to columns wizard is able to recognize the single quote as a string delimiter and ignores spaces inside of the string... but when I need to work with the file in UNIX first.. sigh.<br />
+<br />
+-Dennis</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">10th June 2003, 20:06</div></div><div class="posttext">Dennis,<br />
+<br />
+Same approach could apply to AWK. You can set the field delimiter to the single quote and throw away any empty fields<br />
+<br />
+<br />
+cat &lt;your_file&gt; | awk '<br />
+                BEGIN {<br />
+                        FS=&quot;\047&quot;<br />
+                }<br />
+<br />
+                {<br />
+                        for (i=1;i&lt;=NF; i++) {<br />
+                                if ($i !~ /^ +$/ &amp;&amp; i != 7) {<br />
+                                        sub(/^ +/,&quot;&quot;,$i)<br />
+                                        print $i<br />
+                                }<br />
+                                if (i == 7) {<br />
+                                        z=split($i,array,&quot; &quot;)<br />
+                                        for (y=1;y&lt;=z; y++) {<br />
+                                                print array[y]<br />
+                                        }<br />
+                                }<br />
+                        }<br />
+                }'<br />
+<br />
+<br />
+Probably not the most elegant solution but it seems to work (unless your format is not fixed). Don't underestimate the power of AWK! ;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dnnslbrwn</div><div class="date">10th June 2003, 21:18</div></div><div class="posttext">Pat,<br />
+<br />
+Thanks for your reply... what you posted does work - but I guess I was looking for something a bit more generic (that I can pass the output of any query through to clean it up - not fixed where only the 7th field needs extra effort).  <br />
+<br />
+I will spend some time on it later.  I guess what I am thinking is something that still breaks fields on space - but then concatenates fields back together based on if the number of single quotes found so far is odd or even (if you have seen an odd number of quotes, then you are inside a string).<br />
+<br />
+However, based on what you posted, I changed it slightly so the output looked like this...<br />
+<br />
+104047 |NZ|part01 |Desc of part 1 1000ml |0.000000|368.000000|<br />
+104047 |NZ|part02 |Desc of part 2 500ml NZ |6500.000000|9180.000000|<br />
+<br />
+... which I can now pass back into another AWK script and clean up into nice columns with headers and do the math that I need - THANKS.<br />
+<br />
+Cheers,<br />
+<br />
+-Dennis</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dnnslbrwn</div><div class="date">10th June 2003, 21:55</div></div><div class="posttext">Well - guess I answered my own question...<br />
+<br />
+<br />
+<br />
+awk  'BEGIN{FS=&quot;|&quot;; instring=0}<br />
+{<br />
+        for (i=1;i&lt;=length($1);i++) {<br />
+                l = substr($1,i,1)<br />
+                if ( l == &quot;\047&quot; ) {<br />
+                        if ( instring == 0 )<br />
+                                instring = 1<br />
+                        else<br />
+                                instring = 0<br />
+                }<br />
+                else {<br />
+                        if ( l == &quot; &quot; &amp;&amp; instring == 0 )<br />
+                                printf &quot;|&quot;<br />
+                        else<br />
+                                printf &quot;%s&quot;, l<br />
+                }<br />
+        }<br />
+        printf &quot;\n&quot;<br />
+}' [data file]<br />
+<br />
+<br />
+<br />
+<br />
+.... turns this....<br />
+104047 'X NZ' 'part01 ' 'Desc of part 1 1000ml ' 0.000000 368.000000<br />
+104047 ' NZ' 'part02 ' 'Desc of part 2 500ml NZ ' 6500.000000 9180.000000<br />
+<br />
+.... into this.....<br />
+104047|X NZ|part01 |Desc of part 1 1000ml |0.000000|368.000000<br />
+104047| NZ|part02 |Desc of part 2 500ml NZ |6500.000000|9180.000000<br />
+<br />
+Thank you for you help Patrick.<br />
+<br />
+Cheers,<br />
+<br />
+-Dennis</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

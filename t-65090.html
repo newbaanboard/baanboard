@@ -1,0 +1,170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS to automate Maintain Costs, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS to automate Maintain Costs AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS to automate Maintain Costs [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS to automate Maintain Costs</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">psuryava</div><div class="date">7th December 2013, 08:38</div></div><div class="posttext">Hi <br />
+<br />
+I need to automate Maintain Costs session tpppc2811m000.<br />
+Has anybody done it?<br />
+<br />
+I call session tpppc2811m000 which activates tpppc2131m000, after this api call, the process hangs and does not proceed to tpppc2111m000.<br />
+<br />
+please help.<br />
+<br />
+thanks !</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">9th December 2013, 16:00</div></div><div class="posttext">Well I did not do one for that session, but I did do one for another situation just like that.  No promises something like it will work for you. <br />
+<br />
+When I run tpptc9820m00c it automatically launches tpptc9110m00c.   like tpppd2811m000 auto launches tpppc2131m000.  When I tried writing AFS code against tpptc9820m00c I could never get it to work.  I was not able to control them.  So what I did was I wrote a new session call tpptc9831m00c and all it does is launch tpptc9110m00c.  This allowed me to control tpptc9110m00c.  The same type technique might work for you.  See below for the simple code for both the new session and the AFS code to call it.<br />
+<br />
+This is all the code for the session:<br />
+<br />
+|******************************************************************************<br />
+|* tpptc9831  0  VRC B40C c3 dev <br />
+|* Maintain Element Demand<br />
+|* 701holla<br />
+|* 08-30-01 [13:28]<br />
+|******************************************************************************<br />
+|* Script Type: 4<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** DECLARATION SECTION ***************************<br />
+declaration:<br />
+	long	child.id<br />
+	extern	domain	tcmcs.str1	x<br />
+|****************************** PROGRAM     SECTION ***************************<br />
+before.program:<br />
+	child.id = 0<br />
+<br />
+|****************************** ZOOM FROM   SECTION ***************************<br />
+|****************************** FORM	     SECTION ***************************<br />
+|****************************** CHOICE      SECTION ***************************<br />
+choice.cont.process:<br />
+on.choice:<br />
+	if(child.id&lt;&gt;0) then<br />
+		kill(child.id)<br />
+	endif<br />
+	child.id=activate(&quot;tpptc9110m00c&quot;)<br />
+	switch.to.process(child.id)<br />
+| Cannot use zoom because tpptc9110m00c is waiting for a<br />
+| switch.to.process<br />
+	execute(end.program)<br />
+<br />
+choice.interrupt:<br />
+before.choice:<br />
+	execute(end.program)<br />
+	<br />
+choice.abort.program:<br />
+before.choice:<br />
+	execute(end.program)<br />
+<br />
+choice.end.program:<br />
+before.choice:<br />
+	kill(child.id)<br />
+<br />
+<br />
+And here is the AFS code that works with it:<br />
+<br />
+function add.contract.requirement()<br />
+{<br />
+	if(first) then<br />
+		stpapi.put.field(&quot;tpptc9831m00c&quot;,&quot;x&quot;,&quot;A&quot;)<br />
+		stpapi.handle.subproc(&quot;tpptc9831m00c&quot;,&quot;tpptc9110m00c&quot;,&quot;add&quot;)<br />
+		stpapi.handle.subproc(&quot;tpptc9831m00c&quot;,&quot;tipgc8120m00b&quot;,&quot;add&quot;)<br />
+		stpapi.continue.process( &quot;tpptc9831m00c&quot;, errmsg)<br />
+		first = false<br />
+	endif<br />
+<br />
+| Set the first view.<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.cprj&quot;, project )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.cspa&quot;, &quot;1000&quot; )<br />
+	e = stpapi.change.view( &quot;tpptc9110m00c&quot; )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.cprj&quot;, project )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.cspa&quot;, &quot;1000&quot; )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.sern&quot;, str$(msnumber*10) )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.cpla&quot;, &quot;001&quot; )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.cact&quot;, milestone )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.item&quot;, item )	<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.prog.a&quot;, program )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.eser.a&quot;, unit )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.ese1.a&quot;, str$(series) )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.ese2.a&quot;, str$(series) )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.quan&quot;, str$(msqty) )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.cuni&quot;, &quot;EA&quot; )<br />
+	if current.compnr &lt;&gt; 101 and current.compnr&lt;&gt; 555 then<br />
+		stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.clin.c&quot;, &quot;&quot; )<br />
+		stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.stat&quot;, str$(tpptc.stat.free) )<br />
+	else<br />
+		stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.clin.c&quot;, clin )<br />
+		stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.stat&quot;, str$(tpptc.stat.actual) )<br />
+	endif<br />
+	if current.compnr &lt;&gt; 101 and current.compnr&lt;&gt; 555 then<br />
+		stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.simu.a&quot;, str$(tcyesno.yes))<br />
+	else<br />
+		stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.simu.a&quot;, str$(tcyesno.no))<br />
+	endif<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.ccco&quot;, &quot;200&quot; )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.dfpc&quot;, str$(tppdm.yeno.no) )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.butm.a&quot;, builditem )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.sbtm.a&quot;, subitem )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.dtyp.a&quot;, str$(tppss.dtyp.a.customer) )<br />
+	stpapi.insert( &quot;tpptc9110m00c&quot;, 1, errmsg )<br />
+	if(strip$(errmsg)&lt;&gt;&quot;&quot;) then<br />
+		mess.5= &quot;5. &quot;&amp;errmsg<br />
+		write.error(mess.5)<br />
+		stpapi.recover(&quot;tpptc9110m00c&quot;,errmsg)<br />
+		if(strip$(errmsg)&lt;&gt;&quot;&quot;) then<br />
+			message(errmsg)<br />
+		endif<br />
+	else<br />
+		mess.5=&quot;5. MDO Added.&quot;<br />
+	endif<br />
+	display(&quot;mess.5&quot;)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">psuryava</div><div class="date">13th December 2013, 07:47</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Thankyou for your reply.<br />
+I could not use your solution but I did manage to resolve theissue with the of another solution that you had posted. :)<br />
+<br />
+My basic requirement was to enter data in table tpppc211.<br />
+So What I did was, <br />
+in session tpppc2111m000 - in section before.program there is call to wait.to.switch()<br />
+I by-passed this call, if session is invoked using afs by checking variable free$<br />
+<br />
+Then in my afs,<br />
+I invoked tpppc2811m000 with command ignore.<br />
+I then exported values all the variables that are received by tpppc2111m000 from tpppc2811m000. Only I exported them through my afs session.<br />
+I set variable free$.<br />
+I then invoked tpppc2111m000 with command add.<br />
+<br />
+<br />
+As variable free$ is set , wait.for.swtich() is by passed in session tpppc2111m000.<br />
+Tpppc2111m000 reads all the variables that I exported from afs session and executes as expected.<br />
+<br />
+Not sure if this is a correct solution, but it is working for me.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th December 2013, 15:14</div></div><div class="posttext">Yes - I have had to do some stuff different things like that to get some of the sessions to work.  Glad you found a solution.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

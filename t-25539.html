@@ -1,0 +1,252 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Problem in Maintain Inbound AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Problem in Maintain Inbound AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>Problem in Maintain Inbound AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Problem in Maintain Inbound AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">fmorais</div><div class="date">3rd November 2005, 13:21</div></div><div class="posttext">Hi everyone.<br />
+<br />
+Trying to create a function server to maintain inbound data (BIVc4)<br />
+<br />
+Had some problems which are already referred in other threads and were able to correct them. Also installed some solutions for tdilc4515s000.<br />
+<br />
+Read some threads about creating a similar function server and my code is more or less the same. <br />
+<br />
+My current problem is that no errors are generated and everything seems to be working but, the receipt line is not inserted in the tdilc4104s000 session. <br />
+<br />
+Logged the actions to afs.log  and there is nothing there to give me a hint.<br />
+A curious thing, is that in the line:<br />
+<br />
+stpapi.get.field(&quot;tdilc4104s000&quot;, &quot;tdilc402.serb&quot;, fm.serb)<br />
+<br />
+the variable fm.serb returns empty, indicating that the line was not inserted. <br />
+<br />
+Can anybody give me a hint?<br />
+Please find my code bellow.<br />
+<br />
+<br />
+<br />
+function insere.linha()<br />
+{<br />
+	long posicao<br />
+	domain	tcdate	data.lote<br />
+	string	data.lote$(8)<br />
+	domain	tcqiv1	quant2<br />
+	domain	tcconv factor.conv<br />
+	<br />
+	long rc<br />
+<br />
+<br />
+	domain	tcmcs.str20 fm.kooa<br />
+	domain	tcmcs.str20 fm.ordem<br />
+	domain	tcmcs.str20 fm.lote<br />
+	domain	tcmcs.str5  fm.serb<br />
+	<br />
+	|Executar<br />
+	stpapi.put.field(&quot;tdilc4103m000&quot;,&quot;runnumber&quot;, logname$)<br />
+	<br />
+	|Tipo de Ordem<br />
+	stpapi.put.field(&quot;tdilc4103m000&quot;,&quot;k.o.order&quot;, str$(etol(tdilc.kooa.act.pmg)))<br />
+	<br />
+	|Ordem<br />
+	stpapi.put.field(&quot;tdilc4103m000&quot;,&quot;ordernr&quot;, str$(ordem))<br />
+	<br />
+	<br />
+	stpapi.handle.subproc(&quot;tdilc4103m000&quot;, &quot;tdilc4104s000&quot;, &quot;add&quot;)<br />
+	stpapi.continue.process(&quot;tdilc4103m000&quot;, error.msg)<br />
+<br />
+<br />
+	<br />
+	stpapi.handle.subproc(&quot;tdilc4104s000&quot;,&quot;tdilc4515s000&quot;,&quot;add&quot;)<br />
+	stpapi.handle.subproc(&quot;tdilc4104s000&quot;,&quot;tdilc4512s000&quot;,&quot;add&quot;)<br />
+	<br />
+	retval = stpapi.insert(&quot;tdilc4104s000&quot;, 1, error.msg)<br />
+	<br />
+	stpapi.put.field(&quot;tdilc4515s000&quot;,&quot;tdilc402.koor&quot;, str$(etol(tdilc.kooa.act.pmg)))<br />
+	stpapi.put.field(&quot;tdilc4515s000&quot;,&quot;tdilc402.orno&quot;, str$(ordem))	<br />
+	stpapi.put.field(&quot;tdilc4515s000&quot;,&quot;tdilc402.pono&quot;, &quot;0&quot;)<br />
+	stpapi.put.field(&quot;tdilc4515s000&quot;,&quot;tdilc402.sera&quot;, &quot;0&quot;)<br />
+	stpapi.put.field(&quot;tdilc4515s000&quot;,&quot;tdilc402.item&quot;, artigopa)<br />
+	rc = stpapi.change.view(&quot;tdilc4515s000&quot;, error.msg)<br />
+	if not isspace(error.msg) or rc&lt;&gt; 1 then<br />
+	<br />
+		stpapi.get.field(&quot;tdilc4515s000&quot;, &quot;tdilc402.koor&quot;, fm.kooa)<br />
+		stpapi.get.field(&quot;tdilc4515s000&quot;, &quot;tdilc402.orno&quot;, fm.ordem)<br />
+		stpapi.get.field(&quot;tdilc4515s000&quot;, &quot;tdilc402.clot&quot;, fm.lote)<br />
+	<br />
+		erro.rep = &quot;Linha2 - &quot; &amp; error.code &amp; &quot; - &quot; &amp; error.msg<br />
+		rprt_send()<br />
+		stpapi.end.session(&quot;tdilc4515s000&quot;)<br />
+		stpapi.end.session(&quot;tdilc4512s000&quot;)<br />
+		stpapi.end.session(&quot;tdilc4104s000&quot;)<br />
+		stpapi.end.session(&quot;tdilc4103m000&quot;)<br />
+	endif<br />
+	<br />
+	rc = stpapi.browse.set(&quot;tdilc4515s000&quot;, &quot;first.set&quot;, error.msg)<br />
+	rc = stpapi.find(&quot;tdilc4515s000&quot;, error.msg)<br />
+	<br />
+	stpapi.get.field(&quot;tdilc4515s000&quot;, &quot;tdilc402.koor&quot;, fm.kooa)<br />
+	stpapi.get.field(&quot;tdilc4515s000&quot;, &quot;tdilc402.orno&quot;, fm.ordem)<br />
+	stpapi.get.field(&quot;tdilc4515s000&quot;, &quot;tdilc402.clot&quot;, fm.lote)<br />
+	<br />
+	<br />
+	rc = stpapi.mark(&quot;tdilc4515s000&quot;, error.msg)<br />
+	stpapi.continue.process(&quot;tdilc4515s000&quot;, error.msg)<br />
+	if not isspace(error.msg) or rc&lt;&gt; 1 then<br />
+		erro.rep = &quot;Linha3 - &quot; &amp; error.code &amp; &quot; - &quot; &amp; error.msg<br />
+		rprt_send()<br />
+		stpapi.end.session(&quot;tdilc4515s000&quot;)<br />
+		stpapi.end.session(&quot;tdilc4512s000&quot;)<br />
+		stpapi.end.session(&quot;tdilc4104s000&quot;)<br />
+		stpapi.end.session(&quot;tdilc4103m000&quot;)<br />
+	endif<br />
+	<br />
+	<br />
+	stpapi.end.session(&quot;tdilc4515s000&quot;)<br />
+	stpapi.put.field(&quot;tdilc4104s000&quot;, &quot;tdilc402.loca&quot;, localizacao)<br />
+	stpapi.put.field(&quot;tdilc4104s000&quot;, &quot;tdilc402.qstr&quot;, str$(quantidade))<br />
+<br />
+	rc = stpapi.update(&quot;tdilc4104s000&quot;,0,error.msg)<br />
+	if rc&lt;&gt; 1 then<br />
+		erro.rep = &quot;Linha4 - &quot; &amp; error.code &amp; &quot; - &quot; &amp; error.msg<br />
+		rprt_send()<br />
+		stpapi.end.session(&quot;tdilc4515s000&quot;)<br />
+		stpapi.end.session(&quot;tdilc4512s000&quot;)<br />
+		stpapi.end.session(&quot;tdilc4104s000&quot;)<br />
+		stpapi.end.session(&quot;tdilc4103m000&quot;)<br />
+	endif<br />
+	<br />
+	<br />
+	stpapi.get.field(&quot;tdilc4104s000&quot;, &quot;tdilc402.serb&quot;, fm.serb)<br />
+	<br />
+	<br />
+	stpapi.end.session(&quot;tdilc4512s000&quot;)<br />
+	stpapi.end.session(&quot;tdilc4104s000&quot;)<br />
+	stpapi.end.session(&quot;tdilc4103m000&quot;)<br />
+	<br />
+	<br />
+<br />
+}<br />
+<br />
+<br />
+Thanks a lot<br />
+Fred</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fmorais</div><div class="date">3rd November 2005, 13:56</div></div><div class="posttext">It seems the values are not being returned from tdilc4515s000 into tdilc4104s000.<br />
+<br />
+I put some get.field statements after ending tdilc4515s000 and the fm.xxx variables are empty.<br />
+<br />
+	stpapi.end.session(&quot;tdilc4515s000&quot;)<br />
+	<br />
+	stpapi.get.field(&quot;tdilc4104s000&quot;, &quot;tdilc402.orno&quot;, fm.ordem)<br />
+	stpapi.get.field(&quot;tdilc4104s000&quot;, &quot;tdilc402.clot&quot;, fm.lote)<br />
+	stpapi.get.field(&quot;tdilc4104s000&quot;, &quot;tdilc402.serb&quot;, fm.serb)<br />
+<br />
+I already had solutions 114464, 157915, 162257 and 162259 installed.<br />
+<br />
+Can anybody give me some input?<br />
+<br />
+Thanks<br />
+Fred</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd November 2005, 15:38</div></div><div class="posttext">Here is my subroutine to do inbound:<br />
+<br />
+<br />
+function extern maintain_inbound(	domain	tcmcs.str12	runnumber,<br />
+					domain  tdilc.kooa	order.type,<br />
+					domain	tcorno		order.number,<br />
+					domain	tdilc.loca	order.location,<br />
+					ref     string          msg())<br />
+{<br />
+	|string	dummy(32)<br />
+	<br />
+	msg = &quot;&quot;<br />
+	stpapi.handle.subproc(&quot;tdilc4103m000&quot;,&quot;tdilc4104s000&quot;,&quot;add&quot;)<br />
+	stpapi.put.field(&quot;tdilc4103m000&quot;,&quot;runnumber&quot;,runnumber)<br />
+	stpapi.put.field(&quot;tdilc4103m000&quot;,&quot;k.o.order&quot;,str$(order.type))<br />
+	stpapi.put.field(&quot;tdilc4103m000&quot;,&quot;ordernr&quot;,str$(order.number))<br />
+	stpapi.continue.process(&quot;tdilc4103m000&quot;,msg)<br />
+	if not isspace(msg) then<br />
+		stpapi.end.session(&quot;tdilc4103m000&quot;)<br />
+		return<br />
+	endif<br />
+	stpapi.handle.subproc(&quot;tdilc4104s000&quot;,&quot;tdilc4515s000&quot;,&quot;add&quot;)<br />
+	rc = stpapi.insert(&quot;tdilc4104s000&quot;,1,msg)<br />
+	stpapi.put.field(&quot;tdilc4515s000&quot;,&quot;tdilc402.koor&quot;,str$(order.type))<br />
+	stpapi.put.field(&quot;tdilc4515s000&quot;,&quot;tdilc402.orno&quot;,str$(order.number))<br />
+	rc = stpapi.change.view(&quot;tdilc4515s000&quot;,msg)<br />
+	if not isspace(msg) or rc&lt;&gt;1 then<br />
+		msg = &quot;Production order not ready for delivery&quot;<br />
+		stpapi.end.session(&quot;tdilc4515s000&quot;)<br />
+		stpapi.end.session(&quot;tdilc4104s000&quot;)<br />
+		stpapi.end.session(&quot;tdilc4103m000&quot;)<br />
+		return<br />
+	endif<br />
+| Found that the current qty to receive is the last set and not <br />
+| the first set.  Try to put these into stores 05062004<br />
+	rc = stpapi.browse.set(&quot;tdilc4515s000&quot;,&quot;last.set&quot;, msg)<br />
+	rc = stpapi.mark(&quot;tdilc4515s000&quot;,msg)<br />
+	stpapi.continue.process(&quot;tdilc4515s000&quot;,msg)<br />
+	if not isspace(msg) or rc&lt;&gt;1 then<br />
+		stpapi.end.session(&quot;tdilc4515s000&quot;)<br />
+		stpapi.end.session(&quot;tdilc4104s000&quot;)<br />
+		stpapi.end.session(&quot;tdilc4103m000&quot;)<br />
+		return<br />
+	endif<br />
+	stpapi.end.session(&quot;tdilc4515s000&quot;)<br />
+	stpapi.put.field(&quot;tdilc4104s000&quot;,&quot;tdilc402.loca&quot;,order.location)<br />
+	rc = stpapi.update(&quot;tdilc4104s000&quot;,1,msg)<br />
+	stpapi.end.session(&quot;tdilc4104s000&quot;)<br />
+	stpapi.end.session(&quot;tdilc4103m000&quot;)<br />
+}<br />
+<br />
+<br />
+I would not expect fm.ordem, fm.lote, fm.serb to have a value until after the browse statement.  The above code is called after completing a production order (another subroutine) so I expect the qty to be stored to be the last set.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fmorais</div><div class="date">3rd November 2005, 19:22</div></div><div class="posttext">Thanks Mark, for your prompt reply.<br />
+<br />
+I am checking the variables only after browsing and marking the records in tdilc4515s000 and closing the session.<br />
+After this, the variables in tdilc4104s000 should have values...<br />
+<br />
+Your code was one of the examples I studied when I was making the function server, and my code is more or less like it. <br />
+<br />
+By reading a few more threads I noticed it seems I also need to install solution 134561. <br />
+The only problem is that, because it's updating the standard program, I can only test the result after restarting the shared memory, which will happen this weekend.<br />
+<br />
+I will try again next week, and post the results<br />
+<br />
+Thanks<br />
+Fred</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd November 2005, 19:48</div></div><div class="posttext">Sorry - I did not read close enough about the get.fields.  The only thing I found in question was the find command - not sure that is needed.  Hopefully the patches will take care of your problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fmorais</div><div class="date">8th November 2005, 13:07</div></div><div class="posttext">Hi again.<br />
+<br />
+Just tested the Function server and it is working now.<br />
+So, what I was missing was the installation of 134561.<br />
+<br />
+Thanks Mark<br />
+Fred</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

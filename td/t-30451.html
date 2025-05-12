@@ -1,0 +1,153 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="data stored on a table, to do a report, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] data stored on a table, to do a report Tools Development" />
+	
+	<title>data stored on a table, to do a report [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; data stored on a table, to do a report</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mig28mx</div><div class="date">25th January 2007, 17:40</div></div><div class="posttext">Hello All,<br />
+I having a very basic question.<br />
+I´m filling a table with records that have a specific characteristic.<br />
+Before to start the fill, I clear the table, in order to select the &quot;fresh&quot; records. Then I make a report using that table.<br />
+<br />
+My question is. What will happen if two or more users runs the sesion?<br />
+I mean, due to I make a clear table instruction, and start to fill the table with fresh records, If a second user, runs that session, the clear table instruction, will work?<br />
+<br />
+I know when I do a clear table, the user obtan a exclusive lock on that table until the first session finish. Is it correct?<br />
+<br />
+Or, what can I do to prevent that an accidentaly, record delete (or insert) before the report finish?<br />
+<br />
+<br />
+thank you in advance!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th January 2007, 17:44</div></div><div class="posttext">Not the best, but what I typically do is include user-name and pid.  This way I did not have to worry about locking the table, plus the user could have multiple sessions open and running.  On sessions where it makes a difference and only one version should be running I use application locks so nobody else can even run the session.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">25th January 2007, 18:01</div></div><div class="posttext">I agree with Mark's suggestion, but why &quot;not the best&quot;? I applied such logic (i.e. field username and utc-time or pid) plenty of times on my temp-tables, and it works perfectly... Can you explain why you are not so happy with such a system?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th January 2007, 21:12</div></div><div class="posttext">Can you explain why you are not so happy with such a system?<br />
+No problem - I think there is probably some easier method that I do not know and nobody has posted it yet. :) Usually for me these tables are not true temporary tables, but permanent tables that only get used on occasion. I also have never looked at doing true temp tables - more coding. <br />
+<br />
+I think it would it be cool if you could create small tables local to the program.  Then you could search it, report it, etc, when the session is closed the memory is released.  Something kind of like I used to do in the &quot;wayback&quot; days of when I was programming in C(mark williams C on digital computers back in the 80's).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mig28mx</div><div class="date">25th January 2007, 21:27</div></div><div class="posttext">Thank you Mark &amp; En,<br />
+As allways, your inputs are good.<br />
+<br />
+Any have an example for doing what I suppose to do?<br />
+I mean, on my first report aproach, I put the sentence clear table. Then I started to fill with records.<br />
+<br />
+So, what I have to implement in order to just clear some specific records, and take that to do a report?<br />
+<br />
+Thank you in advance.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">26th January 2007, 08:39</div></div><div class="posttext">Hi Mig28mx ,<br />
+This is good question. In past I had to make report like your case. When I do this, main aim is to provide report to user. Among the running report this sepecial session should be used by only this user. That's why table lock or MArks suggestion are  good solution  but another alternative way is  using application lock.<br />
+<br />
+In Program Script side.<br />
+<br />
+string username(12)<br />
+<br />
+choice.cont.process:<br />
+before.choice:<br />
+        <br />
+    if appl.set(&quot;lock.name&quot;,APPL.EXCL) &lt;&gt; 0 then<br />
+       appl.get.user(&quot;lock.name&quot;,username)<br />
+       message(&quot;Session is locked by %s&quot;,username)<br />
+    else<br />
+       appl.set(&quot;lock.name&quot;,APPL.EXCL) <br />
+       execute(print.data)<br />
+    endif <br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+    	if rprt_open() then<br />
+		read.data.and.send.them.to.report()<br />
+                          appl.delete(&quot;lock.name&quot;)<br />
+                          rprt_close()<br />
+       	else<br />
+		choice.again()<br />
+	endif<br />
+<br />
+<br />
+This is basic way.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">26th January 2007, 08:59</div></div><div class="posttext">Another way is to use timestamp. You should add timestamp field your table. In your program   <br />
+<br />
+string  	timestamp(12)<br />
+<br />
+   timestamp= dte$()<br />
+   insert.data.to.table.with.timestamp() <br />
+   send.data.to.report.with.concerned.timestamp()<br />
+   delete.data.with.timestamp(timestamp)<br />
+<br />
+<br />
+  That'S all. There is a minimal bug in this logic. If  users run it in the same timestamp (MMDDYYHHMMSS). Error occurs. But this is vey very small possibility. Sometimes some events can be omited according to usage of report. <br />
+<br />
+Good LUCK !</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">26th January 2007, 11:02</div></div><div class="posttext">This is not such a small probability when you are running a big site with many hundreds or maybe even thousands of users. A simple solutions for playing safe is using a combination of 3 unique identifyers: username, timestamp &amp; sequence nr. Like this you're covered even when for instance 2 different people use a same login name (happens in nearly every organization...)<br />
+<br />
+I must say though, that I do not normally use temp-tables for reports, since you can sort and filter your print output any way you want it without having to use temp tables. I normally use it when I'm forced to do very complexed sorting and filtering on display sessions... Then it is easier, faster and safer to stuff all the selected and sorted data into a temp table first and then display the records from the temp table in the session, but for reports.....???<br />
+<br />
+Regards,<br />
+Eli Nager</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">26th January 2007, 11:27</div></div><div class="posttext">I said that Sometimes some events can be omited according to usage of report. <br />
+It depends on your structure. I know what you mean enfrom, But this is choice and this suggestion can be improved. <br />
+I belive that there is no best one forever, the best one  is not best forever. My suggestion is not best one  but the best one is not also best. I hope you got it !<br />
+<br />
+Good Luck !</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th January 2007, 14:36</div></div><div class="posttext">Sample of the table.  I use this in a session script where I build the tables different ways depending on what is on the form. By adding seqn as Eli suggested would certainly get a unique index value.  Good luck!<br />
+<br />
+And believe it or not I understood &quot;My suggestion is not best one but the best one is not also best&quot;.  The requestor will need to decide which is best in their situation.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">26th January 2007, 17:04</div></div><div class="posttext">This is not such a small probability when you are running a big site with many hundreds or maybe even thousands of users. A simple solutions for playing safe is using a combination of 3 unique identifyers: username, timestamp &amp; sequence nr. Like this you're covered even when for instance 2 different people use a same login name (happens in nearly every organization...)<br />
+<br />
+I must say though, that I do not normally use temp-tables for reports, since you can sort and filter your print output any way you want it without having to use temp tables. I normally use it when I'm forced to do very complexed sorting and filtering on display sessions... Then it is easier, faster and safer to stuff all the selected and sorted data into a temp table first and then display the records from the temp table in the session, but for reports.....???<br />
+<br />
+Regards,<br />
+Eli Nager<br />
+<br />
+Hello Eli,<br />
+<br />
+i agree with you to use temp-tables only for complex sorting.<br />
+But this sorted temp-table can also be used for reports. I've done this for<br />
+a very complex sales statistic based on tdsls051, which can not be done by the BaaN standard sales statistic.<br />
+The data in this table is built with an always unique index by the session logic and then used for the report. And after the report is printed, all the data for this PID is truncated.<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mig28mx</div><div class="date">29th January 2007, 18:39</div></div><div class="posttext">Hello all,<br />
+I want to thank to everybody for your invaluable inputs.<br />
+Specially for mr_suleyman.<br />
+His suggestion work like a charm!<br />
+<br />
+Bye.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

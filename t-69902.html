@@ -1,0 +1,195 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Device selection and printing in AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Device selection and printing in AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>Device selection and printing in AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Device selection and printing in AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">VishalMistry</div><div class="date">30th March 2017, 13:55</div></div><div class="posttext">Hello Everyone,<br />
+<br />
+NOTE:THIS IS REGARDING BAAN IV<br />
+<br />
+I want to call the Print storage list session through AFS and specify specific order numbers manually. But the session is not printing the storage list report. My code is attached for reference.<br />
+<br />
+I already searched the forum and found one suitable post but still I am not able to get things done.<br />
+<br />
+Please see the attached code and suggest changes.<br />
+<br />
+Thanks and regards,<br />
+Vishal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">30th March 2017, 17:27</div></div><div class="posttext">Never could get that to work for our system.  So the way I defeated this was to just run the reports(not this specific report) one a time using a look.  Worked the same in the end.  So basically I asked the user to input 10 orders - then just did a for loop to print all 10 or how ever many they listed.  The end result was the same as if they ran the session manually and picked enter specific orders.<br />
+<br />
+<br />
+	for i = 1 to 10<br />
+		if(ornos(i)=0) then<br />
+			break<br />
+		endif<br />
+<br />
+| Setup the sessions fields for the tdpur9901m000 session which is a <br />
+| clone of tdpur4401m000.<br />
+<br />
+		stpapi.put.field( &quot;tdpur9901m000&quot;, &quot;tdpur999.send&quot;, str$(tdpur.dist.account) )<br />
+		| 20071004.st Add fields to put onto session<br />
+		stpapi.put.field( &quot;tdpur9901m000&quot;, &quot;selection&quot;, str$(tcyesno.no) )<br />
+		stpapi.put.field( &quot;tdpur9901m000&quot;, &quot;suno.f&quot;, &quot;      &quot; )<br />
+		stpapi.put.field( &quot;tdpur9901m000&quot;, &quot;suno.t&quot;, &quot;ZZZZZZ&quot; )	| 20071004.end<br />
+		stpapi.put.field( &quot;tdpur9901m000&quot;, &quot;orno.f&quot;,str$(ornos(i)))<br />
+		stpapi.put.field( &quot;tdpur9901m000&quot;, &quot;orno.t&quot;,str$(ornos(i)))</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">VishalMistry</div><div class="date">31st March 2017, 14:09</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Thanks for the update. But it does not serve the purpose. The flow will be like below:<br />
+<br />
+1.User will start session tdpur4421m000<br />
+2.In this session, user will set specific order to yes(first field in tdpur4421m000)<br />
+3.Now session tdpur4820s000 will start where user can specify specific order numbers. Maximum upto 10 and user will click on Ok then control will return to session tdpur4421m00<br />
+4.Now user will select report and report will be fired. Finally the field tdpur045.spur will be updated with next step to be executed (probably 9).<br />
+<br />
+I just want to know how can i call the session tdpur4820s000 and specify order numbers through AFS.<br />
+<br />
+If anyone else faced similar requirement and solved it, please post your code.<br />
+<br />
+Vishal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">31st March 2017, 14:26</div></div><div class="posttext">Maybe you do not understand me - all session tdpur4820s000 does is let you enter 10 order numbers.  So what I did was write my own session to get 10 orders.  Then I run them thru something like tdpur4401m000 one at a time.  It does all the same steps, but you just sent them one at a time. That versus letting the session track all 10 orders. It accomplishes the same as if the user just did them one at a time thru the session.<br />
+<br />
+If you are dead set doing it thru tdpur4820s000 then the first thing you need to look at are these two steps.<br />
+<br />
+	stpapi.put.field( &quot;tdpur4421m000&quot;, &quot;selection&quot;, str$(tcyesno.yes))<br />
+	stpapi.handle.subproc( &quot;tdpur4421m000&quot;, &quot;tdpur4820s000&quot;, &quot;send&quot;)<br />
+<br />
+First you want the subproc before the action that will start the subsession.  That way the main program has control. So I would do something like this<br />
+<br />
+	stpapi.handle.subproc( &quot;tdpur4421m000&quot;, &quot;tdpur4820s000&quot;, &quot;add&quot;)	<br />
+        stpapi.put.field( &quot;tdpur4421m000&quot;, &quot;selection&quot;, str$(tcyesno.yes))<br />
+<br />
+Now just doing a put on our system to yes would not activate tdpur4820s000. So I suspect you need some kind of action to get it to check that field.  So I would try a stpapi.save or stpapi.update - something to make tdpur4421 to start processing and find that the flag is yes and launch tdpur4820s000.  Then after that I would do a continue on tdpur4820s000 and not an end session.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">31st March 2017, 15:35</div></div><div class="posttext">Actually see if this works:<br />
+<br />
+	stpapi.handle.subproc( &quot;tdpur4421m000&quot;, &quot;tdpur4820s000&quot;, &quot;add&quot;)	<br />
+        stpapi.put.field( &quot;tdpur4421m000&quot;, &quot;selection&quot;, str$(tcyesno.yes))<br />
+	stpapi.continue.process(&quot;tdpur4421m000&quot;,err)<br />
+<br />
+This should get 8420s000 started - it did on my system. I am thinking you want all you setups for tdpur4421m000 done before that continue. Something like this:<br />
+<br />
+	i.spooler = spool.open(&quot;&quot;, &quot;&quot;, 1)<br />
+	stpapi.set.report( &quot;tdpur4421m000&quot;, &quot;rtdpur442101100&quot;, spool.device, error.msg )<br />
+	stpapi.handle.subproc( &quot;tdpur4421m000&quot;, &quot;tdpur4820s000&quot;, &quot;add&quot;)	<br />
+        stpapi.put.field( &quot;tdpur4421m000&quot;, &quot;selection&quot;, str$(tcyesno.yes))<br />
+	stpapi.continue.process(&quot;tdpur4421m000&quot;,err)<br />
+	stpapi.put.field( &quot;tdpur4820s000&quot;, &quot;orno.select&quot;, str$(load.long(receipts.array(pos.orno,1))), 1)<br />
+	stpapi.put.field( &quot;tdpur4820s000&quot;, &quot;orno.select&quot;, str$(load.long(receipts.array(pos.orno,2))), 2)<br />
+	stpapi.continue.process( &quot;tdpur4820s000&quot; , error.msg)<br />
+<br />
+I am not really sure what will happen after the continue on 4820s000, but I think tdpur4421m000 might start processing.  I could be wrong, not really sure.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">VishalMistry</div><div class="date">3rd April 2017, 16:37</div></div><div class="posttext">Actually see if this works:<br />
+<br />
+	stpapi.handle.subproc( &quot;tdpur4421m000&quot;, &quot;tdpur4820s000&quot;, &quot;add&quot;)	<br />
+        stpapi.put.field( &quot;tdpur4421m000&quot;, &quot;selection&quot;, str$(tcyesno.yes))<br />
+	stpapi.continue.process(&quot;tdpur4421m000&quot;,err)<br />
+<br />
+This should get 8420s000 started - it did on my system. I am thinking you want all you setups for tdpur4421m000 done before that continue. Something like this:<br />
+<br />
+	i.spooler = spool.open(&quot;&quot;, &quot;&quot;, 1)<br />
+	stpapi.set.report( &quot;tdpur4421m000&quot;, &quot;rtdpur442101100&quot;, spool.device, error.msg )<br />
+	stpapi.handle.subproc( &quot;tdpur4421m000&quot;, &quot;tdpur4820s000&quot;, &quot;add&quot;)	<br />
+        stpapi.put.field( &quot;tdpur4421m000&quot;, &quot;selection&quot;, str$(tcyesno.yes))<br />
+	stpapi.continue.process(&quot;tdpur4421m000&quot;,err)<br />
+	stpapi.put.field( &quot;tdpur4820s000&quot;, &quot;orno.select&quot;, str$(load.long(receipts.array(pos.orno,1))), 1)<br />
+	stpapi.put.field( &quot;tdpur4820s000&quot;, &quot;orno.select&quot;, str$(load.long(receipts.array(pos.orno,2))), 2)<br />
+	stpapi.continue.process( &quot;tdpur4820s000&quot; , error.msg)<br />
+<br />
+I am not really sure what will happen after the continue on 4820s000, but I think tdpur4421m000 might start processing.  I could be wrong, not really sure.<br />
+<br />
+I tried your given code snippet but no luck. The session still hangs. The other way I tried is also attached as a script. Still I am facing session hang.<br />
+<br />
+Vishal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">VishalMistry</div><div class="date">4th April 2017, 15:49</div></div><div class="posttext">Hello Everybody,<br />
+<br />
+Any clue regarding the above post ? I shall appreciate help in this regard.<br />
+<br />
+Vishal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th April 2017, 03:13</div></div><div class="posttext">I will look again when I get back to the office next week.  I will have to try with another session, never could find anything to print for this one.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">7th April 2017, 20:34</div></div><div class="posttext">Hello,<br />
+<br />
+I did this and works for me. The only down side is that I couldn't make it work for &quot;Include Printed Lines&quot;, other than that works fine.<br />
+<br />
+<br />
+<br />
+function print.storage.list()<br />
+{<br />
+ domain tcmcs.str100   error.msg<br />
+ domain  tcmcs.long      l.pid<br />
+ domain  tcmcs.long      l.orno(10)<br />
+<br />
+ stpapi.put.field( &quot;tdpur4421m000&quot;, &quot;selection&quot;, str$(tcyesno.yes))<br />
+ stpapi.handle.subproc( &quot;tdpur4421m000&quot;, &quot;tdpur4820s000&quot;, &quot;kill&quot;)<br />
+ l.pid = find.a.process(&quot;tdpur4421m000&quot;)<br />
+ put.var(l.pid,&quot;orno.1&quot;,l.orno(1))<br />
+ put.var(l.pid,&quot;orno.2&quot;,l.orno(2))<br />
+ put.var(l.pid,&quot;orno.3&quot;,l.orno(3))<br />
+ put.var(l.pid,&quot;orno.4&quot;,l.orno(4))<br />
+ put.var(l.pid,&quot;orno.5&quot;,l.orno(5))<br />
+ put.var(l.pid,&quot;orno.6&quot;,l.orno(6))<br />
+ put.var(l.pid,&quot;orno.7&quot;,l.orno(7))<br />
+ put.var(l.pid,&quot;orno.8&quot;,l.orno(8))<br />
+ put.var(l.pid,&quot;orno.9&quot;,l.orno(9))<br />
+ put.var(l.pid,&quot;orno.10&quot;,l.orno(10))<br />
+ stpapi.set.report(&quot;tdpur4421m000&quot;, &quot;rtdpur442101101&quot;, spool.device, error.msg)<br />
+ stpapi.print.report(&quot;tdpur4421m000&quot;, error.msg)<br />
+ stpapi.end.session(&quot;tdpur4421m000&quot;)<br />
+}<br />
+<br />
+function domain tcmcs.long find.a.process(domain tcmcs.str14 i.baan.sess)<br />
+{<br />
+	long    hold.pno<br />
+	long    pno<br />
+	long    info(256)<br />
+	string  pname(15)<br />
+        domain  tcbool  sess.found<br />
+<br />
+	sess.found = false<br />
+	pno = 0<br />
+	hold.pno = pno<br />
+	pno = pstat (pno, pname, info)<br />
+	while pno &gt; 0 and not sess.found<br />
+		hold.pno = pno<br />
+		pno = pstat (pno, pname, info)<br />
+		if strip$(pname)=strip$(i.baan.sess) then<br />
+			sess.found = true<br />
+                        return(info(2))<br />
+		endif<br />
+	endwhile<br />
+        return(0)<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

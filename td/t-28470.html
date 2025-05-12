@@ -1,0 +1,81 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="seq.open.local() file &quot;lock&quot; ?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] seq.open.local() file &quot;lock&quot; ? Tools Development" />
+	
+	<title>seq.open.local() file &quot;lock&quot; ? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; seq.open.local() file &quot;lock&quot; ?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Jaroslaw</div><div class="date">20th October 2006, 19:49</div></div><div class="posttext">Here is the scenario:<br />
+1. I have an application written in VB6 which runs on the client machine. It periodically (every 5 secs) updates a text file residing on this client machine. 2. I have a Baan session which runs on the same machine and periodically reads the text file updated by the VB program. Baan session uses these functions to access the file: seq.open.local(), seq.read.local() and seq.close.local(). <br />
+Here is the problem: <br />
+Function seq.open.local() seems to &quot;lock&quot; the file until seq.close.local() is called. If the VB program tries to update the file at that moment, it crashes with message &quot;Permission Denied&quot;. If VB opens the file for updating and Baan calls seq.open.local() before VB it closes it, the file pointer returned (by seq.open.local()) indicates that the open action failed. How can I read this file from a Baan session without locking it in any way? We need to accomplish this without using NFS mounts.  <br />
+<br />
+Please help <br />
+Jaroslaw</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th October 2006, 20:45</div></div><div class="posttext">Without thinking long and hard on this - why not try the calls 2 or three times before giving the error?  Maybe using a pause or suspend in the Baan code.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">23rd October 2006, 09:04</div></div><div class="posttext">HI ,<br />
+<br />
+You can do one more thing , copy the file to server using client2server and let baan read the file from the server and let VB use the client file , so no problem of locking<br />
+<br />
+Regards,<br />
+Niraj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">23rd October 2006, 10:04</div></div><div class="posttext">I would try Mark's suggestion. Maybe a combination of both. You could build your own retry loop. Something like<br />
+<br />
+while retval &lt;= 0 <br />
+retval = seq.open.local(filename, mode)<br />
+suspend(200) |0.2 seconds<br />
+endwhile<br />
+<br />
+This way you will be able to check and test yourself how long VB normally locks the file, if suspend(200) is sufficient or that you need more, the number of retries you need etc..<br />
+<br />
+Of course in your vb-code you shall apply the same logic. <br />
+<br />
+Also, optimize your code in both Baan and VB to make sure that the file will be locked by the system the least possible time.<br />
+<br />
+Let us know how it goes..<br />
+<br />
+<br />
+Regards,<br />
+Eli</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Jaroslaw</div><div class="date">23rd October 2006, 18:30</div></div><div class="posttext">Thanks for your replies guys!<br />
+NirajKakodkar: This may not work for us because we have 20 computers on our LAN which is shared with the office computers. Each computer runs the Baan session which checks the file every second. I am afraid this could cause a large amount extra traffic. What do you think?<br />
+mark_h and en@frrom: This solution was actually what I first thought of but I still wanted to check if there are other suggestions. It seems odd that this file has to be locked (windows does not do this when opening for reading). I opened a case with Baan (Infor) support just to check what they have to say. So far I just got &quot;Will investigate this for you and let you know what is found out.&quot;.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd October 2006, 20:12</div></div><div class="posttext">This may not work for us because we have 20 computers on our LAN which is shared with the office computers. Each computer runs the Baan session which checks the file every second. <br />
+I hope you mean once a minute, because it would seem like things would always be reading.<br />
+<br />
+Does this VB application run on the same machinces as the 20 you mentioned running the Baan session.  Just wondering if the 20 machines used process the same record or if each of the 20 do something different.  I am wondering if you could change the VB program to write to a different file for each of the 20 clients.  Kind of as a work around until you hear back from Baan.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Jaroslaw</div><div class="date">23rd October 2006, 20:43</div></div><div class="posttext">Each of the 20 PCs runs its own instance of the VB application and has its own set of records. So we can treat 1 PC as a self contained system.<br />
+To explain further, every PC is attached to a shopfloor PLC (Programmable Logic Controller which is in turn connected to a punch press). Production counter in the PLC is read by the VB app which then updates the text file. This text file is then read by Baan application (custom made) which is used to create new lots, release raw inventory and print shipping tags and barcodes. We update the counter every second in order to minimize the machine down time (operator waiting for the tag to print). Currently, it is running fine using NFS mounts on the UNIX box, but we wanted to get rid of NFS to simplify our job :) (installing NFS client on each PC, mounting the directories after something happens etc.).  <br />
+A direct link from Baan to PLC is not possible (as far as we know). Also, another solution we explored is to have the local VB app write to a Baan table directly using Oracle client. However, using the seq.*.local functions seemed like a much simpler solution.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd October 2006, 22:18</div></div><div class="posttext">That makes sense - check this thread (http://www.baanboard.com/baanboard/showthread.php?t=14016&amp;highlight=external+device) out - it talks about communicating with a COM port on a PC.  I am not sure if it will help you out or not - the post in question is about 2/3's of the way down by NPR.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

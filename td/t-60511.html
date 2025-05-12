@@ -1,0 +1,116 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="strip$ in SQL Query in Library Script Problem, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] strip$ in SQL Query in Library Script Problem Tools Development" />
+	
+	<title>strip$ in SQL Query in Library Script Problem [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; strip$ in SQL Query in Library Script Problem</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">scough</div><div class="date">10th May 2011, 23:35</div></div><div class="posttext">I created a script library and inside that library I have a function that returns a message returned from a SQL script:<br />
+<br />
+function extern domain tccpft<br />
+	tipcfdllcits01.getmessage(domain tcsern psern, domain tccpft pcpft, domain tccopt pcopt )<br />
+{<br />
+	import(&quot;tipcf500.item&quot;, item)<br />
+		<br />
+	string ret(300)<br />
+<br />
+	select tipcf920.cvcmd		<br />
+	from tipcf920<br />
+	where tipcf920.item = item<br />
+		and tipcf920.sern = :psern<br />
+		and tipcf920.cpft = :pcpft<br />
+		and trim$(tipcf920.copt) = :pcopt <br />
+	as set with 1 rows<br />
+	selectdo<br />
+		ret = tipcf920.cvcmd<br />
+	selectempty<br />
+		ret = &quot;&quot;<br />
+	endselect<br />
+	<br />
+	return (ret)<br />
+	<br />
+}<br />
+<br />
+<br />
+However when I try to compile the library script I get an error:<br />
+<br />
+Error SQL: Unknown column 'strip$'<br />
+Error SQL: Unknown column 'shiftl$'<br />
+<br />
+<br />
+Am I missing an include required to use this function?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th May 2011, 00:14</div></div><div class="posttext">I did not think there was a function trim$ - what version is this - ln, baan 4 or 5?  I have always used strip$, shiftl$ or tt.align.according.domain(include bic_tt).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">scough</div><div class="date">11th May 2011, 03:20</div></div><div class="posttext">This is Baan IVc4.<br />
+<br />
+There must be a function trim$ because it would appear that this function just calls strip$ and shiftl$. But those are the functions the compiler is complaining about.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sameer.don</div><div class="date">11th May 2011, 08:42</div></div><div class="posttext">At first there is no built in function trim$ in Baan IV. But general practice is to define a macro like : #define trim(x)  strip$(shift$(X)) <br />
+Now, if you use this macro trim() in you code, compiler interprets it as strip$(shiftl$()).<br />
+<br />
+You can not directly use baan functions in where clause of your query.<br />
+You may try using WHEREBIND clause. <br />
+Refer embedded SQL on following link:<br />
+http://www.baanboard.com/programmers_manual_baanerp_help_functions_database_handling_embedded_sql</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">amitmmokashi</div><div class="date">11th May 2011, 11:57</div></div><div class="posttext">Hi,<br />
+<br />
+First of all you need to use strip$(shift$)) instead of trim$() and that too in the selectdo loop rather than in the where clause.<br />
+<br />
+Regards,<br />
+Amit Mokashi</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">EdHubbard</div><div class="date">11th May 2011, 12:04</div></div><div class="posttext">Alternatively use a new variable and set it before you do your select and refer to that in your query<br />
+e.g. <br />
+<br />
+option = strip$(shiftl$(pcopt))<br />
+<br />
+select tipcf920.cvcmd<br />
+from tipcf920<br />
+where tipcf920.item = item<br />
+and tipcf920.sern = :psern<br />
+and tipcf920.cpft = :pcpft<br />
+and tipcf920.copt = :option<br />
+as set with 1 rows<br />
+selectdo<br />
+etc<br />
+etc</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">scough</div><div class="date">11th May 2011, 19:59</div></div><div class="posttext">Ed,<br />
+<br />
+You code is working on the parameter which in my case, for this particular feature is &quot;Y&quot; or &quot;N&quot;. It does not have any spaces so those functions don't change it at all. (I had hoped it would pad it with leading spaces).<br />
+<br />
+I either have to strip the spaces from the value stored in the table (I thought I was doing that with the previous code posted), or I have to add leading spaces to the parameter passed in.<br />
+<br />
+I just thought there would be something easy like the code I have shown above, versus doing something like testing the length of the parameter and padding it with leading spaces to fill the char(8) datatype to match what's in the column.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th May 2011, 21:41</div></div><div class="posttext">What I typically do is something like this:<br />
+<br />
+rc = tt.align.according.domain(read.floc,xfer.floc,&quot;tdilc.loca&quot;)<br />
+<br />
+read.floc will be a character string where I read from a flat file.  Then I move the read location into a variable with the same format just like the field.  In this example it would be tdilc.loca used on an inventory table.  Then in my query I could say tdilcxxx.loca = :cfer.loca.  Just how I do things like this.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Table restore vs. DB restore, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Table restore vs. DB restore Operating Systems &amp; Databases" />
+	
+	<title>Table restore vs. DB restore [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Table restore vs. DB restore</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">FriarTuck</div><div class="date">13th September 2002, 00:24</div></div><div class="posttext">HP-UX 11.0, Oracle 8.1.7, Baan IVc4 (and that proverbial partridge in a pear tree).<br />
+<br />
+Always one to search out ways to minimize downtime, I started asking myself: &quot;Can I restore a few tables into Baan rather than wait 5+ hours for our tapes to spin on a restore?&quot;<br />
+<br />
+This questions comes out of this thought: &quot;How the heck to you recover from a table drop, trunc, corruption, etc?&quot;<br />
+<br />
+I know you can fiddle with logminer, but that's a religion unto itself (ie: you gotta know how to work its voodoo).<br />
+<br />
+Diving further into this: Let us say we have a nice logical exp of our baan schema.  Wouldn't it be possible to perform an 'imp baan/baan tables=ttdsls045100 etc'.  You could replay some logs and put things into relatively sane order, correct?<br />
+<br />
+Or am I simply heading down a road, heading to a cliff, full throttle, eyes closed, happy as the Energizer Bunny?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">13th September 2002, 02:43</div></div><div class="posttext">...in my experience the only way to do a partial restore is by _first_ doing a full restore to a temporary tablespace and _then_ dumping and copying the data that you are truly interested in.<br />
+<br />
+Of course this only applies to tape back-ups of the database. Alternatively, you could dump tables grouped by module or whatever suits you best and back up these &quot;flat&quot; files.<br />
+This would allow for single table restores.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">13th September 2002, 09:26</div></div><div class="posttext">I would agree with Francesco. What you are trying to achieve would be a tablespace point-in-time recovery (TSPITR). For this you should restore to a temporary tablespace/instance, then export the requested object and import them back into your target restore database.<br />
+<br />
+Are you not using RMAN as backup tool?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jroberts</div><div class="date">13th September 2002, 15:38</div></div><div class="posttext">I ran into a similar scenario to what FriarTuck  has described, I needed to restore one table to its state as it was a month ago.  <br />
+<br />
+The only way we figured out to do it was to do a full restore of the database onto our test server, and then Baan Exchange out the records I needed and Exchange them back into our production system.  <br />
+<br />
+This is a fairly rare problem (ie, it has only happened to us once in the two years that baan has been up).<br />
+<br />
+The problem with doing a point in time recovery is that if 50 people are using Baan, and one makes a 'large' error, say in the Bill of Materials (maybe a find &amp; replace in BOM, that replaced 10,000 records incorrectly), and it takes them 6 hours to find that they made an error.  If you do a point in time recovery, you lose all the transactions of the other 49 people made during those 6 hours.<br />
+<br />
+The bottom line is,  A TEST SERVER IS A VERY VERY GOOD THING</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">FriarTuck</div><div class="date">13th September 2002, 17:14</div></div><div class="posttext">Well, the driving force behind my thought is a conversation I shared with a Baan consultant.  During that conversation it was mentioned that neither tables nor tablespaces could be recovered after a horrific &quot;accident&quot;.  The only recourse available would be your last good cold/hot backup and the appropriate archived redo logs.  This, of course, is a complete instance recovery.<br />
+<br />
+I thought to myself, &quot;that can take hours.&quot;  In applications I've written myself (using Oracle as the backend DB) I knew I could do table/tablespace restores.  Granted, my apps are not even remotely as complex as Baan so I can understand where there are several places where Baan data integrity would be called into question.<br />
+<br />
+Pat: No, RMAN is not being used.  Our integrators said OmniBack &quot;does not play well with RMAN&quot;.  :rolleyes:   I thought it did just fine, since an Oracle backup option is right there in the OmniBack menus!<br />
+<br />
+jroberts: thankfully, we do have a test/dev box.  Not that it helps me any.  I can't test Oracle scripts on the Oracle2 dev server since the Baan developers need the appdev server online during the work week!  I already work long hours and weekends!  :eek:   Ce' la vie.<br />
+<br />
+Francesco: sounds like an administrative nightmare and a time consuming one at that.  I think I'll just let everyone know that we would be down for a few hours if this situation was the &quot;real deal&quot;.<br />
+<br />
+But with the dev server, the chances of a production table/tablespace being trashed by a bad developer command would be remote.  Well, Mr. Murphy might say otherwise!  ;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">13th September 2002, 22:06</div></div><div class="posttext">Originally posted by FriarTuck <br />
+Pat: No, RMAN is not being used.  Our integrators said OmniBack &quot;does not play well with RMAN&quot;.  :rolleyes:   I thought it did just fine, since an Oracle backup option is right there in the OmniBack menus! <br />
+<br />
+Now that is a load of bullsh*t. Getting the integration to work can be tricky, granted that. But it does work in the end. I have done several of them *with* restore tests. RMAN is such an incredible backup tool. You can restore your whole database from a hot backup with just your init file. Who needs controlfiles? :D</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">FriarTuck</div><div class="date">13th September 2002, 22:54</div></div><div class="posttext">So much for 'turnkey'!  :rolleyes: <br />
+<br />
+As of this writing I am re-coding the backup scripts for our hot backups.  They neglected to put the tablespaces into hot backup mode.  That and I've condensed the scripts to 1 page of ksh scripting (as opposed to the 3 they had).<br />
+<br />
+Never trust an integrator to get it 100%.  Test, test, and test again when they are gone!  We lost a non-mirrored BCV on our EMC Symmetrix and that's when I discovered the hole in our shield.<br />
+<br />
+Dammit!!!  :mad:<br />
+<br />
+But I'm also looking into implementing RMAN myself.  Just need to find a box onto which to put the catalog.  I don't want to put it on the production DB.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JamesV</div><div class="date">13th September 2002, 23:18</div></div><div class="posttext">First, <br />
+<br />
+Omniback/RMAN integration does work.  As Pat stated, there is work involved, but it is very reliable once it has been tested.  And do TEST your backup solution.<br />
+<br />
+The BCV problem you describe is a fairly common one for EMC (or HDS, StorageWorks, HP Xp1024, etc.) when you use array based mirrors, there is no awareness of the Oracle database structures.  <br />
+<br />
+Put the RMAN database into a small standalone and it is usually small enough that you can fully export the data.<br />
+<br />
+The the original question, if you have a big disk array with Business Copy, BCV, Clone features or if you are using Veritas File System/Volume Manager with Database edition, there are a number of ways you can put the database in hot backup mode, maintain a snapshot copy of the data, mount the snapshot on the original system (different mountpoints) or different server (same mountpoint) and the export the table.  We have done this a number of times and have customers using the BCV model for their two times per day backups (but you spend big-bucks for the 3x disk cost this requires).<br />
+<br />
+-- Jim (back on the board after a long vacation and a ton of work :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">14th September 2002, 11:37</div></div><div class="posttext">Originally posted by JamesV <br />
+Put the RMAN database into a small standalone and it is usually small enough that you can fully export the data. <br />
+<br />
+Again if the RMAN/OB-II integration is correctly configured, OB-II will do this for you. It will make a logical export and put it onto tape right after the target database backup.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JohnDempsey</div><div class="date">31st October 2011, 15:08</div></div><div class="posttext">You may try exchange server recovery (http://www.recoverytoolbox.com/exchange_server.html) for repair .edb files. The utility can't modify original data during recovery. The program starts under low system requirements and any system configuration. It has easy to use, intuitive interface.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

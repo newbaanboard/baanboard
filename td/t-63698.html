@@ -1,0 +1,100 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Detect under choice.update.db if is Add or Edit mode, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Detect under choice.update.db if is Add or Edit mode Tools Development" />
+	
+	<title>Detect under choice.update.db if is Add or Edit mode [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Detect under choice.update.db if is Add or Edit mode</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">eric.dizon</div><div class="date">12th February 2013, 18:47</div></div><div class="posttext">I have the code below for a custom session that I have created.  The issue I am having when do I know that the session is doing an &quot;Insert&quot; or an &quot;Update&quot; reason being is I want to update my audit fields accordingly based on the state of the session before saving them.  I only want to increment the first freee number I am using when it is &quot;Insert&quot; or new record being saved. <br />
+<br />
+   Create Date  - tdsmi490.crdt, tdsmi490.crby<br />
+   Last Modified - tdsmi490.lmdt, tdsmi490.lmby <br />
+<br />
+<br />
+<br />
+choice.update.db:<br />
+before.choice:<br />
+<br />
+   if trim$(tdsmi490.suno) &lt;&gt; &quot;&quot; then  |Survey No. is not blank.<br />
+      db.retry.point()<br />
+      select<br />
+         tcmcs050.*<br />
+      from tcmcs050 for update<br />
+      where<br />
+         tcmcs050._index1 = {&quot;SUR&quot;, :tdsmi490.suno}<br />
+      as set with 1 rows<br />
+      selectdo<br />
+<br />
+         |Update First Freenumber<br />
+         tcmcs050.ffno = tcmcs050.ffno + 1<br />
+         tdsmi490.lmdt = utc.num()<br />
+         tdsmi490.lmby = logname$<br />
+         tdsmi490.suno = trim$(tdsmi490.suno) &amp; edit$(tcmcs050.ffno, &quot;999999&quot;)<br />
+         tdsmi490.scre = calculate_score()<br />
+<br />
+         db.update(ttcmcs050,db.retry)<br />
+         commit.transaction()<br />
+      endselect<br />
+   endif<br />
+<br />
+<br />
+<br />
+Thanks and Regards,<br />
+<br />
+Eric</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th February 2013, 23:47</div></div><div class="posttext">Check to see if this works update.status works from the baan help.<br />
+long	update.status	4R	<br />
+0			no update<br />
+ADD.SET			during add<br />
+MODIFY.SET		during modify<br />
+MARK.DELETE	during delete</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">13th February 2013, 17:27</div></div><div class="posttext">Another option is to program the logic in the main.table.io section. This is my personal preference.<br />
+<br />
+<br />
+<br />
+<br />
+main.table.io:<br />
+<br />
+before.write:<br />
+    |* place 'insert' related actions here. <br />
+    |* example, increase first free number count.<br />
+<br />
+<br />
+<br />
+before.rewrite:<br />
+    |* place 'update' related actions here.<br />
+<br />
+<br />
+<br />
+Do not use commit.transaction because the save action will do that for you.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eric.dizon</div><div class="date">14th February 2013, 14:54</div></div><div class="posttext">Thanks guys for the help.  This will surely make my code cleaner.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">14th February 2013, 15:50</div></div><div class="posttext">If programming in LN, put your auditing logic in a DAL script for the table if custom or a user exit (UE) script if a standard table.  This ensures that the auditing is done for any session, except GTM.<br />
+<br />
+Use the &quot;ue.after.after.save.object(mode)&quot; hook in a UE script, using &quot;mode&quot; to differentiate between an insert (mode = DAL_NEW) and change (mode = DAL_UPDATE) if you only want to log changes to a different table.  You will have to apply the insert/update through 'db.' or DAL call since the main table is already done applying changes at this point.  If changes are applied to the main table of the session, put the updates in the &quot;ue.before.before.save.object(mode)&quot; hook.  In this case, you only have to change the main table fields since the DAL will take care of the insert or update.<br />
+<br />
+Use the &quot;after.save.object(mode)&quot; or &quot;before.save.object(mode)&quot; hook in a DAL for a custom table to perform your auditing logic.  Mode settings and rules for using one or the other are the same as the UE usage.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

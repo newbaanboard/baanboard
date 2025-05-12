@@ -1,0 +1,166 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Using Date range in function, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Using Date range in function Tools Development" />
+	
+	<title>Using Date range in function [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Using Date range in function</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">7th March 2003, 15:35</div></div><div class="posttext">Guys<br />
+<br />
+I have written a function and basically it checks to see a room is already being used between 2 dates.<br />
+<br />
+I have got it to work by using just a single date, but I want it to actually look for whether there are records between the start date field and the end date field.<br />
+<br />
+Here is the function...<br />
+****************************************<br />
+function check.room.available()<br />
+{<br />
+	select tssma931.roomn<br />
+	where tssma931.roomn = :tssma931.roomn and tssma931.stdt = :tssma931.stdt or tssma931.endt = :tssma931.stdt<br />
+	selectdo<br />
+		message(&quot;Room Unavailable, please choose another room&quot;)<br />
+		input.again()<br />
+	endselect<br />
+}<br />
+*******************************************<br />
+roomn = the room nunber<br />
+stdt = start date<br />
+endt = end date<br />
+<br />
+So basically someone picks the room number and enters a start and end date.  The function looks for entries where that room number is booked for a date range that conflicts with the range just entered.<br />
+<br />
+I tried using ...<br />
+********************************************<br />
+where tssma931.roomn = :tssma931.roomn and tssma931.stdt in :tssma931.stdt to tssma931.endt or tssma931.endt in tssma931.stdt to :tssma931.endt<br />
+********************************************<br />
+<br />
+This failed as Baan did not understand &quot;in&quot; or &quot;to&quot;.<br />
+<br />
+Does anyone have any ideas?<br />
+<br />
+Cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">7th March 2003, 15:49</div></div><div class="posttext">Andy,<br />
+<br />
+I think you are trying to do something like this:<br />
+<br />
+where	tssma931.roomn = :tssma931.roomn<br />
+and	(tssma931.stdt inrange   :tssma931.stdt and :tssma931.endt<br />
+or	tssma931.endt inrange  :tssma931.stdt and :tssma931.endt)<br />
+<br />
+<br />
+However, this misses the case where another event starts before the one in question starts and ends after this one ends.<br />
+<br />
+So, you might try this instead:<br />
+<br />
+where	tssma931.roomn = :tssma931.roomn<br />
+and	tssma931.stdt &lt; :tssma931.endt<br />
+and	tssma931.endt &gt; :tssma931.stdt</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rdbailey</div><div class="date">11th March 2003, 00:15</div></div><div class="posttext">You may want to try a different approach as you want to ensure that not only are the start and end dates free, but the dates between them as well.<br />
+<br />
+My suggestion is as follows:<br />
+<br />
+     To check for all possibilities of overlapping dates (including a date range that is completely inside another), you would have to check each day in the range specified for being within a prebooked period for that room.  This would require a loop to check each day, thus avoiding all overlap.  It takes a bit longer to process, but should do what you are looking for.  I have not checked the syntax (just a quick type-in) so you may have to make some minor syntactical modifications (I can't remember off the top of my head if you can do a date.to.num() in a &quot;for&quot; statement).  The suggested code approach is below.  I hope this helps.<br />
+<br />
+---------------------------------------------------------------------------------<br />
+<br />
+function check.room.available()<br />
+{<br />
+domain  tclong  errflag<br />
+domain  tclong  i<br />
+<br />
+select<br />
+     *<br />
+from<br />
+     tssma931<br />
+where<br />
+     tssma931.roomn = :roomn<br />
+selectdo<br />
+     errflag = 0<br />
+<br />
+     for i = date.to.num(stdt) to date.to.num(endt)<br />
+          if i inrange :tssma931.stdt and :tssma931.endt then<br />
+               errflag = 1<br />
+               break<br />
+          endif<br />
+     endfor<br />
+endselect<br />
+<br />
+if errflag = 1 then<br />
+     message(&quot;Room Unavailable, please choose another room&quot;)<br />
+     input.again()<br />
+endif<br />
+}<br />
+<br />
+Coding explanation:<br />
+<br />
+The assumption is made that stdt, endt and roomn are the field names from the input screen.<br />
+<br />
+An error flag is set up to check the error condition has been met.  If so, a &quot;break&quot; is issued to avoid additional cpu usage (wasted time as the room is already known to be booked).  The error flag is then checked to verify the room is available.<br />
+<br />
+The &quot;for&quot; loop would process each date between (and including) the start and end dates by converting them to a number first (to allow the &quot;for&quot; loop to count correctly).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baan_developer</div><div class="date">11th March 2003, 06:48</div></div><div class="posttext">the way I see it there are four conditions:<br />
+1. start date falls in a booked period or<br />
+2. end date falls in a booked period or<br />
+3. the entire period is booked or<br />
+4. a booked period falls entirely in the new period<br />
+<br />
+|*** for readability<br />
+l.stdt = tssma931.stdt<br />
+l.endt = tssma931.endt<br />
+<br />
+|*** assuming start date &lt;= end date<br />
+select	tssma931.*<br />
+from		tssma931<br />
+where		(tssma931.stdt &lt;= :l.stdt and<br />
+		 tssma931.endt &gt;= :l.stdt)		or	|1.<br />
+		(tssma931.stdt &lt;= :l.endt and<br />
+		 tssma931.endt &gt;= :l.endt)		or	|2.<br />
+		(tssma931.stdt &lt;= :l.stdt and<br />
+		 tssma931.endt &gt;= :l.endt)		or	|3.<br />
+		(tssma931.stdt &gt;= :l.stdt and<br />
+		 tssma931.endt &lt;= :l.endt)			|4.<br />
+selectdo<br />
+	|*** the room cannot be booked for this period <br />
+endselect<br />
+<br />
+That should do it.<br />
+<br />
+Regards,<br />
+Guido</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">11th March 2003, 15:49</div></div><div class="posttext">Other than the use of the equal sign, if you check the logic, the four cases listed in the previous post can be summarized as I showed before with only two date conditions.  I chose to leave out the equal signs because I don't think having one meeting start at the same time another ends should result in an error condition.<br />
+<br />
+Food for thought...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">11th March 2003, 16:41</div></div><div class="posttext">Ed<br />
+<br />
+Once again spot on m8!<br />
+<br />
+I have used both of the examples you provided into 1 function and it works a treat.<br />
+<br />
+Cheers m8y:D</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

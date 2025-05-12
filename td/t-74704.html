@@ -1,0 +1,558 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Function return, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Function return Tools Development" />
+	
+	<title>Function return [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Function return</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Keitaro84</div><div class="date">5th November 2022, 18:38</div></div><div class="posttext">Hello, I'm new to Baan LN and I used to program in Java before. I wanted to ask if there is a way to return a complex object when retrieving values ​​from a query of a custom table but without passing values ​​in reference.<br />
+<br />
+function ??? get.row.value(string table.name, string field.name, string field.value) {<br />
+	<br />
+	long sql.id<br />
+	string sql.qry<br />
+	<br />
+	| the fields could increase and I would not like to touch any functions already implemented<br />
+	sql.qry = &quot; select name:1 surname:2 ... &quot;<br />
+	&quot; from &quot; &amp; table.name &amp; <br />
+	&quot; where &quot; &amp; field.name &amp; &quot; = :&quot; &amp; field.value &amp;<br />
+	&quot; as set with 1 rows &quot;<br />
+	<br />
+	sql.id = sql.parse(sql.qry)<br />
+	sql.exec(sql.id)<br />
+<br />
+	sql.select.bind(sql.id, 1, ???)<br />
+	sql.select.bind(sql.id, 2, ???)<br />
+	<br />
+	sql.fatch(sql.id)<br />
+	sql.close(sql.id)<br />
+}<br />
+<br />
+In Java I would have created a HashMap &lt;int, Object&gt; or a class object because each field can have a different type, here I have no idea how to do it.<br />
+<br />
+Thank you so much</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th November 2022, 19:47</div></div><div class="posttext">Moved to the tools forum.  Hopefully someone can answer your question.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th November 2022, 19:56</div></div><div class="posttext">Not really sure this answers your question or helps - what this did was basically build a query and then return records from tipgc520 and 521.  What I had was a main session that would ask for some filters - like buyer, item, project group, etc.  It would call this subsession to build a query to return the records to be displayed.  Then in the subsession if you hit like the next record group it would navigates its way thru all of the records. This was done on 4c4 so for LN there could be better solutions.<br />
+<br />
+<br />
+function get_record()<br />
+{<br />
+	domain	tcbool	record.found<br />
+	domain	tcorno	original.order<br />
+		long	sql_id<br />
+<br />
+| Use record.found to make sure a record is found.<br />
+	record.found   = false<br />
+	original.order = tipgc521.orno<br />
+<br />
+| Find all records greater than current record.  Run through them<br />
+| looking for the first order that matches all filters.<br />
+| Use the &gt;= sign because by the time this routine is called the main program <br />
+| has increased the order number.<br />
+	build_sql_query()<br />
+<br />
+| Setup the query<br />
+	sql_id = sql.parse(sql_query)<br />
+<br />
+| Bind the variables.<br />
+	sql.where.bind(sql_id,1,original.order)<br />
+	sql.where.bind(sql_id,2,ccot.filter)<br />
+	sql.where.bind(sql_id,3,item.filter)<br />
+	sql.where.bind(sql_id,4,suno.filter)<br />
+	sql.where.bind(sql_id,5,buyr.filter)<br />
+| Execute the query.<br />
+	sql.exec(sql_id)<br />
+	<br />
+| Fetch the first record.<br />
+	e = sql.fetch(sql_id)<br />
+	if e = 0 then<br />
+		record.found = true<br />
+	else<br />
+		message(&quot;No more records.&quot;)<br />
+		select	tipgc521.*<br />
+		from	tipgc521<br />
+		where	tipgc521.orno = :hold.orno<br />
+		as set with 1 rows<br />
+		selectdo<br />
+		endselect<br />
+	endif<br />
+	sql.close(sql_id)<br />
+	<br />
+}<br />
+|******************************************************************************<br />
+| Function to build the sql<br />
+|******************************************************************************<br />
+function build_sql_query()<br />
+{<br />
+| Same for all queries<br />
+	sql_query =<br />
+	&quot;select tipgc520.*, tipgc521.* &quot; &amp;<br />
+	&quot;from tipgc520,tipgc521 &quot; <br />
+<br />
+	on case record_event<br />
+		case 1: 		| First record<br />
+ 	        case 4:			| Last record<br />
+			sql_query = sql_query &amp;&quot;where tipgc521.orno = tipgc520.orno &quot; <br />
+			break<br />
+		case 2:			| Next record<br />
+			sql_query = sql_query &amp;&quot;where tipgc520.orno &gt;= :1 &quot; &amp;<br />
+			&quot;and tipgc521.orno = tipgc520.orno &quot; <br />
+			break<br />
+		case 3:<br />
+			sql_query = sql_query &amp;&quot;where tipgc520.orno &lt;= :1 &quot; &amp;<br />
+			&quot;and tipgc521.orno = tipgc520.orno &quot; <br />
+			break<br />
+	endcase<br />
+	if(ccot.filter&lt;&gt;&quot;&quot;) then<br />
+		sql_query = sql_query &amp; &quot;and tipgc520.ccot = :2 &quot;<br />
+	endif<br />
+	if(item.filter&lt;&gt;&quot;&quot;) then<br />
+		sql_query = sql_query &amp; &quot;and tipgc520.item = :3 &quot;<br />
+	endif<br />
+	if(suno.filter&lt;&gt;&quot;&quot;) then<br />
+		sql_query = sql_query &amp; &quot;and tipgc520.suno = :4 &quot;<br />
+	endif<br />
+	if(buyr.filter&lt;&gt;0) then<br />
+		sql_query = sql_query &amp; &quot;and tipgc520.buyr = :5 &quot;<br />
+	endif<br />
+<br />
+	on case record_event<br />
+		case 1: 	| First record<br />
+			sql_query = sql_query &amp; &quot;order by tipgc520.orno asc &quot;<br />
+			sql_query = sql_query &amp; &quot;as set with 1 rows &quot;<br />
+			break<br />
+		case 2:		| Next record<br />
+			break<br />
+		case 3:		| Previous record<br />
+			sql_query = sql_query &amp; &quot;order by tipgc521.orno desc&quot;<br />
+			break<br />
+		case 4:		| Last record<br />
+			sql_query = sql_query &amp; &quot;order by tipgc520.orno desc &quot;<br />
+			sql_query = sql_query &amp; &quot;as set with 1 rows &quot;<br />
+			break<br />
+	endcase<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Keitaro84</div><div class="date">9th November 2022, 10:19</div></div><div class="posttext">Maybe I have found a solution but not so if it is the best.<br />
+I needed this function to retrieve the value of various calculated fields for a Report Design.<br />
+<br />
+function extern void ext.shfa.calculate()<br />
+{<br />
+	ext.shfa = txextdll0001.get.string(&quot;shfa&quot;, component.name, get.logistic.company(), get.current.site())<br />
+}<br />
+<br />
+I created a dll that uses the &lt;bic_json&gt;.<br />
+This exposes two functions depending on the type of data it returns.<br />
+<br />
+| Retrieve the booleando from the json<br />
+function extern domain tcbool txextdll0001.get.boolean.from.tgyenox(domain tcmcs.str16 field, domain tcmcs.str16 component.name, domain tcncmp company, domain tcsite site)<br />
+{<br />
+	long json_object<br />
+	get.fields.values(json_object, component.name, company, site)<br />
+	return (Json.getBoolean(json_object, field))<br />
+}<br />
+<br />
+| Retrieve the string from the json<br />
+function extern domain tcmcs.str50m txextdll0001.get.string(domain tcmcs.str16 field, domain tcmcs.str16 component.name, domain tcncmp company, domain tcsite site)<br />
+{<br />
+	long json_object<br />
+	get.fields.values(json_object, component.name, company, site)<br />
+	return (Json.getString(json_object, field))<br />
+}<br />
+<br />
+Both call a single function passing the json id in reference.<br />
+<br />
+| Retrieve all values from the table and put them in a json<br />
+function void get.fields.values(ref long json_object, domain tcmcs.str16 component.name, domain tcncmp company, domain tcsite site)<br />
+{<br />
+        <br />
+        domain tgyenox prdt, pdta, pbil, psls, ptax, pout, pcus, pshf<br />
+        domain tcmcs.str50m shfa, shfb, shfc, shfd<br />
+<br />
+        select  txext000.prdt:prdt, txext000.pdta:pdta, txext000.pbil:pbil, txext000.psls:psls,<br />
+                txext000.ptax:ptax, txext000.pout:pout, txext000.pcus:pcus, txext000.pshf:pshf,<br />
+                txext000.shfa:shfa, txext000.shfb:shfb, txext000.shfc:shfc, txext000.shfd:shfd<br />
+        from    txext000<br />
+        where   txext000.name = {:component.name}<br />
+        and     txext000.cpny = {:company}<br />
+        and     txext000.site = {:site}<br />
+        selectdo<br />
+        endselect<br />
+        <br />
+        | Popolo il json<br />
+        json_object = Json.newObject()<br />
+        Json.setBoolean(json_object, &quot;prdt&quot;, tgyenox.to.boolean(prdt))<br />
+        Json.setBoolean(json_object, &quot;pdta&quot;, tgyenox.to.boolean(pdta))<br />
+        Json.setBoolean(json_object, &quot;pbil&quot;, tgyenox.to.boolean(pbil))<br />
+        Json.setBoolean(json_object, &quot;psls&quot;, tgyenox.to.boolean(psls))<br />
+        Json.setBoolean(json_object, &quot;ptax&quot;, tgyenox.to.boolean(ptax))<br />
+        Json.setBoolean(json_object, &quot;pout&quot;, tgyenox.to.boolean(pout))<br />
+        Json.setBoolean(json_object, &quot;pcus&quot;, tgyenox.to.boolean(pcus))<br />
+        Json.setBoolean(json_object, &quot;pshf&quot;, tgyenox.to.boolean(pshf))<br />
+        Json.setString(json_object, &quot;shfa&quot;, shfa)<br />
+        Json.setString(json_object, &quot;shfb&quot;, shfb)<br />
+        Json.setString(json_object, &quot;shfc&quot;, shfc)<br />
+        Json.setString(json_object, &quot;shfd&quot;, shfd)<br />
+}<br />
+<br />
+| Function that converts tgyenox to boolean<br />
+function domain tcbool tgyenox.to.boolean(domain tgyenox current)<br />
+{<br />
+	domain tcbool bool<br />
+	| Need true by default<br />
+	bool = true<br />
+	if current = tgyenox.no then<br />
+		bool = false <br />
+	endif<br />
+	return (bool)<br />
+}<br />
+<br />
+However new types of implementation are welcome !!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Keitaro84</div><div class="date">9th November 2022, 15:36</div></div><div class="posttext">This morning I tried to find an alternative solution and I think more standard.<br />
+<br />
+Always starting from this situation.<br />
+function extern void ext.shfa.calculate()<br />
+{<br />
+	ext.shfa = txextdll0001..get.field.value.str50m(&quot;shfa&quot;, component.name, get.logistic.company(), get.current.site())<br />
+}<br />
+<br />
+<br />
+I created two functions that call functions sequentially and only retrieve a point value.<br />
+<br />
+function extern domain tcbool txextdll0001.get.field.value.tgyenox(domain tcmcs.str16 field.name, domain tcmcs.str16 component.name, domain tcncmp company, domain tcsite site)<br />
+{<br />
+    domain tgyenox field.value<br />
+	long sql.id<br />
+	| open connection<br />
+	start.connection(sql.id, field.name, component.name, company, site)<br />
+	| bind value<br />
+	sql.select.bind(sql.id, 1, field.value)<br />
+	| close connection<br />
+	close.connection(sql.id)<br />
+	<br />
+	return(txextdll0001.tgyenox.to.boolean(field.value, true))<br />
+}<br />
+<br />
+function extern domain tcbool txextdll0001.tgyenox.to.boolean(domain tgyenox yenox, domain tcbool initial.value)<br />
+{<br />
+	domain tcbool bool<br />
+	bool = initial.value<br />
+	if yenox = tgyenox.no then<br />
+		bool = false <br />
+	endif<br />
+	return (bool)<br />
+}<br />
+<br />
+function extern domain tcmcs.str50m txextdll0001.get.field.value.str50m(domain tcmcs.str16 field.name, domain tcmcs.str16 component.name, domain tcncmp company, domain tcsite site)<br />
+{<br />
+	domain tcmcs.str50m field.value<br />
+	long sql.id<br />
+	| open connection<br />
+	start.connection(sql.id, field.name, component.name, company, site)<br />
+    | bind value<br />
+	sql.select.bind(sql.id, 1, field.value)<br />
+	| close connection<br />
+	close.connection(sql.id)<br />
+	<br />
+	return (field.value)<br />
+}<br />
+<br />
+<br />
+function void start.connection(ref long sql.id, domain tcmcs.str16 field.name, domain tcmcs.str16 component.name, domain tcncmp company, domain tcsite site)<br />
+{<br />
+	string query.string.mb(3000)<br />
+	query.string.mb = &quot; select txext000.&quot; &amp; trim$(field.name) &amp; &quot;:1 &quot;<br />
+						&amp; &quot; from txext000 &quot;<br />
+						&amp; &quot; where txext000.name = '&quot; &amp; trim$(component.name) &amp; &quot;' &quot;<br />
+						&amp; &quot; and  txext000.cpny = &quot; &amp;  str$(company)<br />
+						&amp; &quot; and txext000.site = '&quot; &amp; trim$(site) &amp; &quot;' &quot;<br />
+						&amp; &quot; as set with 1 rows &quot;<br />
+	sql.id = sql.parse(query.string.mb)<br />
+}<br />
+<br />
+<br />
+function void close.connection(ref long sql.id)<br />
+{<br />
+	sql.exec(sql.id)<br />
+	|This reads a single query result and stores the values retrieved in the variables specified in the SELECT list.<br />
+	on case sql.fetch(sql.id)<br />
+		case 0:<br />
+			|* Set not empty <br />
+		case EENDFILE:<br />
+			|* Reached the end result set<br />
+			break<br />
+		case ENOREC:<br />
+			|* Set is empty<br />
+			message(&quot;txextdll0001: No record found.&quot;)<br />
+			break<br />
+	endcase<br />
+	sql.break(sql.id)<br />
+	sql.close(sql.id)<br />
+}<br />
+<br />
+Being new to LN I think it is better because it keeps the table types ... actually I have not found documentation on json so I don't know if it could alter some values.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">9th November 2022, 16:23</div></div><div class="posttext">Hello,<br />
+<br />
+JSON overview<br />
+INTRODUCTION<br />
+JavaScript Object Notation (JSON) is a lightweight, text-based, language-independent data interchange format. It was derived from the ECMAScript Programming Language Standard. JSON defines a small set of formatting rules for the portable representation of structured data. <br />
+<br />
+JSON is built on two structures:<br />
+<br />
+A collection of name/value pairs. In JSON this is called an object. <br />
+An ordered list of values. In JSON this is called an array. <br />
+OBJECT<br />
+An object is an unordered set of name/value pairs. An object begins with { (left brace) and ends with } (right brace). Each name is followed by : (colon) and the name/value pairs are separated by , (comma). <br />
+<br />
+ARRAY<br />
+An array is an ordered collection of values. An array begins with [ (left bracket) and ends with ] (right bracket). Values are separated by , (comma). <br />
+<br />
+VALUE<br />
+A value can be a string in double quotes, or a number, or true or false or null, or an object or an array. These structures can be nested. <br />
+<br />
+STRING<br />
+A string is a sequence of zero or more Unicode characters, wrapped in double quotes, using backslash escapes. A character is represented as a single character string. A string is very much like a C or Java string. <br />
+<br />
+NUMBER<br />
+A number is very much like a C or Java number, except that the octal and hexadecimal formats are not used.<br />
+<br />
+WHITESPACE HANDLING<br />
+Whitespace can be inserted between any pair of tokens.<br />
+<br />
+JSON API<br />
+The 3GL JSON API supports reading, writing, creating, manipulating and destroying JSON value instances. These instances can be of one of the following types: <br />
+<br />
+JSON_TYPE_NULL <br />
+JSON_TYPE_BOOLEAN <br />
+JSON_TYPE_NUMBER <br />
+JSON_TYPE_OBJECT <br />
+JSON_TYPE_ARRAY <br />
+JSON_TYPE_STRING <br />
+The JSON API provides functions to test whether a value is a JSON value and to get the type of the JSON value instance. <br />
+<br />
+DEALING WITH JSON TYPES<br />
+Most JSON API functions accept a JSON value instance as the first parameter. It depends on the JSON type whether the function can deal with the passed JSON value. E.g. the Json.set() function can only deal with JSON values of type JSON_TYPE_OBJECT and the Json.add() function can only deal with JSON values of type JSON_TYPE_ARRAY. <br />
+<br />
+In case a function cannot handle the passed JSON type, a runtime Assert message is given.<br />
+<br />
+DETACHING JSON INSTANCES<br />
+In order to prevent JSON structures from being corrupted, the JSON API is very strict regarding setting, adding, putting a JSON value in another JSON value, or deleting a JSON value. In case a JSON value is part of another JSON value, the operation is prevented and a runtime Assert message is given. <br />
+<br />
+A JSON value must therefore be detached from its parent using Json.detach(), before such operations are done. <br />
+<br />
+ITERATING JSON STRUCTURES<br />
+For cases where the structure of the JSON value is not known, the JSON API provides functions for iterating a JSON structure. <br />
+<br />
+Using an iterator is also the recommended way to traverse all values in a JSON array.<br />
+<br />
+READING AND WRITING JSON<br />
+The 3GL JSON API provides functions for reading JSON text from and writing JSON values to a string, a file or a stream.<br />
+<br />
+SUPPORTED ENCODINGS<br />
+Both UTF-8 and TSS encodings are supported for reading and writing JSON values.<br />
+<br />
+EXAMPLE USAGE<br />
+{<br />
+  &quot;id&quot;: &quot;ABC12345&quot;,<br />
+  &quot;name&quot;: &quot;ABC Bike&quot;,<br />
+  &quot;supplier&quot;: {<br />
+    &quot;name&quot;: &quot;ACME_COMP&quot;,<br />
+    &quot;address&quot;: {<br />
+      &quot;street&quot;: &quot;High Street&quot;,<br />
+      &quot;number&quot;: 235,<br />
+      &quot;zip code&quot;: &quot;1234 AB&quot;<br />
+    }<br />
+  },<br />
+  &quot;price&quot;: 534.99,<br />
+  &quot;packed&quot;: true,<br />
+  &quot;currencies&quot;: [<br />
+    &quot;EUR&quot;,<br />
+    &quot;USD&quot;,<br />
+    &quot;AUD&quot;<br />
+  ],<br />
+  &quot;color&quot;: null,<br />
+  &quot;active&quot;: false<br />
+}<br />
+		The JSON document above can be constructed as follows:<br />
+<br />
+long	item<br />
+long	supplier<br />
+long	address<br />
+long	currencies<br />
+<br />
+item = Json.newObject()<br />
+Json.setString(item, &quot;id&quot;, &quot;ABC12345&quot;)<br />
+Json.setString(item, &quot;name&quot;, &quot;ABC Bike&quot;)<br />
+supplier = Json.set(item, &quot;supplier&quot;, Json.newObject())<br />
+Json.setString(supplier, &quot;name&quot;, &quot;ACME_COMP&quot;)<br />
+address = Json.set(supplier, &quot;address&quot;, Json.newObject())<br />
+Json.setString(address, &quot;street&quot;, &quot;High Street&quot;)<br />
+Json.setNumber(address, &quot;number&quot;, 235)<br />
+Json.setString(address, &quot;zip code&quot;, &quot;1234 AB&quot;)<br />
+Json.setNumber(item, &quot;price&quot;, 534.99)<br />
+Json.setBoolean(item, &quot;packed&quot;, true)<br />
+currencies = Json.set(item, &quot;currencies&quot;, Json.newArray())<br />
+Json.add(currencies, &quot;EUR&quot;)<br />
+Json.add(currencies, &quot;USD&quot;)<br />
+Json.add(currencies, &quot;AUD&quot;)<br />
+Json.setNull(item, &quot;color&quot;)<br />
+Json.setBoolean(item, &quot;active&quot;, false)<br />
+		Retrieving data:<br />
+<br />
+string	itemName(30)<br />
+string	zipCode(8)<br />
+string	currency(3)<br />
+string	color(12)<br />
+long	type<br />
+<br />
+|* To get the item name<br />
+itemName = Json.getString(item, &quot;name&quot;)<br />
+<br />
+|* To get the value of the &quot;zip code&quot; field starting at the item level:<br />
+zipCode = Json.getString(Json.get(Json.get(item, &quot;supplier&quot;), &quot;address&quot;), &quot;zip code&quot;)<br />
+<br />
+|* The same, using the path<br />
+zipCode = Json.string(Json.path(item, &quot;supplier&quot;, &quot;address&quot;, &quot;zip code&quot;))<br />
+<br />
+|* To get the 3rd currency:<br />
+currency = Json.stringAt(Json.get(item, &quot;currencies&quot;), 3)<br />
+<br />
+|* The same, using the path<br />
+currency = Json.string(Json.path(item, &quot;currencies&quot;, 3))<br />
+<br />
+|* To get the value of color, which might be null<br />
+if not Json.isNull(Json.get(item, &quot;color&quot;)) then<br />
+	color = Json.getString(item, &quot;color&quot;))<br />
+endif<br />
+<br />
+|* To get the type of the price field<br />
+type = Json.type(Json.get(item, &quot;price&quot;))<br />
+<br />
+if type = JSON_TYPE_NUMBER then<br />
+	|* ...<br />
+endif<br />
+		Manipulating data:<br />
+<br />
+|* To replace the 2nd currency with GBP<br />
+Json.putString(Json.get(item, &quot;currencies&quot;), 2, &quot;GBP)<br />
+<br />
+|* To delete the packed field<br />
+Json.del(item, &quot;packed&quot;)<br />
+<br />
+|* To delete the currencies array, it first needs to be detached from the item object<br />
+currencies = Json.get(item, &quot;currencies)<br />
+Json.detach(currencies)<br />
+Json.delete(currencies)<br />
+		<br />
+<br />
+<br />
+JSON synopsis<br />
+General JSON value functions<br />
+long Json.newObject () <br />
+long Json.newArray () <br />
+long Json.newBoolean ( boolean value ) <br />
+boolean Json.boolean ( long json_value ) <br />
+long Json.newNull () <br />
+boolean Json.isNull ( long json_value ) <br />
+long Json.newNumber ( long|double value ) <br />
+double Json.number ( long json_value ) <br />
+long Json.newString ( const string value ) <br />
+string Json.string ( long json_value ) <br />
+long Json.copy ( long json_value ) <br />
+long Json.copyToProcess ( long json_value, long process_id ) <br />
+void Json.delete ( long json_value ) <br />
+[long] Json.detach ( long json_value ) <br />
+long Json.type ( long json_value ) <br />
+boolean Json.isJson ( long json_value ) <br />
+long Json.path ( long json_value, ... ) <br />
+ <br />
+JSON object functions<br />
+[long] Json.set ( long json_object, const string key, long json_value ) <br />
+boolean Json.has ( long json_object, const string key ) <br />
+long Json.get ( long json_object, const string key ) <br />
+void Json.del ( long json_object, const string key ) <br />
+[long] Json.setBoolean ( long json_object, const string key, boolean value ) <br />
+[long] Json.setNull ( long json_object, const string key ) <br />
+[long] Json.setNumber ( long json_object, const string key, long|double value ) <br />
+[long] Json.setString ( long json_object, const string key, const string value ) <br />
+boolean Json.getBoolean ( long json_object, const string key ) <br />
+double Json.getNumber ( long json_object, const string key ) <br />
+string Json.getString ( long json_object, const string key ) <br />
+ <br />
+JSON array functions<br />
+[long] Json.add ( long json_array, long json_value ) <br />
+[long] Json.put ( long json_array, long idx, long json_value ) <br />
+long Json.at ( long json_array, long idx ) <br />
+long Json.count ( long json_array ) <br />
+[long] Json.addBoolean ( long json_array, boolean value ) <br />
+[long] Json.addNull ( long json_array ) <br />
+[long] Json.addNumber ( long json_array, long|double value ) <br />
+[long] Json.addString ( long json_array, const string value ) <br />
+[long] Json.putBoolean ( long json_array, long idx, boolean value ) <br />
+[long] Json.putNull ( long json_array, long idx ) <br />
+[long] Json.putNumber ( long json_array, long idx, long|double value ) <br />
+[long] Json.putString ( long json_array, long idx, const string value ) <br />
+boolean Json.booleanAt ( long json_array, long idx ) <br />
+double Json.numberAt ( long json_array, long idx ) <br />
+string Json.stringAt ( long json_array, long idx ) <br />
+ <br />
+JSON iterator functions<br />
+long Json.iter ( long json_array|json_object ) <br />
+string Json.iterKey ( long json_object, long iter ) <br />
+long Json.iterNext ( long json_array|json_object, long iter ) <br />
+long Json.iterValue ( long json_array|json_object, long iter ) <br />
+ <br />
+JSON read/write functions<br />
+long Json.read ( long stream, ref string error_str, [long options] ) <br />
+long Json.readFile ( const string path, ref string error_str, [long options] ) <br />
+long Json.readString ( const string json_str, ref string error_str, [long options] ) <br />
+long Json.write ( long json_value, long stream, [long options] ) <br />
+long Json.writeFile ( long json_value, const string path, [long options] ) <br />
+long Json.writeString ( long json_value, ref string str, [long options] ) <br />
+<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Keitaro84</div><div class="date">10th November 2022, 09:00</div></div><div class="posttext">Thanks, it's really useful. But did you write this documentation yourself? Why else can I ask you where did you find it? these days I have searched a lot online but I have not found anything.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">10th November 2022, 10:37</div></div><div class="posttext">Hello,<br />
+search at Infor support:<br />
+<br />
+Welcome<br />
+The Infor ES Programmers Guide provides the latest information about the Infor ES 3GL and 4GL <br />
+programming languages, including reference material and in-depth articles on several aspects of design <br />
+and development. You can navigate via content listings or use the index to look up keywords. <br />
+Via the search page you can enter specific queries. <br />
+<br />
+<br />
+Should be found at Infor Consierge Support Site<br />
+<br />
+Regards</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

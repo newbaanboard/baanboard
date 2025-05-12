@@ -1,0 +1,465 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="report script problem, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] report script problem Tools Development" />
+	
+	<title>report script problem [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; report script problem</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">30th October 2002, 00:06</div></div><div class="posttext">I am trying to get data twice from the same table. I am trying to get the subassembly(subass) where a selected purcased item is used. Then I am trying to get the main item(test) that the subassembly is used in.<br />
+<br />
+The system is returning the subass as the test.<br />
+declaration:<br />
+	table ttiitm001<br />
+	table ttibom010<br />
+<br />
+	extern domain tcitem subass, test<br />
+		<br />
+detail.1:<br />
+before.layout:<br />
+	select tibom010.*<br />
+	from tibom010, tiitm001<br />
+	where tibom010.sitm = :tdpsc001.item<br />
+	and tibom010.sitm = tiitm001.item<br />
+	and tiitm001.kitm =2<br />
+	and tibom010.exdt =0 	<br />
+	selectdo	<br />
+	endselect<br />
+	<br />
+	select tiitm001.*<br />
+	from tiitm001<br />
+	where tiitm001.item = :tibom010.sitm<br />
+	selectdo<br />
+		subass = tibom010.mitm<br />
+	endselect<br />
+		<br />
+	select tibom010.*<br />
+	from tibom010<br />
+	where tibom010.mitm = :subass<br />
+	selectdo<br />
+		test = tibom010.mitm<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">30th October 2002, 03:31</div></div><div class="posttext">I am not sure I understand why you are doing this.<br />
+To get the make components for a sub-component you only need one query.<br />
+<br />
+<br />
+        select tibom010.mitm,tibom010.sitm,tiitm001.dsca<br />
+        from tibom010, tiitm001<br />
+        where tibom010.sitm = :tdpsc001.item<br />
+        and tibom010.sitm refers to tiitm001.item<br />
+        and tiitm001.kitm =2<br />
+        and tibom010.exdt =0    <br />
+        selectdo        <br />
+        endselect<br />
+<br />
+<br />
+This would return ALL make items for a purchase part. But because of the selectdo/endselect you would only get the last make item.  Are you sure you want to do this in the script?  I would expect some kind of spool commands in the select do to print results.<br />
+<br />
+I do not understand the other queries at all.  The second query sets subass to tibom010.mitm, but the query is on tiitm001.  In this case the subass will be set to the LAST make item from the first query.  Then you turn around and find the make item on the tibom010 again.  This would find all components of the make item, but it would only set it for the last sub-items.<br />
+<br />
+It sounds like you are passing a purchase item to the report and want to print all of the assemblies that this item is used on?  If true then you could use the query above(with spool commands) to print all of the assemblies. Just not sure what you are trying to do.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">30th October 2002, 03:39</div></div><div class="posttext">Dear Itannous,<br />
+<br />
+You have to change the WHERE clause in the last query, ie line 4 from the bottom, to:<br />
+<br />
+where tibom010.sitm=:subass<br />
+<br />
+and you should get the right answer.<br />
+<br />
+By the way, to speed up query you might want to use table indices. Particularly the index2 of table tibom010 because it contains tibom010.sitm<br />
+<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">30th October 2002, 22:03</div></div><div class="posttext">Thanks Paul, that worked. How can I print a summary. I have in the past just deleted the detail layout and added the after field, but that is not working this time. Any ideas.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">31st October 2002, 03:11</div></div><div class="posttext">Dear Itannous,<br />
+<br />
+You can print after.field kind of summary without putting any detail section if the number you want to summarise has been passed from program script to report engine. Say your prog script already send the purchase amount per PO line to report engine, then you can omit detail section and summarise purchase amount per PO just using after.field<br />
+<br />
+However, if you need to calculate something based on data thrown by program script and summarise this calculated data, you'd have to have detail section. For example, prog script send purchase amount per PO line in purchase currency only and you need the purchase amount in Thailand Baht. Then you'd need to convert it in detail section before summarising in after.field section. Of course you can use lattr.print=false after calculation in detail section, so the calc will still be performed but the detail section won't show up. This way, you can still have summary report of numbers that need additional calc<br />
+<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">31st October 2002, 05:40</div></div><div class="posttext">Thanks for you help Paul</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">1st November 2002, 14:53</div></div><div class="posttext">I thought it had worked, but when I reviewed the details of the report, it is only writing the last main item(mitm) for the subassembly (sitm). It only writes the sitm once, even though it appears in many main items.<br />
+How can I write the details many times. <br />
+<br />
+This is the report script<br />
+<br />
+declaration:<br />
+	table ttimps200	<br />
+	table ttimps300<br />
+	table ttiitm001<br />
+	table ttibom010<br />
+	extern domain tcitem subass, test<br />
+	extern domain tcqiv1 unosub, usgmtm, quan1, quan2, val1, val2	<br />
+	extern domain tccuni unomea, unmain<br />
+	extern domain tcdate   date.f       <br />
+	extern domain tcdate   date.t     <br />
+	extern domain timps.plnc plnc.f<br />
+	extern domain timps.plnc plnc.t<br />
+	extern domain timps.plvl plvl.f<br />
+	extern domain timps.plvl plvl.t<br />
+        extern domain timps.plnc livec<br />
+	extern domain timps.plvl livel<br />
+<br />
+detail.1:<br />
+before.layout:<br />
+	select tibom010.*<br />
+	from tibom010, tiitm001<br />
+	where tibom010.sitm = :tdpsc001.item<br />
+	and tibom010.sitm = tiitm001.item<br />
+	and tiitm001.kitm =2<br />
+	and tibom010.exdt =0 	<br />
+	order by tibom010._index2<br />
+	selectdo<br />
+	endselect<br />
+	<br />
+	select tiitm001.*<br />
+	from tiitm001<br />
+	where tiitm001.item = :tibom010.sitm<br />
+	selectdo<br />
+		unomea = tiitm001.cuni		<br />
+		unosub = tibom010.qana<br />
+		subass = tibom010.mitm<br />
+	endselect<br />
+<br />
+        select  tiitm001.*<br />
+	from tiitm001<br />
+	where tiitm001.item = :tibom010.mitm<br />
+	selectdo<br />
+		unmain= tiitm001.cuni <br />
+	endselect	<br />
+	<br />
+	select tibom010.*<br />
+	from tibom010<br />
+	where tibom010.sitm = :subass<br />
+	and tibom010.exdt = 0	<br />
+	selectdo<br />
+		test = tibom010.mitm<br />
+		usgmtm = tibom010.qana<br />
+	endselect<br />
+<br />
+	select sum (timps300.demf)<br />
+	from timps300, timps200<br />
+	where timps300.plnc inrange :plnc.f and :plnc.t		|= &quot;300&quot;<br />
+	and timps300.plvl inrange :plvl.f and :plvl.t 		|= 99<br />
+	and timps300.plni = timps200.plni<br />
+	and timps200.plnc = :livec<br />
+	and timps200.plvl = :livel<br />
+	and timps300.plni = :test<br />
+	and timps300.demf &gt; 0<br />
+	and timps300.pdat inrange :date.f and :date.t<br />
+	selectdo<br />
+		quan1 = timps300.demf<br />
+	endselect<br />
+		<br />
+	select sum(timps300.demf)<br />
+	from timps300, timps200<br />
+	where timps300.plnc inrange :plnc.f and :plnc.t		|= &quot;300&quot;<br />
+	and timps300.plvl inrange :plvl.f and :plvl.t		|= 99<br />
+	and timps300.plni = timps200.plni<br />
+	and timps200.plnc = :livec<br />
+	and timps200.plvl = :livel<br />
+	and timps300.plni = :subass<br />
+	and timps300.demf &gt; 0<br />
+	and timps300.pdat inrange :date.f and :date.t<br />
+<br />
+	selectdo	<br />
+		quan2 = timps300.demf<br />
+	endselect<br />
+	<br />
+	val1 = unosub * quan2<br />
+	val2 = quan1 * usgmtm * unosub <br />
+	<br />
+after.tdpsc001.item.2:<br />
+before.layout:<br />
+	select tiitm001.*<br />
+	from tiitm001<br />
+	where tiitm001.item = :tibom010.sitm<br />
+	selectdo<br />
+		unomea = tiitm001.cuni<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">2nd November 2002, 04:23</div></div><div class="posttext">Dear Itannous,<br />
+<br />
+Oh, I see you are trying to make a report that shows the demand forecast of sub assemblies and finished goods that needs a certain item as base component. I think it would be better then if you customise the report of the session tibom1413m000, Print where used BOM components (multi level). In this session, Baan will already find out for you what sub assemblies and finished goods that needs the item as component. You then would just have to find the demand forecast for every sub assembly and FG that Baan finds. Much easier, ay?<br />
+<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">3rd November 2002, 02:34</div></div><div class="posttext">I dont have the source code for this session and I need to add additional selection options</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">4th November 2002, 03:46</div></div><div class="posttext">Dear Itannous,<br />
+<br />
+Wow, now this is a tough case. I'm assuming you don't have dev license and are currently using SQL query then to find the item list and other data before throwing them to report engine. Am I right?<br />
+<br />
+If you wanna keep the SQL query, one alternative is to use arrays on your report script. That is, array of sub assembly, array of sub assy demand forecast, array of FG, and array of FG demand forecast. But this is gonna be quite a complicated programming.<br />
+Would it be possible at all to move part of your query from your report script to your SQL query? For example, could you move the query for sub assy from report script to SQL query. That would eradicate the need for sub assy and sub assy demand forecast arrays.<br />
+<br />
+I'm just wondering, do you have a base component used in 2 different sub assy, and later these 2 are assembled into one FG. If you do, this indeed is going to complicate things even more because you have to prevent this FG from appearing twice<br />
+<br />
+One last thing, do you find the rough material requirements by critical item report unusable for your case? Just checking :)<br />
+<br />
+Surely having development license would help a lot since you can just push all the sub assy and FG query right to prog script. Anybody else has another method :) ?<br />
+<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evertsen</div><div class="date">4th November 2002, 05:38</div></div><div class="posttext">Paul P,<br />
+<br />
+Looks like Itannous does have a development license or I don't think he would be able to write a report script (although I don't know this for fact).  I believe the best course of action would be to write another session to meet the needs of this report.  This is not a very hard thing to do.  The hard part is already done because the current report script could be used as the program script for the new session (as you suggest) and probably even simplified.  That would be my advice anyway, as I don't have source either and have come across similar problems trying to use a standard session to print a more complicated report than was originally written for it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">4th November 2002, 19:15</div></div><div class="posttext">We do have a license, but I don't have source code for the session Pual metioned.<br />
+<br />
+I have created the session script to gather the initial data and also included the report script below.<br />
+<br />
+We did not want to set up these as critical items because we need to run this for various items and do not want it to effect our mrp/mps run. <br />
+The sub assembly is used once in a f.g. item. But it can be used in many f.goods.<br />
+<br />
+<br />
+Here is the session script:<br />
+<br />
+declaration:<br />
+<br />
+	table	ttdpsc001	| Purchase Contracts<br />
+	table	ttdpsc013	| Supplier Profile<br />
+	table	ttiitm001	| Items<br />
+	table	ttcmcs072	| Contract Analysis Codes<br />
+	table	ttcmcs002	| Currencies<br />
+	table	ttcmcs001	| Units<br />
+	table	ttcmcs070	| Contract Status Codes<br />
+	table	ttcmcs003	| Warehouses<br />
+	table	ttcmcs071	| Label Types<br />
+	table	ttcmcs046	| Languages<br />
+	table	ttcmcs074	| Receiving Pattern Descriptions<br />
+	table	ttccom001	| Employees<br />
+	table   ttibom010	| BOMs<br />
+	extern	domain	ttyeno        	txta.txt<br />
+	extern	domain	ttyeno        	txti.txt<br />
+<br />
+	extern	domain	tcitem        	item.f	fixed<br />
+	extern	domain	tcitem        	item.t	fixed<br />
+	extern	domain	tcsuno        	suno.f	fixed<br />
+	extern	domain	tcsuno        	suno.t	fixed<br />
+	extern	domain	tccono        	cont.f<br />
+	extern	domain	tccono        	cont.t<br />
+	extern	domain	tdpsc.pono    	pono.f<br />
+	extern	domain	tdpsc.pono    	pono.t<br />
+	extern	domain	ttyeno        	txta.txt<br />
+	extern	domain	ttyeno        	txti.txt<br />
+	extern	domain	tcdsca        	item.dsca    <br />
+	extern	domain	tcdsca        	anl1.dsca    <br />
+	extern	domain	tcdsca        	anl2.dsca    <br />
+	extern	domain	tcdsca        	cuqp.dsca    <br />
+	extern	domain	tcdsca        	cupp.dsca    <br />
+	extern	domain	tcdsca        	atyp.dsca    <br />
+	extern	domain	tcdsca        	btyp.dsca    <br />
+	extern	domain	tcdsca        	mtyp.dsca    <br />
+	extern	domain	tcdsca        	utyp.dsca    <br />
+	extern	domain	tcdsca        	aodl.dsca    <br />
+	extern	domain	tcdsca        	bodl.dsca    <br />
+	extern	domain	tcdsca        	modl.dsca    <br />
+	extern	domain	tcdsca        	uodl.dsca    <br />
+	extern  domain  tcdate 		date.f<br />
+	extern  domain  tcdate          date.t<br />
+	extern  domain  timps.plnc      plnc.f<br />
+	extern  domain  timps.plnc	plnc.t<br />
+	extern  domain  timps.plvl	plvl.f<br />
+	extern  domain  timps.plvl	plvl.t<br />
+	extern  domain  timps.plvl      livel<br />
+	extern  domain  timps.plnc      livec<br />
+<br />
+<br />
+<br />
+|****************************** form section **********************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+	if rprt_open() then<br />
+		read.main.table()<br />
+		rprt_close()<br />
+	else<br />
+		choice.again()<br />
+	endif<br />
+<br />
+<br />
+|****************************** field section *********************************<br />
+<br />
+field.item.f:<br />
+when.field.changes:<br />
+	item.t = item.f<br />
+<br />
+before.zoom:<br />
+	tiitm001.item = item.f<br />
+<br />
+field.item.t:<br />
+before.zoom:<br />
+	tiitm001.item = item.t<br />
+<br />
+field.suno.f:<br />
+when.field.changes:<br />
+	suno.t = suno.f<br />
+<br />
+field.cont.f:<br />
+when.field.changes:<br />
+	cont.t = cont.f<br />
+<br />
+field.pono.f:<br />
+when.field.changes:<br />
+	pono.t = pono.f<br />
+<br />
+<br />
+field.plnc.f:<br />
+when.field.changes:<br />
+ <br />
+	plnc.t = plnc.f<br />
+<br />
+<br />
+field.plvl.f:<br />
+when.field.changes:<br />
+	<br />
+	plvl.t = plvl.f<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{<br />
+	select	tdpsc001.*, tdpsc013.*, titem.dsca:item.dsca, tanl1.dsca:anl1.dsca, <br />
+		tanl2.dsca:anl2.dsca, tcmcs002.*, tcuqp.dsca:cuqp.dsca, <br />
+		tcupp.dsca:cupp.dsca, tatyp.dsca:atyp.dsca, tbtyp.dsca:btyp.dsca, <br />
+		tmtyp.dsca:mtyp.dsca, tutyp.dsca:utyp.dsca, tcmcs070.*, <br />
+		tcmcs003.*, taodl.dsca:aodl.dsca, tbodl.dsca:bodl.dsca, <br />
+		tmodl.dsca:modl.dsca, tuodl.dsca:uodl.dsca, tcmcs046.*, <br />
+		tcmcs074.*, tccom001.*, tibom010.*<br />
+	from	tdpsc001, tdpsc013, tiitm001 titem, tcmcs072 tanl1, <br />
+		tcmcs072 tanl2, tcmcs002, tcmcs001 tcuqp, tcmcs001 tcupp, <br />
+		tiitm001 tatyp, tiitm001 tbtyp, tiitm001 tmtyp, tiitm001 tutyp, <br />
+		tcmcs070, tcmcs003, tcmcs071 taodl, tcmcs071 tbodl, tcmcs071 tmodl, <br />
+		tcmcs071 tuodl, tcmcs046, tcmcs074, tccom001, tibom010<br />
+	where   tdpsc001._index3 inrange {:item.f, :suno.f, :cont.f, <br />
+		:pono.f}<br />
+	                     and {:item.t, :suno.t, :cont.t, :pono.t}<br />
+	and	tdpsc001.suno refers to tdpsc013<br />
+	and 	tdpsc001.item refers to titem<br />
+	and 	tdpsc001.anl1 refers to tanl1<br />
+	and 	tdpsc001.anl2 refers to tanl2<br />
+	and	tdpsc001.ccur refers to tcmcs002<br />
+	and 	tdpsc001.cuqp refers to tcuqp<br />
+	and 	tdpsc001.cupp refers to tcupp<br />
+	and 	tdpsc001.atyp refers to tatyp<br />
+	and 	tdpsc001.btyp refers to tbtyp<br />
+	and 	tdpsc001.mtyp refers to tmtyp<br />
+	and 	tdpsc001.utyp refers to tutyp<br />
+	and	tdpsc001.stat refers to tcmcs070<br />
+	and	tdpsc001.cwar refers to tcmcs003<br />
+	and 	tdpsc001.aodl refers to taodl<br />
+	and 	tdpsc001.bodl refers to tbodl<br />
+	and 	tdpsc001.modl refers to tmodl<br />
+	and 	tdpsc001.uodl refers to tuodl<br />
+	and	tdpsc001.clan refers to tcmcs046<br />
+	and	tdpsc001.ship refers to tcmcs074<br />
+	and	tdpsc001.cpln refers to tccom001<br />
+	and	tibom010.sitm = tdpsc001.item	<br />
+	and     tdpsc001.stat = &quot;LV&quot;<br />
+	order by tdpsc001._index3<br />
+	selectdo<br />
+		rprt_send()<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">5th November 2002, 03:57</div></div><div class="posttext">Dear Itannous,<br />
+<br />
+Well, it's great then! All you have to do is<br />
+<br />
+- Move the double query on tibom010 from report script to selectdo of your prog script. This will make prog script look for all sub assy and FG you want before sending to report engine<br />
+<br />
+- Move the second query on tibom010 (finding FG) inside the first query on tibom010 (finding sub assy). This will make sure you find every combination of sub assy and FG used by the component<br />
+<br />
+- Move the rprt_send inside the second query to tibom010 (finding FG). Hence you will be sending every time new combination of sub assy and FG is found (this is what you want, right?)<br />
+<br />
+- As a result, every time a particular detail section, say detail.1, is printed, it will be on new component-sub assy-FG combo. You can then just leave demand forecast calc of the FG in the report script of that detail section.<br />
+<br />
+After all of this, you'll have something very similar to rough material requirements by critical item that Baan provides. Are you sure you don't want to use that instead? Pls let know how it work out. Thanks :)<br />
+<br />
+Rgds,<br />
+Paul<br />
+<br />
+PS.<br />
+Ev, anything I miss that you might want to add? Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">5th November 2002, 17:02</div></div><div class="posttext">Not sure if I followed your insturctions exactly. This is what I have added to the session script<br />
+<br />
+I will send as an attachment</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">6th November 2002, 03:10</div></div><div class="posttext">Dear Itannous,<br />
+<br />
+I've just started to look at your main select. You selected the sub assy already in there. I saw that you already include tibom010 in the main select. Then all you have to do is have one select inside the main select to find the FG, not double select. BTW, you made sure that all your BOMs are 2 levels only (base comp-&gt;sub assy-&gt;FG), right? Also, you made sure that only base component will be passed to the main select, right? I don't know the table structure of the customised PSC module, hence I don't know whether these checks have been performed<br />
+<br />
+Also pls remove the additional tiitm001 query on base component's inventory unit in selectdo of main select. You can perform this right in the main select since you already include tiitm001 of base component there.<br />
+<br />
+It's now getting a bit too complicated, don't you think? What do you think about giving OmeLuuk's suggestion a try,  ie get the source code of tibom1413m000 and start from there?<br />
+<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th November 2002, 17:07</div></div><div class="posttext">I split this thread per OmeLuuks request.  The other piece of this post can be found here (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=7560).<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

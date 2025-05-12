@@ -1,0 +1,113 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="after delete in &quot;Input multioccurrence session&quot;, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] after delete in &quot;Input multioccurrence session&quot; Tools Development" />
+	
+	<title>after delete in &quot;Input multioccurrence session&quot; [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; after delete in &quot;Input multioccurrence session&quot;</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Paliss</div><div class="date">28th March 2002, 10:53</div></div><div class="posttext">Error 206 table is not locked for main table of session appears when I try delete range of records.<br />
+<br />
+Only first record is deleted.<br />
+Section after delete looks as below shown. <br />
+<br />
+after.delete: <br />
+select table.* <br />
+from   table for update<br />
+where  table<br />
+selectdo<br />
+  table.xx = uu<br />
+  db.update (table, db.retry)<br />
+endselect<br />
+commit.transaction()<br />
+<br />
+For all records marked for delete is update sucesfully done.<br />
+The same situation is in section after.rewrite (update) for more than 1 record<br />
+For after.write (insert) more records is all OK.<br />
+<br />
+When I function commit.transaction() remove from program than program hangs with error cannot continue transaction is on<br />
+<br />
+Can anybody help me?<br />
+<br />
+Thanks<br />
+Paliss</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">28th March 2002, 15:58</div></div><div class="posttext">commit.transaction() is part of the standard program.  Therefore, it should not generally be placed in a section that is kicked off by a standard insert/update/delete action.  So, taking it out of the after.delete solves one problem.<br />
+<br />
+As for the &quot;transaction is on&quot; error, what is the relationship between the table your are trying to update in the after.delete section and the session's main table?  &quot;Transaction is on&quot; means that you had a pending (i.e., uncommitted and unaborted)transaction when you tried (again) to modify that same record.<br />
+<br />
+Perhaps you can explain exactly what you are trying to accomplish.  That might help encourage more comments.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paliss</div><div class="date">28th March 2002, 17:31</div></div><div class="posttext">The problem is following.<br />
+<br />
+I have table BOX, where is box, weight and so on.<br />
+Next table is BOX-ROW where is weight of row etc.<br />
+Next table is TDSLS045 delivery , where I use field dqua-delivery amount and new field pack.c packed amount.<br />
+<br />
+When I add/change/delete row of box I have to change table tdsls045 - pack.c - it depends on action.<br />
+I must recalculate weight of box from row of box.<br />
+All these upadates I havo to do for every row. <br />
+Therefore I do updates in sections <br />
+after.delete, after.write and after.rewrite<br />
+<br />
+I hope that I explained this enough<br />
+<br />
+Paliss</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">28th March 2002, 20:31</div></div><div class="posttext">I guess I still don't understand the relationships between the tables.  Is there a one-to-many relationship between BOX-ROW and BOX.  How do these relate to tdsls045 (one delivery to one or more BOXes)?  Which table has the type 3 form? I suppose listing the indices would help.<br />
+<br />
+Sorry if I'm being dense.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paliss</div><div class="date">29th March 2002, 10:34</div></div><div class="posttext">One BOX can have several ROWS of BOX.<br />
+One ROW have one DELIVERY (tdsls045).<br />
+But one DELIEVERY can be splited between several ROWS.<br />
+<br />
+relations between table<br />
+BOX   1:N   ROW of BOX<br />
+ROWS of BOX  N:1   DELIVERY<br />
+<br />
+I attach table stucture of tables BOX and ROWS of BOX<br />
+<br />
+The main table of session and form 3 is table ROWS of BOX (tdsls983)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">29th March 2002, 16:12</div></div><div class="posttext">OK, I think I have an idea.  If you happen to select more than one BOX-ROW that is tied to the same delivery, then you end up trying to perform multiple updates on the same tdsls045 record before reaching the standard program's commit.  Your original effort with the commit.transaction would have solved this.  However, it interfered with other standard program actions.<br />
+<br />
+There are a few different ways to get around this.  One way would be to create arrays to hold the key values (orno, pono, sern) of the affected tdsls045 record as well as the impact on the pack.c field for that delivery.  Then, instead of doing the update in the after.delete, you would fill or update the array values.  You could then do the updates (based on the arrays) to tdsls045 in the choice.update.db/after.choice section or in the after.update.db.commit section.<br />
+<br />
+I hope this is clear and helps.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paliss</div><div class="date">29th March 2002, 16:19</div></div><div class="posttext">Thank for your advice.<br />
+I'll try it.<br />
+<br />
+Thanks<br />
+<br />
+Paliss</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dwallace</div><div class="date">4th April 2002, 19:25</div></div><div class="posttext">What about the &quot;occ&quot; commands?  Would these work in this situation - like 'do.occ.without.update' or 'do.all.occ'?<br />
+<br />
+I don't use these often - and really don't understand them.  I see them used in Maintain Receipts, tdpur4120 a lot.<br />
+<br />
+Denise</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Out of memory with dynamic sql., baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Out of memory with dynamic sql. Tools Development" />
+	
+	<title>Out of memory with dynamic sql. [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Out of memory with dynamic sql.</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">walterbb</div><div class="date">6th September 2010, 11:07</div></div><div class="posttext">Hi,<br />
+<br />
+I have a script that uses dynamic sql and tough the results are correct the script (Oracle driver) runs out of memory. After a few thousand output records the Baan Oracle driver reaches it's allocated limit of 256Mb.<br />
+I think the dynamic query is correct but maybe I'm doiing something wrong with the sql statements.<br />
+<br />
+The dynamic sql looks like :<br />
+string	sql_query_1(1500)<br />
+long	sql_id_1<br />
+<br />
+sql_query_1 = &quot;select tdsls030.cuno, tdsls030.item, tdsls030.pric, tdsls030.stdt, tdsls030.tdat, tdsls030.gnpr, tdsls030.disc from tdsls030&quot; &amp;<br />
+	&quot; where tdsls030.item = &quot; &amp; DQ &amp; i.item &amp; DQ &amp; &quot; and tdsls030.cuno in (&quot; &amp; g.cuno.lijst &amp; &quot;)&quot; &amp;<br />
+	&quot; and tdsls030.stdt &lt;= &quot; &amp; str$(huidige.datum) &amp; &quot; and tdsls030.tdat &gt;= &quot; &amp; str$(huidige.datum) &amp;<br />
+	&quot; order by tdsls030.tdat desc as set with 1 rows&quot;<br />
+<br />
+sql_id_1 = sql.parse(sql_query_1)<br />
+<br />
+rv = sql.select.bind(sql_id_1, 1, tdsls030.cuno)<br />
+rv = sql.select.bind(sql_id_1, 2, tdsls030.item)<br />
+rv = sql.select.bind(sql_id_1, 3, tdsls030.pric)<br />
+rv = sql.select.bind(sql_id_1, 4, tdsls030.stdt)<br />
+rv = sql.select.bind(sql_id_1, 5, tdsls030.tdat)<br />
+rv = sql.select.bind(sql_id_1, 6, tdsls030.gnpr)<br />
+rv = sql.select.bind(sql_id_1, 7, tdsls030.disc)<br />
+<br />
+rv = sql.exec(sql_id_1)<br />
+<br />
+while (true)<br />
+	on case ( sql.fetch(sql_id_1) )<br />
+	case eendfile:<br />
+		break<br />
+	case enorec:<br />
+		break<br />
+	case 0:<br />
+		| Record gevonden.<br />
+		#IF TRACING<br />
+		rep.line = sprintf$(&quot;cuno.item.level.1  cuno:%s  item:%s  gnpr:%s  pric:%15.6f  disc:%13.2f  std:%D(%d-%m-%Y)  tdat:%D(%d-%m-%Y)&quot;, <br />
+			tdsls030.cuno, tdsls030.item, enum.descr$(&quot;tcgnpr&quot;,tdsls030.gnpr), tdsls030.pric, tdsls030.disc, tdsls030.stdt, tdsls030.tdat)<br />
+		rprt_send()<br />
+		#ENDIF<br />
+		o.gnpr = enum.descr$(&quot;tcgnpr&quot;,tdsls030.gnpr)<br />
+		voeg.toe.aan.prijs.array(tdsls030.pric, tdsls030.disc, o.gnpr, sprintf$(&quot;cuno.item-%s-%s&quot;, tdsls030.cuno, tdsls030.item) )<br />
+		continue<br />
+	endcase<br />
+	break<br />
+endwhile<br />
+<br />
+sql.break(sql_id_1)<br />
+	sql.close(sql_id_1)<br />
+<br />
+<br />
+Which parses to :<br />
+<br />
+select tdsls030.cuno, tdsls030.item, tdsls030.pric, tdsls030.stdt, tdsls030.tdat, tdsls030.gnpr, tdsls030.disc from tdsls030 where tdsls030.item = &quot;            000W&quot; and tdsls030.cuno in (&quot;B06760&quot;,&quot;ZXXXX4&quot;,&quot;E00023&quot;,&quot;E00075&quot;,&quot;E00123&quot;,&quot;E00137&quot;,&quot;E00138&quot;,&quot;E00145&quot;,&quot;E00153&quot;,&quot;E00187&quot;,&quot;E00211&quot;,&quot;E00313&quot;,&quot;E00349&quot;) and tdsls030.stdt &lt;= 734021 and tdsls030.tdat &gt;= 734021 order by tdsls030.tdat desc as set with 1 rows<br />
+<br />
+I hope someone can help me with this.<br />
+<br />
+The function &quot;voeg.toe.aan.prijs.array&quot; adds the results to a list.<br />
+<br />
+regards,<br />
+Walter</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">walterbb</div><div class="date">7th September 2010, 12:58</div></div><div class="posttext">Anyone ??<br />
+<br />
+In the meanwhile...I removed the while loop since the query only produces 1 or 0 records per fetch.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">walterbb</div><div class="date">7th September 2010, 15:58</div></div><div class="posttext">For anyone who is interested.<br />
+<br />
+I changed the code &quot;tdsls030.cuno in (client1, client2, etc)&quot; to a number of &quot;tdsls030.cuno = client1 or tdsls030.cuno = client2&quot; statements and the problem (I'll call it a memory leak) has disappeared.<br />
+<br />
+Walter</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th September 2010, 16:08</div></div><div class="posttext">Thanks for posting the solution.  Not sure why it happens with the original everything looked good to me.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

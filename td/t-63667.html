@@ -1,0 +1,269 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Master Detail SubDetail reporting, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Master Detail SubDetail reporting Tools Development" />
+	
+	<title>Master Detail SubDetail reporting [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Master Detail SubDetail reporting</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">JoeleZ</div><div class="date">1st February 2013, 04:34</div></div><div class="posttext">I'm new in baan board, and i want to ask to anyone that mastering reporting.<br />
+i want to create report for manufacturing order, that have multiple operation.<br />
+<br />
+and i want to print from MO and printing all of the operation, and break page each operation. <br />
+<br />
+right now i already creating program script but it was just printing for one operation per MO. now we have MO with multiple operation. how can i change the code that i have? here i'll put my code<br />
+<br />
+|******************************************************************************<br />
+|* tisfc9401  0  VRC B617 u  bsi1<br />
+|* Manufacturing Order<br />
+|* Installation user                                                                                                       <br />
+|* 2012-10-25<br />
+|******************************************************************************<br />
+|* Main table tisfc001 Production Orders, Form Type 4<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+<br />
+  table   ttisfc001 | Production Orders<br />
+  table   tbptmm120<br />
+  table   tticst001<br />
+  table   ttcibd001<br />
+<br />
+   extern  domain  tcpdno           pdno.f    fixed<br />
+   extern  domain  tcpdno           pdno.t    fixed<br />
+<br />
+   extern  domain  tcbool	    detail.lay<br />
+   extern  domain  tcbool	    hours.line<br />
+<br />
+   extern   domain tcbool	    wip.line<br />
+<br />
+   extern   domain tcbool	    estimate.line<br />
+<br />
+   extern   domain tcitem	    item.product<br />
+   extern   domain tcdsca	    item.dsca<br />
+   extern   domain tccuni	    uom<br />
+   extern   domain tiqcp1	    quantity<br />
+   <br />
+   extern   domain tiqro2	    target.hour<br />
+   extern   domain tcnoru	    normal.person<br />
+   extern   domain tccwoc	    work.center<br />
+   extern   domain tcdsca	    work.cent.name<br />
+   extern   domain tclogn	    user.log<br />
+<br />
+   extern   domain tcbool	    fill.line<br />
+<br />
+|****************************** program section ********************************<br />
+<br />
+<br />
+|****************************** group section **********************************<br />
+<br />
+group.1:<br />
+init.group:<br />
+   get.screen.defaults()<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+   execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+   if rprt_open() then<br />
+       read.main.table()<br />
+       rprt_close()<br />
+   else<br />
+       choice.again()<br />
+   endif<br />
+<br />
+<br />
+|****************************** field section *********************************<br />
+<br />
+field.pdno.f:<br />
+when.field.changes:<br />
+   pdno.t = pdno.f<br />
+<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{<br />
+    user.log = logname$<br />
+    fill.line = false<br />
+    select  tisfc001.*<br />
+    from    tisfc001<br />
+    where   tisfc001._index1 inrange {:pdno.f}<br />
+                                    and {:pdno.t}<br />
+    order by tisfc001._index1<br />
+    selectdo<br />
+	detail.lay = false<br />
+	get.target.hour.and.normal.person()<br />
+	rprt_send()<br />
+	print.wip()<br />
+	print.estimated.materials()<br />
+	estimate.line = true<br />
+	detail.lay = false<br />
+	rprt_send()<br />
+    	estimate.line = false<br />
+    	fill.line = true<br />
+    	rprt_send()<br />
+   	fill.line = false<br />
+    selectempty<br />
+	message(&quot;No data within selection&quot;)<br />
+	return<br />
+    endselect<br />
+<br />
+}<br />
+<br />
+<br />
+function print.wip()<br />
+{<br />
+	|* Yet to decide the logic, when customer comes up with logic to calculate, this can filled<br />
+}<br />
+<br />
+function print.estimated.materials()<br />
+{<br />
+	detail.lay = true<br />
+	select	ticst001.*<br />
+	from	ticst001<br />
+	where	ticst001._index1 = {:tisfc001.pdno}<br />
+	selectdo<br />
+		item.product = ticst001.sitm<br />
+		item.dsca = get.item.desc()<br />
+		select	tcibd001.*<br />
+		from	tcibd001<br />
+		where	tcibd001.item = {:tisfc001.mitm}<br />
+		selectdo<br />
+		uom = tcibd001.cuni<br />
+		selectempty<br />
+		uom = &quot;PCS&quot;<br />
+		endselect<br />
+		quantity = ticst001.ques<br />
+		rprt_send()<br />
+<br />
+	endselect<br />
+	detail.lay = false<br />
+<br />
+}<br />
+<br />
+function domain tcdsca get.item.desc()<br />
+{<br />
+	domain tcdsca l.dsca<br />
+        l.dsca = &quot;&quot;<br />
+	select	tcibd001.dsca:l.dsca<br />
+	from	tcibd001<br />
+	where	tcibd001._index1 = {:ticst001.sitm}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		break<br />
+	endselect<br />
+	return(l.dsca)<br />
+}<br />
+<br />
+function get.target.hour.and.normal.person()<br />
+{<br />
+	target.hour = 0<br />
+	work.center = &quot;&quot;<br />
+	normal.person = 0<br />
+	select	tisfc010.prte:target.hour,<br />
+		tisfc010.cwoc:work.center<br />
+	from	tisfc010<br />
+	where	tisfc010._index1 = {:tisfc001.pdno}<br />
+	|as set with 1 rows<br />
+	selectdo<br />
+		select	tirou001.noop:normal.person,<br />
+			tirou001.dsca:work.cent.name<br />
+		from	tirou001<br />
+		where	tirou001._index1 = {:work.center}<br />
+		|as set with 1 rows<br />
+		selectdo<br />
+		endselect<br />
+	endselect<br />
+<br />
+}<br />
+<br />
+<br />
+please help me....<br />
+my jobs is on the line...<br />
+<br />
+best regards,<br />
+Yoel</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">1st February 2013, 20:34</div></div><div class="posttext">Well you get all the production orders with a select.  You then do this:<br />
+<br />
+    user.log = logname$<br />
+    fill.line = false<br />
+    select  tisfc001.*<br />
+    from    tisfc001<br />
+    where   tisfc001._index1 inrange {:pdno.f}<br />
+                                    and {:pdno.t}<br />
+    order by tisfc001._index1<br />
+    selectdo<br />
+	detail.lay = false<br />
+	get.target.hour.and.normal.person()<br />
+	rprt_send()<br />
+<br />
+so the get.target.hour routine gets all the operations, but you only do a report send after the subroutine.  Move the rprt_send() into the function like below:<br />
+<br />
+function get.target.hour.and.normal.person()<br />
+{<br />
+	target.hour = 0<br />
+	work.center = &quot;&quot;<br />
+	normal.person = 0<br />
+	select	tisfc010.prte:target.hour,<br />
+		tisfc010.cwoc:work.center<br />
+	from	tisfc010<br />
+	where	tisfc010._index1 = {:tisfc001.pdno}<br />
+	|as set with 1 rows<br />
+	selectdo<br />
+		select	tirou001.noop:normal.person,<br />
+			tirou001.dsca:work.cent.name<br />
+		from	tirou001<br />
+		where	tirou001._index1 = {:work.center}<br />
+		as set with 1 rows<br />
+		selectdo<br />
+		endselect<br />
+                           rprt_send()<br />
+	endselect<br />
+}<br />
+<br />
+Also note I put the as set with 1 rows back into the work center select.  At least on our system we would only need 1 work center per operation.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JoeleZ</div><div class="date">4th February 2013, 04:00</div></div><div class="posttext">Thanksalot, i'll try it now.... thanks a lot.<br />
+i'll update you when custom is done.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JoeleZ</div><div class="date">4th February 2013, 09:37</div></div><div class="posttext">Hellow, <br />
+<br />
+Thx Mr Mark,<br />
+Now i can do it, but i'm confusehow to doing something like page() in report script if want to do it on program script.<br />
+<br />
+because it isn't break the page but continuous add a new operation and item T_T<br />
+<br />
+thanks again....<br />
+best regards, <br />
+Yoel</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th February 2013, 15:11</div></div><div class="posttext">As far as I know the page() command will only work in the report script.  If you have a layout you always want to start on a new page then you can set it on the layout itself.  Sometimes you just basically have to play with a report and the various settings to see what they do.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

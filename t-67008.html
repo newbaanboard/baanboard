@@ -1,0 +1,446 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="system triggered?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] system triggered? AFS/DDC/OLE: Function servers" />
+	
+	<title>system triggered? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; system triggered?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jojovalenton</div><div class="date">22nd October 2014, 15:48</div></div><div class="posttext">hello,<br />
+<br />
+i just want to ask if it is possible for an afs application (LN fp7) to run at a certain time/date automatically? i am planning to make an afs for a standard print session that will run automatically.<br />
+<br />
+thanks,<br />
+<br />
+jojo</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">22nd October 2014, 15:56</div></div><div class="posttext">I can't say for sure for LN, but for 4c4 we have some that are scheduled to run on a nightly basis.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jojovalenton</div><div class="date">22nd October 2014, 16:30</div></div><div class="posttext">Is it ok to ask for your afs scripts used and where it is placed in the system to run automatically?<br />
+<br />
+thanks,<br />
+<br />
+jojo</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">benito</div><div class="date">22nd October 2014, 17:53</div></div><div class="posttext">is there any reason why you can't use the windows task scheduler?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jojovalenton</div><div class="date">23rd October 2014, 08:11</div></div><div class="posttext">if it is possible to run LN sessions through windows task scheduler maybe i can consider using it or if you can suggest how to use it in LN. thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd October 2014, 15:53</div></div><div class="posttext">Our 4c4 system we use cron to schedule them.  The jobs are setup through the normal baan sessions - Maintain Jobs.  The scripts that run are the same scripts the users use.  What we do in the session is something to initial items the users might select.  Here is an example:<br />
+<br />
+<br />
+   If job.process then<br />
+      tag.report = &quot;rtdilc940116000&quot;<br />
+      outbound.report = &quot;rtdilc440110000&quot;<br />
+      process.operation.table()<br />
+   endif<br />
+<br />
+<br />
+The API code is really all in the libraries not in the session itself.  But basically the above will call a routine to generate outbound based some tables.  Then it will print the pick tags we use and the outbound for the user.  I am not sure this example is in production.  We have another pick program that runs nightly where the user tells us what warehouse, what reports and what printer to send them do.  Basically the same stuff they could do in the session itself - we just read the setup parameters from another table before running any AFS code.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jojovalenton</div><div class="date">23rd October 2014, 17:16</div></div><div class="posttext">can i ask what API code you used in the declaration? thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd October 2014, 20:25</div></div><div class="posttext">Not sure what you mean.  Below is basically the code - the actuall api calls are in libraries.<br />
+<br />
+<br />
+declaration:<br />
+	table	ttdilc410	| Run Numbers<br />
+	table	tttaad300	| Devices<br />
+	table	ttdapi402	| Warehouse groups<br />
+	table	ttdinv990	| Floor Stock Warehouses<br />
+	table	ttcmcs003	| Warehouses<br />
+	table	ttdudi071	| Pick by Operation Table<br />
+	table	tticst001	| Estimated and actual materials<br />
+	<br />
+| Form fields<br />
+	extern	domain	tcmcs.str12	runn<br />
+	extern	domain	tcitem		item.f, item.t<br />
+	extern	domain	tcorno		orno.f, orno.t<br />
+	extern	domain	tcopno		opno.f, opno.t<br />
+	extern	domain	tccwar		cwar.f, cwar.t<br />
+	extern	domain	tgyenox		prnt.advice, prnt.shortage, prnt.tag, prnt.outbound<br />
+	extern	domain	timps.devi	advice.printer, shortage.printer, tag.printer, outbound.printer<br />
+	extern	domain	tcdsca		advice.dsca, shortage.dsca, tag.dsca, outbound.dsca<br />
+<br />
+| script fields<br />
+		string			errmsg(120)<br />
+	extern	domain	tcbool		group.warehouse<br />
+			long		retcode<br />
+	extern	domain	tcmcs.str15	tag.report, outbound.report<br />
+	extern	domain	tcmcs.str8  	zoom.prog<br />
+	<br />
+		string			hlddatetime(12)<br />
+	extern		string		temp.file(1024)		<br />
+	<br />
+	long	event_3(EVTMAXSIZE)	<br />
+|****************************** PROGRAM     SECTION ***************************<br />
+before.program:<br />
+|Clear pending events<br />
+	while pending.events()&gt;0<br />
+		next.event(event_3)<br />
+	endwhile<br />
+<br />
+|****************************** ZOOM FROM   SECTION ***************************<br />
+|****************************** FORM	     SECTION ***************************<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+|****************************** CHOICE      SECTION ***************************<br />
+choice.cont.process:<br />
+on.choice:<br />
+	check.all.input()<br />
+	if job.process or getenv$(&quot;LOGNAME&quot;)=&quot;hollanma&quot; or getenv$(&quot;LOGNAME&quot;)&lt;&gt;&quot;henkencd&quot; or getenv$(&quot;LOGNAME&quot;)&lt;&gt;&quot;maloneab&quot; then<br />
+		tag.report = &quot;rtdilc940116000&quot;				|20090407<br />
+		outbound.report = &quot;rtdilc440110000&quot;			|20090407<br />
+		process.operation.table()<br />
+	endif<br />
+|****************************** FIELD       SECTION ***************************<br />
+field.runn:<br />
+before.zoom:<br />
+	zoom.prog = &quot;outbound&quot;<br />
+check.input:<br />
+	select	tdilc410.runn<br />
+	from	tdilc410<br />
+	where	tdilc410._index1 = {tdilc.kofr.outbound, :runn}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	selectempty<br />
+		message(&quot;Run number not setup for outbound.&quot;)<br />
+		set.input.error(&quot;&quot;)<br />
+	endselect<br />
+	<br />
+field.orno.f:<br />
+after.input:<br />
+	orno.t = orno.f<br />
+	<br />
+field.opno.f:<br />
+after.input:<br />
+	opno.t = opno.f<br />
+	<br />
+field.item.f:<br />
+after.input:<br />
+	item.t = item.f<br />
+	<br />
+field.cwar.f:<br />
+after.input:<br />
+	cwar.t = cwar.f<br />
+<br />
+check.input:<br />
+	group.warehouse = false<br />
+	select	tdapi402.cwar<br />
+	from	tdapi402<br />
+	where	tdapi402._index2 = {:cwar.f}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		group.warehouse = true<br />
+	endselect<br />
+	<br />
+before.zoom:<br />
+	cwar.f = &quot;&quot;<br />
+after.zoom:<br />
+	if isspace(cwar.f) then<br />
+		cwar.f = tcmcs003.cwar<br />
+	endif<br />
+	<br />
+field.cwar.t:<br />
+before.input:<br />
+	if group.warehouse then<br />
+		attr.input = false<br />
+	endif<br />
+<br />
+field.advice.printer:<br />
+before.input:<br />
+	if prnt.advice &lt;&gt; tgyenox.yes then<br />
+		advice.printer = &quot;&quot;<br />
+		attr.input = false<br />
+	endif<br />
+<br />
+after.input:<br />
+|* 20041222.st - Printer defaults as requested<br />
+	advice.printer = toupper$(advice.printer)<br />
+	shortage.printer = advice.printer<br />
+	outbound.printer = advice.printer<br />
+	display(&quot;shortage.printer&quot;)<br />
+	display(&quot;outbound.printer&quot;)<br />
+|* 20041222.end - Printer defaults as requested<br />
+	<br />
+<br />
+check.input:<br />
+	if prnt.advice = tgyenox.yes then<br />
+		select	ttaad300.devc, ttaad300.desc:advice.dsca<br />
+		from	ttaad300<br />
+		where	ttaad300._index1 = {:advice.printer}<br />
+		and	ttaad300._compnr = 0<br />
+		as set with 1 rows<br />
+		selectdo<br />
+		selectempty<br />
+			message(&quot;Not a valid output device.&quot;)<br />
+			set.input.error(&quot;&quot;)<br />
+		endselect<br />
+		display(&quot;advice.dsca&quot;)<br />
+	endif<br />
+	<br />
+field.shortage.printer:<br />
+before.input:<br />
+	if prnt.shortage &lt;&gt; tgyenox.yes then<br />
+		shortage.printer = &quot;&quot;<br />
+		attr.input = false<br />
+	endif<br />
+	<br />
+after.input:<br />
+	shortage.printer = toupper$(shortage.printer)<br />
+	<br />
+check.input:<br />
+	if prnt.shortage = tgyenox.yes then<br />
+		select	ttaad300.devc, ttaad300.desc:shortage.dsca<br />
+		from	ttaad300<br />
+		where	ttaad300._index1 = {:shortage.printer}<br />
+		and	ttaad300._compnr = 0<br />
+		as set with 1 rows<br />
+		selectdo<br />
+		selectempty<br />
+			message(&quot;Not a valid output device.&quot;)<br />
+			set.input.error(&quot;&quot;)<br />
+		endselect<br />
+		display(&quot;shortage.dsca&quot;)<br />
+	endif<br />
+	<br />
+field.tag.printer:<br />
+before.input:<br />
+	if prnt.tag &lt;&gt; tgyenox.yes then<br />
+		tag.printer = &quot;&quot;<br />
+		attr.input = false<br />
+	endif<br />
+	<br />
+after.input:<br />
+	tag.printer = toupper$(tag.printer)<br />
+	<br />
+check.input:<br />
+	if prnt.tag = tgyenox.yes then<br />
+		select	ttaad300.devc, ttaad300.desc:tag.dsca<br />
+		from	ttaad300<br />
+		where	ttaad300._index1 = {:tag.printer}<br />
+		and	ttaad300._compnr = 0<br />
+		as set with 1 rows<br />
+		selectdo<br />
+		selectempty<br />
+			message(&quot;Not a valid output device.&quot;)<br />
+			set.input.error(&quot;&quot;)<br />
+		endselect<br />
+		display(&quot;tag.dsca&quot;)<br />
+	endif<br />
+	<br />
+field.outbound.printer:<br />
+before.input:<br />
+	if prnt.outbound &lt;&gt; tgyenox.yes then<br />
+		outbound.printer = &quot;&quot;<br />
+		attr.input = false<br />
+	endif<br />
+	<br />
+after.input:<br />
+	outbound.printer = toupper$(outbound.printer)<br />
+	<br />
+check.input:<br />
+	if prnt.outbound = tgyenox.yes then<br />
+		select	ttaad300.devc, ttaad300.desc:outbound.dsca<br />
+		from	ttaad300<br />
+		where	ttaad300._index1 = {:outbound.printer}<br />
+		and	ttaad300._compnr = 0<br />
+		as set with 1 rows<br />
+		selectdo<br />
+		selectempty<br />
+			message(&quot;Not a valid output device.&quot;)<br />
+			set.input.error(&quot;&quot;)<br />
+		endselect<br />
+		display(&quot;outbound.dsca&quot;)<br />
+<br />
+	endif<br />
+	<br />
+|****************************** MAIN TABLE  SECTION ***************************<br />
+|****************************** FUNCTION    SECTION ***************************<br />
+functions:<br />
+function process.operation.table()<br />
+{<br />
+	domain	tccwar	hold.cwar<br />
+	hold.cwar = cwar.f<br />
+	select	tdapi402.*<br />
+	from	tdapi402<br />
+	where	tdapi402._index2 = {:cwar.f}<br />
+	selectdo<br />
+		cwar.f = tdapi402.cwar<br />
+		cwar.t = tdapi402.cwar<br />
+		if job.process then						|20060206<br />
+			hlddatetime = dte$()					|20060206<br />
+			message(&quot;Generate: &quot; &amp; cwar.f &amp; &quot; &quot; &amp; hlddatetime(7;2) &amp; &quot;:&quot; &amp; hlddatetime(9;2))	|20060206<br />
+		endif								|20060206<br />
+		select	tdudi071.pdno, tdudi071.opno<br />
+		from	tdudi071, ticst001<br />
+		where	tdudi071.pdno &gt; 0 and<br />
+			tdudi071.gendte &lt;= date.num()<br />
+		and	ticst001._index1 = {tdudi071.pdno}<br />
+		and	ticst001.opno = tdudi071.opno<br />
+		and 	ticst001.cwar = :cwar.f<br />
+		and 	ticst001.issu &gt; 0<br />
+		group by tdudi071.pdno, tdudi071.opno		<br />
+		selectdo<br />
+			orno.f = tdudi071.pdno<br />
+			orno.t = orno.f<br />
+			opno.f = tdudi071.opno<br />
+			opno.t = opno.f<br />
+			generate.the.outbound()<br />
+			print.outbound.stuff()<br />
+		endselect<br />
+	selectempty<br />
+		if job.process then						|20060206<br />
+			hlddatetime = dte$()					|20060206<br />
+			message(&quot;Generate: &quot; &amp; cwar.f &amp; &quot; &quot; &amp; hlddatetime(7;2) &amp; &quot;:&quot; &amp; hlddatetime(9;2))	|20060206<br />
+		endif								|20060206<br />
+		select	tdudi071.pdno, tdudi071.opno<br />
+		from	tdudi071, ticst001<br />
+		where	tdudi071.pdno &gt; 0 and<br />
+			tdudi071.gendte &lt;= date.num()<br />
+		and	ticst001._index1 = {tdudi071.pdno}<br />
+		and	ticst001.opno = tdudi071.opno<br />
+		and 	ticst001.cwar = :cwar.f<br />
+		and 	ticst001.issu &gt; 0<br />
+		group by tdudi071.pdno, tdudi071.opno<br />
+		selectdo<br />
+			orno.f = tdudi071.pdno<br />
+			orno.t = orno.f<br />
+			opno.f = tdudi071.opno<br />
+			opno.t = opno.f<br />
+			generate.the.outbound()<br />
+			print.outbound.stuff()<br />
+		endselect<br />
+	<br />
+	endselect<br />
+}<br />
+| 20121116.end <br />
+function generate.the.outbound()<br />
+{<br />
+<br />
+ 	spool.device = advice.printer<br />
+	errmsg=&quot; &quot;<br />
+	generate_outbound(runn,<br />
+			orno.f,<br />
+			orno.t,<br />
+			opno.f,<br />
+			opno.t,<br />
+			item.f,<br />
+			item.t,<br />
+			cwar.f,<br />
+			cwar.t,<br />
+			prnt.advice,<br />
+			errmsg)<br />
+	if errmsg(1;17) = &quot;Printing canceled&quot; then				|20060206<br />
+		errmsg = &quot;&quot;							|20060206<br />
+	endif									|20060206<br />
+	if not isspace(errmsg) then<br />
+		message(&quot;Generate:&quot; &amp; errmsg)<br />
+	endif<br />
+ 	spool.device = shortage.printer<br />
+	errmsg=&quot; &quot;<br />
+	if prnt.shortage = tgyenox.yes then<br />
+		print_shortages(runn,<br />
+				orno.f,<br />
+				orno.t,<br />
+				opno.f,<br />
+				opno.t,<br />
+				item.f,<br />
+				item.t,<br />
+				cwar.f,<br />
+				cwar.t,<br />
+				errmsg)<br />
+		if not isspace(errmsg) then<br />
+			message(&quot;Shortage:&quot; &amp; errmsg)<br />
+		endif<br />
+	endif<br />
+}<br />
+function print.outbound.stuff()<br />
+{<br />
+ 	spool.device = tag.printer<br />
+	errmsg=&quot; &quot;<br />
+	if prnt.tag = tgyenox.yes then<br />
+<br />
+		print_pick_tags(runn,<br />
+				orno.f,<br />
+				orno.t,<br />
+				opno.f,<br />
+				opno.t,<br />
+				item.f,<br />
+				item.t,<br />
+				cwar.f,<br />
+				cwar.t,<br />
+				tag.report,<br />
+				errmsg)<br />
+		if errmsg(1;13) = &quot;No data found&quot; then<br />
+			errmsg = &quot;&quot;<br />
+		endif<br />
+		if not isspace(errmsg) then<br />
+			message(&quot;Pick Tag:&quot; &amp; errmsg)<br />
+		endif<br />
+	endif<br />
+ 	spool.device = outbound.printer<br />
+	errmsg=&quot; &quot;<br />
+	if prnt.outbound = tgyenox.yes then<br />
+		print_outbound(runn,<br />
+				orno.f,<br />
+				orno.t,<br />
+				opno.f,<br />
+				opno.t,<br />
+				item.f,<br />
+				item.t,<br />
+				cwar.f,<br />
+				cwar.t,<br />
+				date.num(),<br />
+				date.num(),<br />
+				outbound.report,<br />
+				errmsg)<br />
+		if not isspace(errmsg) then<br />
+			message(&quot;Outbound:&quot; &amp; errmsg)<br />
+		endif<br />
+	endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jojovalenton</div><div class="date">24th October 2014, 06:15</div></div><div class="posttext">hi mark,<br />
+<br />
+thanks a lot for this help, i will try this out in my case.<br />
+<br />
+jojo</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">29th October 2014, 10:03</div></div><div class="posttext">Hi,<br />
+<br />
+To know how to use Windows Task Scheduler to automate the sessions follow this Thread (http://www.baanboard.com/baanboard/showthread.php?p=192438#post192438)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jojovalenton</div><div class="date">30th October 2014, 17:12</div></div><div class="posttext">Thanks a lot for this link.<br />
+<br />
+regards,<br />
+<br />
+jojo</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

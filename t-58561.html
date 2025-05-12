@@ -1,0 +1,95 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="bdbpost performance, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] bdbpost performance Performance &amp; Tuning" />
+	
+	<title>bdbpost performance [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Performance &amp; Tuning</a> &gt; bdbpost performance</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">5th June 2010, 14:52</div></div><div class="posttext">I've always wondered why bdbpost always gets slower during import. No matter what db or hardware or baan version...<br />
+For best performance every table should be imported with new bdbpost -process basically...<br />
+I think it does not matter what options to use either. What do you think? What is the root cause of this?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">7th June 2010, 04:36</div></div><div class="posttext">So you mean that the first table loads fast, and then subsequent tables load slower?<br />
+<br />
+i've always assumed fragmented memory for the bdbpost process.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">7th June 2010, 12:18</div></div><div class="posttext">I've never checked that. But I could imagine that it has to do with transactions; in some programming situations I've seen such a behaviour whe there was one big transaction - after using commit.transaction() after 1000 records the performance was better. That would declare why it's faster to load each table by a single bdb.post.<br />
+ <br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">7th June 2010, 19:09</div></div><div class="posttext">bdbpost does regularly commit though. there's even a setting that lets you choose the commit frequency.<br />
+<br />
+I'll take it a step further - within a single large table, the first tx's are fast, and the final tx's are usually very slow. <br />
+<br />
+There's very little in the RDBMS that would account for this, especially since baan doesn't have FK constraints. Inserts into a table should maintain a fairly consistent speed regardless of the table size (especially if you have &quot;rows before indexes&quot; turned on, which you definitely should)<br />
+<br />
+So my guess is basically that once bdbpost hits close to the 2GB limit of a 32bit process (or the max size of your data segment at the OS level) it starts swapping. And the reason it happens on a large number of smaller tables is because the cleanup between table loads isn't as good as it could be. <br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">2nd August 2010, 16:06</div></div><div class="posttext">My 2 cents (I know I am late):<br />
+- As mentioned before the inserts are pretty easy if you use the rows-before-indexes option<br />
+- Most of the time you will see that the disk and database buffer gets full over time. These buffers can handle a certain load, but most of the time the disks are the bottleneck at a certain time.<br />
+<br />
+to check if I am correct you do a &quot;ps -ef &gt;&gt; ps.log&quot;<br />
+then you grep on the bdbpost process, the driver (if you are still on an ancient portingset) and the used database server process and see how many seconds they increased during these 60 seconds. If the total amount (of the 2 or 3 processes) is close to 60 seconds, you only burn CPU cycles, so no disk issue. If the number is less than 50 seconds, you already have a disk delay of more than 15%.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">6th December 2010, 18:21</div></div><div class="posttext">Just amazed how well is Red Hat performing on PC hardware...also with bdbpost.<br />
+Example:<br />
+-dump size on disk = 5GB<br />
+-Oracle 11.2 via listener (no 32-bit client on server), default parameters<br />
+-baan4c4 with recent porting set<br />
+<br />
+Import time with single bdbpost -process...result was 40 minutes!<br />
+RAID 1+0 (4 disks)<br />
+<br />
+I didn't remember to monitor process memory consumption trend...need to do it next time.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">6th December 2010, 18:48</div></div><div class="posttext">I've always wondered why bdbpost always gets slower during import. No matter what db or hardware or baan version...<br />
+For best performance every table should be imported with new bdbpost -process basically...<br />
+I think it does not matter what options to use either. What do you think? What is the root cause of this?<br />
+<br />
+The root cause has been found and solved in portingset 8.7a. Hope this helps.<br />
+<br />
+As a workaround you can increase the commit size. Setting this a factor 10 higher helps significant.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">6th December 2010, 19:27</div></div><div class="posttext">What commit size do you mean?<br />
+Porting set note does not contain any information about bdbpost -thing...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">7th December 2010, 00:06</div></div><div class="posttext">What commit size do you mean?<br />
+I mean the -r option. By default bdbpost commits per 100, now you can set it to 1000 or 10000.<br />
+Porting set note does not contain any information about bdbpost -thing...<br />
+You are right I see it is in 8.7b<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

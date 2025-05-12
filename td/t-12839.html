@@ -1,0 +1,133 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to set Environment variables for a session in a job, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to set Environment variables for a session in a job Tools Development" />
+	
+	<title>How to set Environment variables for a session in a job [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; How to set Environment variables for a session in a job</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">baaniac</div><div class="date">4th September 2003, 12:15</div></div><div class="posttext">Hi,<br />
+<br />
+We have Baan IV c4 on Digital Unix, with Informix as the back-end.<br />
+<br />
+We have some sessions, which are run as a job, every mid-night and we want to monitor their performance using INFSTAT, INFPROF, DBSLOG environment variables. <br />
+<br />
+So, how do I set these environment variables particularly for those sessions running in jobs ?<br />
+<br />
+Standard Session &quot;Add Shell Command to Job&quot; will just come to the bshell, will set/export the variables. But when it ends, the Baan sessions will not get the values of  Environment variables.<br />
+<br />
+Is there any other way of achieving the desired functionality ? <br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Gerhard</div><div class="date">4th September 2003, 13:14</div></div><div class="posttext">Hi baaniac,<br />
+<br />
+how do you start these jobs?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">4th September 2003, 14:18</div></div><div class="posttext">Two ways:<br />
+<br />
+1. Modify rc.startjobxxxx<br />
+<br />
+Modify the ba6.1 command in the rc.startjob script to:<br />
+<br />
+ba6.1 ttaad5203m000 -- -logfile &lt;somewhere&gt; -keeplog -set INF....<br />
+<br />
+<br />
+2. Switching on the tracing on-the-fly<br />
+<br />
+You could use a cronjob to modify the parameters of the running session, via the bshcmd6.1 command (see highlighted option below).  You could find the bshell process id with a ps -ef|grep jobuser|grep bshell<br />
+<br />
+<br />
+bshcmd6.1: option requires an argument -- u<br />
+Usage: bshcmd6.1 [options] &lt;bshell_pid&gt;<br />
+<br />
+-v              : Print version<br />
+-p              : Show process list<br />
+-m              : Show memory usage<br />
+-d &lt;dbglvl&gt;     : Set DEBUG_LEVEL to (octal) &lt;dbglvl&gt;<br />
+-k &lt;pid&gt;        : Kill bshell process id &lt;pid&gt;<br />
+-e              : Kill all bshell processes<br />
+-M &quot;message&quot;    : Send &quot;message&quot; to bshell<br />
+<br />
+-W &lt;sec&gt;        : Wait until the previous issued command is executed<br />
+                  After this the previous command will be overwritten<br />
+-w &lt;sec&gt;        : Wait &lt;sec&gt; seconds for bshell to execute command<br />
+-u &lt;sec&gt;        : Send SIGUSR1 to bshell (wakeup). Only to be used in<br />
+                  combination with -w option. Waits &lt;sec&gt; seconds to<br />
+                  see if the command is executed.<br />
+-s              : Show entire contents of logfile (if accessable)<br />
+-l              : Print logfile name of bshell (for later examination)<br />
+-T &quot;cmdstr&quot;     : Modify BDB_DEBUG or TT_SQL_TRACE (bshell) and DBSLOG,<br />
+                  TT_SQL_TRACE, {DBMS}PROF or {DBMS}STAT (drivers) tracing<br />
+                  variables.<br />
+                  &quot;cmdstr&quot; may contain multiple commands of the form:<br />
+                        &lt;trace variable&gt;=&lt;value&gt;: set variable to value<br />
+                        &lt;trace variable&gt;+&lt;value&gt;: add bits to variable<br />
+                        &lt;trace variable&gt;-&lt;value&gt;: remove bits from variable<br />
+<br />
+Examples:<br />
+<br />
+Show the process list (wait 10 seconds for response):<br />
+bshcmd6.1 -p -s -w 10 &lt;bshell_pid&gt;<br />
+<br />
+Print memory usage to file and show file being used:<br />
+bshcmd6.1 -m -l &lt;bshell_pid&gt;<br />
+<br />
+Set DEBUG_LEVEL to 02000:<br />
+bshcmd6.1 -d 02000 &lt;bshell_pid&gt;<br />
+<br />
+Kill a bshell process with pid &lt;pid&gt;:<br />
+bshcmd6.1 -k &lt;pid&gt; &lt;bshell_pid&gt;<br />
+<br />
+Set TT_SQL_TRACE to log interface calls:<br />
+bshcmd6.1 -T &quot;TT_SQL_TRACE+02000&quot; &lt;bshell_pid&gt;<br />
+<br />
+- Only one command can be active (new commands will overwrite previous ones)<br />
+- Check the return value to see if a command has been processed (use<br />
+  the -w option)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jpvdgiessen</div><div class="date">4th September 2003, 23:21</div></div><div class="posttext">The way of Nico is a good one (ofcourse he is a collegue of mine)<br />
+<br />
+An other option is running via cron a shellscript with the following:<br />
+<br />
+<br />
+	BSE=/user1/bse5.0	; export BSE<br />
+	BSE_TMP=/user3/tmp	; export BSE_TMP<br />
+	PATH=$BSE/bin:$PATH	; export PATH<br />
+	TERM=vt100		; export TERM<br />
+<br />
+	BAMODE=1		;export BAMODE	# BAMODE=0 Output to screen.<br />
+						# BAMODE=1 No output to screen.<br />
+	DS_SERVER=ba		;export DS_SERVER<br />
+<br />
+# adding the other variables here like above<br />
+<br />
+	ErrFile=$BSE_TMP/tritonjob.err	; export ErrFile<br />
+	&gt;$ErrFile<br />
+<br />
+	BSH_JOB=$job		;export BSH_JOB<br />
+	bshell5.0 ttaad5203m000 2&gt;&gt;${ErrFile} &amp;<br />
+	proc=&quot;first&quot;<br />
+	while [ &quot;${proc}+&quot; != &quot;+&quot; ] ; do<br />
+		sleep 10<br />
+		proc=`fuser $file   2&gt;/dev/null`<br />
+	done</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="OpenSSL usage in Ln Script, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] OpenSSL usage in Ln Script Tools Development" />
+	
+	<title>OpenSSL usage in Ln Script [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; OpenSSL usage in Ln Script</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">becks2203</div><div class="date">28th January 2020, 10:43</div></div><div class="posttext">Hi Gurus,<br />
+<br />
+Can any one please tell me how to use OpenSSL in LN Scripts ? Is there any script for reference which uses OpenSSL for encryption /Decryption of data</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">30th January 2020, 12:25</div></div><div class="posttext">Hi Gurus,<br />
+<br />
+Can any one please tell me how to use OpenSSL in LN Scripts ? Is there any script for reference which uses OpenSSL for encryption /Decryption of data<br />
+<br />
+I found Cipher Functions that might be what you need. I cannot find this function in online guide though.<br />
+<br />
+Cipher Functions overview<br />
+The Bshell provides access to cipher functions (encryption/decryption) of the OpenSSL library, which makes industry standard implementations of these cipher functions available to 3GL programs. <br />
+<br />
+These functions are availabe from Tools Interface Version (TIV) 2000. <br />
+<br />
+The provided ciphers are:<br />
+<br />
+CIPHER_AES_128_ECB <br />
+CIPHER_AES_128_CBC <br />
+CIPHER_AES_128_CFB1 <br />
+CIPHER_AES_128_CFB8 <br />
+CIPHER_AES_128_CFB128 <br />
+CIPHER_AES_128_OFB <br />
+CIPHER_AES_128_CTR <br />
+CIPHER_AES_128_XTS <br />
+CIPHER_AES_192_ECB <br />
+CIPHER_AES_192_CBC <br />
+CIPHER_AES_192_CFB1 <br />
+CIPHER_AES_192_CFB8 <br />
+CIPHER_AES_192_CFB128 <br />
+CIPHER_AES_192_OFB <br />
+CIPHER_AES_192_CTR <br />
+CIPHER_AES_256_ECB <br />
+CIPHER_AES_256_CBC <br />
+CIPHER_AES_256_CFB1 <br />
+CIPHER_AES_256_CFB8 <br />
+CIPHER_AES_256_CFB128 <br />
+CIPHER_AES_256_OFB <br />
+CIPHER_AES_256_CTR <br />
+CIPHER_AES_256_XTS <br />
+Basically, this is AES (Advanced Encryption Standard) in 128, 192 and 256 bit blocks with various modes such as ECB (Electronic Code Book), CBC (Cipher Block Chaining), CFB (Cipher Feedback) and various others. <br />
+<br />
+For each algorithm, there is an initialize function to select that algorithm for either an encryption or decryption operation, see cipher.encrypt.initialize() and cipher.decrypt.initialize(). <br />
+<br />
+After initialization, an update function is called to pass the data to encrypt or decrypt. <br />
+<br />
+Lastly, a finalize function is called to retrieve the last (partial) block and to free the resources used by the operation. <br />
+<br />
+For example, to encrypt a bit of data:<br />
+ string input_buf(1024)<br />
+ string output_buf(1024)<br />
+ string tail(1024), answer(2048)<br />
+ string cipher_key(64)<br />
+ string iv(32)<br />
+ long id1, output_len, tail_len<br />
+ <br />
+ input_buf = &quot;The text that needs to be encrypted, any length&quot;<br />
+ hex_to_raw(&quot;67c7e4530f67a4112b678b737a82017f&quot;, cipher_key) | Create 16 bytes of key<br />
+ hex_to_raw(&quot;0123456789abcdef0123456789abcdef&quot;, iv) | Create Initialization Vector<br />
+ id1 = cipher.encrypt.initialize(CIPHER_AES_128_CFB1, cipher_key, iv)<br />
+ cipher.encrypt.update(id1, output_buf, output_len, input_buf))<br />
+ cipher.encrypt.finalize(id1, tail, tail_len))<br />
+<br />
+ | append two binary strings to obtain the encrypted data<br />
+ answer = substring(output_buf,1,output_len) &amp; substring(tail,1,tail_len) <br />
+ crylen = output_len + tail_len | Length of encrypted data<br />
+The cipher function requires that the key and initialization vector are passed as binary data. The hex_to_raw and raw_to_hex functions are used as example functions that translate between hexadecimal strings and binary data. <br />
+<br />
+The answer string is the concatenation of the output_buf and the tail, this is because many cipher function can only operate on blocks of data of a certain internal block length. If the input data is not a multiple of that length, it is padded internally, but there can be a final partial block that is returned by the finalize function. <br />
+<br />
+To decrypt data, the same key, initialization vector and ecrypted data is fed to the decrypt functions. <br />
+<br />
+Example:<br />
+ long id2<br />
+ string decrypt_buf(2048)<br />
+ set.mem(output_buf,chr$(0),1024)<br />
+ set.mem(tail,chr$(0),1024)<br />
+ set.mem(answer,chr$(0),2048)<br />
+<br />
+ id2 = cipher.decrypt.initialize(CIPHER_AES_128_CFB1,cipher_key,iv)<br />
+ | Feed the encrypted data (in answer) and the proper length to the update function<br />
+ cipher.decrypt.update(id2, output_buf, output_len, answer, crylen)<br />
+ cipher.decrypt.finalize(id2, tail, tail_len)<br />
+ answer = substring(output_buf,1,output_len) &amp; substring(tail,1,tail_len)<br />
+ | The &quot;answer&quot; string is now decrypted and equal to the original &quot;input_buf&quot; string<br />
+Note the set.mem() calls to clear buffers, which are required because the strings are treated as binary chunks of data by the cipher functions.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

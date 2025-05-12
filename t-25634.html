@@ -1,0 +1,185 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Purchase order Upload SSa LN6.1, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Purchase order Upload SSa LN6.1 AFS/DDC/OLE: Function servers" />
+	
+	<title>Purchase order Upload SSa LN6.1 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Purchase order Upload SSa LN6.1</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jatin_sanghi</div><div class="date">15th November 2005, 09:18</div></div><div class="posttext">Dear All,<br />
+<br />
+I 'am trying to upload PO in SSA erp6.1. I have been using session tdpur4100m000( multi- occ. display session) where i press the insert button to move to tdpur4100m900 ( single occ).<br />
+I'am using the stpapi.synchronize.dialog option and getting a return value of 1, but at the insert command it gives the error ' editable syn. dialog not started'..<br />
+I have gone through the baanboard regarding same error...but that didn't help.<br />
+<br />
+Also there is a point in AFS doc. that for syn. dialog, insert command should be issued to the multi-occ. session while, put command should be issued to the single-occ session. But this also doen't help .<br />
+<br />
+Plz, suggest what can be done in this case.Plz find the attached part of the script.<br />
+<br />
+ret = stpapi.synchronize.dialog(&quot;tdpur4100m000&quot;, &quot;add&quot;, error.msg)<br />
+if ret then<br />
+	stpapi.put.field(&quot;tdpur4100m900&quot;, &quot;tdpur400.otbp&quot;, &quot;S&quot;&amp; tmp40.suno)<br />
+	stpapi.put.field(&quot;tdpur4100m900&quot;, &quot;tdpur400.cotp&quot;, &quot;P01&quot;) <br />
+	stpapi.put.field(&quot;tdpur4100m900&quot;, &quot;tdpur400.orno&quot;, str$(10))<br />
+	stpapi.put.field(&quot;tdpur4100m900&quot;, &quot;tdpur400.cofc&quot;, &quot;P01&quot;)<br />
+	|stpapi.put.field(&quot;tdpur4100m900&quot;, &quot;tdpur400.ddat.segment.1&quot;, string.set$(&quot;0&quot;, 8-len(trim$((str$(tmp40.ddat)))))&amp; trim$(str$(tmp40.ddat)))<br />
+	| stpapi.put.field(&quot;tdpur4100m900&quot;, &quot;tdpur400.ddat.segment.2&quot;, &quot;0&quot;)<br />
+	| stpapi.put.field(&quot;tdpur4100m900&quot;, &quot;tdpur400.ddtc.segment.1&quot;, string.set$(&quot;0&quot;, 8-len(trim$((str$(tmp40.ddtc)))))&amp; trim$(str$(tmp40.ddtc)))<br />
+	| stpapi.put.field(&quot;tdpur4100m900&quot;, &quot;tdpur400.ddtc.segment.2&quot;, &quot;0&quot;)<br />
+		  <br />
+	ret = stpapi.insert(&quot;tdpur4100m000&quot;, true, error.msg)<br />
+	if not ret then<br />
+		ret = stpapi.recover(&quot;tdpur4100m900&quot;, error.msg)<br />
+	endif<br />
+endif<br />
+stpapi.get.field(&quot;tdpur4100m900&quot;, &quot;tdpur400.orno&quot;, m.orno)<br />
+stpapi.end.session(&quot;tdpur4100m900&quot;, error.msg)<br />
+stpapi.end.session(&quot;tdpur4100m000&quot;, error.msg)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">darpan</div><div class="date">14th December 2005, 14:56</div></div><div class="posttext">Dear Sir<br />
+<br />
+pl'z check that wether your AFS Codes support that BaaN Version <br />
+<br />
+and if all fine then pl'z clarify me the problem <br />
+<br />
+Darpan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Evert-Jan Bosch</div><div class="date">14th December 2005, 16:19</div></div><div class="posttext">Why are you using AFS for purchase orders?<br />
+<br />
+The most simple way to create PO is this (to my opinion):<br />
+<br />
+function create.purchase.order(<br />
+		domain	tccom.bpid	i.buy.from.bp,<br />
+		domain	tccotp		i.order.type,<br />
+		domain	tcitem		i.item,<br />
+		domain	tccwar		i.warehouse,<br />
+		domain	tcqrd1		i.ordered.quantity,<br />
+		domain	tccuni		i.order.unit)<br />
+{<br />
+			long		ret.val<br />
+<br />
+	db.retry.point()<br />
+<br />
+	|* Create PO Header<br />
+	dal.new.object(&quot;tdpur400&quot;)<br />
+	dal.set.field(&quot;tdpur400.otbp&quot;, i.buy.from.bp)<br />
+	dal.set.field(&quot;tdpur400.cotp&quot;, i.order.type)<br />
+	...<br />
+	ret.val = dal.save.object(&quot;tdpur400&quot;)<br />
+<br />
+	|* Create PO Line<br />
+	dal.new.object(&quot;tdpur401&quot;)<br />
+	dal.set.field(&quot;tdpur401.orno&quot;, tdpur400.orno)<br />
+	dal.set.field(&quot;tdpur401.item&quot;, i.item)<br />
+	dal.set.field(&quot;tdpur401.qoor&quot;, i.ordered.quantity)<br />
+	dal.set.field(&quot;tdpur401.cuqp&quot;, i.order.unit)<br />
+	...<br />
+	ret.val = dal.save.object(&quot;tdpur401&quot;)<br />
+<br />
+	commit.transaction()<br />
+}<br />
+Above example is may be too simple. Error handling is not in place. But that can be handled very easily.<br />
+<br />
+Too my opinion AFS is only used to overcome the problem that user interface scripts contains lot of logic. However, since ERP LN 6.1, more and more logic is moved to the dals. Defaulting and disabling / enabling of fields is all part of DAL2. Purchase Orders is completely handled via DAL2. This is enough to generate and/or edit a purchase order.<br />
+<br />
+The things that remain in the user interface are things that are really user interface related as for example: displaying form fields, import fields from other sessions, applying filters, handle zooming to sessions, handling form commands.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">george7a</div><div class="date">23rd January 2006, 16:16</div></div><div class="posttext">Why do you think DAL is better than AFS?<br />
+<br />
+Isn't AFS &quot;safer&quot; ?<br />
+<br />
+- George</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Evert-Jan Bosch</div><div class="date">23rd January 2006, 16:36</div></div><div class="posttext">When it is not needed anymore to use AFS, why still using it? That's the question.<br />
+<br />
+When a dal is completely DAL2, AFS is not safer. Instead, in that situation an AFS is more complex to use, because you have to skip the user interactions, such as ask.enum, etc., that are (of course) still in the UI.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Holger R</div><div class="date">23rd January 2006, 17:22</div></div><div class="posttext">The session for the &quot;insert&quot; must be &quot;...m900&quot;, not &quot;...m000&quot;. May be, that ist the reason.<br />
+<br />
+Holger</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">henkvdh</div><div class="date">12th April 2007, 10:27</div></div><div class="posttext">The sentence more and more functionality is moved to the dal have to be taken serious! It is very depending on the programmer if this is really the case, and for sure it is not yet trustable done!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">_Ralph_</div><div class="date">13th April 2007, 19:06</div></div><div class="posttext">As you're on LN you can search for a dll wich creates an PO<br />
+<br />
+tdpurdll1234 - Gernerate Purchase Order<br />
+<br />
+Afs does not work on MMT Sessions<br />
+<br />
+regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ulrich.fuchs</div><div class="date">22nd May 2007, 16:51</div></div><div class="posttext">Try using the DAL. I don't know how it's with purchase, but in  ERP LN 6.1  you can generate sales orders and sales order lines with less and safer code when you use the DAL instead of the AFS.<br />
+<br />
+Uli</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Evert-Jan Bosch</div><div class="date">23rd May 2007, 11:00</div></div><div class="posttext">You can use dal2 functions also for purchase orders!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kathuria</div><div class="date">30th May 2007, 22:32</div></div><div class="posttext">Hi,<br />
+<br />
+AFS will not work with Multi Main Table Session. That's why we have to use DALconcept.<br />
+<br />
+Regards,<br />
+Sanjay Kathuria</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">yashwant</div><div class="date">6th July 2007, 12:30</div></div><div class="posttext">can any body have any documents on DAL script.<br />
+<br />
+yashwant</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Evert-Jan Bosch</div><div class="date">6th July 2007, 12:36</div></div><div class="posttext">http://www.baanboard.com/programmers_manual_baanerp_help_functions_dal_overview<br />
+<br />
+it's not the latest one.<br />
+DAL 2 functions are not (yet?) described.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kathuria</div><div class="date">6th July 2007, 14:32</div></div><div class="posttext">Hi,<br />
+<br />
+All functions related to DAL &amp; DAL2 are available in Use SSA ERP LN 6.1 Programming Guide. <br />
+<br />
+Regards,<br />
+Sanjay</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nileshsamsonite</div><div class="date">4th December 2012, 12:08</div></div><div class="posttext">Hi ,<br />
+Is there any solution to upload sales Orders ? This is needed to avoid the entry. User can upload a sales order details with minimum information like BP code ,Order Type , Item code , Quantity .<br />
+<br />
+How to achieve this through DAL ? Has anyone tried this before ?<br />
+<br />
+Thanks<br />
+Nilesh</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patwanirav</div><div class="date">19th February 2013, 10:45</div></div><div class="posttext">hi...<br />
+Can anybody give me the code of the dll tdpurdll1234 or tdslsdll1234 ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">19th February 2013, 15:25</div></div><div class="posttext">I recommend contacting infor for the code.  Any such code posted here will have to be removed.<br />
+<br />
+Thanks</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

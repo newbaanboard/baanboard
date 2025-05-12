@@ -1,0 +1,186 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS for Purchase Order, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS for Purchase Order AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS for Purchase Order [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS for Purchase Order</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">raikar_raviraj</div><div class="date">10th July 2007, 12:30</div></div><div class="posttext">Hi,<br />
+<br />
+I need to generate PO through AFS. I am able to generate PO header and extension to PO header. But when im trying to create PO lines, the process hangs.<br />
+<br />
+I am handling the extension to PO lines too.<br />
+<br />
+Please go through the code and tell me what changes are required.<br />
+<br />
+tdpur4101m000 - Maintain PO header<br />
+tdpur4102s000 - Maintain PO lines<br />
+tdind0271s000 - Maintain Extension to PO lines<br />
+<br />
+Thanks<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th July 2007, 14:41</div></div><div class="posttext">In this piece of code:<br />
+<br />
+stpapi.insert(&quot;tdind0271s000&quot;, 1, error)<br />
+	if isspace(error) then<br />
+		tdind0271s000f.save(error)<br />
+ 		tdind0271s000f.end()<br />
+ 	else<br />
+ 		message(&quot;&quot; &amp;error)<br />
+ 		stpapi.recover(&quot;tdind0271s000&quot;, ret.mesg )<br />
+ 	endif<br />
+    	 stpapi.insert(&quot;tdpur4102s000&quot;, 1, error )<br />
+	if isspace(error) then<br />
+		<br />
+		stpapi.save(&quot;tdpur4102s000&quot;,error)|  HANGS HERE<br />
+<br />
+You say it hangs.  First do you need the save?  Check to see if the insert takes care of adding the record.  If not do, what happens with the save? Do anyother sessions open up in the background?  You might want to watch what is happening in the background as the sessions open.  Last, but not least - do you have source code?  That will make it easier to debug what is happening.  Also you can search on your sessions in this forum to see if there are other posts which might give you a clue as to how to solve your problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">raikar_raviraj</div><div class="date">11th July 2007, 05:36</div></div><div class="posttext">Hi Mark,<br />
+<br />
+If i remove the stpapi.save command... the AFS doesnt hang. But the problem is it doesnt add any record in the lines nor the extension.<br />
+If i manually insert it, with the same piece of data that is mandatory it works perfectly fine without any glitches. and during manual insertion save is neccessary..<br />
+<br />
+Ive searched all the threads in the forum to no avail. Most of the AFS are related to sales order, The sales order lines logic doesnt work out here cause the localized extension of lines in sales order is not on the tab event of the field.<br />
+<br />
+wanted to know how can i handle the tab event of field through AFS.. ive used stpapi.handle.proc... If i use stpapi.continue then also it hangs forever..</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th July 2007, 17:25</div></div><div class="posttext">Part of the problem might be that you can not simulate a tab event in AFS.  I was looking at the code some more:<br />
+<br />
+        tdpur4102s000f.put.Dimension_2.tdpur041.dim2(dim2)<br />
+        <br />
+	stpapi.get.mess.code(error)<br />
+	if not isspace(error) then<br />
+			message(&quot;&quot;&amp;error)<br />
+		endif<br />
+   <br />
+			stpapi.handle.subproc(&quot;tdpur4102s000&quot;, &quot;tdind0271s000&quot;, &quot;add&quot;)<br />
+		basedate = date.num()<br />
+	tdind0271s000f.put.Base_Date(basedate)<br />
+<br />
+I take it when you manually put dim2 in the tdpur4102s000 session, hit tab - the tdind0271s000 session starts?   When you watch the processes in the background what action starts tdind0271s000?  I would expect to see this command stpapi.handle.subproc(&quot;tdpur4102s000&quot;, &quot;tdind0271s000&quot;, &quot;add&quot;) followed by an action command on tdpur4102s000 ( a save, insert, update, continue).  Without that I do not see how you are controlling tdind0271s000  linked with tdpur4102s000.  I think the first put command on tdind0271s000 is actually starting the session.  Do not forget that there are two modes to update and insert - true(1) to execute the update.db event or false(0) to skip execution of update.db.  You might have to play around with these to see if it helps.<br />
+<br />
+So with the session in debug mode use the option dialog and ps to see what starts with what AFS command.  I have a feeling that even though the sessions are started the control between sessions is not there(mainly between tdpur4102 and tdinv0271).<br />
+<br />
+Another thing is to think of work arounds - for example can you save tdpur4102s000 records, come back into the session, maybe hit save or some action to restart tdind0271s000.  Kind of how I do the pegging in our A&amp;D system for purchase orders.  I actually cancel the first time the subsession comes up, then relaunch the session where I can actually control it.  Of course I would not worry about this until you have tried all you can think of above.<br />
+<br />
+There is always the possibility that you may have to get the support center involved.<br />
+<br />
+Another question you did not answer?  Do you have source code that you can compile into debug mode?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">raikar_raviraj</div><div class="date">12th July 2007, 07:19</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Problem in adding data to purchase order extension session (tdpurl102s002)<br />
+The program code is here<br />
+ <br />
+tdpur4101m000f.put.Purchase_Order(order.series)<br />
+tdpur4101m000f.put.Supplier(tdind041.suno)<br />
+tdpur4101m000f.put.Order_Type(ordr.type)<br />
+tdpur4101m000f.put.Company(comp)<br />
+tdpur4101m000f.put.Order_Date(basedate)<br />
+tdpur4101m000f.put.Delivery_Date.tdpur040.ddat(basedate) <br />
+stpapi.insert(&quot;tdpur4101m000&quot;, 1, error )<br />
+orno = tdpur4101m000f.get.Purchase_Order()<br />
+tdpur4101m000f.handle.sub.process(&quot;tdpur4101m000&quot;, &quot;add&quot;)<br />
+stpapi.zoom.option(&quot;tdsls4101m000&quot;,14,&quot;tdpurl102s002&quot;, error)	<br />
+stpapi.continue.process( &quot;tdpurl102s002&quot;, error )<br />
+stpapi.put.field(&quot;tdpurl102s002&quot;,&quot;tdind014.orno&quot;,str$(orno))<br />
+stpapi.put.field(&quot;tdpurl102s002&quot;,&quot;tdind014.exci&quot;,str$(value))<br />
+stpapi.put.field(&quot;tdpurl102s002&quot;,&quot;tdind014.odis&quot;,str$(buf))<br />
+stpapi.put.field(&quot;tdpurl102s002&quot;,&quot;tdind014.svyn&quot;,str$(value))<br />
+stpapi.put.field(&quot;tdpurl102s002&quot;,&quot;tdind014.octr&quot;,str$(var))<br />
+stpapi.put.field(&quot;tdpurl102s002&quot;,&quot;tdind014.srtx&quot;,str$(value))<br />
+stpapi.insert(&quot;tdpurl102s002&quot;, 1, error )<br />
+extorno = tdpurl102s002f.get.Order_No( )<br />
+stpapi.end.session(&quot;tdpurl102s002&quot;, error)<br />
+<br />
+here the session tdpurl102s002 opens on the tab event of tdpur040.ddat, so i am not able to understand how do i control this. i tried everything i cud do.<br />
+stpapi.insert returns 1(true) still data doesnt get inserted. Ive put all the mandatory fields required. also when i try to get the orderno from extension i.e field extorno it returns 0. Ive checked in the ps the sessions starts and ends properly based on the event.<br />
+<br />
+I dont have the source code of this standard session. I really cant figure out where i am going wrong.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th July 2007, 13:54</div></div><div class="posttext">Hi Mark,<br />
+I dont have the source code of this standard session. I really cant figure out where i am going wrong.<br />
+You might not be doing anything wrong - some sessions do not support AFS code.  You might contact the support center to see what they say - it could be that you need new session objects.  I have had the support center tell me that a session was not supported for use with API commands.  I did eventually figure a work around - I have used Qkey(source extension) to solve some problems.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">raikar_raviraj</div><div class="date">16th July 2007, 14:12</div></div><div class="posttext">hi Mark,<br />
+<br />
+After playing with the AFS for nearly a week now, i was able to generate the PO through AFS.<br />
+But the management has new requirement now, they want the position no to start with 10 and not 1, i tried putting it in the AFS, i.e <br />
+stpapi.put.field(&quot;tdpur4102s000&quot;,&quot;tdpur041.pono&quot;,str$(10))<br />
+<br />
+but the AFS creates a po starting with 1 only.<br />
+<br />
+is it possible to do so, because when we manually creat a PO lines, it gives us the option to change the PO No..<br />
+<br />
+Thanks..</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">16th July 2007, 15:23</div></div><div class="posttext">I am not positive that it will let you change the position number - I have never tried it.  I just let the position number default.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dear00</div><div class="date">23rd May 2008, 10:52</div></div><div class="posttext">Hi!<br />
+I have the same problem.<br />
+when I tried to insert the line order, the program seems to work write, but doesn't insert the line.<br />
+Colud you send me your code that work right?<br />
+I working in this more a week and I don't now whata to do to solve this.<br />
+Thank yo in advanced.<br />
+Desiree (Desiree.Argento@grupoaciturri.com)<br />
+<br />
+hi Mark,<br />
+<br />
+After playing with the AFS for nearly a week now, i was able to generate the PO through AFS.<br />
+But the management has new requirement now, they want the position no to start with 10 and not 1, i tried putting it in the AFS, i.e <br />
+stpapi.put.field(&quot;tdpur4102s000&quot;,&quot;tdpur041.pono&quot;,str$(10))<br />
+<br />
+but the AFS creates a po starting with 1 only.<br />
+<br />
+is it possible to do so, because when we manually creat a PO lines, it gives us the option to change the PO No..<br />
+<br />
+Thanks..</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd May 2008, 13:51</div></div><div class="posttext">Desiree - what exactly is your problem?  Is it inserting a line or is it inserting a line and changing the line number?  If you post your code for inserting a line we can take a look at it and maybe make some suggestions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dear00</div><div class="date">23rd May 2008, 17:56</div></div><div class="posttext">Hi!<br />
+The problem is that api doesn't insert the lines.<br />
+I don't now how to do , I have prove a lot of things and nothing.<br />
+I added the code ina file.<br />
+Thank you very much.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th May 2008, 01:10</div></div><div class="posttext">Sorry - I thought this was purchase orders.  For sales orders just search for the sales order sessions.  There are a lot of threads around on those sessions.  Sorry to say we do not use them, so I have nothing that will help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanguy2</div><div class="date">19th June 2008, 16:08</div></div><div class="posttext">Hi Raikar,<br />
+<br />
+Did you get your purchase order position issue fixed? <br />
+if you have not had it fixed, it has nothing to do with the AFS, there is a purchase order parameter session and you need to change the interval of the pistion number as you want it.<br />
+<br />
+Regards,</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

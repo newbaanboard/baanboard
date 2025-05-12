@@ -1,0 +1,300 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Repeat printing in detail report, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Repeat printing in detail report Tools Development" />
+	
+	<title>Repeat printing in detail report [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Repeat printing in detail report</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">the.oetjoen</div><div class="date">19th June 2009, 05:53</div></div><div class="posttext">Hi Master,<br />
+<br />
+I'm trying to make repeat printing in detail report. Any idea how to implement this in report script.<br />
+<br />
+Here is my script:<br />
+<br />
+declaration:<br />
+   ...<br />
+   table ttiitm001		| Item<br />
+   extern domain tcmcs.str16  itemtmp	 	|report desc-dm (ttyp)<br />
+   extern domain tcmcs.str300m   text.note, temp.note	|text<br />
+   extern domain tfgld.quan  itemquan<br />
+   extern domain tcpono	lineno<br />
+   long i, lpos, itemtot<br />
+   ...<br />
+<br />
+before.program:<br />
+   ...<br />
+   itemtot = 4<br />
+   lineno = 0<br />
+   ...<br />
+<br />
+detail.10:<br />
+before.layout:<br />
+   ...<br />
+   text.note = &quot;A0001;2|A0002;3|A0003;100|A0005;9&quot;<br />
+   temp.note = &quot;&quot;<br />
+   for i = itemtot to 1 step -1<br />
+      lineno = lineno + 1<br />
+      lpos = pos(text.note,&quot;|&quot;)<br />
+      if lpos &gt; 0 then<br />
+         temp.note = text.note(1;lpos-1)<br />
+         text.note = text.note(lpos+1;len(text.note))<br />
+      endif<br />
+      if i = 1 then<br />
+         temp.note = text.note<br />
+      endif<br />
+      ret = string.scan(temp.note,&quot;%s;%d&quot;,itemtmp,itemquan)<br />
+      if not isspace(itemtmp) then<br />
+         select tiitm001.item, tiitm001.dsca<br />
+         from   tiitm001<br />
+         where  tiitm001._index1 = {:itemtmp}<br />
+         selectdo<br />
+         endselect<br />
+|       message (&quot;no=%d, item=%s, qty=%d&quot;, lineno,tiitm001.item,itemquan)<br />
+        { what is the code put in here to repeat printing?? }<br />
+      endif<br />
+   endfor<br />
+   ...<br />
+<br />
+<br />
+And this is will be print in report like this:<br />
+   ...<br />
+   No        Item      Description   Quantity<br />
+     1        A0001    Item A                2<br />
+     2        A0002    Item B                3<br />
+     3        A0003    Item C             100<br />
+     4        A0005    Item E                9<br />
+   ...<br />
+<br />
+TIA :)<br />
+Oetjoen</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">MilindV</div><div class="date">19th June 2009, 06:31</div></div><div class="posttext">Hi Oetjoen<br />
+<br />
+Give a look at this report script function.<br />
+<br />
+LAYOUT.AGAIN() Evaluate and print layout again.<br />
+<br />
+This may help you.<br />
+<br />
+Thanks &amp; Regards<br />
+MilindV</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">the.oetjoen</div><div class="date">19th June 2009, 07:03</div></div><div class="posttext">I've added the layout.again() function, still does not effect the result. only the last data is shown..<br />
+<br />
+...<br />
+No Item Description Quantity<br />
+4 A0005 Item E 9<br />
+...<br />
+<br />
+Or I'm miss where should I put that function.<br />
+<br />
+Thanks<br />
+Oetjoen</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">MilindV</div><div class="date">19th June 2009, 08:06</div></div><div class="posttext">before.program:<br />
+again = false<br />
+...<br />
+itemtot = 4<br />
+lineno = 0<br />
+...<br />
+<br />
+detail.10:<br />
+before.layout:<br />
+if not again then<br />
+	...<br />
+<br />
+	text.note = &quot;A0001;2|A0002;3|A0003;100|A0005;9&quot;<br />
+	temp.note = &quot;&quot;<br />
+endif<br />
+<br />
+|* for i = itemtot to 1 step -1<br />
+	lineno = lineno + 1<br />
+	lpos = pos(text.note,&quot;|&quot;)<br />
+	<br />
+	if lpos &gt; 0 then<br />
+		temp.note = text.note(1;lpos-1)<br />
+		text.note = text.note(lpos+1;len(text.note))<br />
+	endif<br />
+	<br />
+|*	if i = 1 then<br />
+	if itemtot = 1 then<br />
+		temp.note = text.note<br />
+	endif<br />
+	<br />
+	ret = string.scan(temp.note,&quot;%s;%d&quot;,itemtmp,itemquan)<br />
+	<br />
+	if not isspace(itemtmp) then<br />
+		select tiitm001.item, tiitm001.dsca<br />
+		from tiitm001<br />
+		where tiitm001._index1 = {:itemtmp}<br />
+		selectdo<br />
+		endselect<br />
+		| message (&quot;no=%d, item=%s, qty=%d&quot;, lineno,tiitm001.item,itemquan)<br />
+		{ what is the code put in here to repeat printing?? }<br />
+	endif<br />
+|* endfor<br />
+...<br />
+after.layout:<br />
+if itemtot &gt; 1 then<br />
+	itemtot = itemtot - 1<br />
+	layout.again()<br />
+	again = true	|* define some boolean variable<br />
+esle<br />
+	again = false	<br />
+endif<br />
+<br />
+Refer to this, check the changes that i have made(in red).<br />
+You may need to do some changes.<br />
+<br />
+Thanks &amp; Regards<br />
+MilindV</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">the.oetjoen</div><div class="date">19th June 2009, 09:20</div></div><div class="posttext">Hi MilindV,<br />
+<br />
+Thanks for your script. It is work for me. Great Script.<br />
+<br />
+Thanks for your help :)<br />
+Oetjoen</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mrreds</div><div class="date">16th August 2010, 06:39</div></div><div class="posttext">MilindV ,<br />
+I really like your script, it is very clear but,  I need now something similar with a dynamic record count number (itemtot = N)<br />
+<br />
+Is there a way to use a count in a select statement? saving it in a variable?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mast_aadmi</div><div class="date">16th August 2010, 07:02</div></div><div class="posttext">MilindV ,<br />
+I really like your script, it is very clear but,  I need now something similar with a dynamic record count number (itemtot = N)<br />
+<br />
+Is there a way to use a count in a select statement? saving it in a variable?<br />
+<br />
+select count(*):variable_name<br />
+from table_name<br />
+where [conditions]<br />
+selectdo<br />
+endselect<br />
+<br />
+This will store the row count in the variable_name.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mrreds</div><div class="date">16th August 2010, 07:35</div></div><div class="posttext">Thank you mast_aadmi!<br />
+<br />
+I'm trying to figurate out how layout.again() works.<br />
+While you were replying to his thread I was simulating the script with itemtot = 2.<br />
+<br />
+It is always displaying the last record. I know I´m close to resolve it.<br />
+<br />
+This is my code:<br />
+<br />
+<br />
+Declaration:<br />
+table twhinr150<br />
+extern domain tccwar ohcwar<br />
+extern domain whloca ohloca<br />
+extern domain tcqiv1 ohqty<br />
+long itemtot <br />
+<br />
+before.program:<br />
+itemtot = 2<br />
+<br />
+detail.1:<br />
+before.layout:<br />
+<br />
+detail.2:<br />
+before.layout:<br />
+<br />
+if itemtot = 2 then<br />
+	select * <br />
+ 	   from whinr150<br />
+	    where whinr150._index1 = {:whinh215.item}<br />
+		selectdo <br />
+		    ohcwar = whinr150.cwar<br />
+	    	    ohloca = whinr150.loca<br />
+		    ohqty =  whinr150.stks<br />
+		selectempty<br />
+		endselect<br />
+endif <br />
+<br />
+after.layout:<br />
+<br />
+if itemtot &gt; 1 then<br />
+	itemtot = itemtot - 1<br />
+	layout.again()<br />
+endif<br />
+<br />
+Could you please help me?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mast_aadmi</div><div class="date">18th August 2010, 07:00</div></div><div class="posttext">Have you written the code properly in the before.layout section?<br />
+<br />
+The condition will only match if &quot;itemtot = 2&quot;. layout.again() placement seems fine. This is getting reduced in the in the after.layout section. But check the code in the before.layout section. That doesn't look alright.<br />
+<br />
+Working of layout.again()<br />
+         When this function is called an internal variable r.layout.again is set to true which results in the entire layout being entered and evaluated again.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sameer.don</div><div class="date">18th August 2010, 07:43</div></div><div class="posttext">Hi mrreds,<br />
+you can try following in your report script<br />
+<br />
+detail.2:<br />
+before.layout:<br />
+<br />
+if itemtot = 2 then<br />
+	select * <br />
+ 	  from whinr150<br />
+	    where whinr150._index1 = {:whinh215.item}<br />
+                    as set with :itemtot rows<br />
+		selectdo <br />
+		    ohcwar = whinr150.cwar<br />
+	    	    ohloca = whinr150.loca<br />
+		    ohqty =  whinr150.stks<br />
+		selectempty<br />
+		endselect<br />
+endif <br />
+<br />
+<br />
+As value of itemtot reduces during every layout.again(), at first iteraion it reads just 2 records and will print ont the report 2nd record.<br />
+<br />
+During secong iteration, when itemtot = 1, it just reads 1 records (2nd last) and prints on the report.<br />
+ Hence this will print data but in descending order. So to print in ascending order you can use following code:<br />
+<br />
+detail.2:<br />
+before.layout:<br />
+<br />
+if itemtot = 2 then<br />
+	select * <br />
+ 	  from whinr150<br />
+	    where whinr150._index1 = {:whinh215.item}<br />
+                    order by whinr150._index1 desc<br />
+                    as set with :itemtot rows<br />
+		selectdo <br />
+		    ohcwar = whinr150.cwar<br />
+	    	    ohloca = whinr150.loca<br />
+		    ohqty =  whinr150.stks<br />
+		selectempty<br />
+		endselect<br />
+endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th August 2010, 16:46</div></div><div class="posttext">This was a duplicate post by mrreds.  The problem was resolved in this thread (http://http://www.baanboard.com/baanboard/showthread.php?t=58982).</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

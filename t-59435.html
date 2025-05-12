@@ -1,0 +1,170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Session, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Session AFS/DDC/OLE: Function servers" />
+	
+	<title>Session [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Session</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">adi28_rai</div><div class="date">26th October 2010, 15:16</div></div><div class="posttext">hi<br />
+I am inserting data into standard session using AFS and the standard session is sychronized to another maintain session.When i insert data into standard session through AFS by using Synchronize dialog ,then as the first field of standard session is Auto no generation i get an error: <br />
+&quot;Change the value of Address code field.\\n\\n Reason:For First Free Number Group ADD, a defined series of length 3 must be entered&quot;</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th October 2010, 15:23</div></div><div class="posttext">This is the correct forum for AFS code.  Post the sessions and maybe the code someone might see what is wrong.  Having said that - not all sessions are AFS friendly sometimes you have to try different things to get them to work or, in worst case scenarios, actually have to change source code.  Do you own source to where you could debug is what is happening?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">adi28_rai</div><div class="date">26th October 2010, 15:53</div></div><div class="posttext">choice.insert:<br />
+on.choice:<br />
+	<br />
+	afs=insert_record(tcmsl820.cadr,tcmsl820.name,tcmsl820.dsca,tcmsl820.ccty,tcmsl820.pstc,tcmsl820.seak,tcmsl820.telp,tcmsl820.ccit,tcmsl820.tzid)<br />
+	if afs=1 then<br />
+		message(&quot;Record Inserted successful&quot;)<br />
+	else<br />
+		message(&quot;Insertion Failed&quot;)<br />
+	endif		<br />
+	===============================<br />
+dal coding for auto generation and field validation<br />
+function extern long before.open.object.set()<br />
+{<br />
+	return(0)<br />
+}<br />
+<br />
+function extern long before.save.object(long type)<br />
+{<br />
+<br />
+if not isspace(tcmsl820.cadr) then<br />
+		tcmsl820.cadr= strip$(tcmsl820.cadr)<br />
+		<br />
+		select tcmcs050.ffno<br />
+		from tcmcs050 for update <br />
+		where tcmcs050._index1 = {&quot;ADD&quot;,:tcmsl820.cadr}<br />
+		selectdo<br />
+			str.iid=strip$(tcmsl820.cadr) &amp; sprintf$(&quot;%@999999@&quot;,str$(tcmcs050.ffno))<br />
+			tcmsl820.cadr=str.iid<br />
+			<br />
+			tcmcs050.ffno = tcmcs050.ffno + 1<br />
+			db.update(ttcmcs050,DB.RETRY)<br />
+			commit.transaction()<br />
+		selectempty<br />
+			<br />
+			<br />
+		endselect<br />
+	else<br />
+		skip.io(&quot;&quot;,e)<br />
+	endif<br />
+return(0)<br />
+<br />
+}<br />
+<br />
+<br />
+<br />
+function extern long tcmsl820.cadr.make.valid()<br />
+{<br />
+if strip$(tcmsl820.cadr)&lt;&gt;&quot;ADD&quot; then<br />
+	<br />
+	tcmsl820.cadr=&quot;ADD&quot;<br />
+endif<br />
+return(0)<br />
+}<br />
+<br />
+<br />
+function extern long tcmsl820.dsca.check()<br />
+{<br />
+select tccom139.dsca from tccom139<br />
+where tccom139.dsca={:tcmsl820.dsca}<br />
+selectdo<br />
+<br />
+selectempty<br />
+dal.set.error.message(&quot;tcCOM&quot;)<br />
+return(DALHOOKERROR)<br />
+endselect<br />
+return(0)<br />
+}<br />
+<br />
+<br />
+function extern long tcmsl820.ccty.check()<br />
+{<br />
+select tccom139.ccty from tccom139<br />
+where tccom139.ccty={:tcmsl820.ccty}<br />
+selectdo<br />
+<br />
+selectempty<br />
+dal.set.error.message(&quot;tcCOM&quot;)<br />
+return(DALHOOKERROR)<br />
+endselect<br />
+return(0)<br />
+}<br />
+<br />
+<br />
+function extern long tcmsl820.pstc.check()<br />
+{<br />
+select tccom136.pstc from tccom136<br />
+where tccom136.pstc={:tcmsl820.pstc}<br />
+selectdo<br />
+<br />
+selectempty<br />
+dal.set.error.message(&quot;tcCOM&quot;)<br />
+return(DALHOOKERROR)<br />
+endselect<br />
+return(0)<br />
+}<br />
+================================================<br />
+Afs in dll:<br />
+function extern long insert_record(domain tccom.cadr cadr,domain tcnama nama ,domain tcdsca dsca,<br />
+domain tcmcs.st25 ccty,domain tcpstc pstc,domain tcseak seak,domain tctelp telp,domain tccity city,domain tczone tmzn)<br />
+{<br />
+  long ret,ret1,ret2<br />
+ ret2= stpapi.synchronize.dialog(&quot;tccom4530m000&quot;,&quot;add&quot;,error.msg)<br />
+ if ret2 then <br />
+ stpapi.put.field(&quot;tccom4130s000&quot;, &quot;tccom130.cadr&quot;, &quot;ADD999999&quot;)<br />
+ stpapi.put.field(&quot;tccom4130s000&quot;, &quot;tcmcs130.nama&quot;, nama) <br />
+ stpapi.put.field(&quot;tccom4130s000&quot;, &quot;tcmcs130.dsca&quot;, dsca)<br />
+ stpapi.put.field(&quot;tccom4130s000&quot;, &quot;tcmcs130.ccty&quot;, ccty)<br />
+ stpapi.put.field(&quot;tccom4130s000&quot;, &quot;tcmcs130.pstc&quot;, pstc)<br />
+ stpapi.put.field(&quot;tccom4130s000&quot;, &quot;tcmcs130.seak&quot;, seak)<br />
+ stpapi.put.field(&quot;tccom4130s000&quot;, &quot;tcmcs130.telp&quot;, telp)<br />
+ stpapi.put.field(&quot;tccom4130s000&quot;, &quot;tcmcs130.ccit&quot;, city)<br />
+ stpapi.put.field(&quot;tccom4130s000&quot;, &quot;tcmcs130.tzid&quot;, tmzn)<br />
+|   stpapi.continue.process(&quot;tcmcs0510m000&quot;, error.msg)<br />
+ <br />
+  ret = stpapi.insert(&quot;tccom4130s000&quot;, true, error.msg)<br />
+  <br />
+  if not ret then<br />
+	  ret1= stpapi.recover(&quot;tccom4530m000&quot;, recover.msg)<br />
+  endif<br />
+   endif<br />
+   <br />
+  stpapi.end.session(&quot;tccom4530m000&quot;)<br />
+  return(ret)<br />
+  }</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th October 2010, 19:07</div></div><div class="posttext">Well first question - is I know on LN they recommend Dal2 over AFS, but that is your call.  I can't help a lot since I do not use LN.  The first thing I noticed was the insert command - it should be on the main session.  So instead of insert on tccom4130s000 it should be on tccom4530m000.  See the example from the baan documentation.  The other thing I am not clear on is the main session - I guess I expected a find on it or something before the insert.  Also I can only assume all the fields are entered correctly as strings.<br />
+<br />
+<br />
+stpapi.put.field(&quot;dtfsa1501m000&quot;, &quot;dtfsa101.seno&quot;, str$(i.seno))<br />
+ret = stpapi.find(&quot;dtfsa1501m000&quot;, error.msg)<br />
+if ret then		<br />
+       ret = stpapi.synchronize.dialog(&quot;dtfsa1501m000&quot;, &quot;modify&quot;, error.msg)<br />
+       if ret then<br />
+               stpapi.put.field(&quot;dtfsa1101s000&quot;, &quot;dtfsa101.name&quot;, new.name) <br />
+	            ret = stpapi.update(&quot;dtfsa1501m000&quot;, true, error.msg)<br />
+       endif<br />
+endif</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,208 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Multi occurence form - check at end of each line, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Multi occurence form - check at end of each line Tools Development" />
+	
+	<title>Multi occurence form - check at end of each line [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Multi occurence form - check at end of each line</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">alexpreyer</div><div class="date">30th September 2010, 14:44</div></div><div class="posttext">I have a multi occurence session, where, at the end of each line, a check should be done if the sum of some of the fields is 100. If not a message should appear.<br />
+How do I know when the user jumps to the next occurence? A main.table.io - before.write check does not work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">30th September 2010, 15:53</div></div><div class="posttext">When do you want to check?  At insert time.  I have a at least one program which does this based off a set of records - so I have my check in several locations. The question is the by individual record or a set of records?<br />
+<br />
+<br />
+choice.start.set:<br />
+before.choice:<br />
+	verify.allocations(false)<br />
+	<br />
+after.choice:<br />
+	on.main.table(check_found)<br />
+	if found then<br />
+		execute(find.data)<br />
+	endif<br />
+<br />
+choice.first.view:<br />
+before.choice:<br />
+	verify.allocations(false)<br />
+	<br />
+choice.last.view:<br />
+before.choice:<br />
+	verify.allocations(false)<br />
+<br />
+choice.def.find:<br />
+before.choice:<br />
+	verify.allocations(false)<br />
+<br />
+choice.find.data:<br />
+before.choice:<br />
+	verify.allocations(false)<br />
+<br />
+choice.next.view:<br />
+before.choice:<br />
+	verify.allocations(false)<br />
+	<br />
+choice.prev.view:<br />
+before.choice:<br />
+	verify.allocations(false)<br />
+	<br />
+choice.end.program:<br />
+before.choice:<br />
+	if getenv$(&quot;LOGNAME&quot;)&lt;&gt;&quot;mark_h&quot; then<br />
+		verify.allocations(false)<br />
+	endif<br />
+	<br />
+choice.abort.program:<br />
+before.choice:<br />
+	verify.allocations(false)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">30th September 2010, 15:56</div></div><div class="posttext">PS - I also built a check in so at least my user id could exit the session without having to kill it if the allocations were incorrect. In my case each allocation has an expiring date. Sometimes the user gets confused and does not enter the correct allocations and aborts the session.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">alexpreyer</div><div class="date">30th September 2010, 15:57</div></div><div class="posttext">The best moment would be when leaving the occurence (jumping to a new line). Or before leaving the occurence maybem allowing only moving to the next line if the sum is 100.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">30th September 2010, 16:03</div></div><div class="posttext">Hi Alex.<br />
+ <br />
+Occurrences are buffered; they get flushed to disk / database when you leave the session, press the save button, or when you insert some records and you reach the end of the screen (maybe some more events).<br />
+ <br />
+Here is a code snipped (untested); to keep it simple I made one assumption: Add a field &quot;flag&quot; to your table.<br />
+ <br />
+<br />
+declaration:<br />
+  double total<br />
+ <br />
+main.table.io:<br />
+after.read:<br />
+  &lt;table&gt;.flag = 0<br />
+before.write:<br />
+   &lt;table&gt;.flag = 1<br />
+before.rewrite:<br />
+   &lt;table&gt;.flag = 1<br />
+ <br />
+functions:<br />
+ <br />
+function check.occurances()<br />
+{<br />
+  long i<br />
+ <br />
+  total = 0.0<br />
+ <br />
+  | calculate the sums &quot;on the screen&quot;<br />
+  for i = 1 to fattr.occurnr<br />
+    do.occ.without.update( check.occ, i )<br />
+  endfor<br />
+ <br />
+  | add the sums already written to db<br />
+  on.main.table( check.db )<br />
+}<br />
+ <br />
+function check.occ()<br />
+{<br />
+  if &lt;table&gt;.flag = 0 then<br />
+    total = total + &lt;table.field&gt;<br />
+  endif<br />
+}<br />
+ <br />
+function check.db()<br />
+{<br />
+  select ...<br />
+  from &lt;table&gt;<br />
+  where ...<br />
+  and &lt;table&gt;.flag = 1<br />
+  selectdo<br />
+    ....<br />
+    total = total + &lt;table.field&gt;<br />
+  endselect<br />
+}<br />
+<br />
+ <br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">30th September 2010, 16:17</div></div><div class="posttext">Well on the last field of input you could always do a check.input.  So lets say you had item and 3 percentage fields(field1, field2, field3).  On field3 you could do a check.input to make sure field1,2,3 add to 100 - if not give a message and do a input.again.  That would be one check.<br />
+<br />
+Then if they want to randomly change percentages on the form and hit the save button.  Maybe a check.all.input would work in choice.update.db section.  Not really sure about that.  <br />
+<br />
+The key is knowing figuring out which events get fired depending on what button the user hits.  To debug this what I will do is add in all of the sections I can think off - put a different message in each section. Then I pretend to be a &quot;user&quot; and do things randomly to document which messages I get when.  Now the one thing I have learned is there is no stopping a user from turning off his desktop if it is not going their way. :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">alexpreyer</div><div class="date">30th September 2010, 16:33</div></div><div class="posttext">The main problem is, I don't know which of the 5 fields the last ist. Depending on the amount of records in another table (1 - 5) not everytime all 5 fields need to be filled.<br />
+Also, when users changing field and leaving the check has to be done.<br />
+So, I supposed the easiest way should be do the check after leaving the occurence.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">30th September 2010, 16:45</div></div><div class="posttext">Hm. &quot;After leaving the occurence&quot; means when.field.changes (or check.input) of that input field. This event will fire for each occurrence.<br />
+ <br />
+Btw. I've been thinking some time about your problem. Let's say you have 100 occurances each with a quantity of 1; so its okay. Now, while writing to the database the user closes the baan client (network error, what so ever). This will give &quot;corrupted&quot; data, right? So you must write all data within one transaction´and you can't use the standard function.<br />
+ <br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">30th September 2010, 22:32</div></div><div class="posttext">Hm. &quot;After leaving the occurence&quot; means when.field.changes (or check.input) of that input field. This event will fire for each occurrence.<br />
+ <br />
+Btw. I've been thinking some time about your problem. Let's say you have 100 occurances each with a quantity of 1; so its okay. Now, while writing to the database the user closes the baan client (network error, what so ever). This will give &quot;corrupted&quot; data, right? So you must write all data within one transaction´and you can't use the standard function.<br />
+ <br />
+Günther<br />
+<br />
+Gunther - he would have 1 record with upto 5 fields that add up to 100.<br />
+<br />
+Alex - do you know how many fields there are? I mean is that passed back or can it be determined?  Then you can do a generic check on that by use for loop to add the 1 to 5 fields. Then check it against 100 - if they don't equal then pop up the message. <br />
+<br />
+Can you post a screen print of the session?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sameer.don</div><div class="date">4th October 2010, 08:39</div></div><div class="posttext">Hi Alex,<br />
+I have faced on such requirement, check was required on amount. <br />
+Session was developed with Multi-occ form for maintaining Payment Schedule for project element. And session should not allow user to exceed the amount at header.<br />
+<br />
+So code was written to validate total payment amount entered on each line.<br />
+Check applies in case if users is Inserting line, Updating Existing Line, Updating newly inserted (not saved) lines.<br />
+<br />
+Check if it helps you.<br />
+<br />
+<br />
+<br />
+field.ttmmm213.amnt:<br />
+before.input:<br />
+	tmp.amnt = ttmmm213.amnt<br />
+check.input:<br />
+	if choice &lt;&gt; update.db then<br />
+		if (tot.amnt + ttmmm213.amnt - tmp.amnt) &gt; element.amnt then<br />
+			message(&quot;Total amount should not exceeed the amount of element.&quot;)<br />
+			set.input.error(&quot;&quot;)<br />
+		endif<br />
+	endif<br />
+after.input:<br />
+	tot.amnt = tot.amnt - tmp.amnt + ttmmm213.amnt<br />
+	<br />
+<br />
+<br />
+choice.update.db:<br />
+before.choice:<br />
+	if tot.amnt &gt; element.amnt then<br />
+		message(&quot;Total amount should not exceeed the amount of element.&quot;)<br />
+		choice.again()<br />
+	endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">alexpreyer</div><div class="date">4th October 2010, 15:03</div></div><div class="posttext">I attached a screenshot. How many rows are used is defined in another table. I read this table on session start to get the headlines over the rows. So I know how many will be used.<br />
+I'll try the suggestion of sameer.don. Thanks.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

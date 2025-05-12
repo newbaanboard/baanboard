@@ -1,0 +1,130 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="copy data from a table of one company to same table of another company, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] copy data from a table of one company to same table of another company Tools Development" />
+	
+	<title>copy data from a table of one company to same table of another company [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; copy data from a table of one company to same table of another company</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Deepali</div><div class="date">4th February 2004, 11:50</div></div><div class="posttext">Hi,<br />
+<br />
+   Is there any function or method to copy a record from a table of one company to same table of another company.<br />
+<br />
+For eg. I would like to copy a record from tdsls045 of company eg. 870 to tdsls045 of company eg. 771.<br />
+<br />
+   Your feedback on this is required urgently.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ruskin</div><div class="date">13th February 2004, 03:58</div></div><div class="posttext">I don't think there is a tool or function to copy specific records from one company to another. There are (of course) session that will allow you to do the entire table.. These are things like;<br />
+<br />
+- ttaad4228m000 (Convert/Recover Tables)<br />
+- ttaad4226m000 (Create Sequential Dump of Table) and ttaad4227m000 (Create Table from Sequential Dump)<br />
+- Exchange (NOTE: this will allow &quot;specific&quot; records to be exported)...<br />
+<br />
+However, it is simple to write your own library, that will allow you to do this, or a quick SQL, such as;<br />
+<br />
+select  tdsls045.*<br />
+from    tdsls045<br />
+where tdsls045._index1 = {orno, pono, sqnb}<br />
+and     tdsls045._compnr = :source.comp<br />
+selectdo<br />
+        tdsls045._compnr = target.comp<br />
+        db.insert(ttdsls045, db.retry)<br />
+endselect<br />
+<br />
+<br />
+This is just a basic example (there would be a bit of validation required, such as the new record existing in the target company, if the table definitions were the same, etc)...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">SriksAdi</div><div class="date">14th February 2004, 08:26</div></div><div class="posttext">In GTM (ttaad4100), open the table to be copied. Press 1(Copy) or select Copy Rows from Application Menu.<br />
+<br />
+The systems asks for the table name and the company number, enter the values, and the data gets copied.<br />
+<br />
+<br />
+Sriks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">16th February 2004, 15:20</div></div><div class="posttext">Just remember that some tables, although not tdsls045, have a company number field in the table.  In this case, you might need to run something like tfgld9004m000 or manually change the company number field (which can also be done in GTM).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">17th February 2004, 08:33</div></div><div class="posttext">IF there are mandatory references or combined fields referring to other tables (like tdsls045.cmba &amp; cmbb) and those values are not present in referred tables , it may give error 606.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jroberts</div><div class="date">17th February 2004, 14:57</div></div><div class="posttext">When copying multiple records from one baan company to another, the easiest method I have found has been to use the database tools, not the baan tools.<br />
+<br />
+In Oracle SQL :<br />
+<br />
+Insert into baandb.TTIBOM000211(select * from baandb.TTIBOM000210);<br />
+commit;<br />
+<br />
+will copy the Bill of Materials Parameter table from company 210 into company 211.<br />
+<br />
+I have extended this approach to creating new test companies for a few reasons.<br />
+- you can restrict your copy to specific records (via a where clause) instead of copying the entire table.<br />
+- better performance vs Baan Exchange or bdbpre \ post<br />
+<br />
+The above noted concern about Baan company numbers can be addressed via a database UPDATE command, once the records have been copied.<br />
+<br />
+Oracle SQL can be written that generates the insert or copy commands automatically.<br />
+Interesting Code sample :<br />
+<br />
+<br />
+select<br />
+'Copy from user/password@server'<br />
+|| ' insert BAANDB.' ||<br />
+substr(TABLE_NAME,1,9) || '180'<br />
+|| ' using select * from ', 'BAANDB.' ||substr(TABLE_NAME,1,12), ';'<br />
+from all_tables<br />
+where substr(table_name,7,3) in ('000')<br />
+and substr(table_name, 10,3) = '170'<br />
+order by table_name<br />
+<br />
+<br />
+which outputs :<br />
+<br />
+<br />
+Copy from user/password@server insert BAANDB.TCPCOM000180 using select * from BAANDB.TCPCOM000170 ;<br />
+Copy from user/password@server insert BAANDB.TCPRPD000180 using select * from BAANDB.TCPRPD000170 ;<br />
+Copy from user/password@server insert BAANDB.TPSPMG000180 using select * from BAANDB.TPSPMG000170 ;<br />
+Copy from user/password@server insert BAANDB.TTCCOM000180 using select * from BAANDB.TTCCOM000170 ;<br />
+Copy from user/password@server insert BAANDB.TTCEDI000180 using select * from BAANDB.TTCEDI000170 ;<br />
+<br />
+<br />
+and then that code can run against your database.<br />
+Note : Insert command is more efficient than the copy command.<br />
+<br />
+Sorry for the long rambling post, but this has been really helpful to me and I wanted to share.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cazerpa</div><div class="date">25th November 2014, 21:08</div></div><div class="posttext">In GTM (ttaad4100), open the table to be copied. Press 1(Copy) or select Copy Rows from Application Menu.<br />
+<br />
+The systems asks for the table name and the company number, enter the values, and the data gets copied.<br />
+<br />
+<br />
+Sriks<br />
+How can I copy using ttaad4100 but ignoring referential integrity constrainsts?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th November 2014, 15:34</div></div><div class="posttext">In 4c4 you can always use ttaad4226m000 to create a sequential dump of a table, then use ttaad4227m000 to import the table.  In the import you can turn off referential integrity constraints.  Maybe you already know this - not sure.  I really never use ttaad4100 for table copies.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">26th November 2014, 18:05</div></div><div class="posttext">i wonder how is the referential integrity is turned off ??/</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th November 2014, 20:06</div></div><div class="posttext">That is a good question.  I am not sure how the session turns it off.  I would assume (and probably be wrong) there is an import command that disables it that Baan runs in the background.  In our case I would think it does some kind of oracle import with it turned off - but I really do not have a clue.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

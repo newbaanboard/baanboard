@@ -1,0 +1,109 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Scheduled Job never stops running, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Scheduled Job never stops running Tools Administration &amp; Installation" />
+	
+	<title>Scheduled Job never stops running [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Scheduled Job never stops running</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Ivanus</div><div class="date">23rd October 2014, 16:22</div></div><div class="posttext">Hi,<br />
+<br />
+we are having an issue with a scheduled job. We are using the startjob command and so far everything is working fine. One Baan-Job starts running <br />
+and it never ends. On the Baan side everything looks fine - the job is &quot;free&quot; after running and the last step is sending a mail and this also works.<br />
+The only think we can do is to stop the scheduled task but then the process in the background hangs (ntbshell.exe) and never stops again. Any ideas what we can do ?<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vinceco252</div><div class="date">23rd October 2014, 19:04</div></div><div class="posttext">Have you run the session(s) in that job manually to see if they run correctly?  Any messages in the event viewer?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ivanus</div><div class="date">24th October 2014, 13:06</div></div><div class="posttext">Manually everything is working fine. No messages in the event viewer.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">24th October 2014, 17:10</div></div><div class="posttext">Use bshcmd to see the proceslist of the bshell that keeps running.<br />
+I have noticed that this sometimes due to that it can't use a printer. It hangs than in ttstpsplclose.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ivanus</div><div class="date">27th October 2014, 15:04</div></div><div class="posttext">I tried following things<br />
+<br />
+Activate the Job directly from Baan (Job Data - Activate Job) - it's working<br />
+Add another programm to the Job as last step which is sending a mail with a powershell script - it's working<br />
+Start the job with the startjob command from the server - it's working but then the ntbshell.exe hangs and the job is still in &quot;running&quot; mode.<br />
+<br />
+So it's finished with all the steps (because otherwise I'll not receive the mail from the last step)<br />
+<br />
+I have no more idea what to do.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">benito</div><div class="date">27th October 2014, 22:04</div></div><div class="posttext">looks like a windows problem. have you tried on a job with just one session? how about with just a batch (*.bat) job?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">29th October 2014, 10:00</div></div><div class="posttext">Hi,<br />
+<br />
+Are you using a bat file for running the Job? I faced a similar problem as the cmd never closes itself and you have to explicitly kill it. Try the following code.<br />
+<br />
+Create a bat file and add below code to it.<br />
+<br />
+set BSE=D:\Infor\FP7LN\bse\<br />
+set USER=baan<br />
+set BSE_COMPNR=201<br />
+d:\infor\fp7ln\bse\bin\startjob.bat YOUR_JOB_NAME <br />
+TASKKILL /IM cmd.exe <br />
+<br />
+The second way will be, create 2 different jobs. Now, for each job create different bat files with the above code. Now, create a 3rd bat file with following code to execute these two bat files. Add this 3rd bat file in Scheduled Task.<br />
+<br />
+start /wait cmd /C &quot;D:\Infor\FP7LN\Jobs\1.bat&quot;<br />
+start /wait cmd /C &quot;D:\Infor\FP7LN\Jobs\2.bat&quot;<br />
+<br />
+Hope it works for you.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mrinmoygupta</div><div class="date">29th October 2014, 11:20</div></div><div class="posttext">Hi<br />
+<br />
+We run a lot of Baan jobs using windows scheduler is following was (don't know if it is different from your's but never had this issue)<br />
+<br />
+1. From windows scheduler we run a batch file, say test.bat<br />
+2. test.bat contains below lines<br />
+call d:\Baan\bin\startjob.bat MYJOBNAME<br />
+3. d:\Baan\bin\startjob.bat file contains below<br />
+<br />
+@echo off<br />
+if &quot;%1&quot; == &quot;&quot; goto argerror<br />
+start bw job.bwc -- -set BSH_JOB=%1 ttaad5203m000<br />
+goto end<br />
+:argerror<br />
+echo Usage: startjob name-of-job-to-start [jobfile-OK] [From-session-number]<br />
+goto end<br />
+:end<br />
+<br />
+Note: MYJOBNAME is the actual job name and job.bwc is a BW configuration saved on the server.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ivanus</div><div class="date">30th October 2014, 16:41</div></div><div class="posttext">Many thanks for your help.<br />
+<br />
+Yesterday evening we found out why this happens.<br />
+<br />
+The startjob has 3 arguments. We were running it only with the JOBNAME.<br />
+Why ever this special job tried to use the argument &quot;[jobfile-OK]&quot; (makes a file with ok or not ok ?)<br />
+The path for creating this file is &quot;$BSE\tmp\job&quot;.<br />
+In our case we didn't have the folder &quot;job&quot;.<br />
+As soon as it was created the Job finished normally (without making a file in the folder) but it works now.<br />
+<br />
+Hope this is helpful</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

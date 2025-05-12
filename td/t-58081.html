@@ -1,0 +1,593 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="baan script, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] baan script Tools Development" />
+	
+	<title>baan script [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; baan script</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">21st March 2010, 12:51</div></div><div class="posttext">Dear,<br />
+<br />
+I have written a script which works perfectly for one date .<br />
+<br />
+Now i want to give the date range for this report to know Inventory valuation by <br />
+Warehouse report. This is my script. <br />
+<br />
+function determine.item.cost.price.data()<br />
+{<br />
+	initialize.cost.price.data()<br />
+|	if stoc.date.f &lt; tiitm001.ltcp then<br />
+	if stoc.date.t &lt; tiitm001.ltcp then<br />
+		copr.indt = determine.cost.price.introduction.date()<br />
+	endif<br />
+	read.cpr300.cost.price.data()<br />
+}<br />
+<br />
+function initialize.cost.price.data()<br />
+{<br />
+	item.matc = 0.0<br />
+	item.oprc = 0.0<br />
+	copr.indt = tiitm001.ltcp<br />
+}<br />
+<br />
+function domain tcdate determine.cost.price.introduction.date()<br />
+{<br />
+	select	ticpr300.*<br />
+	from	ticpr300<br />
+	where	ticpr300._index1 = {:tiitm001.reli, :tiitm001.cntr}<br />
+|	and	ticpr300.indt &lt;= :stoc.date.f				|#irfan.o<br />
+	and   ticpr300.indt &lt;= :stoc.date.t<br />
+	order by ticpr300.item desc, ticpr300.cntr desc,<br />
+		 ticpr300.indt desc, ticpr300.cpcp desc<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		return(ticpr300.indt)<br />
+	endselect<br />
+	return(0)<br />
+}<br />
+<br />
+function read.cpr300.cost.price.data()<br />
+{<br />
+	select	ticpr300.*, ticpr010.*<br />
+	from	ticpr300, ticpr010<br />
+	where	ticpr300._index1 = {:tiitm001.reli, :tiitm001.cntr,<br />
+				    :copr.indt}<br />
+	and	ticpr300.cpcp refers to ticpr010<br />
+	selectdo<br />
+		if ticpr010.cref = tccref.material or<br />
+		   ticpr010.cref = tccref.chg.material then<br />
+			item.matc = item.matc +	ticpr300.amnt<br />
+		else<br />
+			item.oprc = item.oprc +	ticpr300.amnt<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+function determine.item.stock.valuation.by.warehouse()<br />
+{<br />
+	item.stoc = 0<br />
+	select	tdinv001.*, tcmcs003.*<br />
+	from	tdinv001, tcmcs003<br />
+	where	tdinv001._index2 inrange {:tiitm001.reli, :tiitm001.cntr,<br />
+					  :cwar.f}<br />
+				     and {:tiitm001.reli, :tiitm001.cntr,<br />
+				          :cwar.t}<br />
+	and	tdinv001.cwar refers to tcmcs003<br />
+	selectdo<br />
+		if determine.stock.level() then<br />
+			determine.item.stock.level()<br />
+		endif<br />
+		if copr.indt &lt;&gt; 0 and report.item.stock() then<br />
+			determine.item.stock.value()<br />
+			|print.record(1)					|#irfan.o<br />
+			rprt_send()<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+function domain tcbool determine.stock.level()<br />
+{<br />
+|	if stoc.date.f &lt; date.num() then			|#irfan.o<br />
+	if stoc.date.t &lt; date.num() then<br />
+|		if stoc.date.f &lt; tdinv001.hstd then		|#irfan.o<br />
+		if stoc.date.t &lt; tdinv001.hstd then<br />
+			item.stoc = 0.0<br />
+			return (false)<br />
+		else<br />
+			item.stoc = tdinv001.hstb<br />
+			return (true)<br />
+		endif<br />
+	endif<br />
+	item.stoc = tdinv001.stoc<br />
+	return (false)<br />
+}<br />
+<br />
+function determine.item.stock.level()<br />
+{<br />
+	select	tdinv700.*<br />
+	from	tdinv700<br />
+	where	tdinv700._index1 = {:tdinv001.item, :tdinv001.cntr,<br />
+				    :tdinv001.cwar}<br />
+|	and	tdinv700.trdt &lt;= :stoc.date.f 			|#irfan.o<br />
+	and	tdinv700.trdt &lt;= :stoc.date.t<br />
+	selectdo<br />
+		if tdinv700.kost = tckost.stc.correction or<br />
+		   ( tdinv700.kost = tckost.stc.transfer and<br />
+		     tdinv700.koor &lt;&gt; tckoor.act.sls	 and<br />
+		     tdinv700.koor &lt;&gt; tckoor.sma.order ) or<br />
+		   tdinv700.kost = tckost.pur.receipt	 or<br />
+		   tdinv700.kost = tckost.prd.receipt	 or<br />
+		   tdinv700.kost = tckost.rpl.receipt then<br />
+			item.stoc = item.stoc +	tdinv700.quan<br />
+		else<br />
+			item.stoc = item.stoc -	tdinv700.quan<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+function domain tcbool report.item.stock()<br />
+{<br />
+	if item.stoc = 0 and suppr.zero.stoc = tcyesno.yes then<br />
+		return (false)<br />
+	endif<br />
+	return (true)<br />
+}<br />
+<br />
+function determine.item.stock.value()<br />
+{<br />
+	amnt.matc = round(item.matc * item.stoc,2,1)<br />
+	amnt.oprc = round(item.oprc * item.stoc,2,1)<br />
+	amnt.copr = amnt.matc +	amnt.oprc<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">prashant</div><div class="date">21st March 2010, 14:13</div></div><div class="posttext">where are you facing error in full script?<br />
+<br />
+Kindly explain your problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">21st March 2010, 15:10</div></div><div class="posttext">I 'm facing problem in stoc.date.f and stoc.date.t variables.<br />
+<br />
+Whenever i give input from 01/01/10-31/01/10. I get the data only as of 31/01/10 but not as of  the whole month. I want to get the history of the inventory valuation date.<br />
+<br />
+Regards,<br />
+Suhaib</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">22nd March 2010, 11:08</div></div><div class="posttext">Hi,<br />
+<br />
+it's just a typo! It should be:<br />
+<br />
+       and    ticpr300.indt &gt;= :stoc.date.f</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">22nd March 2010, 13:44</div></div><div class="posttext">It didnt work</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">22nd March 2010, 18:19</div></div><div class="posttext">Try this, it should work:<br />
+<br />
+tdinv700.trdt between :stoc.date.f and :stoc.date.t</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">23rd March 2010, 14:57</div></div><div class="posttext">it didn't work</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd March 2010, 16:50</div></div><div class="posttext">It should work.  Validate the other data in the query - make sure nothing else is narrowing it down to that one date. Also validate that more than one record exists in the query range. That example and this one should both work.<br />
+<br />
+    and    tdinv700.trdt &gt;= :stoc.date.f           <br />
+    and    tdinv700.trdt &lt;= :stoc.date.t <br />
+<br />
+Maybe post the actual code.  Something other that the date has got to be impacting the query.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">24th March 2010, 07:01</div></div><div class="posttext">Dear, <br />
+<br />
+This is my code again<br />
+<br />
+|*** includes ******************************************************************<br />
+<br />
+	#include &quot;itccom0010&quot;			| Report Handling<br />
+	#include &quot;itcmcs0095&quot;			| Parameter Handling<br />
+<br />
+|*** program sections **********************************************************<br />
+<br />
+before.program:<br />
+	tcmcs0095.read.parm(&quot;tdinv000&quot;)<br />
+	read.tcmcs096()<br />
+<br />
+|*** forms *********************************************************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+|*** fields ********************************************************************<br />
+<br />
+field.item.f:<br />
+when.field.changes:<br />
+	item.t = item.f<br />
+<br />
+field.cntr.f:<br />
+when.field.changes:<br />
+	cntr.t = cntr.f<br />
+<br />
+field.citg.f:<br />
+when.field.changes:<br />
+	citg.t = citg.f<br />
+<br />
+field.cwar.f:<br />
+when.field.changes:<br />
+	cwar.t = cwar.f<br />
+<br />
+field.stoc.date.f:<br />
+before.input:<br />
+	if tdinv000.sths = tcyesno.no then    |	If no history stock transactions<br />
+|		stoc.date.f  = date.num()<br />
+		stoc.date.t	 = date.num()<br />
+		attr.input = false<br />
+	endif<br />
+field.stoc.date.t:<br />
+check.input:<br />
+	if stoc.date.t &gt; date.num() then<br />
+		set.input.error(&quot;tdinv62301&quot;)<br />
+	endif<br />
+	if stoc.date.t &lt;= archive.date then<br />
+		set.input.error(&quot;tdinv62302&quot;)<br />
+	endif<br />
+<br />
+|*** choices *******************************************************************<br />
+<br />
+choice.create.job:<br />
+before.choice:<br />
+	if spec.by.item = empty then |tcyesno.yes then<br />
+		reportgrp = 1<br />
+	else<br />
+		reportgrp = 2<br />
+	endif<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+	if rprt_open() then<br />
+		execute.stock.valuation.for.selected.items()<br />
+		rprt_close()<br />
+	else<br />
+		choice.again()<br />
+	endif<br />
+<br />
+|*** functions *****************************************************************<br />
+<br />
+functions:<br />
+<br />
+function read.tcmcs096()<br />
+{<br />
+	select tcmcs096.*<br />
+	from   tcmcs096<br />
+	where  tcmcs096._index1 = {&quot;INV&quot;,1}<br />
+	selectdo<br />
+		archive.date = lval(tcmcs096.koda)<br />
+	selectempty<br />
+		archive.date = 0<br />
+	endselect<br />
+}<br />
+<br />
+function execute.stock.valuation.for.selected.items()<br />
+{<br />
+	select	tiitm100.*, tiitm001.*, tcmcs023.*<br />
+	from	tiitm100, tiitm001, tcmcs023<br />
+	|where	tiitm100._index1 inrange {:item.f, :cntr.f}	|#irfan.o<br />
+	|			 and     {:item.t, :cntr.t}			|#irfan.o<br />
+	where	tiitm100._index1 inrange {:item.f}<br />
+				 and     {:item.t}<br />
+	and	tiitm100.item refers to tiitm001.item<br />
+	and	tiitm001.czed = tcyesno.no<br />
+	and	tiitm001.citg inrange :citg.f and :citg.t<br />
+	and	tiitm001.stva = tcstva.stnd.copr<br />
+	and	tiitm001.citg refers to tcmcs023<br />
+	selectdo<br />
+		tiitm004.conv = 0		   |   customized by Sambhaji to calculate<br />
+<br />
+		select tiitm004.* from tiitm004    | storage quantity of item<br />
+		where tiitm004.item = :tiitm001.item<br />
+		selectdo<br />
+			if tiitm001.cuni = tiitm001.stgu then<br />
+				tiitm004.conv = 1<br />
+			endif<br />
+			storeqty = tiitm001.stoc / tiitm004.conv<br />
+		selectempty<br />
+			storeqty = 0<br />
+		endselect<br />
+<br />
+		if storeqty = 0 then<br />
+			select tiitm004.* from tiitm004<br />
+			where tiitm004.citg = :tiitm001.citg<br />
+			selectdo<br />
+				if tiitm001.cuni = tiitm001.stgu then<br />
+					tiitm004.conv = 1<br />
+				endif<br />
+				storeqty = tiitm001.stoc / tiitm004.conv<br />
+			selectempty<br />
+				storeqty = 0<br />
+			endselect<br />
+		endif<br />
+<br />
+		if storeqty = 0 then<br />
+			select tiitm004.* from tiitm004<br />
+			where tiitm004.basu = :tiitm001.cuni<br />
+			selectdo<br />
+				if tiitm001.cuni = tiitm001.stgu then<br />
+					tiitm004.conv = 1<br />
+				endif<br />
+				storeqty = tiitm001.stoc / tiitm004.conv<br />
+			selectempty<br />
+				storeqty = 0<br />
+			endselect<br />
+		endif 						| upto this point<br />
+	<br />
+		if not isspace(tiitm001.cntr) then<br />
+			item.cntr = tiitm001.reli &amp; &quot; &quot; &amp; tiitm001.cntr<br />
+		else<br />
+			item.cntr = tiitm001.reli<br />
+		endif<br />
+		display(&quot;tiitm001.reli&quot;)<br />
+		determine.item.cost.price.data()<br />
+		determine.item.stock.valuation.by.warehouse()<br />
+		if copr.indt = 0 and item.stoc &lt;&gt; 0 then<br />
+			print.error.message()<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+|*********************** determine item	cost price data	************************<br />
+<br />
+function determine.item.cost.price.data()<br />
+{<br />
+	initialize.cost.price.data()<br />
+	if (stoc.date.f &gt; tiitm001.ltcp) and (stoc.date.t &lt; tiitm001.ltcp) then<br />
+	|if	tiitm001.ltcp between stoc.date.f and stoc.date.t then<br />
+		copr.indt = determine.cost.price.introduction.date()<br />
+	endif<br />
+	read.cpr300.cost.price.data()<br />
+}<br />
+<br />
+function initialize.cost.price.data()<br />
+{<br />
+	item.matc = 0.0<br />
+	item.oprc = 0.0<br />
+	copr.indt = tiitm001.ltcp<br />
+}<br />
+<br />
+function domain tcdate determine.cost.price.introduction.date()<br />
+{<br />
+	select	ticpr300.*<br />
+	from	ticpr300<br />
+	where	ticpr300._index1 = {:tiitm001.reli, :tiitm001.cntr}<br />
+	|and	ticpr300.indt &gt;= :stoc.date.f				|#irfan.o<br />
+	and   ticpr300.indt &gt;= :stoc.date.f<br />
+	order by ticpr300.item desc, ticpr300.cntr desc,<br />
+		 ticpr300.indt desc, ticpr300.cpcp desc<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		return(ticpr300.indt)<br />
+	endselect<br />
+	return(0)<br />
+}<br />
+<br />
+function read.cpr300.cost.price.data()<br />
+{<br />
+	select	ticpr300.*, ticpr010.*<br />
+	from	ticpr300, ticpr010<br />
+	where	ticpr300._index1 = {:tiitm001.reli, :tiitm001.cntr,<br />
+				    :copr.indt}<br />
+	and	ticpr300.cpcp refers to ticpr010<br />
+	selectdo<br />
+		if ticpr010.cref = tccref.material or<br />
+		   ticpr010.cref = tccref.chg.material then<br />
+			item.matc = item.matc +	ticpr300.amnt<br />
+		else<br />
+			item.oprc = item.oprc +	ticpr300.amnt<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+function determine.item.stock.valuation.by.warehouse()<br />
+{<br />
+	item.stoc = 0<br />
+	select	tdinv001.*, tcmcs003.*<br />
+	from	tdinv001, tcmcs003<br />
+	where	tdinv001._index2 inrange {:tiitm001.reli, :tiitm001.cntr,<br />
+					  :cwar.f}<br />
+				     and {:tiitm001.reli, :tiitm001.cntr,<br />
+				          :cwar.t}<br />
+	and	tdinv001.cwar refers to tcmcs003<br />
+	selectdo<br />
+		if determine.stock.level() then<br />
+			determine.item.stock.level()<br />
+		endif<br />
+		if copr.indt &lt;&gt; 0 and report.item.stock() then<br />
+			determine.item.stock.value()<br />
+			|print.record(1)					|#irfan.o<br />
+			rprt_send()<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+function domain tcbool determine.stock.level()<br />
+{<br />
+|	if stoc.date.f &lt; date.num() then			|#irfan.o<br />
+	if stoc.date.t &lt; date.num() then<br />
+		if stoc.date.f &gt; tdinv001.hstd then		|#irfan.o<br />
+<br />
+			item.stoc = 0.0<br />
+			return (false)<br />
+		else<br />
+			item.stoc = tdinv001.hstb<br />
+			return (true)<br />
+		endif<br />
+	endif<br />
+	item.stoc = tdinv001.stoc<br />
+	return (false)<br />
+}<br />
+<br />
+function determine.item.stock.level()<br />
+{<br />
+	select	tdinv700.*<br />
+	from	tdinv700<br />
+	where	tdinv700._index1 = {:tdinv001.item, :tdinv001.cntr,<br />
+				    :tdinv001.cwar}<br />
+	and	tdinv700.trdt &gt;= :stoc.date.f 	<br />
+	and	tdinv700.trdt  &lt;= :stoc.date.t		|#irfan.o<br />
+	|and	tdinv700.trdt inrange :stoc.date.f and :stoc.date.t<br />
+	|order by tdinv700.trdt<br />
+	selectdo<br />
+		if tdinv700.kost = tckost.stc.correction or<br />
+		   ( tdinv700.kost = tckost.stc.transfer and<br />
+		     tdinv700.koor &lt;&gt; tckoor.act.sls	 and<br />
+		     tdinv700.koor &lt;&gt; tckoor.sma.order ) or<br />
+		   tdinv700.kost = tckost.pur.receipt	 or<br />
+		   tdinv700.kost = tckost.prd.receipt	 or<br />
+		   tdinv700.kost = tckost.rpl.receipt then<br />
+			item.stoc = item.stoc +	tdinv700.quan<br />
+		else<br />
+			item.stoc = item.stoc -	tdinv700.quan<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+function domain tcbool report.item.stock()<br />
+{<br />
+	if item.stoc = 0 and suppr.zero.stoc = tcyesno.yes then<br />
+		return (false)<br />
+	endif<br />
+	return (true)<br />
+}<br />
+<br />
+function determine.item.stock.value()<br />
+{<br />
+	amnt.matc = round(item.matc * item.stoc,2,1)<br />
+	amnt.oprc = round(item.oprc * item.stoc,2,1)<br />
+	amnt.copr = amnt.matc +	amnt.oprc<br />
+}<br />
+<br />
+function print.error.message()<br />
+{<br />
+	error.message = sprintf$(form.text$(&quot;tdinv62303&quot;), item.cntr,<br />
+							stoc.date.f)<br />
+	|if open.report(2,spool.device,0,language$,3) then		|#irfan.so<br />
+	|	print.record(2)<br />
+	|endif									|#irfan.eo<br />
+}<br />
+<br />
+|**** end of source ****</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manish_patel</div><div class="date">24th March 2010, 11:21</div></div><div class="posttext">|*********************** determine item	cost price data	************************<br />
+<br />
+function determine.item.cost.price.data()<br />
+{<br />
+	initialize.cost.price.data()<br />
+	if (stoc.date.f &gt; tiitm001.ltcp) and (stoc.date.t &lt; tiitm001.ltcp) then<br />
+	|if	tiitm001.ltcp between stoc.date.f and stoc.date.t then<br />
+		copr.indt = determine.cost.price.introduction.date()<br />
+	endif<br />
+	read.cpr300.cost.price.data()<br />
+}<br />
+<br />
+<br />
+Generally stoc.date.f &lt; stoc.date.t <br />
+Then following condition will always false and determine.cost.price.introduction.date() function will never execute.<br />
+<br />
+if (stoc.date.f &gt; tiitm001.ltcp) and (stoc.date.t &lt; tiitm001.ltcp) then<br />
+<br />
+<br />
+It should be as below<br />
+	if (stoc.date.f &lt; tiitm001.ltcp) and (stoc.date.t &gt; tiitm001.ltcp) then<br />
+<br />
+May be this is not relevant to your original issue.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">wiggum</div><div class="date">24th March 2010, 14:15</div></div><div class="posttext">With the current code you will read only 1 record from ticpr300. As you sort the records in descending order you will get only the highest date.<br />
+<br />
+You have to change your script to read and to process all records between the given dates.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th March 2010, 14:46</div></div><div class="posttext">Of course I am assuming everything works fine until it gets to the determine.item.stock.level.  So assuming this routine:<br />
+<br />
+function determine.item.stock.level()<br />
+{<br />
+	select	tdinv700.*<br />
+	from	tdinv700<br />
+	where	tdinv700._index1 = {:tdinv001.item, :tdinv001.cntr,<br />
+				    :tdinv001.cwar}<br />
+	and	tdinv700.trdt &gt;= :stoc.date.f 	<br />
+	and	tdinv700.trdt  &lt;= :stoc.date.t		|#irfan.o<br />
+	|and	tdinv700.trdt inrange :stoc.date.f and :stoc.date.t<br />
+	|order by tdinv700.trdt<br />
+	selectdo<br />
+		if tdinv700.kost = tckost.stc.correction or<br />
+		   ( tdinv700.kost = tckost.stc.transfer and<br />
+		     tdinv700.koor &lt;&gt; tckoor.act.sls	 and<br />
+		     tdinv700.koor &lt;&gt; tckoor.sma.order ) or<br />
+		   tdinv700.kost = tckost.pur.receipt	 or<br />
+		   tdinv700.kost = tckost.prd.receipt	 or<br />
+		   tdinv700.kost = tckost.rpl.receipt then<br />
+			item.stoc = item.stoc +	tdinv700.quan<br />
+		else<br />
+			item.stoc = item.stoc -	tdinv700.quan<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+is where the issue is.  What I recommend is to put the session in debug mode.  Watch it step thru the tdinv700 table and see how many records it gets.  Then take the select out and create an easy sql filling in the variables with the same information for the test.<br />
+<br />
+	select	tdinv700.*<br />
+	from	tdinv700<br />
+	where	tdinv700._index1 = {&quot;item123&quot;, &quot;123&quot;,&quot;456&quot;}<br />
+	and	tdinv700.trdt &gt;= date(2010,1,1)	<br />
+	and	tdinv700.trdt &lt;= date(2010,1,31)<br />
+[\code]<br />
+See if you get the same number of records and the same dates.  If you are still not getting all the data - remove the dates from the above easy sql query and run again.  Post the results of both queries(with and without dates).  I know this works and I am leaning towards something in the data.<br />
+<br />
+Below is a sample of one easy sql query have used:<br />
+[code=baan]<br />
+select  tdinv700.orno,<br />
+        tisfc001.mitm,<br />
+        tdinv700.pono,<br />
+        tdinv700.item,<br />
+        tdinv700.cwar,<br />
+        ticst001.opno<br />
+from    tdinv700,<br />
+        tisfc001,<br />
+        ticst001<br />
+where   (tdinv700.cwar = &quot;AXM&quot; or tdinv700.cwar = &quot;AAU&quot; or<br />
+         tdinv700.cwar = &quot;AAS&quot; or tdinv700.cwar = &quot;AXN&quot; or<br />
+         tdinv700.cwar = &quot;AAP&quot; or tdinv700.cwar = &quot;AAV&quot; or<br />
+         tdinv700.cwar = &quot;AXN&quot; or tdinv700.cwar = &quot;AAL&quot;) and<br />
+        tdinv700.kost = tckost.prd.mat.issue and<br />
+        tdinv700.koor = tckoor.act.sfc and<br />
+        tdinv700.trdt &gt;= date(2004,08,02) and<br />
+        tdinv700.trdt &lt;= date(2005,02,01) and<br />
+        tdinv700.orno = tisfc001.pdno and<br />
+        ticst001.pdno = tdinv700.orno and<br />
+        ticst001.pono = tdinv700.pono<br />
+group by tdinv700.orno, tdinv700.pono, tdinv700.item, tdinv700.cwar, <br />
+tisfc001.mitm, ticst001.opno</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

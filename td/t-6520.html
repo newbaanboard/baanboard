@@ -1,0 +1,250 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Report giving duplicate records, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Report giving duplicate records Tools Development" />
+	
+	<title>Report giving duplicate records [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Report giving duplicate records</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Haggis</div><div class="date">3rd September 2002, 12:03</div></div><div class="posttext">I have been asked to knock up a report that prints out any duplicate records on table tdpur402 where the sales order, position number and sequence number are the same.<br />
+<br />
+I have done the select statement to print out a report giving all the data in the table for the selection chosen in the form.  I know just need to get it to only print duplicates.<br />
+<br />
+I seem to have stumped myself and cannot seem to get my head around how to do this, I have tried using some nested If statements but have hit a dead end.<br />
+<br />
+Can anyone point me in the right direction?  Sorry if this is a stupid question.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">3rd September 2002, 13:44</div></div><div class="posttext">You may use following SQL to get the same.<br />
+<br />
+select tdpur402.??? , tdpur402,???, count(*)<br />
+from tdpur402<br />
+group by tdpur402.???, tdpur402.???<br />
+having count(*) &gt; 1 <br />
+selectdo<br />
+<br />
+endselect<br />
+<br />
+I have written questions becuase I dont know tdpur402 structure.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ayoobi</div><div class="date">3rd September 2002, 13:49</div></div><div class="posttext">Hi ,<br />
+<br />
+You can try this code : ofcourse it need lot of optimisations <br />
+<br />
+temp.count = 1<br />
+select tdpur402.*<br />
+from   tdpur402<br />
+where  tdpur402._index2 inrange {:sono.f,:pono.f,:seqn.f} and<br />
+                        {:sono.t,:pono.t, :seqn.t}<br />
+and   :temp.count &gt;  (select count(alstdpur402.*) <br />
+		      from tdpur402 alstdpur402<br />
+		      where alstdpur402._index2 = {:tdpur402.sorn,:tdpur402.spon,:tdpur402.sseq})<br />
+       selectdo<br />
+       |#print record<br />
+endselect	<br />
+<br />
+Cheers<br />
+Ayoobi</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ayoobi</div><div class="date">3rd September 2002, 14:39</div></div><div class="posttext">sorry . slight error in my previous code . modified code is as follows<br />
+<br />
+temp.count = 1<br />
+select tdpur402.*<br />
+from tdpur402<br />
+where tdpur402._index2 inrange {:sono.f,:pono.f,:seqn.f} and<br />
+{:sono.t,:pono.t, :seqn.t}<br />
+and :temp.count &lt; (select count(alstdpur402.*) <br />
+from tdpur402 alstdpur402<br />
+where alstdpur402._index2 = {:tdpur402.sorn,:tdpur402.spon,:tdpur402.sseq})<br />
+selectdo<br />
+|#print record<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Haggis</div><div class="date">5th September 2002, 11:58</div></div><div class="posttext">Hi<br />
+<br />
+I have tried the option your gave me to use and everytime I run the report it gives me the &quot;connection lost&quot; error and shuts down Baan.<br />
+<br />
+Is it our porting set or something like that or the code I am using that could cause this problem?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ayoobi</div><div class="date">5th September 2002, 12:44</div></div><div class="posttext">looks like a problem in the code .  I will investigate and get back to you .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ayoobi</div><div class="date">5th September 2002, 13:24</div></div><div class="posttext">i think i have found the problem but i still could not test it out . <br />
+<br />
+Revised Code<br />
+temp.count = 1<br />
+select tdpur402.*<br />
+from tdpur402<br />
+where tdpur402._index2 inrange {:sono.f,:pono.f,:seqn.f} and<br />
+{:sono.t,:pono.t, :seqn.t}<br />
+and :temp.count &lt; (select count(alstdpur402.*) <br />
+from tdpur402 alstdpur402<br />
+where alstdpur402._index2 = {:tdpur402.sorn,:tdpur402.spon,:tdpur402.sseq}<br />
+group  by alstdpur402.sorn,alstdpur402.spon,alstdpur402.sseq )<br />
+selectdo<br />
+|#print record<br />
+endselect<br />
+<br />
+Explanation : The subquery was returning more than one rows whereas the main query was expecting one value . Bshell could not take this bouncer and u got this problem . i am sorry for it . <br />
+<br />
+You can try this code too which i think is little bit improved code (combing hitesh's and my solution) :<br />
+select tdpur402.*<br />
+from tdpur402<br />
+where tdpur402._index2 inrange {:sono.f,:pono.f,:seqn.f} and<br />
+{:sono.t,:pono.t, :seqn.t}<br />
+and exists in  (select count(*) <br />
+from tdpur402 alstdpur402<br />
+where alstdpur402._index2 = {:tdpur402.sorn,:tdpur402.spon,:tdpur402.sseq}<br />
+group  by alstdpur402.sorn,alstdpur402.spon,alstdpur402.sseq<br />
+ having count(*) &gt; 1))<br />
+selectdo<br />
+|#print record<br />
+endselect<br />
+<br />
+Good Luck!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Haggis</div><div class="date">6th September 2002, 13:05</div></div><div class="posttext">Hi Ayoobi<br />
+<br />
+Thanks for your solutions.  I am having a problem though.  I tried both your options and I get an error when I compile each time saying &quot;Syntax error 'group' not expected&quot; I need to have the group option in don't I otherwise it will crash.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">6th September 2002, 14:31</div></div><div class="posttext">It may be that the synatax in line before group may be incomplete e.g. the closing braces may be missing.<br />
+<br />
+Further the : is not needed in the subquery for tdpur402 fields.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jvenderb</div><div class="date">6th September 2002, 14:49</div></div><div class="posttext">Did you try the proposal of Hitesh Shah:<br />
+This should work. You can extend it.<br />
+So it would be something like:<br />
+<br />
+<br />
+select tdpur402.orno, tdpur402,pono, tdpur402.seqn, count(*)<br />
+from tdpur402<br />
+where tdpur402._index2 inrange { :orno.f, :pono.f, :seqn.f }<br />
+                                        and       { :orno.t, :pono.t, :seqn.t }<br />
+group by tdpur402.orno, tdpur402.pono, tdpur482.seqn<br />
+having count(*) &gt; 1 <br />
+selectdo<br />
+<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ayoobi</div><div class="date">6th September 2002, 15:37</div></div><div class="posttext">There was a problem in the code again as i did not compile before posting .  in the subquery , i had not selected the group field , hence the compilation error. but in a subquery , you cannot select more than one field . <br />
+I have changed the code completely and this time i did compile it :<br />
+<br />
+	domain	tcorno	sono.f,sono.t, als.sorn<br />
+	domain	tcpono	pono.f,pono.t, seqn.f, seqn.t,als.spon,als.sseq<br />
+	<br />
+<br />
+	select alstdpur402.sorn:als.sorn, <br />
+	       alstdpur402.spon:als.spon,<br />
+	       alstdpur402.sseq:als.sseq<br />
+	from tdpur402 alstdpur402<br />
+	where alstdpur402._index2 inrange {:sono.f,:pono.f,:seqn.f} and<br />
+				       {:sono.t,:pono.t, :seqn.t}<br />
+	group by alstdpur402.sorn,alstdpur402.spon,alstdpur402.sseq<br />
+	having count(*) &gt; 1<br />
+	selectdo<br />
+		select  tdpur402.*<br />
+		from tdpur402 <br />
+		where tdpur402._index2 = {:als.sorn,:als.spon,:als.sseq}<br />
+		selectdo<br />
+			|#print record<br />
+		endselect<br />
+	endselect<br />
+<br />
+<br />
+Note : As far as i understand correctly , you would like to print all the duplicate records not just sales order number , position and sequence of the duplicate records . otherwise , hitesh's code will work just fine . <br />
+<br />
+Good Luck !!!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Haggis</div><div class="date">16th September 2002, 15:41</div></div><div class="posttext">Thanks Ayoobi and guys for helping me out with that problem I had.  I managed to get the report working showing all the duplicate entries in the tdpur402 table that have suplicate purchase orders for a sales order.<br />
+<br />
+The new problem is they want me to exclude cancelled orders off the tdpur401 table.  So if there were initially 3 entries for a sales order it needs to check if there are any cancelled orders.  If there were 2 cancelled then it should not show it on the report. ie, the count must be &gt; 1 still.  I am trying to use a nested select statement and I think I would need to run another count and loop it to check for cancelled orders?  I hope this is the right idea?  Or should I be trying to do this in the report script?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Haggis</div><div class="date">16th September 2002, 18:49</div></div><div class="posttext">Hi<br />
+<br />
+Sorry for all the questions.  Using the code above I need to only include orders that are not cancelled in the tdpur401 table.  Could I do the following.<br />
+<br />
+function read.main.table()<br />
+{<br />
+select 	tdpur401.*<br />
+from 	tdpur401<br />
+where	tdpur401._index1 inrange {:orno.f} and<br />
+				 {:orno.t}<br />
+and	tdpur401.clyn &lt;&gt; tcyesno.yes<br />
+<br />
+selectdo<br />
+	select	alstdpur402.sorn:als.sorn, alstdpur402.spon:als.spon, alstdpur402.sseq:als.sseq<br />
+	from 	tdpur402 alstdpur402<br />
+	where	alstdpur402._index1 = {:tdpur401.orno}<br />
+	group by alstdpur402.sorn,alstdpur402.spon,alstdpur402.sseq<br />
+	having count(*) &gt; 1<br />
+	selectdo<br />
+		select 	tdpur402.*<br />
+		from	tdpur402<br />
+		where	tdpur402._index2 = {:als.sorn,:als.spon,:als.sseq}<br />
+		as set with 1 rows<br />
+		selectdo<br />
+			rprt_send()<br />
+		endselect<br />
+	endselect<br />
+endselect<br />
+	<br />
+}<br />
+My thinking is that by selecting only non cancelled orders initially that the rest of the query will only use that data to run its select statements with?  Am I right?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ayoobi</div><div class="date">17th September 2002, 04:08</div></div><div class="posttext">Slight modification is required to the code . I have just added position and sequence in tdpur402 select . This is to ensure that cancelled order lines are not selected again in tdpur402.  if you just give order range then those lines would be selected , thus nullifying your efforts in the outermost select. <br />
+<br />
+Also i did not understand the reason for as set with 1 rows in the innermost select . Do u want to print only one of the duplicate records ? <br />
+function read.main.table()<br />
+{<br />
+select 	tdpur401.*<br />
+from 	tdpur401<br />
+where	tdpur401._index1 inrange {:orno.f} and<br />
+				 {:orno.t}<br />
+and	tdpur401.clyn &lt;&gt; tcyesno.yes<br />
+<br />
+selectdo<br />
+	select	alstdpur402.sorn:als.sorn, alstdpur402.spon:als.spon, alstdpur402.sseq:als.sseq<br />
+	from 	tdpur402 alstdpur402<br />
+	where	alstdpur402._index1 = {:tdpur401.orno,tdpur401.pono, tdpur401.sqnb}<br />
+	group by alstdpur402.sorn,alstdpur402.spon,alstdpur402.sseq<br />
+	having count(*) &gt; 1<br />
+	selectdo<br />
+		select 	tdpur402.*<br />
+		from	tdpur402<br />
+		where	tdpur402._index2 = {:als.sorn,:als.spon,:als.sseq}<br />
+		as set with 1 rows<br />
+		selectdo<br />
+			rprt_send()<br />
+		endselect<br />
+	endselect<br />
+endselect<br />
+}<br />
+<br />
+Good Luck !</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

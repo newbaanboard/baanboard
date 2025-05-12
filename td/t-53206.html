@@ -1,0 +1,170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="can I print a postscript in landscape mode?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] can I print a postscript in landscape mode? Tools Development" />
+	
+	<title>can I print a postscript in landscape mode? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; can I print a postscript in landscape mode?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">gget79</div><div class="date">2nd August 2008, 17:29</div></div><div class="posttext">Hello Friends,  <br />
+  <br />
+I made a work that could print a baan report in PDF format, I used ghostscript program to do it. I made a program 3GL linked to a device  <br />
+  <br />
+  <br />
+I used the next code.  <br />
+  <br />
+  <br />
+#pragma  used dll &quot;ottstpapihand&quot;  <br />
+#pragma used dll ottdllbw  <br />
+  <br />
+  <br />
+	STRING		correo.partner(50) BASED |Dirección de Correo Partner  <br />
+	COMMON		correo.partner  <br />
+	STRING		numero.documento(9) BASED |Número del documento (Orden compra / solicitud oferta)  <br />
+	COMMON		numero.documento  <br />
+	STRING		tipo.documento(20) BASED |Tipo del documento (Orden compra / solicitud oferta)  <br />
+	COMMON		tipo.documento  <br />
+	long 			ret  <br />
+	long			page.width	| NOVAMMH03.sn  <br />
+	long			page.height	| NOVAMMH03.en  <br />
+	  <br />
+	table			ttucpe900	|* Parámetros generación PDF y envío e-mail  <br />
+	table			ttucpe901	|* Tabla de log de errores  <br />
+  <br />
+  <br />
+function main()  <br />
+{  <br />
+	string	tmp.file(1024)		| Nombre de Archivo temporal.  <br />
+	string	local.path(1024)	| Path en el cliente para el reporte.  <br />
+	string	error.msg(1024)   | Mensajes de error del AFS  <br />
+	long	rc,	ret				| Código de Retorno  <br />
+	string stringargv0(40), stringargv1(40), stringargv2(40), stringargv3(40), stringargv4(40), stringargv5(40)  <br />
+		  <br />
+	|* Obtiene datos de la tabla de parámetros.  <br />
+	select	tucpe900.*  <br />
+	from		tucpe900  <br />
+	selectdo  <br />
+	selectempty  <br />
+		message(&quot;No existen parámetros en la tabla tucpe900&quot;)  <br />
+		actualiza.tucpe901(&quot;No existen parámetros en la tabla tucpe900&quot;)  <br />
+		end()  <br />
+	endselect  <br />
+	  <br />
+  <br />
+	  <br />
+	|* Convertir el archivo del reporte en un archivo temporal POSTSCRIPT.  <br />
+  <br />
+	tmp.file = creat.tmp.file$( bse.tmp.dir$() )  <br />
+	  <br />
+|  	wait.and.activate(&quot;ttstpconv&quot;, argv$(1), tmp.file, &quot;POSTSCRIPT&quot;,argv$(4))  <br />
+	stringargv0 = argv$(0)  <br />
+	stringargv1 = argv$(1)  <br />
+	stringargv2 = argv$(2)  <br />
+	stringargv3 = argv$(3)  <br />
+	stringargv4 = argv$(4)  <br />
+	stringargv5 = argv$(5)  <br />
+ 	wait.and.activate(&quot;ttstpconv&quot;, argv$(1), tmp.file, &quot;POSTSCRIPT&quot;, argv$(4))  <br />
+	  <br />
+	|* Configurar la ruta sobre el cliente pc y enviar el archivo bajado.   <br />
+	|* Dejar al usuario que ingrese la ruta y el nombre del archivo a bajar  <br />
+	local.path = strip$(shiftl$(spool.fileout))  <br />
+	  <br />
+	|* borra archivos .ps y .pdf anteriores con similar nombre  <br />
+	remove.local.file(local.path(1;(len(local.path)-2))&amp; &quot;pdf&quot;)  <br />
+	remove.local.file(local.path)  <br />
+	  <br />
+	|* Copiar el archivo al pc cliente  <br />
+	send.report.to.client(tmp.file, strip$(local.path))  <br />
+	  <br />
+	|* Convierte el POSTSCRIPT a PDF  <br />
+   make.pdf(tmp.file, strip$(local.path))    <br />
+	  <br />
+    <br />
+  <br />
+	|* Borrar archivo de trabajo  <br />
+	rc = seq.unlink(tmp.file)  <br />
+}  <br />
+  <br />
+|****************************************************************************************  <br />
+|* send.report.to.client(const string src(), const string dest())  <br />
+|* Definición:	Esta función se encarga de pasar el archivo temporal del servidor al cliente.  <br />
+|* Inputs:	src 	const string()	Nombre del archivo temporal que genera el reporte   <br />
+|* 					(archivo.ps en el servidor)  <br />
+|*				dest	cosnt string()	Directorio de destino en el cliente al cual se copia el   <br />
+|*						archivo (Directorio indicado en el dispositivo).  <br />
+|* Outputs:	Se tiene el archivo.ps en el directorio indicado en el dispositivo (dest).  <br />
+|****************************************************************************************  <br />
+function send.report.to.client(const string src(), const string dest())  <br />
+{  <br />
+	long err  <br />
+	err = server2client(src, dest, 1)  <br />
+	if (err) then  <br />
+		message(&quot;Error %d copiando el archivo al PC (Puede que no tenga permisos)&quot;, err)  <br />
+		actualiza.tucpe901(sprintf$(&quot;Error %d copiando el archivo al PC (Puede que no tenga permisos)&quot;, err))  <br />
+	endif  <br />
+}  <br />
+  <br />
+|****************************************************************************************  <br />
+|* make.pdf(const string src(), const string dest())  <br />
+|* Definición:	Esta función se encarga de convertir el archivo.ps en el cliente a un pdf.  <br />
+|* Inputs:	src 	const string()	Nombre del archivo.ps a convertir en pdf  <br />
+|* 			dest	cosnt string()	Directorio en el cliente en el cual se encuentra el   <br />
+|* 					archivo.ps   <br />
+|* Outputs:	Se tiene el archivo.pdf en el directorio indicado.  <br />
+|****************************************************************************************  <br />
+function make.pdf(const string src(), const string dest())  <br />
+{  <br />
+	long app.stat  <br />
+	app.stat = 0  <br />
+	|* NOVAMMH03.sn  <br />
+	string comando(1024)  <br />
+	comando = &quot;&quot;  <br />
+	  <br />
+		page.width = 842  <br />
+		page.height = 497 |GET.N  <br />
+	 	comando = trim$(strip$(tucpe900.ghpa) &amp; &quot;\&quot; &amp; strip$(tucpe900.ghsc) &amp;&quot;  -q -dSAFER -dNOPAUSE&quot; &amp;  <br />
+ 						&quot; -dDEVICEWIDTHPOINTS#&quot; &amp; str$(page.width) &amp; &quot; -dDEVICEHEIGHTPOINTS#&quot; &amp; str$(page.height) &amp;  <br />
+ 						&quot; -dBATCH -sDEVICE#pdfwrite -sOutputFile#&quot; &amp; dest(1;(len(dest)-2))&amp; &quot;pdf&quot;  &amp;  <br />
+ 						&quot; -dnodisplay -dCompatibilityLevel#1.2  -c .setpdfwrite -f &quot; &amp; dest)  <br />
+							  <br />
+	ret = app_start(comando, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;)  <br />
+	  <br />
+  <br />
+	|* NOVAMMH03.en  <br />
+	app.stat = app_status(ret)  <br />
+	if ret = 0 then  <br />
+		actualiza.tucpe901(&quot;No se pudo convertir archivo a pdf&quot;)  <br />
+	endif  <br />
+}  <br />
+  <br />
+  <br />
+  <br />
+  <br />
+My problem is that the report has to print in landscape mode. I is able to put the sheet in landscape mode, but the report is bad printing. I think that file ps is bad generating my question is can I print a postscript in landscape mode?  <br />
+  <br />
+I attach file printed</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">4th August 2008, 08:49</div></div><div class="posttext">Hi,<br />
+<br />
+have a look at this thread:<br />
+http://www.baanboard.com/baanboard/showthread.php?t=27695.<br />
+There are some different solutions.<br />
+<br />
+Günther</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

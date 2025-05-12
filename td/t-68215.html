@@ -1,0 +1,193 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Data not print, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Data not print Tools Development" />
+	
+	<title>Data not print [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Data not print</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Deknor</div><div class="date">2nd October 2015, 04:47</div></div><div class="posttext">Hi all,<br />
+<br />
+May i ask something about my code?<br />
+<br />
+This is example of my code. My code didn't give the error. <br />
+<br />
+The problem:<br />
+1)But the data which is print for issue quantity become 0,no value. Only the receipt quantities print out.<br />
+2) The data print out more than 1. The data becomes double.<br />
+<br />
+|****************************** function section ******************************<br />
+functions:<br />
+function read.main.table()<br />
+{<br />
+    	long i,i2,x<br />
+	domain tcqiv1   v.quan<br />
+	domain tctrns.date   qty.date, qty2.date<br />
+	<br />
+	|utc.to.date(date.f,yy,mm,dd,hh,nn,ss)<br />
+	|date.f = date.to.utc(yy,mm,dd,0,0,0)<br />
+<br />
+	|utc.to.date(date.t,yy,mm,dd,hh,nn,ss)<br />
+	|date.t = date.to.utc(yy,mm,dd,23,59,59)<br />
+<br />
+	for i = 1 to 30         || initialize transaction date<br />
+					<br />
+		utc.add(date.f,0,0,+(i-1),0,0,0,date.title(i))<br />
+		i2 = i<br />
+			<br />
+		if date.title(i) &gt;= date.t then<br />
+			i = 30<br />
+		endif<br />
+	endfor<br />
+<br />
+	|read files<br />
+	select whwmd400.*,tcibd100.*,whinp100.*<br />
+    	from whwmd400,tcibd100,whinp100<br />
+   	where   whwmd400._index1 inrange {:item.f} and {:item.t}<br />
+        and whinp100.item refers to tcibd100     <br />
+	and tcibd100.item refers to whwmd400               <br />
+   	|order by whwmd400.item |add item group<br />
+	order by whwmd400._index1<br />
+	<br />
+	|set.mem(QtyReceipt,0)<br />
+	selectdo<br />
+		qty2.date= 0<br />
+		select whinp100.*<br />
+		from whinp100<br />
+		where whinp100._index2 = {:tcibd100.item}<br />
+		and whinp100.kotr = tckotr.receipt<br />
+		order by whinp100._index2<br />
+				<br />
+		selectdo<br />
+			qty2.date = whinp100.date<br />
+			<br />
+			for i = 1 to 30<br />
+				if qty2.date = date.title(i) then<br />
+					QtyReceipt(i) = QtyReceipt(i) + whinp100.qana<br />
+				endif	<br />
+			endfor<br />
+		endselect		<br />
+<br />
+	|Planned Qty Issue<br />
+	|selectdo<br />
+		qty.date = 0<br />
+		select whinp100.*<br />
+		from whinp100<br />
+		where whinp100._index2 = {:tcibd100.item}<br />
+		and whinp100.kotr = tckotr.requirement<br />
+		order by whinp100._index2 <br />
+		<br />
+		selectdo<br />
+			qty.date = whinp100.date<br />
+			<br />
+			for i = 1 to 30		<br />
+				if qty.date = date.title(i) then<br />
+					QtyIssue(i) = QtyIssue(i) + whinp100.qana<br />
+				endif				<br />
+			endfor<br />
+		endselect		<br />
+<br />
+		rprt_send()<br />
+  	endselect<br />
+}<br />
+<br />
+<br />
+The attachment is a  example of my results:<br />
+<br />
+Your kindness I'm very appreciate,:)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd October 2015, 20:19</div></div><div class="posttext">Keep in mind I do not know these tables and I am assuming LN based off your profile.  Below is how I would approach it in 4C4.<br />
+<br />
+First thing I would do is pull whinp100 from the outer query.<br />
+<br />
+	select whwmd400.*,tcibd100.*<br />
+    	from whwmd400,tcibd100<br />
+   	where   whwmd400._index1 inrange {:item.f} and {:item.t}<br />
+	and tcibd100.item refers to whwmd400               <br />
+	order by whwmd400._index1<br />
+<br />
+Then make sure the above is not returning more than one record - you might so maybe take those .* off. Since the only field below to be used is really tcbdi100.item - maybe group on it.<br />
+<br />
+Then I would step thru debugging it to make sure that qty.date = date.title(i) actually happens and a value is inserted.<br />
+<br />
+Bottom line my code based off what I read would look like this:<br />
+<br />
+                select tcibd100.item<br />
+    	from whwmd400,tcibd100<br />
+   	where   whwmd400._index1 inrange {:item.f} and {:item.t}<br />
+	and tcibd100.item refers to whwmd400               <br />
+                group by tcibd100<br />
+	selectdo<br />
+		qty2.date= 0<br />
+		select whinp100.*<br />
+		from whinp100<br />
+		where whinp100._index2 = {:tcibd100.item}<br />
+		and whinp100.kotr = tckotr.receipt<br />
+		order by whinp100._index2<br />
+				<br />
+		selectdo<br />
+			qty2.date = whinp100.date<br />
+			<br />
+			for i = 1 to 30<br />
+				if qty2.date = date.title(i) then<br />
+					QtyReceipt(i) = QtyReceipt(i) + whinp100.qana<br />
+				endif	<br />
+			endfor<br />
+		endselect		<br />
+<br />
+	|Planned Qty Issue<br />
+	|selectdo<br />
+		qty.date = 0<br />
+		select whinp100.*<br />
+		from whinp100<br />
+		where whinp100._index2 = {:tcibd100.item}<br />
+		and whinp100.kotr = tckotr.requirement<br />
+		order by whinp100._index2 <br />
+		<br />
+		selectdo<br />
+			qty.date = whinp100.date<br />
+			<br />
+			for i = 1 to 30		<br />
+				if qty.date = date.title(i) then<br />
+					QtyIssue(i) = QtyIssue(i) + whinp100.qana<br />
+				endif				<br />
+			endfor<br />
+		endselect		<br />
+<br />
+		rprt_send()<br />
+  	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">11th October 2015, 13:17</div></div><div class="posttext">in the Planned Qty Issue use the 'alias' field name like <br />
+select whinp100.koor:koor,whinp100.item:item<br />
+<br />
+We should use alias when we are repeating the script for the second time bcos the field name get confused to retrieve</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Deknor</div><div class="date">15th October 2015, 11:48</div></div><div class="posttext">in the Planned Qty Issue use the 'alias' field name like <br />
+select whinp100.koor:koor,whinp100.item:item<br />
+<br />
+We should use alias when we are repeating the script for the second time bcos the field name get confused to retrieve<br />
+<br />
+<br />
+hai smusba,<br />
+<br />
+I already use alias to replace my variable into my code. But the result still the same. Issue quantities still not print.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

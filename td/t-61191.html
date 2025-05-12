@@ -1,0 +1,223 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="update expiry date, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] update expiry date Tools Development" />
+	
+	<title>update expiry date [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; update expiry date</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">21st September 2011, 15:13</div></div><div class="posttext">Dear All,<br />
+<br />
+I want to write a update query in baan.<br />
+<br />
+Query:in the session tdsls0104 in want to change the expiry date of the previous line of the last line to yesterday's date.<br />
+<br />
+my query is here:<br />
+<br />
+functions:<br />
+function read.main.table1()<br />
+{          <br />
+		 db.retry.point()<br />
+        	select tdsls032.*<br />
+        	from tdsls032 for update<br />
+        	where tdsls032.tdat &gt; date.num() <br />
+		<br />
+        	selectdo<br />
+		|selecteos<br />
+      		if  tdsls032.tdat &gt; date.num() then<br />
+		     	tdsls032.tdat  = date.num()-1<br />
+              		db.update(ttdsls032,db.retry)<br />
+			commit.transaction()<br />
+			<br />
+			endif<br />
+			message(&quot;THE PRICES ARE UPDATED NOW&quot;)<br />
+			endselect<br />
+			<br />
+                       <br />
+            }           <br />
+<br />
+The problem with this query is it updates all the lines to yesterday's date .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st September 2011, 16:12</div></div><div class="posttext">I am not familiar with this table, but just looking at the query and the code it is getting all records where the expiry date is greater than today.  Then it updates all of those records to today-1.  Is there one or multiple records to be updated?  Do you have the item or other information to go on?  Are you just trying to roll thru tdsls032 and update certain records?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">22nd September 2011, 11:52</div></div><div class="posttext">dear Mark,<br />
+<br />
+I want to compare two records as in image&quot;Price&quot;.<br />
+It contains the expiry date &quot;31-12-2012&quot;.<br />
+and i want to update the (last -1)th record to today's date.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sameer.don</div><div class="date">22nd September 2011, 12:11</div></div><div class="posttext">I assume that your table has a field tdsls032.pono for position number. <br />
+We can have a few modification to the query, this will update last-1 record.<br />
+<br />
+functions: <br />
+function read.main.table1() <br />
+{           <br />
+         db.retry.point() <br />
+            select tdsls032.* <br />
+            from tdsls032 for update <br />
+            where tdsls032.tdat &gt; date.num()  <br />
+            order by tdsls032.pono desc <br />
+            as set with 2 rows                        <br />
+             |selectdo <br />
+             selecteos<br />
+                   if  tdsls032.tdat &gt; date.num() then <br />
+                       tdsls032.tdat  = date.num()-1 <br />
+                       db.update(ttdsls032,db.retry) <br />
+                       commit.transaction()              <br />
+                   endif <br />
+            message(&quot;THE PRICES ARE UPDATED NOW&quot;) <br />
+            endselect <br />
+             <br />
+                        <br />
+            }</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">22nd September 2011, 12:21</div></div><div class="posttext">no, i don't have a tdsls032.pono field.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sameer.don</div><div class="date">22nd September 2011, 14:12</div></div><div class="posttext">In that case,<br />
+try:<br />
+ order by tdsls032._index1 desc</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">22nd September 2011, 16:39</div></div><div class="posttext">Well I like to keep things simple, maybe not the best, but below is how I would do something like this.  I did not check the code, declare variables but something like this should work to roll through whole table.  I also did not take into account the quantity or effective date - you could build those in if really needed.<br />
+<br />
+| Get all parts regardless of the expiry date.  Here you can limit if you <br />
+| want with a.tdat = date.num()<br />
+select	a.cpsl:cpsl, a.item:Item, a.cntr:Cntr, a.dile:dile<br />
+from	tdsls032 a<br />
+group by a.cpsl, a.item, a.cntr, a.dile<br />
+selectdo<br />
+|Now go get last expiry date.  This should get the latest<br />
+|expiry date.<br />
+	select	b.tdat:expdate<br />
+	from	tdsls032 b<br />
+	where	b._index1 = {:cpsl, :item, :cntr, :dile}<br />
+	order by b.tdat desc<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	endselect<br />
+	<br />
+| Now get and update the second to last date<br />
+	db.retry.point()<br />
+	select 	tdsls032.*<br />
+	from	tdsls032 for update<br />
+	where	tdsls032._index1 = b._index1 = {:cpsl, :item, :cntr, :dile}<br />
+	and	tdsls032.tdat &lt; :expdate<br />
+	order by tdsls032.tdat desc<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	endselect<br />
+	tdsls032.tdate = date.num() - 1<br />
+	db.update(ttdsls032,db.retry)<br />
+	commit.transaction()<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">25th September 2011, 09:04</div></div><div class="posttext">Dear Mark,<br />
+<br />
+Thank you for your reply.<br />
+I want to update last 2nd row after comparing <br />
+But this script updates the last row itself.         <br />
+How can I update the last 2nd row?<br />
+ this is my script<br />
+functions:<br />
+function read.main.table1()<br />
+{          <br />
+                select    a.cpls:cpls, a.item:item, a.cntr:cntr, a.dile:dile<br />
+                from      tdsls032 a<br />
+                group by a.cpls, a.item, a.cntr, a.dile<br />
+                selectdo<br />
+<br />
+|*************************SELECT THE LAST ROW**********************************************************<br />
+<br />
+                                select    b.tdat:expdate<br />
+                                from      tdsls032 b<br />
+                                where   b._index1 = {:cpls, :item, :cntr, :dile}<br />
+                                order by b.tdat desc<br />
+                                as set with 1 rows<br />
+                                selectdo<br />
+                                endselect<br />
+<br />
+|****************************************SELECT THE (LAST-1)TH ROW***************************************<br />
+                                <br />
+                                select    c.tdat:expdate2<br />
+                                from      tdsls032 c<br />
+                                where   c._index1 = {:cpls, :item, :cntr, :dile}<br />
+                                order by c.tdat desc<br />
+                                as set with 2 rows<br />
+                                selectdo<br />
+                                endselect            <br />
+|****************************************COMPARE THE LAST TWO ROWS ****************************************<br />
+|***************************************** UPDATE (LAST-1)TH ROW IF BOTH EXPIRY DATES ARE EQUAL*************                              <br />
+                                if expdate2  = expdate then<br />
+                                db.retry.point()<br />
+                                select    tdsls032.*<br />
+                                from      tdsls032 for update<br />
+                                where   tdsls032._index1 = {:cpls, :item, :cntr, :dile}<br />
+                                |and      tdsls032.tdat &lt; :expdate<br />
+                               | order by tdsls032.tdat desc<br />
+                               | as set with 2 rows<br />
+                                selectdo<br />
+                                selecteos<br />
+                                                tdsls032.tdat= date.num() - 1<br />
+                                                db.update(ttdsls032,db.retry)<br />
+                                                commit.transaction()<br />
+                                endselect<br />
+                                else<br />
+|:                                                message(&quot;Expiry Date from the last two rows are not equal&quot;)<br />
+                                endif<br />
+                endselect       <br />
+            }</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th September 2011, 15:48</div></div><div class="posttext">Yep - I just noticed it has the same expiry date as the last row.  Just change the sort to using the effective date.  Keep in mind I do not know your data, and am assuming the second to last record will have an effective date &lt; the last record.  Or if you know the last two records have the same expiry date then you could find it with &quot;as set with 1 rows&quot; to get first row(which we be second from end).<br />
+<br />
+<br />
+select	a.cpsl:cpsl, a.item:Item, a.cntr:Cntr, a.dile:dile<br />
+from	tdsls032 a<br />
+group by a.cpsl, a.item, a.cntr, a.dile<br />
+selectdo<br />
+|Now go get last expiry date.  This should get the latest<br />
+|expiry date.<br />
+	select	b.tdat:expdate, b.stdt:effdate<br />
+	from	tdsls032 b<br />
+	where	b._index1 = {:cpsl, :item, :cntr, :dile}<br />
+	order by b.tdat desc<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	endselect<br />
+	<br />
+| Now get and update the second to last date<br />
+	db.retry.point()<br />
+	select 	tdsls032.*<br />
+	from	tdsls032 for update<br />
+	where	tdsls032._index1 = b._index1 = {:cpsl, :item, :cntr, :dile}<br />
+	and	tdsls032.stdt &lt; :effdate<br />
+	order by tdsls032.tdat desc<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	endselect<br />
+	tdsls032.tdate = date.num() - 1<br />
+	db.update(ttdsls032,db.retry)<br />
+	commit.transaction()<br />
+endselect</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Using CAST in SELECT, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Using CAST in SELECT Tools Development" />
+	
+	<title>Using CAST in SELECT [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Using CAST in SELECT</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">SerBel</div><div class="date">21st July 2011, 16:01</div></div><div class="posttext">Hi!<br />
+According to progguide we can use CAST in SELECT statements to convert any numeric (or date) field to string value:<br />
+<br />
+&lt;cast expression&gt;<br />
+    ::= CAST ( &lt;parameter&gt; AS &lt;parameter cast type&gt; )<br />
+<br />
+&lt;parameter cast type&gt;<br />
+    ::= INTEGER | REAL | DATE | TIMESTAMP | STRING | RAW<br />
+<br />
+but it doesn't work!<br />
+Sample code:<br />
+string str1(100)<br />
+select cast(tcibd001.kitm as string):str1<br />
+from tcibd001<br />
+selectdo<br />
+...<br />
+endselect<br />
+causes coplilation error &quot;Error SQL: SQLState 42I00: STRING type not allowed in CAST (error 302)&quot;.<br />
+We can cast numbers to date and date to numbers. We can cast string params to string (f.e. cast(:str1 as string):str2). But we can't cast numbers to string. Nevertheless help says that we can...<br />
+May be somebody knows how to cast number to string in SELECT and in WHERE?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">25th July 2011, 18:38</div></div><div class="posttext">Not a real problem, same result can be obtained:<br />
+<br />
+string str1(100)<br />
+select tcibd001.kitm<br />
+from tcibd001<br />
+selectdo<br />
+str1 = enum.descr$(&quot;tckitm&quot;, tcibd001.kitm)<br />
+...<br />
+endselect<br />
+<br />
+(Maybe CAST will be fully implemented in the future :rolleyes:)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">SerBel</div><div class="date">26th July 2011, 11:06</div></div><div class="posttext">Thank you.<br />
+Of cause we can do any convertation in SELECTDO. And we can get textual representation of enum even in SELECT or WHERE:<br />
+<br />
+	select ENUM_DESCRIPTION(tcibd001.kitm):str1<br />
+	from tcibd001<br />
+	selectdo<br />
+		message(str1)<br />
+	endselect<br />
+<br />
+But when we need just to convert number to string (e.g. number 12 to string &quot;12&quot;) to combine fields of different types or to join tables or to use complex conditions in WHERE, we get a problem...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bezique</div><div class="date">26th July 2011, 13:05</div></div><div class="posttext">Hello!!!<br />
+ <br />
+The CAST functionality within erp is limited and developoment does not have any plans at the moment to increase the use of it at this time. The only possibillity that we have is to use ANSI mode within erp, but then you will have to use dynamic sql and parse mode PARSE.ANSI within the sql.parse() function; this will allow you to use a more powerfull language and offers more options within cast.<br />
+<br />
+<br />
+function main()<br />
+{<br />
+string str(10)<br />
+long ret, id<br />
+<br />
+|compnr.check(551)<br />
+<br />
+id = sql.parse(&quot;select distinct CAST(tcibd001.kitm AS CHAR(10) ):1 from tcibd001&quot; , PARSE.ANSI)<br />
+ret = sql.select.bind( id, 1, str )<br />
+<br />
+ret = sql.exec(id)<br />
+while sql.fetch(id) = 0<br />
+message(&quot;str='%s'&quot;,str)<br />
+endwhile<br />
+ret = sql.close(id)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ulrich.fuchs</div><div class="date">26th July 2011, 14:09</div></div><div class="posttext">This is a good example of &quot;How do I make my code hard to read?&quot;<br />
+<br />
+Using casts to cast an enum to a string (By the way, which language?)???<br />
+Using dynamic SQL and bypass compile-time error checking because otherwise we can't use the &quot;cast&quot; ?????<br />
+<br />
+Folks please, keep it simple stupid. Always code as if the guy who's having to maintain your code is a psychopath knowing where you live. So, please, in that case, use the <br />
+<br />
+   enum.descr$(&quot;tckitm&quot;, tcibd001.kitm)<br />
+<br />
+thing within the selecto<br />
+<br />
+And if you have to join from an enum field to a table having a string key, please revise your data model. In the Baan standard there is no situation where you would have to do a join in this way, so it should be custom tables where you have influence on.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bezique</div><div class="date">26th July 2011, 14:39</div></div><div class="posttext">if you notice it is not about enum.descr$(), it is solely on the use of CAST in SELECT statement.<br />
+Dynamic query, it is the only way to convert a field value to string in SELECT statement using CAST.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">SerBel</div><div class="date">26th July 2011, 15:21</div></div><div class="posttext">Thank you, bezique! It really works! You are guru, no questions!<br />
+Ulrich, you are right. Of cause, code must be easy to maintain. But when we need to integrate different systems often we can't change data types... So CAST can help.<br />
+It would be great if we could execute a query without any parsing in baan, because Oracle SQL is very powerfull but baan limits it tightly.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">26th July 2011, 16:37</div></div><div class="posttext">It would be great if we could execute a query without any parsing in baan, because Oracle SQL is very powerfull but baan limits it tightly.<br />
+<br />
+Baan mostly runs on Oracle, but not ONLY on Oracle. Keep in mind this. If you do something specific to the database you are using, you automatically obtain that your software isn't portable on other systems.<br />
+It is a limitation? Maybe. But I surely prefer to do a customization that runs (even if not optimized as for a specific database) on each system than a lot of them (one for each database Baan supports).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">benito</div><div class="date">26th July 2011, 18:38</div></div><div class="posttext">agree with you 100%<br />
+<br />
+if you notice it is not about enum.descr$(), it is solely on the use of CAST in SELECT statement.<br />
+Dynamic query, it is the only way to convert a field value to string in SELECT statement using CAST.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

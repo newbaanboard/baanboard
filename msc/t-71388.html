@@ -1,0 +1,144 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="BOM explosion with SQL-CTE-Stament, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] BOM explosion with SQL-CTE-Stament Manufacturing &amp; Supply Chain" />
+	
+	<title>BOM explosion with SQL-CTE-Stament [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Manufacturing &amp; Supply Chain</a> &gt; BOM explosion with SQL-CTE-Stament</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Thorsten1981</div><div class="date">1st October 2018, 12:11</div></div><div class="posttext">Hi there,<br />
+<br />
+if would be nice if someone could help me. <br />
+<br />
+I am just trying to get an explosive BOM. This means I want to see the levels of the subproducts within all Bill of materials. <br />
+<br />
+I found this link:<br />
+<br />
+https://www.essentialsql.com/recursive-ctes-explained/<br />
+<br />
+which is saying that the following syntax should be used:<br />
+<br />
+WITH cte_name (column1, column2, …)<br />
+AS<br />
+(<br />
+   cte_query_definition -- Anchor member<br />
+   UNION ALL<br />
+   cte_query_definition -- Recursive member; references cte_name.<br />
+)<br />
+-- Statement using the CTE<br />
+SELECT *<br />
+FROM   cte_name<br />
+<br />
+In Infor our main table would be [dbo].[ttibom010] <br />
+<br />
+But If try to do this in sql with our database I will not get any plausible result after level 2.<br />
+<br />
+	   WITH cte_BOM (Mainitem,ProductLevel,Subitem, Sort )<br />
+AS  (SELECT P.t_mitm,<br />
+			1,<br />
+			p.t_sitm,<br />
+			            CAST (P.t_mitm AS VARCHAR (100))<br />
+     FROM   [dbo].[ttibom010100]  AS P where p.t_mitm <br />
+                        UNION ALL<br />
+     SELECT bom.t_mitm,<br />
+            cte_BOM.ProductLevel,<br />
+			cte_BOM.Item,<br />
+			CAST (cte_BOM.Sort+ '\' + cte_bom.Item AS VARCHAR (100))<br />
+<br />
+     FROM   cte_BOM <br />
+            INNER JOIN [dbo].[ttibom010100] AS BOM<br />
+            ON BOM.t_sitm = cte_BOM.Item<br />
+                        )<br />
+SELECT Mainitem,  <br />
+         Subitem,<br />
+         ProductLevel,<br />
+         Sort<br />
+FROM     cte_BOM  <br />
+option (maxrecursion 0)<br />
+<br />
+<br />
+<br />
+Does someone know, how I can get the correct structure out of our BOM?<br />
+<br />
+Thank you in advance.<br />
+<br />
+Thorsten</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RGiudici</div><div class="date">15th June 2021, 16:52</div></div><div class="posttext">Hello,<br />
+<br />
+Seems very late but have you had any succes with CTE ? i'm strugling with this SQL request<br />
+<br />
+Richard</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Roland at QIL</div><div class="date">22nd October 2021, 08:19</div></div><div class="posttext">Hi very late as well. <br />
+you may find some hints in tibom1410 or ticpr2420 how &quot;explode&quot; BOM all levels..<br />
+Roland</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">22nd October 2021, 15:08</div></div><div class="posttext">Are you looking for like a sql to run in sql plus or something like that?  I mean to do it in baan using the 4gl you need to look at tibom1410 if you have code.  And if you are looking at pure sql then you can try googling for indented boms with sql plus.  I have a query I run in oracle for our EBS system that produces an indented bom.  I don't mind sharing it so you can see what it does - but you would have to translate it to baan.  I don't have access to baan via oracle in this day and age.  So I can't do that. We have date and unit effective bills - combination.  So I built the below what I found googling.  I am by no means a sql expert so I can't even explain all of it now.  I got it to work on small bill of material and now I run it on occasion for some of our main sub-assemblies.<br />
+<br />
+<br />
+select * from (SELECT DISTINCT rownum NUMROW<br />
+                , SYS_CONNECT_BY_PATH (msib.segment1, '\') PATH<br />
+                ,LPAD (' ', LEVEL * 2) || LEVEL ORDER_LEVEL<br />
+                ,LPAD (' ', LEVEL * 1) || msib.segment1 ASSEMBLY_ITEM<br />
+               , msib.item_type  Assy_item_type<br />
+               , LPAD (' ', LEVEL * 4) || msib2.segment1 AS COMPONENT_ITEM<br />
+               , msib2.item_type Comp_Item_Type<br />
+                ,bic.item_num<br />
+               , msib2.description COMPONENT_ITEM_DESCRIPTION<br />
+               , bic.operation_seq_num<br />
+               , bic.component_quantity<br />
+               , bic.bill_sequence_id c<br />
+               , bom.bill_sequence_id b<br />
+               , bom.source_bill_sequence_id            <br />
+               , msib.description ASSEMBLY_DESCRIPTION<br />
+               , bic.effectivity_date<br />
+               , bic.disable_date<br />
+               , bic.from_end_item_unit_number unit_fr<br />
+               , bic.to_end_item_unit_number unit_to<br />
+               , bic.component_remarks<br />
+               , msib.cum_manufacturing_lead_time Make_Manu_leadtime<br />
+               , msib.cumulative_total_lead_time Make_Tot_leadtime              <br />
+               , msib2.cum_manufacturing_lead_time Comp_Manu_leadtime<br />
+               , msib2.cumulative_total_lead_time Comp_Tot_leadtime<br />
+<br />
+FROM           (select * from bom.bom_components_b where SYSDATE BETWEEN effectivity_date AND Nvl(disable_date, SYSDATE)<br />
+                           and ('A00168' between nvl(from_end_item_unit_number,'A00001') and nvl(to_end_item_unit_number, 'A99999'))<br />
+                           and pk2_value = 3324   -- Kind of like project group in baan<br />
+                         order by operation_seq_num, item_num ) bic<br />
+               , bom.bom_structures_b bom       --Oracle bom tables<br />
+               , inv.mtl_system_items_b msib     --Used for the make item<br />
+               , inv.mtl_system_items_b msib2   --used for the components<br />
+<br />
+where           1 = 1<br />
+and             bom.organization_id = 3324<br />
+AND             bic.bill_sequence_id = bom.bill_sequence_id<br />
+AND             bom.assembly_item_id = msib.inventory_item_id<br />
+AND             bom.organization_id = msib.organization_id    -- kind of the same as project group in baan what the 3324 is that it pulls for one specific organization<br />
+AND             bic.component_item_id = msib2.inventory_item_id<br />
+and             SYSDATE BETWEEN bic.effectivity_date AND Nvl(bic.disable_date, SYSDATE)<br />
+AND             bom.organization_id = msib2.organization_id<br />
+AND             bom.alternate_bom_designator IS NULL             -- don't pull alternate parts<br />
+START WITH      msib.segment1 = 'PLM7249020-NB'<br />
+CONNECT BY prior bic.component_item_id = bom.assembly_item_id<br />
+order siblings by operation_seq_num, item_num) y<br />
+order by NUMROW</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

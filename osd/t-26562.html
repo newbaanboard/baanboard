@@ -1,0 +1,171 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Import data from MSSQL to BAAN/Oracle, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Import data from MSSQL to BAAN/Oracle Operating Systems &amp; Databases" />
+	
+	<title>Import data from MSSQL to BAAN/Oracle [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Import data from MSSQL to BAAN/Oracle</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ralf@lub</div><div class="date">6th March 2006, 18:19</div></div><div class="posttext">Hello, <br />
+<br />
+I created some DTS-packages (SQL-Server 2000) to import data from our smd-system to baan. The package converts the informations and inserts them via &quot;Oracle Provider for OLE DB&quot; to a self generated table which is visible to baan. These informations are used in baan to generate outbound data with the afs. <br />
+<br />
+So far so good. <br />
+<br />
+On some records the db.delete statement fails with enocurr, error 112. After searching baanboard I found a similar problem which was solved by a &quot;reorganize table&quot;. It works for me as well, but I'd really like to go deeper. This can't by my final solution...<br />
+<br />
+Another hint for a different kind of database was to generate an extra baan index manually. It supposed to be a field in the table being a concatenation of the index fields as a single string. I don't see these fields in a &quot;desc table&quot;. <br />
+<br />
+Do you have some informations about these mystic index or any informations which could be interesting for solving my problem?<br />
+<br />
+Thanks a lot, <br />
+<br />
+Ralf Frochte</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">9th March 2006, 11:39</div></div><div class="posttext">Are you refering to Baan's infamous hash columns?<br />
+<br />
+There have been several myths around on how to create hash fields manually and they can be found on the board. <br />
+<br />
+But didn't they finally introduce a level 2 driver for MSSQL not so long ago? If so, you might find that to be an easier solution.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ralf@lub</div><div class="date">13th March 2006, 11:14</div></div><div class="posttext">Hi, <br />
+<br />
+after some more reading I'm quite sure these infamous hash columns are not my problem. <br />
+For Oracle we already use the level 2 driver. So there should'nt be any hash columns, right? MSSQL is not visible for BAAN anyway. Thats why I use DTS jobs to import data. <br />
+Could invisible characters be in charge for the error 112?<br />
+<br />
+Regards, <br />
+<br />
+Ralf</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">13th March 2006, 14:02</div></div><div class="posttext">Can you post some Code? Especialy the part with  delete. On the first view it looks to me like there is a problem with the recordpointer (no current record)<br />
+<br />
+Regards<br />
+csecgn</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ralf@lub</div><div class="date">14th March 2006, 10:30</div></div><div class="posttext">Hi, <br />
+<br />
+<br />
+here some code to make it more transparent: <br />
+<br />
+<br />
+table ttilub046<br />
+<br />
+select tilub046.pdno, tilub046.item, tilub046.clot, sum(tilub046.stoc):stoc<br />
+from    tilub046<br />
+group by tilub046.pdno, tilub046.item, tilub046.clot<br />
+selectdo<br />
+...<br />
+| some afs code to generate and release outbound data<br />
+...<br />
+on.main.table(delete.records, tilub046.pdno, tilub046.item, tilub046.clot)<br />
+...<br />
+endselect<br />
+<br />
+functions:<br />
+function delete.records(	domain 	tcpdno 	pdno, <br />
+				domain	tcitem	item, <br />
+				domain	tdltc.clot clot) {<br />
+	db.retry.point()<br />
+	select	tilub046.*<br />
+	from	tilub046 for update<br />
+	where	tilub046._index1 = {:item, :clot, :pdno}<br />
+	selectdo<br />
+		db.delete(ttilub046, db.retry)<br />
+		commit.transaction()<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+<br />
+I tried it with iterating over every record as well to eleminate the on.main.table() as a possible problem, but the behaviour is the same.<br />
+<br />
+Here some more informations: <br />
+<br />
+Before and after running the reorganize tables I dumped the table. I used create sequential dump and sqlplus in oracle. Both variants have the same results. The sortation is different but the data is exactly the same. I even used a hexedit to be very sure. I checked the size of the index in oracle. It has a plausible size at any time. All together a very strange thing...<br />
+<br />
+Regards, <br />
+<br />
+Ralf</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lakoon</div><div class="date">15th March 2006, 10:32</div></div><div class="posttext">As I understand, you fill the data in the table from outside and then you try to delete the data from a baan 4GL script. Correct?<br />
+<br />
+If you do so, you have to keep track on the formatting of the fields. If you try to manipulate the data within baan you must fill all the fields according the domain definition from baan (Left/rigth adjusted, number formats, etc...)<br />
+<br />
+/Lakoon</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ralf@lub</div><div class="date">16th March 2006, 17:48</div></div><div class="posttext">&gt; you fill the data in the table from outside and then you try to delete the data from a baan 4GL script. Correct?<br />
+<br />
+Yes. That's what I try to do :-)<br />
+<br />
+<br />
+&gt; you must fill all the fields according the domain definition<br />
+<br />
+In deed there was an error. I ajusted the clot left. It supposed to be right. <br />
+Thanks for this hint!!!<br />
+<br />
+So I added blanks at the import mechanism. To be very sure I perform a tt.align.according.domain() on all strings of all records. The db.update() itself works fine. No errors. <br />
+<br />
+One step forward two steps backword. Now I get error 111, no record found on db.delete() in function delete.records(). Hurray. I keep on working on that... <br />
+<br />
+Regards, <br />
+<br />
+Ralf</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ralf@lub</div><div class="date">22nd March 2006, 13:42</div></div><div class="posttext">Hi, <br />
+<br />
+it was the date field which is of type datetime in oracle and mssql. In this case Mssql inserts exact times but baan can not deal with them. Up to now I could not figure out what time to insert. A select to_char in oracle returns several values. <br />
+<br />
+<br />
+select distinct to_char(t$odat, 'hh:mm:ss') from baan.ttdsls041101<br />
+SQL&gt; /<br />
+<br />
+TO_CHAR(<br />
+--------<br />
+12:01:00<br />
+12:02:00<br />
+12:03:00<br />
+12:04:00<br />
+12:05:00<br />
+12:06:00<br />
+12:07:00<br />
+12:08:00<br />
+12:09:00<br />
+12:10:00<br />
+12:11:00<br />
+<br />
+TO_CHAR(<br />
+--------<br />
+12:12:00<br />
+<br />
+12 rows selected.<br />
+<br />
+<br />
+Time gets corrupted anyway when mssql/dts inserts the records. For example I forced and inserted 00:00:00 but the result was 13:00:03. A solution for this sould be easy to find... ;-)<br />
+<br />
+Greetz, <br />
+<br />
+Ralf</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

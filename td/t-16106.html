@@ -1,0 +1,104 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Table locking problem, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Table locking problem Tools Development" />
+	
+	<title>Table locking problem [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Table locking problem</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">fcd123</div><div class="date">24th July 2004, 05:58</div></div><div class="posttext">There is a table which stores the last control number for a specific control key.First I read this table to get the last generated number. After this I check within the same table which contains say order no,print date,file no.etc., whether a records exists for the order no. If the record exists I update the new values else I insert the record. When more than two users are using this session simultaneously, the last number is not picked up,probably because of the locking by an update of this table which is at the same time being run by another user. Hence the new number is not generated. Is there any way of locking/releasing the lock of the table ?<br />
+<br />
+I am also attaching the logic :-<br />
+<br />
+if tssma301.tfrm = tcyesno.yes then<br />
+        reprint = &quot;REPRINT&quot;<br />
+                check.reprint.tsgal045()<br />
+        else<br />
+        reprint = &quot;&quot;<br />
+                pr.fino=0<br />
+                get.franc.code()                               <br />
+                if tmp.suno &lt;&gt; &quot;&quot;<br />
+                then                                            <br />
+                        check.last.fino()<br />
+                        check.fresh.print.tsgal045()<br />
+                else<br />
+                        write.file()                            <br />
+                endif<br />
+        endif<br />
+<br />
+function get.franc.code()                              <br />
+{<br />
+        select  tsgal046.*<br />
+        from    tsgal046<br />
+        where   tsgal046._index1 = {:tssma301.cctp}<br />
+        and     (tsgal046.f_care &lt;= :tssma301.care and<br />
+                 tsgal046.t_care &gt;= :tssma301.care)<br />
+        as set with 1 rows<br />
+        selectdo<br />
+                tmp.suno = tsgal046.suno<br />
+        endselect<br />
+}<br />
+<br />
+function check.fresh.print.tsgal045()<br />
+{<br />
+        select  tsgal045.*<br />
+        from    tsgal045 for update<br />
+        where   tsgal045._index2 = {:tssma301.orno}<br />
+        selectdo<br />
+                update.rec()<br />
+        selectempty<br />
+                insert.rec()<br />
+        endselect<br />
+}<br />
+function insert.rec()<br />
+{<br />
+        tsgal045.suno = tmp.suno<br />
+        tsgal045.orno = tssma301.orno<br />
+        pr.fino = pr.fino + 1<br />
+        tsgal045.fino = pr.fino<br />
+        tsgal045.login = login.name<br />
+        tsgal045.cctp = tssma301.cctp                   <br />
+        tsgal045.prdt = date.num()<br />
+        tsgal045.care = tssma301.care                   <br />
+        tsgal045.cloc = tssma301.cloc<br />
+        db.insert(ttsgal045,db.retry,db.skip.dupl)<br />
+        commit.transaction()<br />
+}<br />
+<br />
+function update.rec()<br />
+{<br />
+        tsgal045.suno = tmp.suno<br />
+        pr.fino = pr.fino + 1<br />
+        tsgal045.fino = pr.fino<br />
+        tsgal045.login = login.name<br />
+        tsgal045.cctp = tssma301.cctp                   <br />
+        tsgal045.prdt = date.num()<br />
+        tsgal045.care = tssma301.care                   <br />
+        tsgal045.cloc = tssma301.cloc<br />
+        db.update(ttsgal045,db.retry)<br />
+        commit.transaction()<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th July 2004, 02:38</div></div><div class="posttext">The only thing I see is you say db.retry in the insert and update, but I do not see where you set the db.retry.point() at  - I would add it before the select tsgal045 for update statement.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">toolswizard</div><div class="date">25th July 2004, 14:42</div></div><div class="posttext">You can also apply an application lock.  This is a logical lock between co operating programs.  You would set the lock before reading the next available number, validate, increment, and same the new value, then release the lock as you continue processing.  The other user would attempt to do the same, and you can instruct the session to wait until the lock is freed before continuing. Check most of the order processing sessions which use the first free number table, and the function source file for more information.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

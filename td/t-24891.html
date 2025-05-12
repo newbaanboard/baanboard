@@ -1,0 +1,124 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Bind variables on array table fields, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Bind variables on array table fields Tools Development" />
+	
+	<title>Bind variables on array table fields [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Bind variables on array table fields</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">lakoon</div><div class="date">23rd August 2005, 16:49</div></div><div class="posttext">Hello<br />
+<br />
+Why does the following select statement not work?<br />
+<br />
+<br />
+	select	tdsls045.orno,<br />
+		avg(tdsls045.disc(1)):disc.1, <br />
+		avg(tdsls045.disc(2)):disc.2,<br />
+		avg(tdsls045.disc(3)):disc.3		<br />
+	from	tdsls045<br />
+	where	tdsls045._index1 = {:tdsls040.orno}<br />
+	and	tdsls045.item not IN (&quot;POR            &quot;,<br />
+					&quot;KMZ            &quot;,<br />
+					&quot;VPZ            &quot;)<br />
+	and	tdsls045.invd &lt;&gt; 0<br />
+	group by tdsls045.orno<br />
+	selectdo<br />
+	selectempty<br />
+	endselect<br />
+ <br />
+<br />
+I get during compilation error in the line with the first avg statement.<br />
+<br />
+Thanks for your input<br />
+<br />
+/lakoon</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">23rd August 2005, 17:19</div></div><div class="posttext">What error do you get?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lakoon</div><div class="date">23rd August 2005, 17:22</div></div><div class="posttext">Error SQL: Syntax error: '(' not expectd<br />
+Error SQL: Found 1 errors during scanning/parsing .. Stopped.<br />
+<br />
+I think the compiler has problems with the array of tdsls045.disc(x).<br />
+<br />
+It's on Baan IV c4</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">23rd August 2005, 17:40</div></div><div class="posttext">You may want to try the dynamic sql to get around the syntax error, hopefully you will not get a runtime then too.<br />
+<br />
+Wiki Link to Dynamic SQL (http://www.baanboard.com/programmers_manual_baanerp_help_functions_database_handling_dynamic_sql)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">23rd August 2005, 17:43</div></div><div class="posttext">Oh right, Baan does not like that. You could solve it using a query extension, but for your case the most simple way is to calculate the average in the selectdo/selecteos part, like this:<br />
+<br />
+	domain	tfgld.amnt	disc.1, disc.2, disc.3<br />
+	domain   tfgld.amnt 	ave.1, ave.2, ave.3<br />
+	domain   tcmcs.long        count<br />
+<br />
+	count = 0<br />
+	ave.1 = 0.0<br />
+	ave.2 = 0.0<br />
+	ave.3 = 0.0<br />
+<br />
+	select	tdsls045.*<br />
+	from	tdsls045<br />
+	where	tdsls045._index1 = {:tdsls040.orno}<br />
+	and	tdsls045.item not IN (&quot;POR            &quot;,<br />
+					&quot;KMZ            &quot;,<br />
+					&quot;VPZ            &quot;)<br />
+	and	tdsls045.invd &lt;&gt; 0<br />
+	order by tdsls045._index1<br />
+	selectdo<br />
+                       ave.1 = ave.1 + tdsls045.disc(1)<br />
+                       ave.2 = ave.2 + tdsls045.disc(2)<br />
+                       ave.3 = ave.3 + tdsls045.disc(3)<br />
+                       total = total + 1<br />
+             selecteos<br />
+                       ave.1 = ave.1 / total<br />
+                       ave.2 = ave.2 / total<br />
+                       ave.3 = ave.3 / total<br />
+	selectempty<br />
+	endselect<br />
+<br />
+<br />
+Hope this helps you! Good luck!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lakoon</div><div class="date">23rd August 2005, 17:46</div></div><div class="posttext">I supose you mean with sql.select.bind().<br />
+<br />
+I give a try. At the moment I solved it with code in the selectdo area.<br />
+<br />
+/lakoon</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">23rd August 2005, 17:48</div></div><div class="posttext">Just another remark regarding the solution I just posted: you might still wanna round up the amounts according to domain. Not sure the function in Baan IV, in Baan V you would use something like<br />
+<br />
+		ave.1 = tccom.dll0001.domain.round(ave.1, domainof(ave.1), <br />
+				tdsls400.ccur, tcmcs002.crnd)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lakoon</div><div class="date">23rd August 2005, 17:53</div></div><div class="posttext">Hello en@ffrom<br />
+<br />
+I also solved it in the way you suggested.<br />
+Regarding the rounding. In BaanIV there are also rounding dll's<br />
+<br />
+Thanks for your help anyway<br />
+<br />
+/lakoon</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

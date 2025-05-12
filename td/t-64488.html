@@ -1,0 +1,360 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Recursion problem ERP LN, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Recursion problem ERP LN Tools Development" />
+	
+	<title>Recursion problem ERP LN [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Recursion problem ERP LN</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">stegro</div><div class="date">19th August 2013, 23:18</div></div><div class="posttext">Hey there,<br />
+<br />
+I already searched this site and read all about possible recursion solutions, best would fit this one (copied from the Crossing recursion thread)<br />
+<br />
+I still get the &quot;recursion not yet implemented&quot; error, could someone help me with it?<br />
+<br />
+I just cannot see why it wont work?!<br />
+<br />
+Thank you.<br />
+<br />
+<br />
+&quot;|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{<br />
+	level.recursion = level.recursion + 1<br />
+	sql.x=sql.parse(&quot;select	tipcf310.* &quot; &amp;<br />
+		          &quot;from tipcf310 &quot; &amp;<br />
+	                &quot;where   tipcf310._index1 = {:1}&quot;)<br />
+	sql.where.bind(sql.x,1,mitm.f)<br />
+	sql(level.recursion)=sql.x<br />
+	sql.exec(sql.x)<br />
+	while (sql.fetch(sql.x) = 0)<br />
+		rprt_send()<br />
+		mitm.f = tipcf310.sitm<br />
+		mitm.w = tipcf310.mitm<br />
+		read.main.table()<br />
+	endwhile<br />
+	sql.close(sql.x)<br />
+	level.recursion = level.recursion - 1<br />
+	if level.recursion &lt;&gt; 0 then<br />
+		sql.x=sql(level.recursion)<br />
+	endif<br />
+}&quot;</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">20th August 2013, 06:59</div></div><div class="posttext">Hi,<br />
+<br />
+I have not put my hands in recursions as I use aliases. Anyway, I am not sure if you have gone through this, but here's a thread which might solve your issue.<br />
+<br />
+Thread (http://www.baanboard.com/baanboard/showthread.php?t=22850&amp;highlight=recursion)<br />
+<br />
+Some where I found a statement saying, you need to declare the variables sql.x , level.recursion as static.<br />
+<br />
+Go through the thread carefully and you will get it.<br />
+<br />
+Other threads:-<br />
+<br />
+Thread 1 (http://www.baanboard.com/node/1739)<br />
+Thread 2 (http://www.baanboard.com/baanboard/showthread.php?t=54466)<br />
+Thread 3 (http://www.baanboard.com/baanboard/showthread.php?t=22972)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ulrich.fuchs</div><div class="date">20th August 2013, 08:10</div></div><div class="posttext">Stegro, <br />
+<br />
+in that case, sql.x will be a global variable, I guess. So your code will most certainly produce a memory leak: you will only close the last of your queries executed, all others stay open. It might be that during the sql parsing there are some local variables defined internally that eventually lead to that code to be not compilable, but you should be happy it isn't.<br />
+<br />
+Please use iterative programming when doing BOM explosion (using a stack), recursion is a hack that should be avoided as much as possible.<br />
+<br />
+<br />
+table   ttibom010 | Bill of Material<br />
+<br />
+   extern  domain  tcitem           toplvl.item fixed<br />
+   extern  domain  tcitem           kit.item fixed<br />
+   <br />
+   <br />
+          #define MAXSTACK 2000<br />
+               long        stack.pointer<br />
+        domain tcitem      stack.item     (MAXSTACK)         | Current Item<br />
+        domain tcpono      stack.pono     (MAXSTACK)         | Current Bom line<br />
+        domain tcmcs.long  stack.level    (MAXSTACK)         | Level of current line<br />
+       <br />
+        <br />
+        <br />
+|****************************** program section ********************************<br />
+<br />
+<br />
+|****************************** group section **********************************<br />
+<br />
+group.1:<br />
+init.group:<br />
+   get.screen.defaults()<br />
+<br />
+functions:<br />
+function extern long do.process ()<br />
+{<br />
+        if choice.report (spool.report) then<br />
+                if rprt_open() then<br />
+                        read.main.table()<br />
+                        rprt_close()<br />
+                endif<br />
+        endif<br />
+        return (0)<br />
+}<br />
+<br />
+function void read.main.table () {<br />
+        set.mem (stack.item, &quot;&quot;)<br />
+        set.mem (stack.pono, 0)<br />
+        stack.pointer = 1<br />
+        stack.item (1,1) = toplvl.item<br />
+        stack.pono (1) = 0<br />
+        stack.level(1) = 0<br />
+     <br />
+        stack.level(1) = 1<br />
+        while stack.pointer &gt; 0<br />
+             <br />
+                if explode.current.stack.position() then<br />
+                        dal.set.error.message (&quot;@Serious Error during BOM explosion. Aborting.&quot;)<br />
+                        show.dal.messages ()<br />
+                        break<br />
+                endif<br />
+             <br />
+        endwhile<br />
+}<br />
+<br />
+ <br />
+function long explode.current.stack.position()<br />
+{<br />
+        domain tcitem l.item<br />
+        domain tcpono l.pono<br />
+        domain tcitem current.item<br />
+  <br />
+        l.item = stackitem (1,stack.pointer)<br />
+        l.pono = stack.pono (stack.pointer)<br />
+ <br />
+        select   tibom010.*<br />
+        from     tibom010<br />
+        where    tibom010._index1 = {:l.item}<br />
+        and      tibom010.pono &gt; :l.pono<br />
+        order by tibom010._index1	<br />
+        as set with 1 rows<br />
+        selectdo<br />
+                current.item = tibom010.sitm<br />
+                <br />
+                | Position als bearbeitet merken:<br />
+                stack.pono (stack.pointer) = tibom010.pono<br />
+                <br />
+                | Nächste Position zur Auflösung auf den Stack schlichen auf den Stack schlichten<br />
+                if stack.pointer &lt; MAXSTACK then<br />
+                        stack.pointer = stack.pointer + 1<br />
+                else<br />
+                        dal.set.error.message (&quot;@Stack-Überlauf: Mehr als 2000 zwischenzuspeichernde Materialpositionen!&quot;)<br />
+                        return (DALHOOKERROR)<br />
+                endif<br />
+                <br />
+               <br />
+                stack.item     (1,stack.pointer) = current.item<br />
+                stack.pono     (stack.pointer) = 0<br />
+                stack.level    (stack.pointer) = stack.level (stack.pointer-1) +1  <br />
+               <br />
+        selectempty<br />
+                stack.pointer = stack.pointer - 1<br />
+        endselect<br />
+      <br />
+        <br />
+        return (0)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">stegro</div><div class="date">20th August 2013, 12:28</div></div><div class="posttext">Hello, thanks for your help! <br />
+I will try Ulrich Fuchs' way. I certainly will run in a performance problem, I do not need a memory problem in addition....<br />
+I will post again as soon as I have either another question or a result....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">20th August 2013, 14:58</div></div><div class="posttext">long		recu.level,curr.sql.id, sql.id(199)		|#602764-001.en<br />
+<br />
+------------------------------------------------------<br />
+function check.component.present.in.bom()					|#602764-001.sn<br />
+{<br />
+|*Function to check whether component present in BOM and get BOM net qty.<br />
+	recu.level = recu.level + 1<br />
+	<br />
+	curr.sql.id = sql.parse(&quot;select tibom010.* &quot;&amp;<br />
+		&quot;from	tibom010 &quot;&amp;<br />
+		&quot;where	tibom010._index1 = :1 &quot;&amp;<br />
+		&quot;and     tibom010._compnr = :2 &quot;&amp;<br />
+		&quot;and ((tibom010.exdt = 0 and tibom010.indt &lt;= :3 ) &quot;&amp;		|#603112-001.n<br />
+		       &quot;or (tibom010.exdt &gt;= :3 and tibom010.indt &lt;= :3))&quot;)	|#603112-001.n<br />
+<br />
+<br />
+	ret=sql.where.bind(curr.sql.id,1, g.mitm)<br />
+	ret=sql.where.bind(curr.sql.id,2, tccom000.ncmp)<br />
+	ret=sql.where.bind(curr.sql.id,3, tisfc001.prdt)<br />
+	<br />
+	sql.id(recu.level) = curr.sql.id<br />
+	ret=sql.exec(curr.sql.id)<br />
+	<br />
+	while (sql.fetch(curr.sql.id) = 0) <br />
+		if not sitm.found then<br />
+			if tibom010.sitm = ticst001.sitm then<br />
+				g.mitm = &quot;&quot;<br />
+				sitm.qana = tibom010.qana<br />
+				sitm.found = true<br />
+				break<br />
+			else<br />
+				g.mitm = tibom010.sitm<br />
+				check.component.present.in.bom()<br />
+			endif<br />
+		endif<br />
+	endwhile<br />
+	<br />
+	sql.close(curr.sql.id)<br />
+	recu.level = recu.level - 1<br />
+	if recu.level &lt;&gt; 0 then<br />
+		curr.sql.id = sql.id(recu.level)<br />
+	endif<br />
+}										|#602764-001.en<br />
+<br />
+this is running code  from one of our sessions.<br />
+<br />
+regards,<br />
+vamsi.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sam291091</div><div class="date">21st April 2016, 07:04</div></div><div class="posttext">Hi vamsi,<br />
+                  I did same logic as you defined and it is working fine also but for some case i got fetal error stack overflow entries &gt; 500. I also attach screen shot.<br />
+<br />
+any solution for this?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">21st April 2016, 09:11</div></div><div class="posttext">Probably not all the sql queries are getting closed. Anyway whats the code?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sam291091</div><div class="date">21st April 2016, 09:48</div></div><div class="posttext">Hi Ajesh,<br />
+              I am attaching screen shot of debug mode stack trace.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">21st April 2016, 10:53</div></div><div class="posttext">Hi Sam<br />
+<br />
+I mean the code which you wrote for Recursion, the one including the dynamic SQLS.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sam291091</div><div class="date">21st April 2016, 11:09</div></div><div class="posttext">Hi Ajesh,<br />
+             <br />
+function check.component.present.in.bom()<br />
+{	<br />
+	recu.level = recu.level + 1<br />
+	<br />
+	curr.sql.id = sql.parse(&quot;select tibom010.* &quot;&amp;<br />
+		&quot;from	tibom010 &quot;&amp;<br />
+		&quot;where	tibom010._index1 = :1 &quot;)	<br />
+<br />
+	ret = sql.where.bind(curr.sql.id,1,mitm)<br />
+<br />
+	sql.id(recu.level) = curr.sql.id<br />
+	ret = sql.exec(curr.sql.id)<br />
+	<br />
+	while (sql.fetch(curr.sql.id) = 0) <br />
+		if check.if.manufac(tibom010.sitm) then<br />
+			mitm = tibom010.sitm<br />
+			ltrpd201.item = mitm<br />
+			i.level = recu.level<br />
+			get.qnty = tibom010.qana<br />
+			insert.fkms.serialize.data.in.to.ltrpd201(tibom010.sitm,tibom010.mitm,get.qnty,i.level)<br />
+			check.component.present.in.bom()<br />
+		else<br />
+			mitm = tibom010.sitm<br />
+			ltrpd201.item = tibom010.sitm<br />
+			i.level = recu.level<br />
+			get.qnty = tibom010.qana<br />
+			insert.fkms.serialize.data.in.to.ltrpd201(tibom010.sitm,tibom010.mitm,get.qnty,i.level)<br />
+			check.component.present.in.bom()<br />
+		endif<br />
+		<br />
+	endwhile<br />
+	<br />
+	sql.close(curr.sql.id)<br />
+	recu.level = recu.level - 1<br />
+	if recu.level &lt;&gt; 0 then<br />
+		curr.sql.id = sql.id(recu.level)<br />
+	endif<br />
+<br />
+	<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">21st April 2016, 13:05</div></div><div class="posttext">Bshell<br />
+maximum function stack depth is 500 <br />
+<br />
+I guess that has nothing to do with sqls but rather the no. of functional calls<br />
+<br />
+I have seen the code .. i see you are using recursion for non manufacturing item's items as well any idea why ?? Probably you can optimize the code.. to reduce the  no. of calls.. ??</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">21st April 2016, 13:47</div></div><div class="posttext">Pl Try this. According to me, we need not use sql.parse in every recursion. Once done is enough. After all we are just changing the bind variable and not the query itself.<br />
+<br />
+Also, i have introduced sql.break in the recursion, just before giving a recursive call to the function.<br />
+<br />
+<br />
+boolean first.time<br />
+<br />
+first.time = true<br />
+<br />
+function check.component.present.in.bom()<br />
+{	<br />
+	   <br />
+<br />
+         <br />
+	if first.time then<br />
+	sql.id = sql.parse(&quot;select tibom010.* &quot;&amp;<br />
+		&quot;from	tibom010 &quot;&amp;<br />
+		&quot;where	tibom010._index1 = :1 &quot;)	<br />
+                 first.time = false<br />
+                 recu.level = 1<br />
+        else<br />
+                 recu.level = recu.level + 1<br />
+        endif<br />
+        ret = sql.where.bind(sql.id,1,mitm)<br />
+<br />
+	ret = sql.exec(sql.id)	<br />
+	while (sql.fetch(sql.id) = 0) <br />
+		if check.if.manufac(tibom010.sitm) then<br />
+			mitm = tibom010.sitm<br />
+			ltrpd201.item = mitm<br />
+			i.level = recu.level<br />
+			get.qnty = tibom010.qana<br />
+			insert.fkms.serialize.data.in.to.ltrpd201(tibom010.sitm,tibom010.mitm,get.qnty,i.level)<br />
+                        sql.break(sql.id)                                            |Introduced break |as we will be changing the bind variable next time  <br />
+			check.component.present.in.bom()<br />
+		else<br />
+			mitm = tibom010.sitm<br />
+			ltrpd201.item = tibom010.sitm<br />
+			i.level = recu.level<br />
+			get.qnty = tibom010.qana<br />
+			insert.fkms.serialize.data.in.to.ltrpd201(tibom010.sitm,tibom010.mitm,get.qnty,i.level)<br />
+                        sql.break(sql.id)                     |Introduced break as we will be |changing the bind variable next time<br />
+			check.component.present.in.bom()<br />
+		endif<br />
+		<br />
+	endwhile<br />
+	sql.break(sql.id)<br />
+	sql.close(sql.id)<br />
+	recu.level = recu.level - 1<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,251 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="End of api, but function not executed and job hangs, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] End of api, but function not executed and job hangs AFS/DDC/OLE: Function servers" />
+	
+	<title>End of api, but function not executed and job hangs [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; End of api, but function not executed and job hangs</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">richard</div><div class="date">18th September 2003, 15:36</div></div><div class="posttext">Hi,<br />
+<br />
+We interface an external warehouse managament with BaaN.<br />
+For RPL orders, we are using the API to simulate tdrpl0122 (without ILC).<br />
+It work's fine. But for 0,5% of the cases, the api function although terminated does not execute the session.<br />
+I made a final test to control if the inventory transaction is written in tdinv700. If not, the session tries a second time the API, but with the same result. Also wait times gives no results.<br />
+<br />
+Furthermore, in some cases (not all above cases) the job does end in BaaN but gives not the turn back to unix (it's called with ba6.1).<br />
+<br />
+Any idea ??<br />
+<br />
+Regards<br />
+<br />
+Extract of script of api-call:<br />
+<br />
+        retour = stpapi.find(&quot;tdrpl0122m000&quot;,error.txt)<br />
+        stpapi.get.field(&quot;tdrpl0122m000&quot;,&quot;tdrpl100.orno&quot;,lu.ornoa)<br />
+        stpapi.get.field(&quot;tdrpl0122m000&quot;,&quot;tdrpl100.pono&quot;,lu.ponoa)<br />
+        stpapi.get.field(&quot;tdrpl0122m000&quot;,&quot;tdrpl100.srnb&quot;,lu.srnba)<br />
+<br />
+        if retour = 1 or ( lval(lu.ornoa) = lu.orno<br />
+                 and lval(lu.ponoa) = lu.pono<br />
+                 and lval(lu.srnba) = lu.srnb2 ) then<br />
+                stpapi.put.field(&quot;tdrpl0122m000&quot;,&quot;tdrpl100.rrdt&quot;,<br />
+                        str$(date.num()))<br />
+                stpapi.put.field(&quot;tdrpl0122m000&quot;,&quot;tdrpl100.pqua&quot;,<br />
+                        str$(lu.qte))<br />
+                retour = stpapi.update(&quot;tdrpl0122m000&quot;,true,error.txt)<br />
+                if not retour then<br />
+                        rpt.mess = &quot;erreur session interface&quot;<br />
+                        rprt_send()<br />
+                        tceaih001.log(FICHLOG,rpt.mess)<br />
+                        stpapi.recover(&quot;tdrpl0122m000&quot;,error.txt)<br />
+                endif<br />
+                stpapi.end.session(&quot;tdrpl0122m000&quot;)<br />
+        endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">18th September 2003, 16:26</div></div><div class="posttext">I've been using the below function, and (up to now) it has never failed.  The input file does not have a line number, since in this project we forced the users not to use the same item twice in one replenishment order.  The main difference with your source seems to be that I use a switch first, although you could have excluded this from your post. But, maybe it can help you in finding your error, so I'm posting the complete function anyway.function long import_receipts(ref string msg())<br />
+{<br />
+  |* This function imports the replenishment receipts<br />
+<br />
+  long    frcp        | File &quot;receipts&quot;<br />
+  string  spth(128)   | Path to file<br />
+  string  srcp(49)    | String with receipt info<br />
+  string  fldv(30)    | Field value for stpapi.get.field()<br />
+  string  errc(256)   | Error message<br />
+  string  errs(256)   | Error returned by AFS<br />
+<br />
+  |* Fields required per line<br />
+  domain  tccwar  dwar  | Destination warehouse<br />
+  domain  tcemno  emno  | Linked employee<br />
+  domain  tcorno  orno  | Repl. order number<br />
+  domain  tcpono  pono  | Line number<br />
+  domain  tcsrnb  srnb  | Delivery number<br />
+  domain  tcitem  item  | Item code<br />
+  domain  tcqrp2  oqua  | Quantity received<br />
+<br />
+  |* Get the path for the import file<br />
+  spth = getenv$(&quot;BSE&quot;) &amp; &quot;/import/&quot;<br />
+<br />
+  |* Open de receipts file<br />
+  frcp = seq.open(spth &amp; &quot;receipts&quot;, &quot;r&quot;)<br />
+  if (frcp &lt; 1) and (frcp &lt;&gt; -2) then<br />
+    msg = sprintf$(&quot;Error %d while opening receipts&quot;, frcp)<br />
+    return(-1)<br />
+  endif<br />
+  if frcp = -2 then<br />
+    |* No receipts file, thus nothing to do<br />
+    return(0)<br />
+  endif<br />
+<br />
+  |* Read the file...<br />
+  while seq.gets(srcp, 49, frcp) = 0<br />
+    |* Parse the input line<br />
+    dwar = srcp(1;3)<br />
+    emno = lval(srcp(4;12))<br />
+    orno = lval(srcp(16;6))<br />
+    item = srcp(22;16)<br />
+    oqua = val(srcp(38;12))<br />
+<br />
+    |* Determine the delivery number for this receipt<br />
+    select  tdrpl100.orno, tdrpl100.pono, tdrpl100.srnb<br />
+    from    tdrpl100<br />
+    where   tdrpl100._index1 = {: orno}   | Added a space to bypass smilies in the post<br />
+    and     tdrpl100.dwar = :dwar<br />
+    and     tdrpl100.item = :item<br />
+    order by<br />
+            tdrpl100._index1 desc<br />
+    as set with 1 rows<br />
+    selectdo<br />
+      pono = tdrpl100.pono<br />
+      srnb = tdrpl100.srnb<br />
+    selectempty<br />
+      msg = sprintf$(&quot;Error: Order %06d not found&quot;, orno)<br />
+      return(-1)<br />
+    endselect<br />
+<br />
+    |* Call the session tdrpl0122m000, and locate the order<br />
+    stpapi.put.field(&quot;tdrpl0122m000&quot;, &quot;tdrpl100.orno&quot;, str$(orno))<br />
+    if stpapi.change.view(&quot;tdrpl0122m000&quot;, errs) = 1 then<br />
+      stpapi.put.field(&quot;tdrpl0122m000&quot;, &quot;tdrpl100.pono&quot;, str$(pono))<br />
+      stpapi.put.field(&quot;tdrpl0122m000&quot;, &quot;tdrpl100.srnb&quot;, str$(srnb))<br />
+      if stpapi.find(&quot;tdrpl0122m000&quot;, errs) = 1 then<br />
+        |* Enter the date and quantity<br />
+        stpapi.put.field(&quot;tdrpl0122m000&quot;, &quot;tdrpl100.rrdt&quot;, str$(date.num()))<br />
+        stpapi.put.field(&quot;tdrpl0122m000&quot;, &quot;tdrpl100.pqua&quot;, str$(oqua))<br />
+	|* Update, without save<br />
+        if not stpapi.update(&quot;tdrpl0122m000&quot;, 0, errs) then<br />
+          while true   | Debugging lines...<br />
+            errc = stpapi.get.mess.code(&quot;tdrpl0122m000&quot;, errs)<br />
+            if isspace(errs) then<br />
+              break<br />
+            endif<br />
+          endwhile<br />
+          stpapi.recover(&quot;tdrpl0122m000&quot;, errs)<br />
+          stpapi.end.session(&quot;tdrpl0122m000&quot;, errs)<br />
+          msg = sprintf$(&quot;Error: can not update order %06d&quot;, orno)<br />
+          return(-1)<br />
+        endif<br />
+        if not stpapi.save(&quot;tdrpl0122m000&quot;, errs) then<br />
+          while true   | Debugging lines...<br />
+            errc = stpapi.get.mess.code(&quot;tdrpl0122m000&quot;, errs)<br />
+            if isspace(errs) then<br />
+              break<br />
+            endif<br />
+          endwhile<br />
+          stpapi.recover(&quot;tdrpl0122m000&quot;, errs)<br />
+          stpapi.end.session(&quot;tdrpl0122m000&quot;, errs)<br />
+          msg = sprintf$(&quot;Error: can not save order %06d&quot;, orno)<br />
+          return(-1)<br />
+        endif<br />
+      else<br />
+        msg = sprintf$(&quot;Error: order %06d not found by AFS&quot;, orno)<br />
+        return(-1)<br />
+      endif<br />
+    else<br />
+      msg = sprintf$(&quot;Error: switching screen for order %06d not executed by AFS&quot;, orno)<br />
+      return(-1)<br />
+    endif<br />
+<br />
+    |* Close the session<br />
+    stpapi.end.session(&quot;tdrpl0122m000&quot;, errs)<br />
+  endwhile<br />
+<br />
+  |* Remove the file<br />
+  seq.unlink(spth &amp; &quot;receipt&quot;)<br />
+<br />
+  |* Everything fine if this line is reached...<br />
+  return(0)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">richard</div><div class="date">18th September 2003, 16:45</div></div><div class="posttext">Why do you first update with parameter &quot;do.save&quot; to false and save in a second function ?<br />
+<br />
+Did you a test with only update and &quot;do.save&quot; true ?<br />
+<br />
+Thank's for your response.<br />
+<br />
+Richard</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">18th September 2003, 16:50</div></div><div class="posttext">Yes, I tried to do a direct save.  But during the debugging, I needed a better handle to see what's going on.  Between the update and the save, I had a couple of get.field() function calls, to see what was happening.  I removed those, but kept the rest intact, since it doesn't bother the import anyway.  Maybe it makes it a little slower, but on this project I had the luxury of a very fast machine, and also, since the interface is started every 10 minutes, normally there are very little lines to process.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">FoxZapper</div><div class="date">20th November 2003, 08:28</div></div><div class="posttext">Hi Nico,<br />
+<br />
+I saw your script a few days ago and I have implemented something similar. I do have the position numbers etc.<br />
+<br />
+I adopted your save and update strategy when I realized yours hadn't failed once :D <br />
+<br />
+We have decided to implement Location Control and as a result, the tdilc4113s000 session pops up. Have you worked on this?<br />
+<br />
+Thanks a ton.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">20th November 2003, 14:30</div></div><div class="posttext">Haven't worked with location control yet...<br />
+<br />
+I think the solution would be to add a stpapi.handle.subproc for the ILC session, and perform whatever is necessary in that session as soon as it is opened.  Basically, do a transaction manually, and note down exactly the steps taken, fields completed and options activated, and rebuild these in the AFS.<br />
+<br />
+Hope this helps!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">FoxZapper</div><div class="date">22nd November 2003, 11:43</div></div><div class="posttext">Nico,<br />
+<br />
+I had written a code for that, but the session hangs the moment I try to put any value on the tdilc4113s000 session.<br />
+<br />
+I also found out that Bala (balugr) had a similar problem, but for Maintain Receipts-tdpur4120m000.<br />
+Refer Earlier Thread (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=6201&amp;highlight=tdilc4113s000) <br />
+<br />
+And apparently no one has solved this yet.<br />
+Any ideas?<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">richard</div><div class="date">25th November 2003, 14:23</div></div><div class="posttext">Hi,<br />
+<br />
+We have the source of the tdrpl0122 session.<br />
+After changing for ILC, we made two things:<br />
+1) if api.mode then tdilc000.iilc = no !<br />
+2) Same in the tdsls4120 interface.<br />
+<br />
++ A small script to maintain tdilc101 and tdilc301 after the two sessions above .<br />
+<br />
+regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dnnslbrwn</div><div class="date">25th November 2003, 16:48</div></div><div class="posttext">I replied to this very issue yesterday in another post - feeling guilty as I got the solution from BAAN over two months ago and never updated my thread.  Ends up that BAAN has this new variable that is set to make the session do different things in openworld.  Well, it gets in the way of us AFS folks.  Here is what I was told to do...<br />
+<br />
+Set up a variable as follows:<br />
+<br />
+<br />
+	extern	domain	tcmcs.str132	boi.call<br />
+<br />
+<br />
+and then fill it with:<br />
+<br />
+<br />
+	boi.call = &quot;tdboidll0011.Create&quot;<br />
+<br />
+<br />
+Hope you have luck with this!<br />
+<br />
+Cheers,<br />
+<br />
+-Dennis</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

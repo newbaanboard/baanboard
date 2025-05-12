@@ -1,0 +1,212 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Problem in Purchase Order process with AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Problem in Purchase Order process with AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>Problem in Purchase Order process with AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Problem in Purchase Order process with AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">yurong</div><div class="date">14th August 2007, 04:22</div></div><div class="posttext">Hello All,<br />
+<br />
+I met a problem with AFS need your help.<br />
+I wrote a library to handle purchase order.<br />
+source code like following:<br />
+<br />
+#pragma used dll ottstpapihand<br />
+<br />
+function long Date2Number(const long input.date)<br />
+{<br />
+	long input.year<br />
+	long input.month<br />
+	long input.day<br />
+	input.year = input.date/10000<br />
+	input.month = (input.date - input.year*10000) / 100<br />
+	input.day = (input.date - input.year*10000 - input.month*100)<br />
+	return(date.to.num(input.year, input.month, input.day))<br />
+}<br />
+<br />
+function extern string New_PurchaseOrder_Head(const long CompanyCode, const long Order_Number, const string Supplier,<br />
+				const string Order_Type, const string Postal_Address, const string Delivery_Address,<br />
+				const long Order_Date)<br />
+{<br />
+	string orno(6)<br />
+	string error.message(250)<br />
+	long do.update<br />
+	do.update = 1<br />
+	error.message = &quot;&quot;<br />
+<br />
+	switch.to.company(CompanyCode)<br />
+<br />
+	stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.orno&quot;, Str$(Order_Number))<br />
+	stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.suno&quot;, Supplier)<br />
+	stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.cotp&quot;, Order_Type)<br />
+	stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.odat&quot;, Str$(Date2Number(Order_Date)))<br />
+	stpapi.insert(&quot;tdpur4101m000&quot;, do.update, error.message)<br />
+	stpapi.save(&quot;tdpur4101m000&quot;, error.message)<br />
+	<br />
+	stpapi.get.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.orno&quot;, orno)<br />
+	stpapi.end.session(&quot;tdpur4101m000&quot;)<br />
+<br />
+	return(orno)<br />
+}<br />
+<br />
+function extern string New_PurchaseOrder_Line(const long CompanyCode, const long Order_Number,<br />
+					const string Item_Code, const double Quantity)<br />
+{<br />
+	string error.message(250)<br />
+	long do.update<br />
+	do.update = 1<br />
+	error.message = &quot;&quot;<br />
+	long position<br />
+<br />
+	string pono(2)<br />
+	string amta(10)<br />
+<br />
+	switch.to.company(CompanyCode)<br />
+<br />
+	stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.orno&quot;, Str$(Order_Number))<br />
+	stpapi.find(&quot;tdpur4101m000&quot;)<br />
+	stpapi.continue.process(&quot;tdpur4101m000&quot;, error.message)<br />
+<br />
+|	select 	max(tdpur041.pono) :position<br />
+|	from	tdpur041<br />
+|	where	tdpur041.orno = :Order_Number<br />
+|	selectdo<br />
+|		position = position + 1<br />
+|	selectempty<br />
+|		position = 1<br />
+|	endselect<br />
+<br />
+|	stpapi.put.field(&quot;tdpur4102s000&quot;, &quot;tdpur041.pono&quot;, Str$(position))<br />
+|	stpapi.put.field(&quot;tdpur4102s000&quot;, &quot;tdpur041.item&quot;, Str$(Item_Code))<br />
+|	stpapi.put.field(&quot;tdpur4102s000&quot;, &quot;tdpur041.oqua&quot;, Str$(Quantity))<br />
+|	stpapi.insert(&quot;tdpur4102s000&quot;, do.update, error.message)<br />
+|	stpapi.save(&quot;tdpur4102s000&quot;, error.message)<br />
+	<br />
+|	stpapi.get.field(&quot;tdpur4102s000&quot;, &quot;tdpur041.pono&quot;, pono)<br />
+|	stpapi.get.field(&quot;tdpur4102s000&quot;, &quot;tdpur041.amta&quot;, amta)<br />
+	<br />
+	stpapi.end.session(&quot;tdpur4102s000&quot;, error.message)      |HANGS HERE<br />
+|	stpapi.handle.subproc(&quot;tdpur4101m000&quot;, &quot;tdpur4102s000&quot;, &quot;kill&quot;)<br />
+|	string err(255)<br />
+|	err = stpapi.get.mess.code(&quot;tdpur4101m000&quot;)<br />
+|	err = stpapi.get.mess.code(&quot;tdpur4102s000&quot;)<br />
+	stpapi.end.session(&quot;tdpur4101m000&quot;)<br />
+<br />
+	return(pono&amp;&quot;/&quot;&amp;amta)<br />
+}<br />
+<br />
+But after I insert and save a record in 'tdpur4102s000' session, I can't end this session. Even if I cancel all transaction in this session, just start 'tdpur4102s000' with stpapi.continue.process, I still can't not end the 'tdpur4102s000' session. <br />
+<br />
+<br />
+Anyone can help me?<br />
+Thanks a lot!!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">yurong</div><div class="date">14th August 2007, 09:53</div></div><div class="posttext">Hello all,<br />
+<br />
+I have modified my source code, I use 'stpapi.zoom.option' instead of 'stpapi.continue.process', now the subsession can be closed properly.<br />
+<br />
+I have looked into the bshell, when I start the 'stpapi.continue.process', 2 subsession will be opened: 'tdpur4102s000' and 'tdpur4503s000'.<br />
+Then I try to close anyone but I failed, the session just hang on.<br />
+But when I change to use the 'stpapi.zoom.option' to zoom to the 'tdpur4102s000', still 2 subsession opened, and I can close it with 'stpapi.end.session'<br />
+<br />
+Anyone have clue about this?<br />
+Tks!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th August 2007, 15:37</div></div><div class="posttext">Well before the stpapi.zoom you should have a 	stpapi.handle.subproc(&quot;tdpur4101m000&quot;, &quot;tdpur4102s000&quot;, &quot;add&quot;).  You have to be able to control the sub-sessions.<br />
+<br />
+my code:<br />
+<br />
+	ret.code = stpapi.find( &quot;tdpur4101m000&quot; )<br />
+	if(ret.code &lt;&gt; 1) then<br />
+		message(&quot;Find PO err: %s&quot;,fserr)<br />
+		stpapi.end.session( &quot;tdpur4101m000&quot; )<br />
+		return<br />
+	endif<br />
+<br />
+| Now startup the maintain PO Lines Subsession.<br />
+	stpapi.handle.subproc( &quot;tdpur4101m000&quot;, &quot;tdpur4107s000&quot;, &quot;add&quot; )<br />
+	stpapi.continue.process( &quot;tdpur4101m000&quot;, fserr )<br />
+	if(strip$(fserr)&lt;&gt;&quot;&quot;) then<br />
+		message(&quot;Error activate maintain PO: %s&quot;,fserr)<br />
+		stpapi.end.session( &quot;tdpur4101m000&quot; )<br />
+		return<br />
+	endif<br />
+<br />
+On my system tdpur4107s000(and tdpur4503s000) starts with the lines button.  In my case I no longer worry about the 4503 session.  I remember I used to have to end it before or after the 4107s000 session - but not now.  So you just need to play with it.  You can also search on the sessions in this forum - you might find better examples.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">yurong</div><div class="date">14th August 2007, 15:57</div></div><div class="posttext">Hi Mark, I have tried to add the 'stpapi.handle.subproc' to control the tdpur4503s000 and tdpur4102s000 session, but after I use the 'stpapi.continue.process', I still can't end the subsession with 'stpapi.session'<br />
+It's very strange for me why the subsession can be closed when I use the 'stpapi.zoom.option'.<br />
+Is there any difference between this two mode?<br />
+<br />
+I have also made a test with the sales order, the interesting result is I can end subsession with the 'stpapi.continue.process', but with the 'stpapi.zoom.option', it did not work.<br />
+<br />
+I have checked the source code, I saw some condition in the code, &quot;if api.mode&quot;, does this make the different result?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th August 2007, 16:47</div></div><div class="posttext">Stpapi.continue executes the choice.continue and stpapi.zoom is like doing application and zoom.  If you have source code I would put it in debug mode and see what is happening.  I think in the case the correct call is stpapi.continue.  Make sure you get the stpapi.handle before the stpapi.continue for tdpur4101m000.  The code you posted above the first thing I noticed was that the stpapi.handle.subproc was after the continue - it must be before the continue.  Also keep in mind you MAY have to control the tdpur4503s000 session - I don't have to.<br />
+<br />
+And yes those if api.mode will impact what happens with the session.  So run it both manually and in api mode with debug.  Watch what happens and then try to figure out how to work around issues.  You may also want to contact infor for the last stpapi and session objects - that sometimes solves issues.<br />
+<br />
+Over the years I have found a variety of issues with this session - the most problems I have is with the pegging sessions and reason codes(we are on A&amp;D). It seems like every service pack I have to make a little change.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">yurong</div><div class="date">15th August 2007, 03:01</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Yes I have tried times, it just did not work where ever the stpapi.handle.subproc was put, before of after.<br />
+I only have the souce code of the session script, but I can't compile it, still some included function souce code were missed.<br />
+<br />
+I will try to contact Infor to get some information.<br />
+Tks!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Thomasm</div><div class="date">16th August 2007, 08:34</div></div><div class="posttext">Yurong<br />
+<br />
+I find it is always a problem when a subsession calls other sessions, but in the case of the PO session I have managed to come round it. I found that calling the stpapi.handle with the action 'ignore' did the trick for me. What you see below is a code snipet from my function to create a PO with one line. This is where I move intot he subsession ans start filling the field in.<br />
+<br />
+<br />
+<br />
+/Thomas<br />
+<br />
+<br />
+sess = &quot;tdpur4101m000&quot;<br />
+line.sess = &quot;tdpur4102s000&quot;<br />
+...<br />
+...<br />
+| now move to the lines to start processing <br />
+stpapi.handle.subproc(sess, line.sess,  &quot;add&quot;)<br />
+stpapi.handle.subproc(sess, &quot;tdpur4503s000&quot;,  &quot;ignore&quot;)<br />
+stpapi.continue.process(sess, continue.msg) | go to sub session<br />
+if not ( continue.msg = &quot;&quot; )  then<br />
+	recov = stpapi.recover( line.sess, recover.msg)<br />
+	err.id = ERR.COULD.NOT.CONTINUE<br />
+	err.msg =  &quot;Continue.msg: &quot; &amp; continue.msg &amp; &quot; Recov.msg: &quot; &amp; recover.msg<br />
+	return(false)<br />
+endif<br />
+<br />
+stpapi.put.field(line.sess,&quot;tdpur041.item&quot;, str$(item))</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">yurong</div><div class="date">16th August 2007, 10:49</div></div><div class="posttext">Hi Thomas, <br />
+tks for your reply, I just made a test, but it did not solve my problem :-)<br />
+But I found some difference, without the &quot;ignore&quot;, when I try to end the session, it hangs, and I look into system with ps, the subsession 'tdsls4102s000' and 'tdsls4503s000' still exist.<br />
+with 'ignore', the subsessions can be closed when I try to end the session, but the session 'tdpur4101m000' still hangs.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

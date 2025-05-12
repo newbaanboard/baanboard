@@ -1,0 +1,169 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Maintain Texts, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Maintain Texts AFS/DDC/OLE: Function servers" />
+	
+	<title>Maintain Texts [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Maintain Texts</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">arthur_info</div><div class="date">11th March 2010, 16:32</div></div><div class="posttext">Hello,<br />
+<br />
+Is there some method using AFS that we can manipulate the creation of Texts in a session? Like the attached screen?<br />
+<br />
+Thanks all...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th March 2010, 00:42</div></div><div class="posttext">I usually just use the text funtions to read from a file. So if I wanted text to just say &quot;testing&quot; for some function I would have a session that would write to a file then write to the record involved. More details might generate more suggestions.<br />
+<br />
+What I did for purchasing was create a session that lets them create text.  They give the text some description. Then they have the option in same session to add this text to purchase orders, RFQ's, etc.  See below for a piece of the code.<br />
+<br />
+<br />
+function process.purchase.text()<br />
+{<br />
+	domain	tcmcs.str16	text.field<br />
+	<br />
+	if hdft = tdudi.hdft.head then<br />
+		text.field = &quot;tdpur040.txta&quot;<br />
+	else<br />
+		text.field = &quot;tdpur040.txtb&quot;<br />
+	endif<br />
+	<br />
+	select	tdpur040.*<br />
+	from	tdpur040<br />
+	where	tdpur040._index1 = {:orno}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	endselect<br />
+	if (text.field = &quot;tdpur040.txta&quot; and tdpur040.txta&gt;0) or (text.field = &quot;tdpur040.txtb&quot; and tdpur040.txtb&gt;0) then<br />
+		append.text(text.field)<br />
+	else<br />
+		create.text(text.field)<br />
+	endif<br />
+}<br />
+function process.inquiry.text()<br />
+{<br />
+	domain	tcmcs.str16	text.field<br />
+	<br />
+	if hdft = tdudi.hdft.head then<br />
+		text.field = &quot;tdpur001.txta&quot;<br />
+	else<br />
+		text.field = &quot;tdpur001.txtb&quot;<br />
+	endif<br />
+	<br />
+	select	tdpur001.*<br />
+	from	tdpur001<br />
+	where	tdpur001._index1 = {:orno}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	endselect<br />
+	if (text.field = &quot;tdpur001.txta&quot; and tdpur001.txta&gt;0) or (text.field = &quot;tdpur001.txtb&quot; and tdpur001.txtb&gt;0) then<br />
+		append.text(text.field)<br />
+	else<br />
+		create.text(text.field)<br />
+	endif<br />
+}<br />
+<br />
+function append.text(domain tcmcs.str16 some.field)<br />
+{<br />
+	string	temp.file1(500), temp.file2(500), cmd(1024)<br />
+	string	kw1(17),kw2(17),kw3(17),kw4(17),tgrp(8),eopt(15)<br />
+	long	write.return, ret.code<br />
+<br />
+	temp.file1 = creat.tmp.file$(bse.tmp.dir$())<br />
+	temp.file1 = strip$(temp.file1)<br />
+	write.return = text.read(&quot;tdudi010.txtn&quot;, &quot;2&quot;, kw1, kw2, kw3, kw4, tgrp, eopt, temp.file1, 0)<br />
+<br />
+	temp.file2 = creat.tmp.file$(bse.tmp.dir$())<br />
+	temp.file2 = strip$(temp.file2)<br />
+	write.return = text.read(some.field, &quot;2&quot;, kw1, kw2, kw3, kw4, tgrp, eopt, temp.file2, 0)<br />
+	<br />
+	cmd = sprintf$(&quot;cat %s&gt;&gt;%s&quot;, temp.file1 , temp.file2)<br />
+	ret.code = shell(cmd, SHELL_NO_OUTPUT)<br />
+	<br />
+	write.return = text.rewrite(some.field, &quot;2&quot;, kw1, kw2, kw3, kw4, tgrp, &quot;&quot;, temp.file2)<br />
+	commit.transaction()<br />
+	ret.code = seq.unlink(temp.file1)<br />
+	ret.code = seq.unlink(temp.file2)<br />
+}<br />
+function create.text(domain tcmcs.str16 some.field)<br />
+{<br />
+	string	temp.file1(500)<br />
+	string	kw1(17),kw2(17),kw3(17),kw4(17),tgrp(8),eopt(15)<br />
+	long	write.return, ret.code<br />
+<br />
+	temp.file1 = creat.tmp.file$(bse.tmp.dir$())<br />
+	temp.file1 = strip$(temp.file1)<br />
+	write.return = text.read(&quot;tdudi010.txtn&quot;, &quot;2&quot;, kw1, kw2, kw3, kw4, tgrp, eopt, temp.file1, 0)<br />
+	db.retry.point()<br />
+	|select tdpur040.*<br />
+	|from	tdpur040 for update<br />
+	|where	tdpur040._index1 = {:orno}<br />
+	|selectdo<br />
+	on case zoom.prog<br />
+		case &quot;tdpur4101m000&quot;:<br />
+			db.eq(ttdpur040,db.delayed.lock)<br />
+			break<br />
+		case &quot;tdpur1101m000&quot;:<br />
+			db.eq(ttdpur001,db.delayed.lock)<br />
+			break<br />
+		case &quot;tdexi0109m000&quot;:<br />
+			db.eq(ttdexi001,db.delayed.lock)<br />
+			break<br />
+	endcase<br />
+	write.return = text.write(some.field, &quot;2&quot;, kw1, kw2, kw3, kw4, &quot;purchase&quot;, &quot;&quot;, temp.file1)<br />
+	on case zoom.prog<br />
+		case &quot;tdpur4101m000&quot;:<br />
+			db.update(ttdpur040,db.retry)<br />
+			break<br />
+		case &quot;tdpur1101m000&quot;:<br />
+			db.update(ttdpur001,db.retry)<br />
+			break<br />
+		case &quot;tdexi0109m000&quot;:<br />
+			db.update(ttdexi001,db.retry)<br />
+			break<br />
+	endcase<br />
+	commit.transaction()<br />
+	|endselect<br />
+	file.chmod(temp.file1,S_IRWXU)<br />
+	ret.code = seq.unlink(temp.file1)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manish_patel</div><div class="date">12th March 2010, 12:25</div></div><div class="posttext">Text management is not supported by the AFS. You have to use text.* functions to handle text.<br />
+<br />
+http://www.baanboard.com/baanboard/showthread.php?t=55508&amp;highlight=text+AFS</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">arthur_info</div><div class="date">12th March 2010, 13:16</div></div><div class="posttext">Well, I was trying to put manually the relation between the tables (see printscreen attached)... But Baan doesn't understand this and when I go to the form (tdcotd201m000) and click on &quot;T&quot;, Baan asks if I want to create a new text, even though I've already placed the value internally. I'm doing this because I'm using AFS with .Net, then I don't know how to use the text.write by this feature, since I can only use AFS commands or insert directly into the database.<br />
+<br />
+Does anyone have any suggestions for doing this operation manually in other way?<br />
+<br />
+Thanks a lot...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th March 2010, 15:16</div></div><div class="posttext">How was the text created in tttxt010?  Is the correct record also in tttxt001 and tttxt002?  I am thinking this should work.  The 001 table contains the text group and window type and the 002 table contains key word info.  I think those are the only tables I involved. <br />
+<br />
+I am not sure how to access the text functions out side of baan.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">arthur_info</div><div class="date">12th March 2010, 16:43</div></div><div class="posttext">Oh Mark! You're right ... Lacked the tables tttxt001 and tttxt002. Now is working.<br />
+<br />
+Thanks a lot!<br />
+<br />
+Arthur</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

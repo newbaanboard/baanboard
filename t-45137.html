@@ -1,0 +1,101 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="problem in adding order quantity, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] problem in adding order quantity AFS/DDC/OLE: Function servers" />
+	
+	<title>problem in adding order quantity [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; problem in adding order quantity</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">hardei</div><div class="date">28th November 2007, 13:54</div></div><div class="posttext">Dear frnds,<br />
+  I am working on baan 5.i want to update order quantity using afs in sales order lines.But at stpapi.save session gets hanged<br />
+<br />
+please the code and advise me<br />
+<br />
+select	tdsls401.*<br />
+	from	tdsls401<br />
+	where	tdsls401.item = :tcibd001.item<br />
+	and	tdsls401.oltp &lt;&gt; tdgen.oltp.total<br />
+	and	tdsls401.oqua &lt;&gt; tdsls401.dqua<br />
+	and	tdsls401.orno = &quot;HFSL71344&quot;<br />
+	order by tdsls401._index9<br />
+	selectdo	<br />
+		orno = tdsls401.orno <br />
+		posi = tdsls401.pono <br />
+		oamt = tdsls401.oqua + 10<br />
+		stpapi.put.field(&quot;tdsls4501m000&quot;,&quot;tdsls401.orno&quot;,tdsls401.orno)<br />
+		stpapi.put.field(&quot;tdsls4501m000&quot;,&quot;tdsls401.pono&quot;,str$(tdsls401.pono))<br />
+		stpapi.put.field(&quot;tdsls4501m000&quot;,&quot;tdsls401.sqnb&quot;,&quot;0&quot;)<br />
+| 		ret1 = stpapi.change.view(&quot;tdsls4501m000&quot;,error)<br />
+		ret1 = stpapi.mark(&quot;tdsls4501m000&quot;,error)<br />
+		ret1 = stpapi.synchronize.dialog(&quot;tdsls4501m000&quot;,&quot;modify&quot;,error)<br />
+		stpapi.put.field(&quot;tdsls4101s000&quot;,&quot;tdsls401.oqua&quot;,str$(oamt))<br />
+		stpapi.handle.subproc(&quot;tdsls4101s000&quot;,&quot;tdpcg0240s000&quot;,&quot;kill&quot;)<br />
+		ret = stpapi.update(&quot;tdsls4101s000&quot;,true,error)<br />
+| 		error.code = stpapi.get.mess.code(&quot;tdsls4101s000&quot;,error)<br />
+| 		if (error.code = &quot;tdsls00010&quot;) and (error &lt;&gt; &quot;&quot;)then<br />
+			ret = stpapi.save(&quot;tdsls4101s000&quot;,save.error)<br />
+			message(&quot;%d&quot;,tdsls401.oqua)<br />
+| 		endif<br />
+		stpapi.end.session(&quot;tdsls4101s000&quot;)		<br />
+		stpapi.end.session(&quot;tdsls4501m000&quot;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">28th November 2007, 15:04</div></div><div class="posttext">First search on the sessions involved.  This is just a wild ass swag on my part on what I would expect for Baan V.<br />
+<br />
+|Find the order<br />
+stpapi.put.field(&quot;tdsls4500m000&quot;, &quot;tdsls401.orno&quot;, m_orno)  <br />
+    ret = stpapi.find(&quot;tdsls4500m000&quot;, error.msg)  <br />
+    if ret = 1 then  <br />
+        ret = stpapi.mark(&quot;tdsls4500m000&quot;, error.msg)  <br />
+        if ret = 1 then  <br />
+            stpapi.handle.subproc( &quot;tdsls4500m000&quot;,&quot;tdsls4501m000&quot;, &quot;add&quot; )  <br />
+            stpapi.form.command(&quot;tdsls4500m000&quot;, 5, &quot;to.lines&quot;,error.msg)     <br />
+            suspend(20) | give some time to sessions openning <br />
+            ret = stpapi.synchronize.dialog(&quot;tdsls4501m000&quot;, &quot;add&quot;, error.msg)  <br />
+            if ret then  <br />
+                stpapi.handle.subproc(&quot;tdsls4101s000&quot;, &quot;mtdsls00009047&quot;,&quot;13&quot;)  <br />
+	    <br />
+	   |Find the order and lines<br />
+                stpapi.put.field( &quot;tdsls4101s000&quot;, &quot;tdsls401.orno&quot;, m_orno )  <br />
+                stpapi.put.field( &quot;tdsls4101s000&quot;, &quot;tdsls401.pono&quot;, m_pono )  <br />
+	   ret = stpapi.find(&quot;tdsls4101s000&quot;, error.msg)  <br />
+	    <br />
+                stpapi.put.field( &quot;tdsls4101s000&quot;, &quot;tdsls401.oqua&quot;, str$(m_oqua) )  <br />
+                ret = stpapi.update(&quot;tdsls4501m000&quot;, true, error.msg)  <br />
+                if not ret then      <br />
+                    ret = stpapi.recover(&quot;tdsls4501m000&quot;, error.msg)  <br />
+                endif  <br />
+            endif              <br />
+        endif  <br />
+    endif<br />
+<br />
+For the two fields I put on tdsls4101s000 I do not know the names so you would have to put the correct form field names to find the correct line.  One thread mentioned that the order number for the session is tdsls040, but I do not know.  Also none of the threads I reviewed mentioned tdpcg0240s000, so I have no clue about this session.  Good Luck!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">hardei</div><div class="date">28th November 2007, 15:55</div></div><div class="posttext">session tdpcg0240s000 opens while saving the sales order.<br />
+<br />
+Please see the attached file<br />
+<br />
+Please advise me how to handle this</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">28th November 2007, 16:32</div></div><div class="posttext">The first thing I notice in the attachment is the question tdsls410101, so I would expect an stpapi.enum.answer before the update. Something stpapi.enum.answer(&quot;tdpur4101s000&quot;, &quot;tdsls410101&quot;,tcyesno.yes) - of course it needs to be the correct domain for the answer you want to provide.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">hardei</div><div class="date">29th November 2007, 12:59</div></div><div class="posttext">Thanks Mark for your quick replies.But i think we can not change ordered quantity through AFS.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

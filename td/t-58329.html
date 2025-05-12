@@ -1,0 +1,130 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Customised session will not run as a job, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Customised session will not run as a job Tools Development" />
+	
+	<title>Customised session will not run as a job [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Customised session will not run as a job</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">pjohns</div><div class="date">27th April 2010, 13:30</div></div><div class="posttext">Hello,<br />
+<br />
+We have a customised session that runs fine when executed from the Baan menu but when we try to run from a job it does not work.<br />
+<br />
+When you look at the job history it shows the session as completing without any runtime errors. But it doesn't do anything.<br />
+<br />
+<br />
+|******************************************************************************<br />
+|* Main table trdrp020 Planned Replenishment Orders, Form Type 4<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+<br />
+	table	ttrdrp020		| Planned Replenishment Orders<br />
+<br />
+|*Program variables<br />
+	domain	tcdate	current.date	| Stores the system date<br />
+	<br />
+|****************************** form section **********************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	current.date = date.num()<br />
+	get.screen.defaults()<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	update.planned.dates.trdrp020()<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function update.planned.dates.trdrp020()<br />
+{<br />
+	long	count<br />
+	<br />
+	count = 0<br />
+<br />
+	db.retry.point()<br />
+	<br />
+	select trdrp020.*<br />
+	from   trdrp020	for update<br />
+	where  (trdrp020.orsa = tcorsa.planned or trdrp020.orsa = tcorsa.firm.planned)<br />
+	and    (trdrp020.podt &lt; :current.date or trdrp020.pddt &lt; :current.date or trdrp020.prdt &lt; :current.date) <br />
+	selectdo<br />
+		| update set<br />
+		if trdrp020.podt &lt; current.date then<br />
+			trdrp020.podt = current.date<br />
+		endif<br />
+		if trdrp020.pddt &lt; current.date then<br />
+			trdrp020.pddt = current.date<br />
+		endif<br />
+		if trdrp020.prdt &lt; current.date then<br />
+			trdrp020.prdt = current.date<br />
+		endif<br />
+		db.update(ttrdrp020, db.retry)<br />
+		count = count + 1<br />
+		if count &gt; 50 then<br />
+			count = 0<br />
+			commit.transaction()<br />
+		endif<br />
+	endselect<br />
+	if count &lt;&gt; 0 then<br />
+		commit.transaction()<br />
+	endif	<br />
+<br />
+	mess(&quot;tdcmss02405&quot;,1)<br />
+<br />
+}<br />
+<br />
+<br />
+Any ideas?<br />
+<br />
+Thanks<br />
+<br />
+PJ</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manish_patel</div><div class="date">27th April 2010, 13:48</div></div><div class="posttext">Code written in init.form section will not execute, in case of session run in job mode. Move this code to before.program section.<br />
+<br />
+<br />
+before.program:<br />
+	init.defaults() |Initialize variable<br />
+	<br />
+|****************************** form section **********************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	if not (api.mode or job.process or background) then<br />
+		get.screen.defaults()<br />
+	endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pjohns</div><div class="date">27th April 2010, 14:18</div></div><div class="posttext">Thanks Manish,<br />
+<br />
+Spot on!<br />
+<br />
+The session works fine now from within a job.<br />
+<br />
+Regards<br />
+<br />
+PJ</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

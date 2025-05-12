@@ -1,0 +1,107 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="About print reoprt, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] About print reoprt Tools Development" />
+	
+	<title>About print reoprt [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; About print reoprt</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">hejingsong</div><div class="date">17th November 2004, 17:10</div></div><div class="posttext">I print a report.I need sum amount in every page.so i add foodter in report layout.but last purchase order line always reprint.Attach file is script.How can i delete reprint order line!<br />
+<br />
+<br />
+		|*get po line information<br />
+		|=========================<br />
+		select	tdpur401.*<br />
+		from	tdpur401<br />
+		where	tdpur401._index1 = {:tdpur400.orno }<br />
+		and	tdpur401.sqnb = 0<br />
+		and	tdpur401.clyn &lt;&gt; tcyesno.yes<br />
+		order by tdpur401._index1<br />
+		selectdo<br />
+	 		po.position	= tdpur401.pono<br />
+	 		po.item  	= tdpur401.item<br />
+	 		po.item.dsca	= get.item.dsca(tdpur401.item)<br />
+	 		po.unit		= tdpur401.cuqp<br />
+			dt.string	= sprintf$(&quot;%u002&quot;,tdpur401.rdta)<br />
+	 		po.req.dt	= dt.string(5;4) &amp; dt.string(3;2) &amp; dt.string(1;2)<br />
+	 		po.qty		= tdpur401.oqua<br />
+			po.price	= tdpur401.pric<br />
+	 		po.amnunt	= tdpur401.oqua * tdpur401.pric<br />
+			<br />
+			total.page.amount=total.page.amount + po.amnunt<br />
+			total.all.amount =total.all.amount  + po.amnunt<br />
+			row.count = row.count + 1 <br />
+			if	row.count = 10	then<br />
+				print.amount=total.page.amount<br />
+				amount.dsca = &quot;PAGE TOTAL : &quot;<br />
+				amount.eng.dsca = convert.amount.to.word(po.currency.dsca,rpt.curr.ifx,total.page.amount)<br />
+				rprt_send()<br />
+				total.page.amount=0<br />
+				row.count = 0<br />
+			else<br />
+				rprt_send()<br />
+			endif<br />
+		selecteos<br />
+ 			print.amount=total.all.amount	<br />
+ 			amount.dsca = &quot;GRAND TOTAL :&quot;<br />
+			amount.eng.dsca = convert.amount.to.word(po.currency.dsca,rpt.curr.ifx,total.all.amount)<br />
+			rprt_send()							  <br />
+		endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rdbailey</div><div class="date">19th November 2004, 23:03</div></div><div class="posttext">I have had issues like this in the past where it wasn't actually the code causing the problem, but the report layout.<br />
+<br />
+If you ensure the report layout is not using standard baan fields (i.e. tdpur401.orno) you may have better luck.  We just create variables in the script, dump the values into them and the report layout points to the variables (instead of the actual field names).  Also make sure you are NOT using any of the aggregate functions for totalling etc... as they seem to trigger the same behaviour.<br />
+<br />
+It appears to have something to do with the way Baan handles break-points that sends that extra line.  This even happened to us at the beginning of the report in some cases, but by writing all the totalling and columns ourselves, the problems disappeared.<br />
+<br />
+I hope this helps.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tjbyfield</div><div class="date">20th November 2004, 00:36</div></div><div class="posttext">A simple approach may be to do let baan do most of the work in a report-script.<br />
+ <br />
+The page_total field could be reset a &quot;Header&quot; section and to either updated in a &quot;Detail&quot; section or let baan do that automatically with the &quot;total&quot; agrgate function.<br />
+<br />
+The report script need only be a few line of code and the program script could then be simplified.<br />
+<br />
+Terry</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">hejingsong</div><div class="date">20th November 2004, 12:32</div></div><div class="posttext">Now,i can not think out good solution.So.i get repeat po order position first.when send to report ,skip this position.Can anybody give better solution?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tjbyfield</div><div class="date">22nd November 2004, 00:16</div></div><div class="posttext">I think it would be much more simple to use a very simple 4GL script and standard report features augmented with a few lines of report script as mentioned in earlier post.<br />
+For example 4GL script:<br />
+<br />
+	|*get po line information<br />
+	|=========================<br />
+	select	tdpur401.*, tiitm001.dsca   <br />
+	from	tdpur401, tiitm001 <br />
+	where	tdpur401._index1 = {:tdpur400.orno }<br />
+	and	tdpur401.sqnb = 0<br />
+	and	tdpur401.clyn &lt;&gt; tcyesno.yes<br />
+             and        tdpur401.item refers to tiitm001 unref clear<br />
+	order by tdpur401._index1<br />
+	selectdo<br />
+	             rprt_send()					<br />
+	endselect<br />
+<br />
+(note I am not familiar with tdpur400/401 but have asumed item number will be 'item')<br />
+<br />
+Terry</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

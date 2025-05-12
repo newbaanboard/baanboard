@@ -1,0 +1,199 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Insert/Writing records to DB very slow, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Insert/Writing records to DB very slow Tools Development" />
+	
+	<title>Insert/Writing records to DB very slow [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Insert/Writing records to DB very slow</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">tnzabo</div><div class="date">12th October 2006, 22:05</div></div><div class="posttext">I have a session that uses the brp commands open, ready, close.  This session calls a report and in that report script for each layout I fill in the record's fields and do a db.insert to a table.  It is taking forever!  The select statement in my session runs quickly - a good minute or two at the most.  THEN the report session script pops up and could run for another 10 + minutes depending on the number of records.  The latest I've tested has been 4,679 records written in 9 minutes.  I really think that is way too long to write that small amount of records.  We use this for YTD reporting which was so far at least 49,000+ records - hours to run this.<br />
+<br />
+Does anyone have any advice for using these commands?  Is there something I'm missing that could speed this up?<br />
+<br />
+thanks,<br />
+NikkiZ</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th October 2006, 23:36</div></div><div class="posttext">Can you post the code?  Someone might happen to have an idea on how to improve it.  I know there are variables that could be changed to try to impove it, but I can not recall what they are.  You might also try commiting every 500 records or so.  Again I am not sure how much that might help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tnzabo</div><div class="date">12th October 2006, 23:47</div></div><div class="posttext">I was doing commits after each record and thought that was slowing it down so I changed it to only do one in the after.report section.  I can post some of the code.  It's several layouts the do the same thing depending on what type of record.  There are total records and detail records all written to the table with a specific record type.  Here is an abbreviated piece of the code:<br />
+<br />
+detail.1:<br />
+before.layout:<br />
+	<br />
+	tot.dqua = tot.dqua + tdobg100.dqua<br />
+	tot.invoice = tot.invoice + tdobg100.amnt<br />
+	tot.gpcost = tot.gpcost + tdobg100.gpcost<br />
+	tot.ext.act.dol	= (tot.ext.act.dol + ext.act.dol)		tot.act.tot.dol = tot.act.tot.dol + act.tot.dol<br />
+	tot.act.marg.dol = tot.act.marg.dol + act.marg.dol<br />
+	tot.std.tot.dol	= tot.std.tot.dol + std.tot.dol<br />
+	tot.ext.std.dol	= tot.ext.std.dol + ext.std.dol<br />
+	tot.std.marg.dol = tot.std.marg.dol + std.marg.dol<br />
+	tot.wip.accr.dol = tot.wip.accr.dol + act.wip.accr.dol<br />
+	if tot.invoice = 0 then<br />
+		tot.act.marg.per = 0<br />
+		tot.std.marg.per = 0<br />
+	else<br />
+		tot.act.marg.per = 100 * (tot.act.marg.dol/tot.invoice)<br />
+		tot.std.marg.per = 100 * (tot.std.marg.dol/tot.invoice)<br />
+	endif<br />
+<br />
+|*****************************<br />
+|Putting info in report table<br />
+|*****************************<br />
+	tdobg109.ttyp = 1			<br />
+	tdobg109.pdno = ws.pdno		<br />
+	tdobg109.orno = ws.orno<br />
+	tdobg109.cprj = ws.cprj<br />
+	tdobg109.invn = ws.invn<br />
+	tdobg109.invd = ws.invd<br />
+	tdobg109.item = ws.item<br />
+	tdobg109.dsca = ws.dsca<br />
+	tdobg109.crep = ws.sls.rep<br />
+	tdobg109.creg = ws.region<br />
+	tdobg109.invamt = tdobg100.amnt<br />
+	tdobg109.gpcost = tdobg100.gpcost<br />
+	tdobg109.dqua = tdobg100.dqua<br />
+	tdobg109.extact = (ext.act.dol)			<br />
+	tdobg109.extstd = ext.std.dol<br />
+	tdobg109.acttot = act.tot.dol<br />
+	tdobg109.stdtot = std.tot.dol<br />
+	tdobg109.maract = act.marg.dol<br />
+	tdobg109.marstd = std.marg.dol<br />
+	tdobg109.peract = act.marg.per<br />
+	tdobg109.perstd = std.marg.per<br />
+	tdobg109.wipaccr = act.wip.accr.dol	| ee 08.26.03<br />
+	get.nextid()<br />
+	write.td109()<br />
+<br />
+after.report.1:<br />
+before.layout:<br />
+	commit.transaction()<br />
+<br />
+function get.nextid()<br />
+{<br />
+	select	MAX(tdobg109.recid)<br />
+	from	tdobg109<br />
+	<br />
+	selectdo<br />
+		new.recid = tdobg109.recid + 1<br />
+	selectempty<br />
+		new.recid = 1<br />
+	endselect<br />
+}<br />
+<br />
+function write.td109()<br />
+{	<br />
+	tdobg109.recid = new.recid<br />
+	tdobg109.nama = ws.cust.name<br />
+	tdobg109.cuno = ws.cuno<br />
+	tdobg109.citg = ws.citg<br />
+	db.insert(ttdobg109)<br />
+	|commit.transaction()	<br />
+	<br />
+}<br />
+<br />
+I hope this helps.  Like I mentioned there are some after.field sections that I'll insert records to my table as well - these are my total records.<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mbdave</div><div class="date">13th October 2006, 14:43</div></div><div class="posttext">why ur caling get.nextid again and again<br />
+<br />
+set a boolean and select it only one time say u got 5<br />
+then just keep it adding one each time when ur r doing get.recid.<br />
+<br />
+this will improve some performance.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">13th October 2006, 15:26</div></div><div class="posttext">mbdave is right. Think about something like:<br />
+<br />
+function get.nextid()<br />
+{<br />
+static	long	started<br />
+<br />
+	if started then<br />
+		new.recid = new.recid + 1<br />
+	else<br />
+		started = 1<br />
+		<br />
+		select	tdobg109.recid<br />
+		from	tdobg109<br />
+		order by tdobg109.recid desc<br />
+		as set with 1 rows<br />
+		selectdo<br />
+			new.recid = tdobg109.recid + 1<br />
+		selectempty<br />
+			new.recid = 1<br />
+		endselect<br />
+	endif<br />
+}<br />
+<br />
+<br />
+Of course: make sure you have an index on tdobg109 starting with recid.<br />
+You really should sign up for the OST Education Symposium  (http://osteducation.com) ;) <br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th October 2006, 16:02</div></div><div class="posttext">I agree with the above - you might also want to contact Baan for a copy of the optimization guide.  One thing mentioned in this guide is to not commit every record, but not to also wait to long.  I usually commit every 100-200 records.<br />
+<br />
+        #define COMMIT commit.count = commit.count + 1<br />
+^               if commit.count &gt; 100 then<br />
+^                       commit.transaction()<br />
+^                       commit.count = 0<br />
+^               endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">13th October 2006, 16:19</div></div><div class="posttext">I agree with the above - you might also want to contact Baan for a copy of the optimization guide.  One thing mentioned in this guide is to not commit every record, but not to also wait to long.  I usually commit every 100-200 records.<br />
+<br />
+        #define COMMIT commit.count = commit.count + 1<br />
+^               if commit.count &gt; 100 then<br />
+^                       commit.transaction()<br />
+^                       commit.count = 0<br />
+^               endif   <br />
+<br />
+<br />
+I fully agree. For a large amount of this can make a lot of sense. The amount of records in buffers in Baan and the database has to be searched sequentially so the cost of this search must be smaller than the cost of a commit. <br />
+<br />
+But take into account that you commit on a place where it is allowed. If this all need to be committed at once from a functional point of view, you have a real issue.<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tnzabo</div><div class="date">13th October 2006, 16:30</div></div><div class="posttext">So - for the committing with said code, I would put this code everywhere I would do a commit.transaction()?  Just put the #define line in the declaration and the rest of the code everywhere I would want to commit?<br />
+<br />
+Thanks for all the great replys  - I'm trying them all!<br />
+<br />
+NikkiZ</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tnzabo</div><div class="date">13th October 2006, 18:57</div></div><div class="posttext">I've applied both suggestions and it worked wonders!!!  Thanks so much!  My Controller will be very happy to get his reports in 20 mins rather than 4+ hours!!  Thanks so much!!<br />
+<br />
+BTW - the optimization guide - is there a document number on this where I can pull it from the ssa website?<br />
+<br />
+Many thanks again<br />
+<br />
+NikkiZ</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th October 2006, 19:03</div></div><div class="posttext">Mine says M2017B US - BaanERP Application Performance Guide.  We use 4c4, but I still find this guide helpful at times.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

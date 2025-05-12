@@ -1,0 +1,251 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="VBScript and Baan API, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] VBScript and Baan API AFS/DDC/OLE: Function servers" />
+	
+	<title>VBScript and Baan API [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; VBScript and Baan API</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Dwallace</div><div class="date">27th May 2005, 06:41</div></div><div class="posttext">We're having a problem using VBScript within an SQL Server 2000 DTS package to properly insert a record using the Baan API (IVc4).  We're able to insert records just find, but we cannot get the session to close nor are we able to close computer the package runs on without manually ending the &quot;bw.exe&quot; process.  Does anyone know the correct syntax for closing the client and ending the session within VBScript?  Our code is included below.<br />
+<br />
+'**********************************************************************<br />
+'  Visual Basic ActiveX Script<br />
+'************************************************************************<br />
+Function Main()<br />
+	Dim cn, rs, sSql<br />
+	Dim BaanObj, rc, sErrMsg<br />
+	Dim sItem, sCwar, iQty, iEmno, sJobNum, sLabMat, sAcct, sIdDept<br />
+	Dim sSession, sTable, sField, sValue<br />
+<br />
+	'stop	' for testing and debugging w/ Visual Studio<br />
+<br />
+	' ********************************************************************<br />
+	' **** creating and opening connection<br />
+	' ********************************************************************<br />
+	set cn=createobject(&quot;ADODB.CONNECTION&quot;)<br />
+	cn.Provider = &quot;sqloledb&quot;<br />
+	cn.Properties(&quot;Data Source&quot;).Value = [server]<br />
+	cn.Properties(&quot;Initial Catalog&quot;).Value = [database]<br />
+	cn.Properties(&quot;Integrated Security&quot;).Value = &quot;SSPI&quot;<br />
+	cn.commandTimeout = 0<br />
+	cn.Open<br />
+	<br />
+	' ********************************************************************<br />
+	' *** creating and opening recordset of items that have been ordered<br />
+	' ********************************************************************<br />
+	set rs=createobject(&quot;ADODB.RECORDSET&quot;)<br />
+	' ...  only returned 5 records at a time for testing<br />
+	sSql=	&quot;SELECT top 5 d.* &quot; &amp; _<br />
+		&quot;, o.Employee_ID &quot; &amp; _<br />
+		&quot;FROM OrderDetail d &quot; &amp; _<br />
+		&quot;LEFT OUTER JOIN InvOrder o ON d.intCustOrderPK = o.intCustOrderPK &quot; &amp; _<br />
+		&quot;WHERE baanLoaded=0 and numTries &lt; 3 &quot;<br />
+	rs.open sSql, cn, 1,2<br />
+<br />
+	' ********************************************************************<br />
+	' *** creating Baan Object<br />
+	' *** &quot;.test&quot; extension denotes which Baan connection is being used on the local machine<br />
+	' ********************************************************************	<br />
+	Set BaanObj = CreateObject(&quot;Baan4.Application.test&quot;)<br />
+	BaanObj.Timeout = 10<br />
+	sSession = &quot;tdinv1101m000&quot;		' assigning session name<br />
+<br />
+	' ********************************************************************<br />
+	' *** looping through the recordset<br />
+	' ********************************************************************<br />
+	While Not rs.EOF<br />
+		' ********************************************************************<br />
+		' *** trimming/cleansing the data in the recordset, placing in variables<br />
+		' ********************************************************************<br />
+		sItem = Trim(rs(&quot;vchItem&quot;))<br />
+		If Left( sItem, 2 ) = &quot;20&quot; then<br />
+			sCwar = &quot;MOB&quot;<br />
+		else<br />
+			sCwar = &quot;CSR&quot;<br />
+		End If<br />
+		iQty = rs(&quot;intQty&quot;)<br />
+		iEmno = rs(&quot;Employee_Id&quot;)<br />
+		sJobNum = Trim(rs(&quot;Job_Number&quot;))<br />
+		sLabMat = Trim(rs(&quot;Labor_Material_Code&quot;))<br />
+		sAcct = Trim(rs(&quot;Acct&quot;))<br />
+		sIdDept = Trim(rs(&quot;ID_Dept&quot;))<br />
+<br />
+		' ********************************************************************<br />
+		' *** putting values into Baan fields<br />
+		' ********************************************************************<br />
+		sTable = &quot;tdinv100&quot;<br />
+<br />
+		' Populating Item<br />
+		sField = &quot;item&quot;<br />
+		sValue = sItem<br />
+		Call PopulateBaanField(BaanObj, sSession, sTable, sField, sValue)<br />
+<br />
+		' Populating Warehouse<br />
+		sField = &quot;cwar&quot;<br />
+		sValue = sCwar<br />
+		Call PopulateBaanField(BaanObj, sSession, sTable, sField, sValue)<br />
+<br />
+		' Populating Input Date<br />
+		sField = &quot;idat&quot;<br />
+		sValue = &quot;STR$( date() )&quot;<br />
+		Call PopulateBaanField(BaanObj, sSession, sTable, sField, sValue)<br />
+<br />
+		' Populating Transaction Type<br />
+		sField = &quot;kowt&quot;<br />
+		sValue = &quot;5&quot;<br />
+		Call PopulateBaanField(BaanObj, sSession, sTable, sField, sValue)<br />
+<br />
+		' Populating Order Date<br />
+		sField = &quot;odat&quot;<br />
+		sValue = &quot;STR$( date() )&quot;<br />
+		Call PopulateBaanField(BaanObj, sSession, sTable, sField, sValue)<br />
+<br />
+		' Populating Delivered Quantity<br />
+		sField = &quot;dqan&quot;<br />
+		sValue = iQty<br />
+		Call PopulateBaanField(BaanObj, sSession, sTable, sField, sValue)<br />
+<br />
+		' Populating Transaction Date<br />
+		sField = &quot;trdt&quot;<br />
+		sValue = &quot;STR$( date() )&quot;<br />
+		Call PopulateBaanField(BaanObj, sSession, sTable, sField, sValue)<br />
+<br />
+		' Populating Reason Code<br />
+		sField = &quot;recd&quot;<br />
+		sValue = &quot;&quot;<br />
+		Call PopulateBaanField(BaanObj, sSession, sTable, sField, sValue)<br />
+<br />
+		' Populating Transaction Status<br />
+		sField = &quot;wtst&quot;<br />
+		sValue = &quot;1&quot;<br />
+		Call PopulateBaanField(BaanObj, sSession, sTable, sField, sValue)<br />
+<br />
+		' Populating Employee<br />
+		sField = &quot;a.emno&quot;<br />
+		If IsNull(iEmno) Then<br />
+			iEmno = 1<br />
+		End If<br />
+		sValue = iEmno<br />
+		Call PopulateBaanField(BaanObj, sSession, sTable, sField, sValue)<br />
+<br />
+		' Populating Job Number<br />
+		sField = &quot;a.jnum&quot;<br />
+		If IsNull(sJobNum) Then<br />
+			sJobNum = &quot;&quot;<br />
+		End If<br />
+		sValue = sJobNum<br />
+		Call PopulateBaanField(BaanObj, sSession, sTable, sField, sValue)<br />
+<br />
+		' Populating Material Labor Code<br />
+		sField = &quot;a.matlab&quot;<br />
+		If IsNull(sLabMat) Then<br />
+			sLabMat = &quot;&quot;<br />
+		End If<br />
+		sValue = sLabMat<br />
+		Call PopulateBaanField(BaanObj, sSession, sTable, sField, sValue)<br />
+<br />
+		' Populating Ledger Account<br />
+		sField = &quot;sacn&quot;<br />
+		If IsNull(sAcct) Then<br />
+			sAcct = &quot;&quot;<br />
+		End If<br />
+		sValue = sAcct<br />
+		Call PopulateBaanField(BaanObj, sSession, sTable, sField, sValue)<br />
+<br />
+		' Populating ID Department<br />
+		sField = &quot;dim1&quot;<br />
+		If IsNull(sIdDept) Then<br />
+			sIdDept = &quot;&quot;<br />
+		End If<br />
+		sValue = sIdDept<br />
+		Call PopulateBaanField(BaanObj, sSession, sTable, sField, sValue)<br />
+<br />
+		' ********************************************************************<br />
+		' *** Using &quot;stpapi.insert&quot; command to insert record<br />
+		' ********************************************************************<br />
+		sErrMsg = Space(50)<br />
+		rc = BaanObj.ParseExecFunction (&quot;ottstpapihand&quot;, &quot;stpapi.insert(&quot; &amp; Chr(34) &amp; sSession &amp; Chr(34) &amp; &quot;,1,&quot; &amp; Chr(34) &amp; sErrMsg &amp; Chr(34) &amp; &quot;)&quot;)<br />
+<br />
+		' *** For testing, showing Error and ReturnValue, etc.<br />
+		msgbox(Trim(CStr(rs(&quot;intCustOrderPK&quot;))) &amp; &quot;.&quot; &amp; Trim(CStr(rs(&quot;intLineNo&quot;))) &amp; Chr(10) &amp; _<br />
+			&quot;rc = &quot; &amp; CStr(rc) &amp; Chr(10) &amp; _<br />
+			&quot;sErrMsg = &quot; &amp; sErrMsg &amp; chr(10) &amp; _<br />
+			&quot;BaanObj.Error = &quot; &amp; BaanObj.Error &amp; Chr(10) &amp; _<br />
+			&quot;BaanObj.ReturnValue = &quot; &amp; BaanObj.ReturnValue &amp; Chr(10) &amp; _<br />
+			&quot;BaanObj.FunctionCall = &quot; &amp; BaanObj.FunctionCall )<br />
+<br />
+		If BaanObj.Error &lt;&gt; 0 or BaanObj.ReturnValue &lt;&gt; &quot;1&quot; Then<br />
+			' There was a problem, record not recorded<br />
+			' Update the records in SQL database below<br />
+			With rs<br />
+				.fields(&quot;baanLoaded&quot;) = 0<br />
+				.fields(&quot;numTries&quot;) = .fields(&quot;numTries&quot;) + 1<br />
+				.update<br />
+			End With <br />
+			' Send mail (sometime in the future?)<br />
+		else<br />
+			' record recorded<br />
+			With rs<br />
+				.fields(&quot;baanLoaded&quot;) = 1<br />
+				.fields(&quot;numTries&quot;) = .fields(&quot;numTries&quot;) + 1<br />
+				.update<br />
+			End With <br />
+		end if<br />
+<br />
+		' have to have the &quot;recover&quot; command after the error check or else it clears the error check codes<br />
+		If Not rc Then<br />
+			'Perform Baan reset<br />
+			rc = BaanObj.ParseExecFunction( &quot;ottstpapihand&quot;, &quot;stpapi.recover( &quot; &amp; Chr(34) &amp; sSession &amp; Chr(34) &amp; &quot; ,&quot; &amp; Chr(34) &amp; sErrMsg &amp; Chr(34) &amp;&quot;)&quot; )<br />
+		End If<br />
+<br />
+		rs.MoveNext<br />
+	Wend<br />
+<br />
+	' ********************************************************************<br />
+	' *** cleaning up<br />
+	' ********************************************************************<br />
+	rs.close	<br />
+	set rs=nothing<br />
+	<br />
+	' ***** trying to end session<br />
+	' ***** following just hung, never closed<br />
+	'Call BaanObj.ParseExecFunction (&quot;ottstpapihand&quot;, &quot;stpapi.end.session(&quot; &amp; Chr(34) &amp; sSession &amp; Chr(34) &amp; &quot;)&quot;)<br />
+<br />
+	BaanObj.Quit<br />
+	Set BaanObj = Nothing<br />
+	cn.close<br />
+	set cn=nothing<br />
+<br />
+	Main =DTSTaskExecResult_Success<br />
+End Function<br />
+<br />
+Function PopulateBaanField(BaanObj, sSession, sTable, sField, sValue)<br />
+	' filling the Baan field with the value<br />
+	Dim s<br />
+	s = &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; sSession &amp; Chr(34) &amp; &quot;, &quot; &amp; _<br />
+		Chr(34) &amp; sTable &amp; &quot;.&quot; &amp; sField &amp; Chr(34) &amp; &quot;, &quot; &amp; _<br />
+		Chr(34) &amp; sValue &amp; Chr(34) &amp; &quot;)&quot;<br />
+	Call BaanObj.ParseExecFunction(&quot;ottstpapihand&quot;, s)<br />
+	If BaanObj.Error &lt;&gt; 0 OR BaanObj.ReturnValue &lt;&gt; &quot;&quot; then <br />
+		BaanObj.Quit<br />
+	End If<br />
+End Function</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th May 2005, 15:28</div></div><div class="posttext">While this script is in debug mode and before the stpapi.end is executed do you see any other sessions being opened?  After you make the connection you can start a shell and do a PS. Since we use ILC I am not sure if tdinv1101m000 starts any sub-sessions.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

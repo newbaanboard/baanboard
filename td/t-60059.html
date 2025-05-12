@@ -1,0 +1,133 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="function run.prog() on unix, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] function run.prog() on unix Tools Development" />
+	
+	<title>function run.prog() on unix [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; function run.prog() on unix</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Agus Mujtahid</div><div class="date">16th February 2011, 11:59</div></div><div class="posttext">Dear All,<br />
+Now,we are developing program to send email via baan (Server:Unix/AIX).<br />
+We use function run.prog(),like this:<br />
+first we use this command:<br />
+<br />
+remark.email=&quot;Data BO&quot;<br />
+email.sup=mujtahid@kyb.co.id<br />
+send.email=run.prog(&quot;mail -s remark.email email.sup&lt;/d01/tmp/file.note&quot;,&quot;&quot;,RP_NOWAIT)<br />
+<br />
+with the above command ,we got return value 0,but we are not received any email.<br />
+<br />
+then we changed our command like this:<br />
+<br />
+remark.email=&quot;Data BO&quot;<br />
+email.sup=mujtahid@kyb.co.id<br />
+send.email=run.prog(&quot;sh&quot;,&quot;mail -s remark.email email.sup&lt;/d01/tmp/file.note&quot;,RP_NOWAIT)<br />
+<br />
+the same result occured,no email received by us,please help us. <br />
+what wrong with our commands?<br />
+can we use &quot;sh&quot; to run shell,like our above command?<br />
+thanks<br />
+<br />
+Mujtahid</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">litrax</div><div class="date">16th February 2011, 12:15</div></div><div class="posttext">Hello,<br />
+<br />
+first of all: have you checked that the command on the commandline functions well? Type <br />
+mail -s Data BO mujtahid@kyb.co.id &lt; /d01/tmp/file.note<br />
+and see what happens.<br />
+<br />
+second: I always use <br />
+cat /d01/tmp/file.note | mail mujtahid@kyb.co.id<br />
+or in your case in the script<br />
+run.prog(&quot;cat /d01/tmp/file.note | mail mujtahid@kyb.co.id&quot;,&quot;&quot;,RP_NOWAIT)<br />
+<br />
+If this doesn't work perhaps you can use RP_WAIT for debugging and check the return value which can be<br />
+<br />
+<br />
+ 0  program executed successfully<br />
+<br />
+ &lt;0  program could not be started<br />
+<br />
+ &gt;0  program did not execute successfully</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Agus Mujtahid</div><div class="date">16th February 2011, 15:18</div></div><div class="posttext">thanks,<br />
+we have tried this command directly from unix,we type this command in shell:<br />
+mail -s &quot;DATA BO&quot; mujtahid@kyb.co.id&lt;/d01/tmp/file.note,<br />
+everything is ok,we get email from this unix command.<br />
+What wrong with our command,please help us.<br />
+<br />
+Thanks,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">litrax</div><div class="date">16th February 2011, 15:31</div></div><div class="posttext">Mind that with RP_NOWAIT the return value is always 0.<br />
+Try it with mode RP_WAIT .<br />
+<br />
+If return value is &lt; 0 the program is not even started (maybe cat or mail could not be found).<br />
+If return value is &gt; 0 something went wrong with the execution.<br />
+<br />
+A guess would be that you write the full path of the mail program on your server (e.g. usr/bin/mail) in the run.prog command.<br />
+Aren't there any error messages at runtime or on the server in any logfile (/var/log/mail)?<br />
+<br />
+Alternatively write a little shell script that does everything and write run.prog(&quot;myshellcript&quot;,,RP_NOWAIT)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">17th February 2011, 01:58</div></div><div class="posttext">Here is the sample code, which works in our Unix environment -<br />
+<br />
+long	ret<br />
+string	comd(12), emailid(80), string(80), args(256)<br />
+<br />
+comd = &quot;/bin/mailx&quot;<br />
+args = &quot; -s &quot; &amp; quoted.string(trim$(subject)) &amp; &quot; &quot; &amp; emailid<br />
+ret = run.prog(comd, args, RP_WAIT, trim$(file.path))<br />
+<br />
+Your code has issues -<br />
+remark.email=&quot;Data BO&quot;<br />
+email.sup=mujtahid@kyb.co.id<br />
+send.email=run.prog(&quot;mail -s remark.email email.sup&lt;/d01tmp/file.note&quot;,&quot;&quot;,RP_NOWAIT)<br />
+<br />
+The Unix shell does not know your Baan code variables contents -<br />
+<br />
+run.prog(&quot;mail -s remark.email email.sup&lt;/d01tmp/file.note&quot;,&quot;&quot;,RP_NOWAIT)<br />
+<br />
+Also, refer to the programmer's manual for the function usage - run.baan.prog(), run.prog() (http://www.baanboard.com/programmers_manual_baanerp_help_functions_starting_and_stopping_programs_run_baan_prog_run_prog)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Agus Mujtahid</div><div class="date">17th February 2011, 04:51</div></div><div class="posttext">Dear all,<br />
+We tried with this command:<br />
+1.<br />
+send.email=run.prog(&quot;/usr/bin/mail&quot;,&quot;mail -s remark.email email.sup&lt;/d01/tmp/file.note&quot;,RP_WAIT)<br />
+<br />
+in debugger we get return value=0,but no email received by us.<br />
+then we use this command:<br />
+2. <br />
+send.email=run.prog(&quot;/bin/mailx&quot;,&quot;mail -s remark.email mujtahid@kyb.co.id&lt;/d01/tmp/SLIDACD01-17022011.txt&quot;,RP_WAIT)<br />
+<br />
+in debugger we get return value=0 too,but no email received by us.<br />
+<br />
+detail debugger,see attachment.<br />
+<br />
+what wrong with our script?<br />
+thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">litrax</div><div class="date">17th February 2011, 09:53</div></div><div class="posttext">I think NPrao has the right hint for you.<br />
+Just build the string mstring = &quot;mail -s mujtahid@kyb.co.id&lt;/d01/tmp/SLIDACD01-17022011.txt&quot; before putting it in the run.prog command.<br />
+Then use run.prog(mstring,,RP_WAIT) (when it works with RP_NOWAIT).</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

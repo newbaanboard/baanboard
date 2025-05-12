@@ -1,0 +1,97 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Query optimization - urget, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Query optimization - urget Tools Development" />
+	
+	<title>Query optimization - urget [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Query optimization - urget</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">chethu4u143</div><div class="date">7th June 2009, 14:36</div></div><div class="posttext">hi all<br />
+i wanted to fetch the most recent record from sales order (tdsls041 and tdsls040) with last inserted line of an<br />
+ header(latest header).I have item ,customer<br />
+and forecast date to match with at the entry. the below code is working fine but it takes more than 2 minutes.<br />
+can anybody guide to optimize this... ?<br />
+<br />
+thanks in advance<br />
+<br />
+	select tdsls041.*, tdsls040.orno, tdsls040.cotp<br />
+	from	tdsls041<br />
+	where	tdsls041._index9 = {:isdrp001.item, :isdrp001.cuno}<br />
+	and	tdsls041.cdat.c = :isdrp001.fdat<br />
+	and	tdsls041.oqua &gt; 0<br />
+	and	tdsls040._index1 = {tdsls041.orno}<br />
+	and	tdsls040.cotp = &quot;SLS&quot;<br />
+	order by tdsls041.orno desc, tdsls041.pono desc</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ks_ks_</div><div class="date">8th June 2009, 08:27</div></div><div class="posttext">try changing it to:<br />
+<br />
+select tdsls041.*, tdsls040.orno, tdsls040.cotp<br />
+from tdsls041,tdsls040<br />
+where tdsls041._index9 = {:isdrp001.item, :isdrp001.cuno}<br />
+and tdsls041.cdat.c = :isdrp001.fdat<br />
+and tdsls041.oqua &gt; 0<br />
+and tdsls040._index1 = {tdsls041.orno}<br />
+and tdsls040.cotp = &quot;SLS&quot;<br />
+order by tdsls041.orno desc, tdsls041.pono desc</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">8th June 2009, 11:16</div></div><div class="posttext">Refers to statement could be (a little bit) more efficient:<br />
+<br />
+<br />
+select  tdsls041.*, tdsls040.orno, tdsls040.cotp<br />
+from    tdsls041, tdsls040<br />
+where  tdsls041._index9 = {:isdrp001.item, :isdrp001.cuno}<br />
+    and tdsls041.cdat.c = :isdrp001.fdat<br />
+    and tdsls041.oqua &gt; 0<br />
+    and tdsls041.orno refers to tdsls040<br />
+    and tdsls040.cotp = &quot;SLS&quot;<br />
+order by tdsls041.orno desc, tdsls041.pono desc<br />
+<br />
+<br />
+But I think that improvement will be very little, the main problem is that you give an ordering descending on index1 and the database driver usually uses also this index to get the data, so the index9 you use in select will be not used.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">chethu4u143</div><div class="date">8th June 2009, 16:12</div></div><div class="posttext">thank you ,<br />
+<br />
+but this is taking same time, can you recode in any different way to optimize it ?<br />
+<br />
+thanks in advance</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">wiggum</div><div class="date">8th June 2009, 16:36</div></div><div class="posttext">Try adding &quot;as set with 1 records&quot; if you want to select only 1 record.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">9th June 2009, 17:27</div></div><div class="posttext">Use sls041._index1 in order by clause and select clause , equate the same with sls040.index1.<br />
+<br />
+Or alternatively embed sls040 select in tdsls041  selectdo . Skip same order no checking with sls040 .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">chethu4u143</div><div class="date">10th June 2009, 15:42</div></div><div class="posttext">Hi Hitesh, <br />
+thank you very much, the code is optimized very much.. it has reduced the time from 3 minutes to just 9 to 12 seconds in fetching records.<br />
+one thing i wanted to get cleared. what exactly does internally happen by changing to order by index ?<br />
+and also i wanted to fetch the last order number and last position of that order number first. Using order by index is working fine, In fetching last position of the order but what if there are multiple orders for the same conditions ?<br />
+i wanted to fetch the last order inserted (tdsls041.orno) and last position (tdsls041.pono) of that order . will this work at that case also .. ?<br />
+<br />
+thank you once again for your great help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">10th June 2009, 18:18</div></div><div class="posttext">Earlier sqL did not generate enough hints for db to use readily available index for 2 tables . The hints generated with that resulted in multiple product (with high % of negative records / rejections at db level)  and subsequent separate order by algorithm . When used  index in order by , db need not do order by separately.<br />
+<br />
+U can use 'desc' clause with index also . So ur  requrement can very well be served with order by tdsls041._index1 desc .</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

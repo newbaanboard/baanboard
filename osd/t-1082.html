@@ -1,0 +1,160 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Killing a user process (cleanly), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Killing a user process (cleanly) Operating Systems &amp; Databases" />
+	
+	<title>Killing a user process (cleanly) [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Killing a user process (cleanly)</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">FriarTuck</div><div class="date">16th February 2002, 23:02</div></div><div class="posttext">Does anyone have some insight on the proper way to kill off a user process cleanly.<br />
+<br />
+kill -9 &lt;pid&gt; will kill the process but leave a license unit allocated for the user in licd6.1<br />
+<br />
+kill -TERM &lt;pid&gt; will kill the process and clear the license.  Well, that sounds like the answer to my question, but...<br />
+<br />
+If our baan admin comes to me and says there is a user she can't 'kill -TERM' on, will normally kill -9 the oracle Net8 process.  I don't think that's such a good idea.  So I thought of a different option:<br />
+<br />
+In Oracle, alter system kill session 'sid, serial#'; will work, but is this &quot;safe&quot; under baan?  :eek:  If it is, then I can use alter system for any time we need to wack a user.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Guntherm</div><div class="date">18th February 2002, 10:13</div></div><div class="posttext">Hi,<br />
+<br />
+You can also use the Baan utility alg6.1 to kill users.<br />
+<br />
+Most of the time we use a 'kill -9 &lt;pid&gt;' to kick out users.<br />
+<br />
+cheers,<br />
+Gunther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">18th February 2002, 15:18</div></div><div class="posttext">Friar Tuck,<br />
+<br />
+It seems to me that if you do an 'alter system kill session' in Oracle, you will be terminating the bshell's oracle client process rather than the other way around. Based on that I would say that this boils down to a kill -9 for the bshell unless the 'alter system kill session' allows pending transactions to be dealt with correctly.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">toolswizard</div><div class="date">19th February 2002, 17:27</div></div><div class="posttext">You should try using bshcmdx.x first.  There is a unix script that calls this called alg.  I'll attach it for those you don't have it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">yeoea1</div><div class="date">21st February 2002, 04:33</div></div><div class="posttext">The script kill one or all users? The comment in it state tat it is use to kill all user. Pardon me but I do not know how to read the script so only base my question on the comment in the script.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">toolswizard</div><div class="date">21st February 2002, 04:55</div></div><div class="posttext">It allows you to select which users or all users.  It also allows you to send messages to all logged on users.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">21st February 2002, 19:51</div></div><div class="posttext">More info...<br />
+<br />
+bshcmd6.2<br />
+Usage: bshcmd6.2 [options] &lt;bshell_pid&gt;<br />
+<br />
+-v              : Print version<br />
+-p              : Show process list<br />
+-m              : Show memory usage<br />
+-d &lt;dbglvl&gt;     : Set DEBUG_LEVEL to (octal) &lt;dbglvl&gt;<br />
+-k &lt;pid&gt;        : Kill bshell process id &lt;pid&gt;<br />
+-e              : Kill all bshell processes<br />
+<br />
+bshcmd6.2 -k sends the same signal (SIGTERM) as kill -15<br />
+<br />
+FYI on the proper kill sequence:<br />
+<br />
+ *be careful how to kill such a Bshell. First try two or three times a<br />
+ 'kill -2', then a 'kill 15' and only if all else fails, try a 'kill -9'.<br />
+ The first two will trigger the Bshell to execute some emergency code that (amongst other things) de-registers itself at the license server. The  'kill -9' does not leave room for de-registering, resulting in a stranded license.<br />
+ <br />
+In the Reger release, the current license mechanism will be<br />
+replaced by the BCLM. In this brand-new license manager are many  mechanisms to clean-up stranded licenses automatically. So if you are using Reger, you will soon get a version that works with the new license manager that will solve the problems.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">25th February 2002, 15:53</div></div><div class="posttext">I experienced that the best way to kill a stranded bshell is<br />
+bshcmd6.1 -e -u1 -w1 PID (PID = process id of bshell)<br />
+The u1 &quot;wakes up&quot; a sleeping bshell<br />
+w1 waits for 1 second<br />
+You still may meet bshell-processes &quot;immune&quot; to that way, just keep calm and wait. (My theory is that a large sql-statement has been started, only when this is terminated, bshell regains control and can react to the kill-signal)<br />
+I don't know about oracle-subprocesses, but it can be fatal to kill a bisam process via kill -9: you for sure terminate the bshell, but with some &quot;luck&quot; tbase stops completely and you have to restart it with a lot of &quot;checking tables&quot;<br />
+<br />
+Of course all the above refers to unix OS, I don't have any idea how NT behaves here.<br />
+<br />
+Norbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Andy..</div><div class="date">28th February 2002, 18:19</div></div><div class="posttext">depends why you want to kill users, if its to reboot or similar then bschcmd6.x works fine in most cases.<br />
+<br />
+However, if you are looking at saving licences due to idle users you should have a look into CloseIdle.<br />
+<br />
+Reseller for UK and NL is AM Connect www.am-connect.com</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mbadillo</div><div class="date">11th October 2002, 23:51</div></div><div class="posttext">If the results of licmon6.2 -w are:<br />
+BAAN.PROMESA.COM.EC bw/bi   vhaventa.4850  BAAN.PROMESA.COM.EC 11-10-2002 18:35<br />
+BAAN.PROMESA.COM.EC bw/bi   pgicaja.4860   BAAN.PROMESA.COM.EC 11-10-2002 18:35<br />
+BAAN.PROMESA.COM.EC bw/bi   aclcredi.5394  BAAN.PROMESA.COM.EC 11-10-2002 19:05<br />
+<br />
+What's the process id (&lt;PID&gt;) wich is referenced in the commadn bshcmd6.2??.<br />
+Mario</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evertsen</div><div class="date">12th October 2002, 00:18</div></div><div class="posttext">3. Do not cross post. Putting your message/question in one forum should do the trick. <br />
+<br />
+This means you Mario.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">14th October 2002, 23:55</div></div><div class="posttext">Originally posted by mbadillo <br />
+If the results of licmon6.2 -w are:<br />
+BAAN.PROMESA.COM.EC bw/bi   vhaventa.4850  BAAN.PROMESA.COM.EC 11-10-2002 18:35<br />
+BAAN.PROMESA.COM.EC bw/bi   pgicaja.4860   BAAN.PROMESA.COM.EC 11-10-2002 18:35<br />
+BAAN.PROMESA.COM.EC bw/bi   aclcredi.5394  BAAN.PROMESA.COM.EC 11-10-2002 19:05<br />
+<br />
+What's the process id (&lt;PID&gt;) wich is referenced in the commadn bshcmd6.2??.<br />
+Mario <br />
+<br />
+The process ID is the number behind the username. In your example, 4850 would be the PID for vhaventa's bshell.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pokitlok</div><div class="date">31st October 2002, 05:58</div></div><div class="posttext">Dear all,<br />
+<br />
+Should you suggest how to kill the processes of a group of users.<br />
+The group may be defined by:<br />
+The company they are using<br />
+Or, their VRCs / Package Combination <br />
+Or, their Package in use<br />
+Or, their sessions in use<br />
+<br />
+Thank you for help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">31st October 2002, 11:24</div></div><div class="posttext">Hi everybody,<br />
+<br />
+<br />
+If &quot;kill -15&quot; does not work, then bshcmd normally also doesn't work anymore.<br />
+<br />
+Interesting in my experience the following never fails on the client:<br />
+<br />
+In the bw gui open the optione dialog, <br />
+activate &quot;Output to console&quot;<br />
+a black window will open,<br />
+close this window (X)<br />
+The whole gui will terminate gracefully ....<br />
+<br />
+This seems to work with Baan IV<br />
+<br />
+We teach all users to use this method, if their GUI hangs. After some time the requests to kill bshells will stop. :-)<br />
+<br />
+Regards<br />
+<br />
+Markus</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

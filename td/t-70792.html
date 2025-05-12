@@ -1,0 +1,166 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Grouping by 2 Tables, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Grouping by 2 Tables Tools Development" />
+	
+	<title>Grouping by 2 Tables [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Grouping by 2 Tables</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ren_bsi</div><div class="date">25th January 2018, 13:41</div></div><div class="posttext">Dear Gurus,<br />
+<br />
+I have to do grouping from 2 tables (cisli310 and tdsls401), here is the invoice line data, sales order line data, and report layout requirement :<br />
+<br />
+Invoice Data (cisli310) :<br />
+<br />
+Invoice No       | Item Code        |  Order No.       |  Qty<br />
+(cisli310.idoc)  | (cisli310.item) | (cisli310.orno) | (cisli310.dqua)  <br />
+INV001            | AA                    |  SO001            |  10<br />
+INV001            | BB                    |  SO002            |  20<br />
+INV001            | CC                    |  SO002            |  10<br />
+INV001            | BB                    |  SO002            |  30<br />
+INV001            | BB                    |  SO002            |  50<br />
+<br />
+<br />
+Sales Order Line Data (tdsls401) :<br />
+<br />
+SO No.              |  Item Code        |  Cust. Order No.  |  Qty<br />
+(tdsls401.orno) | (tdsls401.item) | (tdsls401.corn)    | (tdsls401.qidl)<br />
+SO001              |  AA                    |  CO001                |  10<br />
+SO002              |  BB                    |  CO003                |  20<br />
+SO002              |  CC                    |  CO003                |  10<br />
+SO002              |  BB                    |  CO003                |  30<br />
+SO002              |  BB                    |  CO002                |  50<br />
+<br />
+   <br />
+<br />
+Expected Invoice Layout :<br />
+<br />
+Inv. No. : INV001<br />
+<br />
+Item Code        |  Cust. Order No.  |  Qty<br />
+(cisli310.item)  | (tdsls401.corn)   |  (cisli310.dqua)<br />
+-----------------------------------------------------------------------<br />
+AA                    |  CO001               |  10<br />
+BB                    |  CO002               |  50<br />
+BB                    |  CO003               |  60<br />
+CC                    |  CO003               |  10<br />
+<br />
+<br />
+I use this code in my program script<br />
+<br />
+<br />
+   select cisli305.*<br />
+   from cisli305<br />
+   where cisli305.tran inrange {:tran.f} and {:tran.t}<br />
+   and cisli305.idoc inrange {:idoc.f} and {:idoc.t}<br />
+   selectdo<br />
+      curr.tran = cisli305.tran<br />
+      curr.idoc = cisli305.idoc<br />
+      select cisli310.tran, cisli310.idoc, cisli310.item:curr.item, cisli310.pric:curr.pric, sum(cisli310.dqua):item.deli, sum(cisli310.amth(1)):item.amount, tdsls401.corn:curr.cust<br />
+      from cisli310, tdsls401<br />
+      where cisli310.tran = {:curr.tran}<br />
+      and cisli310.idoc = {:curr.idoc}<br />
+      and tdsls401.item = {:cisli310.item}<br />
+      group by cisli310.tran, cisli310.idoc, cisli310.item, cisli310.pric, tdsls401.corn<br />
+      selectdo<br />
+          rprt_send()<br />
+      endselect<br />
+   endselect<br />
+<br />
+but the result is &quot;No Data Within Selection&quot; :confused:<br />
+Really appreciate your kind help :) <br />
+Thank you.<br />
+<br />
+Best regards,<br />
+Rendy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BChary</div><div class="date">25th January 2018, 15:01</div></div><div class="posttext">try replace:<br />
+and tdsls401.item = {:cisli310.item}<br />
+with:<br />
+and tdsls401.item = cisli310.item<br />
+In the second select query</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ren_bsi</div><div class="date">30th January 2018, 10:08</div></div><div class="posttext">Dear BChary,<br />
+<br />
+Thanks for your reply.<br />
+I've tried your suggestion but still the result doesnt meet the requirement.<br />
+Btw, could you please elaborate the difference between {:cisli310.item} and cisli310.item ?<br />
+Thank you.<br />
+<br />
+Best regards,<br />
+Rendy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">30th January 2018, 14:48</div></div><div class="posttext">:cisli310.item means it is coming externally from the query where as cisli310.item means it is coming as part of the query.<br />
+<br />
+The way I would solve this is pull 401 table out of the query.  Get it working with just the 305 and 310 table first.  So use debug  and maybe even pull the sums out if it still does not work.  Once you have it working then add in the next component the sums, then once that works add in 401. That should show you were the problem is.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">30th January 2018, 14:53</div></div><div class="posttext">Hi Rendy,<br />
+<br />
+You use &quot;:&quot; only when you have a select inside another select.<br />
+<br />
+e.g.<br />
+<br />
+select tdsls400.*<br />
+from tdsls400<br />
+selectdo<br />
+           select tdsls401.*<br />
+           from tdsls401<br />
+           where tdsls401._index1 = :tdsls400.orno<br />
+           selectdo<br />
+           endselect<br />
+endselect<br />
+<br />
+WITHOUT &quot;:&quot;<br />
+<br />
+select tdsls400.*,tdsls401.*<br />
+from tdsls400,tdsls401<br />
+where tdsls401.orno = tdsls400.orno<br />
+selectdo<br />
+endselect<br />
+<br />
+In case of your other question, can you check if you go inside the select statement if you do not use group by? I suspect there are no records matching groups. <br />
+<br />
+Also, you can simply use cisli310 table.<br />
+<br />
+And, I do not see any joins based on the Order number(tdsls401.orno/cisli310.orno) here.  You are joining based on just the item code.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ren_bsi</div><div class="date">1st February 2018, 05:13</div></div><div class="posttext">Dear Mark,<br />
+<br />
+Thank you for the advice :)<br />
+The result is working fine after pulling out tdsls401 grouping order.<br />
+Is it possible to do grouping by cisli310.idoc, cisli310.item and tdsls401.corn ? :confused:<br />
+<br />
+<br />
+Dear Bhushan,<br />
+<br />
+I need to do the grouping by cisli310.idoc, cisli310.item, and tdsls401.corn and i'm still confuse how to do it. :confused:<br />
+Currently, Everything is working fine without tdsls401.corn<br />
+Thank you :)<br />
+<br />
+<br />
+Best regards,<br />
+Rendy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">1st February 2018, 08:30</div></div><div class="posttext">You can still sort in the report by entering the sort sequence in the Input fields of the report.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

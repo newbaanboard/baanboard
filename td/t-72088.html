@@ -1,0 +1,255 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="New session read header  and row, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] New session read header  and row Tools Development" />
+	
+	<title>New session read header  and row [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; New session read header  and row</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">6th August 2019, 13:12</div></div><div class="posttext">Hi everyone,<br />
+I do to create a session that read headers from table (tdsls400) and row from other table (tdsls401).<br />
+Then  I want to create another table that memorize specify fields ( for example id item, id business partner, ecc ).<br />
+<br />
+I have created a table with specify field, but I don't know how to create the session that put those tables.<br />
+<br />
+Another question is how to develop a sum function in my script?<br />
+( for example I have to add the quantity ordered for an item)<br />
+<br />
+Thanks and regards,<br />
+<br />
+p.s Sorry for my English, but it's not my first language.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th August 2019, 15:11</div></div><div class="posttext">Are you building a new table that you want to populate?  I can think of several ways to get a new table created.  One way is just write a easy sql query to pull the data you want - write it to a file.  Edit and clean it up as desired.  Then you can use an exchange scheme or even do a table import.  I usually created initial tables this way.  But you could also write a 3gl or 4gl session to get select the data and insert it.  You could even make the session so you can run it multiple times - you could check to see if the record is already in the table - if not insert it.  All you really need is a continue button on the session.<br />
+<br />
+My assumption was you are building the table for the initial use.  There will be other sessions to maintain or update it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">6th August 2019, 15:20</div></div><div class="posttext">Hi,<br />
+The purpose is to create a session that reads the header table and the row table then create the sum of the quantities ordered by item and store them in a new table and then print a summary report of the new table.<br />
+These are the objectives, I have already created the new table with domains and labels, now I should create a session that incorporates the tables as a thing, but I don't know whether to use digit 1/2/3 with a table or generate an empty script and put a main table.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th August 2019, 21:27</div></div><div class="posttext">Well if I was just doing a summary I would just pull the data and create a report to print it. Like I said if I am generating data for a new table 90% of the times I would just write a quick query to get the data and load it into use table loads. Now if I am always emptying and rebuilding a table (like when we converted to oracle.  I create an update session, type 4 script.  Once I hit continue it basically empties the table, and then just adds all the records I am looking for. About the only thing on the form is a place to download the output report to.  Down below I posted the code that would build one such table - I edited out some of the checks I did when building the table, but it is a simple concept.<br />
+<br />
+I always use generate new sessions to create maintain, display and/or print sessions for new tables.  Then I would check the session out and then maybe change the generate session and generate over it if I did not like it.  Once I had a base session then I would edit the session to do specific things - like edit checks for maintain sessions and for print sessions I might link to other tables,<br />
+<br />
+<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+	if rprt_open() then<br />
+		get.start.date.time()<br />
+		display.all()<br />
+  	create.oracle.units()<br />
+		get.end.date.time()<br />
+		display.all()<br />
+		rprt_close()<br />
+	else<br />
+		choice.again()<br />
+	endif<br />
+function create.oracle.units()<br />
+{<br />
+| First clear out the old units<br />
+	commit.transaction()<br />
+	db.retry.point()<br />
+	db.clear.table(ttiemg013,1)<br />
+	commit.transaction()<br />
+	on.change.check(tibom961.mitm)<br />
+	<br />
+ 	num.rec = 0<br />
+	select	tppss961.item<br />
+	from	tppss961<br />
+	where   tppss961.item inrange :item.f and :item.t<br />
+	and	tppss961.pddt &gt;= :date.f<br />
+	|and	tppss961.cprj = &quot;KCX0WQ&quot;<br />
+	and	tppss961.oqan &gt;0<br />
+	and	tppss961.cprj not like &quot;LSIM.*&quot;	<br />
+	selectdo<br />
+		num.rec = num.rec + 1<br />
+	endselect<br />
+	display.all()<br />
+	<br />
+	tppss961.item = &quot;&quot;<br />
+	count.num = 0<br />
+<br />
+	select	tppss961.*<br />
+	where   tppss961.item inrange :item.f and :item.t<br />
+	and	tppss961.pddt &gt;= :date.f<br />
+	and	tppss961.oqan &gt;0<br />
+	and	tppss961.cprj not like &quot;LSIM.*&quot;<br />
+	order by tppss961.cprj, tppss961.prog, tppss961.eser, tppss961.eseq<br />
+	selectdo<br />
+		<br />
+		count.num = count.num + 1<br />
+		display.all()<br />
+<br />
+		select	tipgc001.mbcs<br />
+		from	tipgc001<br />
+		where	tipgc001._index1 ={:tppss961.ccot, :tppss961.item}<br />
+		selectdo<br />
+		endselect<br />
+		| Skip buy parts<br />
+		if tipgc001.mbcs = tipgc.mbcs.buy then<br />
+			continue<br />
+		endif<br />
+		|Skip another item on same unit - assumes series A for everything<br />
+		<br />
+		some.mdd = some.mdd + 1<br />
+		tiemg013.orno  = some.mdd<br />
+		tiemg013.assy  = tppss961.item<br />
+		tiemg013.cprj = tppss961.cprj<br />
+		tiemg013.butm = tppss961.butm<br />
+		tiemg013.sbtm = tppss961.sbtm<br />
+		tiemg013.prog = tppss961.prog<br />
+		tiemg013.eser = tppss961.eser<br />
+		tiemg013.eseq = tppss961.eseq<br />
+		tiemg013.oser  = hold.seri<br />
+		tiemg013.oseq = some.unitnumber<br />
+		db.insert(ttiemg013)<br />
+		commit.transaction()<br />
+<br />
+		rprt_send()<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">7th August 2019, 09:51</div></div><div class="posttext">Hi,<br />
+thank you very much. Now I will read your script and I will try to understand.<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">27th August 2019, 12:06</div></div><div class="posttext">Hi again,<br />
+I don't start another thread, but I ask another question:<br />
+I create a script (tdsls0501) and this is my code:<br />
+<br />
+declaration:<br />
+table tdsls400<br />
+table tdsls401<br />
+table tdsls900<br />
+extern domain tccom.bpid bpid<br />
+string query<br />
+<br />
+PROGRAM SECTION<br />
+before.program:<br />
+query = select tdsls400.*<br />
+from tdsls400<br />
+selectdo<br />
+db.set.to.default(tdsls401)<br />
+select tdsls401.*<br />
+from tdsls401<br />
+where tdsls401.orno = tdsls400.orno<br />
+endselect<br />
+<br />
+<br />
+<br />
+I ask if my code is right to read table and how I do insert this script in a session? <br />
+Thanks and regards,<br />
+-RavCoder-</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th August 2019, 14:45</div></div><div class="posttext">I only know how to do this in 4c4.  I would create a new session.  I would then create a form with a continue button on it.  I would only use the continue section and call a function to create the records.  I do recommend locating some training.  But this is just me on how I would do it - It would basically look like this in 4v4.  I would have a form with nothing but a continue button - you could also use a 3gl program if it might be run only once, but we typically did it this way.<br />
+<br />
+declaration:<br />
+table tdsls400<br />
+table tdsls401<br />
+table tdsls900<br />
+extern domain tccom.bpid bpid<br />
+string query<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+     create.records()<br />
+<br />
+functions:<br />
+create.records()<br />
+{<br />
+query = select tdsls400.*<br />
+from tdsls400<br />
+selectdo<br />
+db.set.to.default(tdsls401)<br />
+select tdsls401.*<br />
+from tdsls401<br />
+where tdsls401.orno = tdsls400.orno<br />
+endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">28th August 2019, 11:15</div></div><div class="posttext">Hi,<br />
+ I write this script to read header and row from tables ( tdsls400 - tdsls401) then I put the sum function.<br />
+I ask if  it's right or not. <br />
+<br />
+I  attach my script code ( missing a curly braces but there is at the end of script).<br />
+Regards,<br />
+-RavCoder-</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">28th August 2019, 19:18</div></div><div class="posttext">There is some confusion on my end.  I can't say if it is right or not.  I noticed some code that says create.records - but there is no db.insert.  Are you just trying to display a table already built?  From the looks of it you are just trying to sum some records from other tables you are displaying.  So I will say again you need to get some training.  If you are just trying to display some records for an existing table - start simply by generating a session for that table.  Then use it to play with to get what you are looking for.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">29th August 2019, 10:22</div></div><div class="posttext">My main problem is that I don't know exactly what is the logic to read both the header and the rows of the tables (I already have these tables created by someone else), to do this reading I have to create two separate sessions or I can do a single who sees both?<br />
+As for the sum, I created the script and put that function, so I think it's fine. The only thing I have created is a new table with certain fields.<br />
+This table must store the data and print it in a report.<br />
+Later I also have to create a session that updates the new table with the session I created before.<br />
+I know I should practice but I really lack the foundation even though I read the documentation you suggested here.<br />
+I feel really stupid....<br />
+Regards,<br />
+-RavCoder-</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">29th August 2019, 16:24</div></div><div class="posttext">First - don't feel stupid.  This stuff is not exactly intuitive.  Header and rows tables are not an easy one to accomplish with now experience.  Depending on what you are doing with headers and rows - 1 thing I have done is the past is just generate a session for the rows.  Then just lookup and display items from the header.  The problem is I am not a good teacher and I was on 4c4.  Do you all own source code?  That would help if you could look and see how they did the standard sessions.<br />
+<br />
+If you created a table - just manually enter some data.  Then generate a report off that table.  That should help in playing with reports.  I did that a lot.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">29th August 2019, 16:43</div></div><div class="posttext">Hi,<br />
+Thanks for your response.<br />
+Unfortunately I don't know exactly where to go to see the source code of the standard sessions and I can't even insert the code because it's on a virtual machine.<br />
+I have only my code who I created before.<br />
+I think I have to read the header and the existing lines because there is to be done then the sum the quantities ordered by article and customer that are found right in these tables made.<br />
+In the table there is also to make a sum with the dates.<br />
+Then I have to print a summary data report from the session.<br />
+Regards,<br />
+-RavCoder-</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">29th August 2019, 21:24</div></div><div class="posttext">Your setup is something I do not have experience with.  We used to have some source code back when we first started - I could at least look at some of that. I did have access to a test machine where I could test/play with a lot of different things.  I also had a consultant developer work with me 1 on 1 for a while to assist.  Hopefully your employer can spring for some training.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">30th August 2019, 12:37</div></div><div class="posttext">Hi,<br />
+I thought a little and looked better at the task they assigned me and maybe I think I have to do a session that reads both tables, I tried to see in the forum that there are two solutions: one and put only a table and add in the script l 'other (even if it seems impossible to me since I work on standard sessions) and the other create a temporary table (this solution too seems to me impossible).<br />
+<br />
+So I created two separate table sessions and created an MMT session by adding the other table I created again, but there are no matches (index) between them.<br />
+The two sessions created made it become satelite sessions with the MMT session.<br />
+The only index that matches is the sale order, perhaps I should also add the one in the table I created.<br />
+As for training, I don't know if my boss will let me do it in the future.<br />
+<br />
+Regards,<br />
+-RavCoder-</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">30th August 2019, 14:37</div></div><div class="posttext">You will need to wait for a LN guy on MMT session - that is not available on our old 4c4 system.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">30th August 2019, 15:06</div></div><div class="posttext">I will wait and I will continue to procede.<br />
+Regards,<br />
+-RavCoder-</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

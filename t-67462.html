@@ -1,0 +1,299 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="stpapi, inserting lines on tfcmg2500m000 bank transaction session, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] stpapi, inserting lines on tfcmg2500m000 bank transaction session AFS/DDC/OLE: Function servers" />
+	
+	<title>stpapi, inserting lines on tfcmg2500m000 bank transaction session [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; stpapi, inserting lines on tfcmg2500m000 bank transaction session</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">minadursun</div><div class="date">13th March 2015, 15:20</div></div><div class="posttext">In Infor ERP-LN 10.4 when I created a patch then bank transaction, I want to import lots of advance payment lines from *.csv file to the Transactions (tfgld1101m000) session.<br />
+<br />
+I started the tfgld1101m000 and added a new batch and new transaction type (bank transaction), then run &quot;Transaction Entry -enter.transactions-&quot; form command. Actually this command is on the menu of the tfgld1101m100 Transaction Types session.<br />
+<br />
+After then Bank Transactions (tfcmg2500m000) session is started via this command. I wanna insert my advance payment lines on this session. On the menu, there is a form command that is Insert -insert.in.details.mode-. Via this command, Bank Transactions session (tfcmg2500m000) is running again with different design -On fp3 from tfgld1101m000, I had got tfcmg2100s000 session screen and that looked like tfcmg2500m000-.<br />
+<br />
+Here is my code below:<br />
+<br />
+<br />
+<br />
+<br />
+	#pragma used dll ottstpapihand<br />
+	#define MAIN.SESSION &quot;tfgld1101m100&quot;<br />
+	#define SUB.SESSION &quot;tfcmg2500m000&quot;<br />
+<br />
+function void doit()<br />
+{<br />
+	boolean tmp.first<br />
+	long afs.ret<br />
+	<br />
+	afs.ret = 0<br />
+	error.msg = &quot;&quot;<br />
+<br />
+        stpapi.put.field(MAIN.SESSION, &quot;tfgld101.year&quot;, str$(year.f))<br />
+	stpapi.put.field(MAIN.SESSION, &quot;tfgld101.btno&quot;, str$(btno.f))<br />
+	stpapi.put.field(MAIN.SESSION, &quot;tfgld101.ttyp&quot;, ttyp.f)<br />
+	afs.ret = stpapi.find(MAIN.SESSION,  error.msg)<br />
+	if afs.ret &lt;&gt; 1 then<br />
+		fp.ret = seq.puts(&quot;Error: Could not find the record! &quot;, fp.log)<br />
+		stpapi.end.session(MAIN.SESSION, error.msg)<br />
+		return<br />
+	endif<br />
+	afs.ret = stpapi.mark(MAIN.SESSION,  error.msg)<br />
+	if afs.ret &lt;&gt; 1 then<br />
+		fp.ret = seq.puts(&quot;Error: Could not mark the record! &quot;, fp.log)<br />
+		stpapi.end.session(MAIN.SESSION, error.msg)<br />
+		return<br />
+	endif<br />
+<br />
+<br />
+	stpapi.handle.subproc(MAIN.SESSION, SUB.SESSION, &quot;add&quot;, error.msg)<br />
+<br />
+	stpapi.form.command(MAIN.SESSION, 2, &quot;enter.transactions&quot;, error.msg)<br />
+<br />
+	stpapi.form.command(SUB.SESSION, 2, &quot;insert.in.details.mode&quot;, error.msg) <br />
+	if afs.ret = 0 then<br />
+		message(error.msg)<br />
+		stpapi.end.session(MAIN.SESSION, error.msg)<br />
+		return<br />
+	endif<br />
+<br />
+	tmp.first = true<br />
+	while seq.gets(buffer, MAX.STR, fp.import) = 0<br />
+		if process.records.from.file() = NUMBER.OF.FIELDS then<br />
+			create.record(tmp.first)<br />
+			tmp.first = false<br />
+		else<br />
+			fp.ret = seq.puts(buffer &amp; &quot;Data is corrupt &quot; , fp.log)<br />
+		endif<br />
+	endwhile<br />
+	stop.all.processes()<br />
+}<br />
+<br />
+function long process.records.from.file() <br />
+{	<br />
+	<br />
+	fields.scanned = string.scan(buffer, &quot;%s,%s,%s,%f&quot;, prm.bpid, prm.bpnm, prm.bpac, prm.amnt)<br />
+	return(fields.scanned) <br />
+}<br />
+<br />
+<br />
+function create.record(boolean first.i)<br />
+{<br />
+	long afs.ret<br />
+	string tmp.str(MAX.STR) mb<br />
+	<br />
+	stpapi.put.field(SUB.SESSION, &quot;tfcmg204.year&quot;, str$(year.f))<br />
+	stpapi.put.field(SUB.SESSION, &quot;tfcmg204.btno&quot;, str$(btno.f))<br />
+	stpapi.put.field(SUB.SESSION, &quot;tfcmg204.ttyp&quot;, str$(ttyp.f))<br />
+	stpapi.put.field(SUB.SESSION, &quot;tfcmg204.docd&quot;, str$(docd.f))<br />
+	stpapi.put.field(SUB.SESSION, &quot;tfcmg204.docn&quot;, str$(seri.f))<br />
+	stpapi.put.field(SUB.SESSION, &quot;tfcmg204.lino&quot;, &quot;1&quot;)<br />
+	stpapi.put.field(SUB.SESSION, &quot;tfcmg204.tran&quot;, str$(tfcmg.tran.advance.paym))<br />
+	stpapi.put.field(SUB.SESSION, &quot;tfcmg204.bpid&quot;, prm.bpid)<br />
+	stpapi.put.field(SUB.SESSION, &quot;tfcmg204.ccur&quot;, ccur.f)<br />
+	stpapi.put.field(SUB.SESSION, &quot;tfcmg204.amnt&quot;, str$(prm.amnt))<br />
+	prm.bpnm = referance.f &amp; &quot; &quot; &amp; prm.bpnm<br />
+	stpapi.put.field(SUB.SESSION, &quot;tfcmg204.refr&quot;, prm.bpnm)<br />
+	afs.ret = stpapi.insert(SUB.SESSION, true, error.msg)<br />
+	if afs.ret = 0 then<br />
+		tmp.str = &quot;Error: &quot;  &amp; buffer &amp; &quot; Message: &quot; &amp; mb.cast.to.str$(error.msg)<br />
+		fp.ret = seq.puts(tmp.str, fp.log)<br />
+		afs.ret = stpapi.recover(SUB.SESSION, error.msg)<br />
+	endif<br />
+<br />
+}<br />
+<br />
+function generate.tmp.file.names()<br />
+{<br />
+	long r_number<br />
+	<br />
+	r_number = random()<br />
+	<br />
+	remote.file.name = getenv$(&quot;BSE&quot;) &amp; &quot;/tmp/import_items_uploaded_&quot; &amp; str$(r_number) &amp; &quot;.txt&quot;<br />
+	log.file.name = getenv$(&quot;BSE&quot;) &amp; &quot;/tmp/import_items_log_&quot; &amp; str$(r_number) &amp; &quot;.txt&quot;<br />
+}<br />
+<br />
+function stop.all.processes()<br />
+{<br />
+	stpapi.end.session(SUB.SESSION, error.msg)<br />
+	stpapi.end.session(MAIN.SESSION, error.msg)<br />
+}<br />
+<br />
+<br />
+<br />
+<br />
+My *.csv file format is below:<br />
+<br />
+123456,Mark Smith,666666,128.6<br />
+654321,Alice Silver,5555555,32.51<br />
+<br />
+<br />
+First column is Business Partner ID,<br />
+Second column is BP name,<br />
+Third one is bank account<br />
+Fourth one is amount.<br />
+<br />
+My problem is that,<br />
+On fp3 my main session was tfgld1101m000 and this program was working very vell. I change it with tfgld1101m100 on 10.4. It works but one line is added, next one is not.<br />
+For example if I have 10 lines, the program added only 5 lines and these are 1., 3., 5., 7., 9. ones.<br />
+<br />
+I could not understand why. Please share your experience and thoughts with me.<br />
+<br />
+Thanks in advance.<br />
+<br />
+Mina</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">15th March 2015, 22:28</div></div><div class="posttext">Hi,<br />
+<br />
+First thing to check will be the data. Check if you are manually able to insert the records. <br />
+<br />
+If the data is OK, you can try using suspend() function after your insert (or after one of the form commands which is taking more time to execute). Something like suspend(500) will be fine. <br />
+<br />
+May be the first record is taking time to save as with 10.4 the number of DAL hooks and dependencies have increased.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sghatge</div><div class="date">14th May 2019, 06:05</div></div><div class="posttext">I have also some AFS issue for session tfcmg2500m000. when I set the series &quot;1905&quot; for field tfcmg204.docn but system is taking first or last series internally in LN 10.4 version. <br />
+<br />
+Anybody can know this issue then please correct me.<br />
+<br />
+SG</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th May 2019, 14:55</div></div><div class="posttext">Post your code maybe someone will see something.  Do you own source where you could debug what tfcmg2500m000 is doing?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sghatge</div><div class="date">14th May 2019, 17:22</div></div><div class="posttext">Please find code below for version LN10.4. you can use variables as you wish for testing purpose. Actual issue is for set document number field i.docn at the time of inserting record. it is not set as is set &quot;1905&quot;. I am using transaction type &quot;B21&quot; and month wise series &quot;yymm&quot;. there are so may series we have maintained in the series table. for e.g first series is &quot;1305&quot; and last default series is &quot;9999&quot;. I am trying to using series &quot;1905&quot; but in AFS it is always taking &quot;9999&quot;. if I am blocking &quot;9999&quot; then it is taking first series &quot;1305&quot; but not taking I defined &quot;1905&quot;. all other fields are set ok. <br />
+<br />
+	domain 	tfgld.btno 	m.btno<br />
+	bref.f = &quot;S-&quot; &amp; logname$ &amp; &quot;-&quot; &amp; str$(tfvir316.bpid)<br />
+	message(&quot;Generating Batch for date &quot; &amp; sprintf$(&quot;%D(%02d/%02m/%4Y)&quot;, m.dt))<br />
+ 	|create batch (tfgld1101m000) ================================<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;, &quot;tfgld100.tedt&quot;, str$(m.dt))<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;, &quot;tfgld100.bref&quot;, bref.f)<br />
+	result = stpapi.insert(&quot;tfgld1101m000&quot;, true, err.mess)<br />
+	if result &lt;&gt; 0 and isspace(err.mess) then<br />
+		stpapi.get.field(&quot;tfgld1101m000&quot;, &quot;tfgld100.year&quot;, m.val)<br />
+		f.year = lval(m.val)<br />
+		stpapi.get.field(&quot;tfgld1101m000&quot;, &quot;tfgld100.btno&quot;, m.val)<br />
+		m.btno = lval(m.val)<br />
+		<br />
+		stpapi.put.field(&quot;tfgld1101m100&quot;, &quot;tfgld101.year&quot;, str$(f.year))<br />
+		stpapi.put.field(&quot;tfgld1101m100&quot;, &quot;tfgld101.btno&quot;, str$(m.btno))<br />
+		result = stpapi.change.view(&quot;tfgld1101m100&quot;, err.mess)<br />
+		stpapi.put.field(&quot;tfgld1101m100&quot;, &quot;tfgld101.ttyp&quot;,tfvir316.otyp)<br />
+		result = stpapi.insert(&quot;tfgld1101m100&quot;, true, err.mess)		<br />
+		if result = 0 then<br />
+			b.exit = 1<br />
+			while true<br />
+				stpapi.get.mess.code(&quot;tfgld1101m000&quot;, err.mess)<br />
+				if isspace(err.mess) then<br />
+					break<br />
+				endif<br />
+				logline(&quot;Create Batch Message : &quot; &amp; err.mess)<br />
+			endwhile<br />
+		endif<br />
+		if b.exit = 1 then<br />
+			stpapi.end.session(&quot;tfgld1101m000&quot;)<br />
+			GOTO GOTERR<br />
+		endif<br />
+		|stpapi.get.field( &quot;tfgld1101m000&quot;, &quot;tfgld101.btno&quot;, m.val)<br />
+		logline(&quot;Created Batch No : &quot; &amp; str$(m.btno))<br />
+<br />
+	<br />
+		stpapi.put.field( &quot;tfgld1101m100&quot;, &quot;tfgld101.year&quot;, str$(f.year))<br />
+		stpapi.put.field( &quot;tfgld1101m100&quot;, &quot;tfgld101.btno&quot;, str$(m.btno))<br />
+		stpapi.put.field( &quot;tfgld1101m100&quot;, &quot;tfgld101.ttyp&quot;, tfvir316.otyp)<br />
+		result = stpapi.find(&quot;tfgld1101m100&quot;, err.mess)<br />
+		result = stpapi.mark(&quot;tfgld1101m100&quot;, err.mess)<br />
+		stpapi.handle.subproc( &quot;tfgld1101m100&quot;, &quot;tfcmg2500m000&quot;, &quot;add&quot; )<br />
+		stpapi.form.command( &quot;tfgld1101m100&quot;, 5, &quot;enter.transactions&quot;, err.mess )<br />
+<br />
+		domain	tcamnt		m.cram, m.rmam, m.oram<br />
+		domain	tcorno		m.sono<br />
+		m.lino = 1<br />
+		<br />
+		if m.lino = 1 then<br />
+			stpapi.put.field( &quot;tfcmg2500m000&quot;, &quot;tfcmg204.docn&quot;, str$(i.docn))   <br />
+		endif<br />
+<br />
+		|stpapi.put.field( &quot;tfcmg2500m000&quot;, &quot;tfcmg204.lino&quot;, str$(m.lino) )<br />
+		utc.to.local(tfvir316.dodt, mD1, mD2)  <br />
+		stpapi.put.field( &quot;tfcmg2500m000&quot;, &quot;tfcmg204.docd&quot;, str$(mD1) )<br />
+		stpapi.put.field( &quot;tfcmg2500m000&quot;, &quot;tfcmg204.ccur&quot;, p.ccur )<br />
+		stpapi.put.field( &quot;tfcmg2500m000&quot;, &quot;tfcmg204.rate&quot;, str$(p.curt) )<br />
+		m.tran = ltoe(6)<br />
+		if p.ninv &lt;&gt; 0 then<br />
+			m.tran = ltoe(1)<br />
+		endif<br />
+		stpapi.put.field( &quot;tfcmg2500m000&quot;, &quot;tfcmg204.tran&quot;, str$(m.tran) )<br />
+		stpapi.put.field( &quot;tfcmg2500m000&quot;, &quot;tfcmg204.bpid&quot;, p.bpid )<br />
+		if p.ninv &lt;&gt; 0 then<br />
+			stpapi.put.field( &quot;tfcmg2500m000&quot;, &quot;tfcmg204.tinv&quot;, p.ttyp )<br />
+			stpapi.put.field( &quot;tfcmg2500m000&quot;, &quot;tfcmg204.ninv&quot;, str$(p.ninv) )<br />
+		endif<br />
+		stpapi.put.field( &quot;tfcmg2500m000&quot;, &quot;tfcmg204.amnt&quot;, str$(p.amnt) )<br />
+		stpapi.put.field( &quot;tfcmg2500m000&quot;, &quot;tfcmg204.refr&quot;, p.refr)<br />
+		stpapi.put.field( &quot;tfcmg2500m000&quot;, &quot;tfcmg204.vatc&quot;, &quot;IND&quot; )<br />
+		stpapi.put.field( &quot;tfcmg2500m000&quot;, &quot;tfcmg204.cvat&quot;, &quot;NOTAX&quot;)<br />
+		result = stpapi.insert(&quot;tfcmg2500m000&quot;, true, err.mess)<br />
+		suspend(500)<br />
+		result = stpapi.save(&quot;tfcmg2500m000&quot;, err.mess)<br />
+		if result = 0 then<br />
+			b.exit = 1<br />
+			while true<br />
+				stpapi.get.mess.code(&quot;tfcmg2500m000&quot;, err.mess)<br />
+				if isspace(err.mess) then<br />
+					break<br />
+				endif<br />
+				logline(&quot;Create Document Message : &quot; &amp; err.mess)<br />
+			endwhile<br />
+		else<br />
+			stpapi.get.field( &quot;tfcmg2500m000&quot;, &quot;tfcmg204.ttyp&quot;, o.ityp )<br />
+			stpapi.get.field( &quot;tfcmg2500m000&quot;, &quot;tfcmg204.docn&quot;, m.val )<br />
+			o.idoc = val(m.val)<br />
+			stpapi.get.field( &quot;tfcmg2500m000&quot;, &quot;tfcmg204.lino&quot;, m.val )<br />
+			o.ilin = val(m.val)<br />
+			logline(&quot;Created Document No : &quot; &amp; o.ityp &amp; &quot; / &quot; &amp; str$(o.idoc) &amp; &quot; / &quot; &amp; str$(o.ilin))<br />
+		<br />
+		stpapi.end.session(&quot;tfcmg2500m000&quot;)<br />
+		stpapi.end.session(&quot;tfgld1101m100&quot;)<br />
+		stpapi.end.session(&quot;tfgld1101m000&quot;)<br />
+endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th May 2019, 21:03</div></div><div class="posttext">Assuming you are only trying 1 transaction you can always try this:<br />
+<br />
+<br />
+		result = stpapi.insert(&quot;tfcmg2500m000&quot;, false, err.mess)<br />
+		suspend(500)<br />
+		result = stpapi.save(&quot;tfcmg2500m000&quot;, err.mess)<br />
+<br />
+<br />
+What I would do to start with is right before the insert - do a get field on tfcmg204.docn to see what is in it.  Do the insert with false, do a get field on tfcmg204.docn and see what is in it.  Then do the save and again get the tfcmg204.docn to see what is in it.  Everything I see looks okay from just glancing at it.  We are on 4c4 and do not have this session.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sghatge</div><div class="date">15th May 2019, 07:57</div></div><div class="posttext">Hi Mark,<br />
+I have tried as you suggested but same thing happening. Still document generating with 9999 series as &quot;9999xxxx&quot;. <br />
+Is there any other way?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">15th May 2019, 14:48</div></div><div class="posttext">Did you check the variable before the insert and after the insert to see exactly when it changed from what you input?  My suspicion is you put all the fields, but since you are running in API mode it does not hit all the normal events like it normally would.  Then you do an insert and one of those events is changing the series on you.  Again just a suspicion - without source code no way I know of to see exactly what is happening.<br />
+<br />
+I know what I would do - but can speak for you.  With LN you try DAL2 functionality to try to do something thing.  I can't speak to that since we are on 4c4.  What I would do on my 4c4 system (we do not own source code) I would make the session a qkey (source extender) type session.  I would then add all the events into it and put it in debug mode.  While I can't see actual code I could step thru it seeing exactly what event or actions might be occurring to change the series. So for example if I saw when I hit the insert command it hit the after.input of tfcmg204.docn and it changed it then, I could always work around that event with qkey.  I could say if not api.mode then run normally otherwise skip this event.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

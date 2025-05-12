@@ -1,0 +1,150 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Network license, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Network license Tools Administration &amp; Installation" />
+	
+	<title>Network license [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Network license</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">skheeb</div><div class="date">15th July 2002, 22:42</div></div><div class="posttext">We are having a problem with our network license.  It seems to run fine on both boxes and when typing licmon6.1 -u we get the following output:<br />
+<br />
+               ---------- USERS ---------<br />
+SERVER         MON/SETUP      BA    BX/BW<br />
+corp69                1        0       21<br />
+corp69b               0        1      205<br />
+               ======== ======== ======== +<br />
+TOTAL                 1        1      226       <br />
+<br />
+69b is the primary, 69 is the secondary.  However, what we are noticing here lately, is the licenses appear to lose track of each other.  Our ITO agent thinks that the licenses have gone down when in reality, they just aren't both showing up in the same licmon command.  I can go to corp69b and see one license count, to 69 and see the other but alas no total anymore.  The whole idea in going to network licensing was for the failover in case one box went down.  But if they don't see the other, it won't work right?  The last time we had this problem, Baan support had us relicense the box.  There has to be something causing this though and I don't want to go through the hassle of relicensing the boxes if it is something else causing the issue.<br />
+<br />
+:confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">16th July 2002, 01:48</div></div><div class="posttext">I've never worked with multiple licensing servers, but the output looks exactly like what it would show if you had one license server licensing multiple servers.<br />
+<br />
+Are these corp69 and corp69b strictly license servers, or do you run baan on them as well? If that's the case, count the number of bshells on each server and see if they match the numbers shown by licmon.<br />
+<br />
+Do you get the same result when running licmon on either server?<br />
+<br />
+Maybe one licd is down?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">16th July 2002, 14:38</div></div><div class="posttext">We did a good number of network licences in high availibility installation, so maybe I can help.<br />
+<br />
+As you talk about ITO, I gues you are using the Baan Smart-Plugin for ITO running Baan on HP-Ux?<br />
+<br />
+If this is the case, then forget for now the output of ITO. At the time the smart Plugin was developed I was working for HP and to be frank, testing of the Plugin in complex settings was limited at that time.<br />
+<br />
+Anyway, I do not think, the licd is loosing it's settings. Actually, it has next to no settings. CHeck the following:<br />
+<br />
+1) The file $BSE/lib/licence6.1 schould contain both server names seperated by a comma. Is this the case on both machines?<br />
+<br />
+This file is used by the licmon binary to see, which licence daemons it should ask in the first place. It is also used by the bshell to see, which licence daemon to talk to.<br />
+<br />
+2) Is a licd6.1 process running on both servers?<br />
+<br />
+3) If you enter &quot;licmon6.1 -B&quot; you get the branding information. Is the option string pretty long (around 12 digits)?<br />
+The actual meaning of the option string is not clear to me, but if the string is short, then you network validation is wrong and then yes, you need to validate again!<br />
+<br />
+In the past, we had a lot of problems with network validations. It happened, that the validation process went through without problems on both servers, but the key did not contain the network option. In this case, you get some interesting effects, especially if one licd fails. Iin this case the users on both servers can still work, but only half the licences are availible.<br />
+<br />
+Did you test this?<br />
+<br />
+Regards<br />
+<br />
+Markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">16th July 2002, 15:15</div></div><div class="posttext">I think you may be missing what Markus also said. Are you running in a cluster configuration? In that case you need BOTH the network and HA (high availability) option to be active which can be checked by that 12-digit string. If that is not the case you will loose x% of your licenses after a 72 hours grace period.<br />
+<br />
+The Baan SPI (smart plugin) for HP-UX has been obsoleted a long time ago by the way.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">skheeb</div><div class="date">16th July 2002, 21:15</div></div><div class="posttext">Okay, I may have confused the issue.  We have written our own script for ITO to check to make sure there are 2 licenses running.  When it does not get a 2 back, it pages me to tell me that one of the licenses is down.  We are not using the plug in as it seemed a lot of expense at the time for little return value.  That is kind of a mute point, what I am seeing is as follows:<br />
+<br />
+1) The file $BSE/lib/licence6.1 does contain both server names seperated by a comma on both machines.<br />
+<br />
+2) The licd6.1 process is running on both servers.<br />
+<br />
+3) When entering &quot;licmon6.1 -B&quot; I get all the appropriate information that should be there.  <br />
+<br />
+What has changed is the following:<br />
+<br />
+When running the licmon6.1 -U command I no longer see both systems.  On corp69 I see only the licenses on corp69, on corp69b, I see only the licenses on corp69b.  It no longer shows me both or gives me a total for both.  If I take the licd down on corp69 and restart it, the report goes back to the correct format and I see the information for both systems on both systems.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">skheeb</div><div class="date">16th July 2002, 21:19</div></div><div class="posttext">I forgot to add that the network management and high availiabilty options are checked.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">16th July 2002, 21:31</div></div><div class="posttext">What's the point of running 2 license daemons if you have a HD system? I think there may lie your problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">16th July 2002, 21:32</div></div><div class="posttext">It's doing exactly what it is supposed to do.<br />
+You got two license servers running, but if one goes down, the other will act as a safety net and take over.<br />
+<br />
+sounds to me like you are ok :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">skheeb</div><div class="date">16th July 2002, 21:56</div></div><div class="posttext">Okay.  I'll try this again.  Neither license goes down, we just lose the visibility.  Of course now that I say that, a few moments ago, we lost both licennses.  They just dropped off the face of the earth, so the failover did not work.  <br />
+<br />
+We set the system up as Baan said to set it up.  I don't think we are doing anything unusual.  We just want to know why we are losing visibility.  Without the visibility of the other system, if the license goes down on one, it doesn't see the other one to go  for a license. Therefore, no failover.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">16th July 2002, 22:11</div></div><div class="posttext">Anyway,<br />
+<br />
+That is what network licensing is. If you want a central license server that keeps track of all licenses on servers across your network, you will have to remove the secondary server from your licence6.1 file.<br />
+<br />
+Only then will the license server on one machine give you the status on both machines.<br />
+<br />
+The only reason I can think of that the secondary server would not take over the task of the first or vice versa is because either one is mis-spelled in the licence6.1 file.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">16th July 2002, 22:20</div></div><div class="posttext">Something is definatively not right. Francesco makes a good point in his comments. Try using only 1 license daemon. Your failover you should get from the fact that your license daemon can be started on your alternative node if  necessary.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">skheeb</div><div class="date">16th July 2002, 22:59</div></div><div class="posttext">OK, now i'm totally confused.  We only get the visibility of both systems, when the licd6.1 command is run on both systems. <br />
+If I only run it on one system, I see the licenses all being generated from for instance corp69.  If I run the licd6.1 on both systems, then I see what was in the beginning posting.  It has been running great for the last several months. Lately, we are losing that visibility.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">16th July 2002, 23:05</div></div><div class="posttext">I think you should take your case to BGS and get it cleared out once and for all.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">17th July 2002, 09:13</div></div><div class="posttext">I have one last idea, which might explain your &quot;visibility&quot;:<br />
+<br />
+You said on both servers the licence6.1 files contains both server names seperated by comma. so good so far!<br />
+<br />
+But is the order of the servers inboth files the same?<br />
+<br />
+When the bshell ist started it will check with the first licence server in the licence6.1 file. Only if this one is not available, it will register with the second.<br />
+<br />
+Would that expain some of your experiences?<br />
+<br />
+Regards<br />
+<br />
+Markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">skheeb</div><div class="date">17th July 2002, 14:44</div></div><div class="posttext">I thought about that, Baan support had us reverse the order on the second system to reduce network traffic.  So on 69, the order is 69,69b and on 69b the order 69b, 69.  What really baffles me, however, is that this has been working fine for months.  Now within the last couple of weeks, it has been dropping 2 or 3 times a day.  I have logged a case with Baan, they don't know either, so they want me to relicense the boxes to see if that will work.  I was just hoping someone on this board had seen something similar so I could avoid the pain of having to relicense.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">chjagge</div><div class="date">25th July 2002, 01:56</div></div><div class="posttext">Something does not seem right here. We too have Network and High Availability running across two clusters with 2 severs per cluster. Only one licence is used. And  depending on the order in the licence6.1 file, that is the server that will provide a valid licence daemon for clients to use when logging in. We have three licd6.1 running one on three of the four servers and it keeps track perfectly. If the server that currently providing the licence goes down then the next server in the list takes over automatically without having to startup a licd6.1 and it will be transparent to the users since we have three licd6.1 running at any one time.<br />
+I suggest you submit a case to Baan Global Support. Alejandro Ramirez help me set up the licencing on the clusters. He's pretty good.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">skheeb</div><div class="date">25th July 2002, 14:40</div></div><div class="posttext">Thank you for your reply.  Alejandro helped me set it up initially.  We just have been having a lot of problems with it lately.  I ended up switching the licence6.1 file so that both were identical and we are now not having a problem with the visibility disappearing.  From the other replies I was beginning to think that we had something set up terribly wrong.  Good to hear from someone that has it set up the same way.  Thanks again.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

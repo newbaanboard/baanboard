@@ -1,0 +1,79 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="As Set and Order By, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] As Set and Order By Tools Development" />
+	
+	<title>As Set and Order By [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; As Set and Order By</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">26th February 2008, 23:25</div></div><div class="posttext">Hi,<br />
+<br />
+We have some reports that have been working for years, and suddenly stopped last night. I have fixed the problem, but I wonder if the fact that the script suddenly stopped working might indicate a database issue.<br />
+<br />
+The reports loop through the BOMs in sequential order, starting with position 1 and moving up. What happened last night is that the script started at the last position and moved down the BOMs. <br />
+<br />
+Here is some simplified sample code:<br />
+<br />
+// this script runs in a loop<br />
+    select    tibom010*, tiitm001.dsca, tmitm.kitm<br />
+    from    tibom010, tiitm001, tiitm001 tmitm<br />
+    where   tibom010._index1 = {:get.item}<br />
+    and    tibom010.pono &gt; :get.pono<br />
+    and    tibom010.sitm refers to tiitm001<br />
+    and    tibom010.mitm refers to tmitm<br />
+    as set with 1 rows<br />
+    selectempty<br />
+       //script to end loop<br />
+    selectdo<br />
+       //script to print report<br />
+       get.item = tibom010.sitm<br />
+       get.pono = tibom010.pono<br />
+    endselect<br />
+<br />
+<br />
+The solution was to add &quot;order by tibom010.pono&quot; to the end of the query.<br />
+<br />
+I understand that Oracle has no need to store the rows in any particular order. I'm actually kind of surprised the script worked without the ORDER BY clause for so long. The fact that it suddenly stopped working worries me and I am wondering if anyone can suggest anything I could check here.<br />
+<br />
+Thanks,<br />
+Rob</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">toolswizard</div><div class="date">27th February 2008, 13:58</div></div><div class="posttext">Rob,<br />
+<br />
+There are those who will argue with what I am about to say.  Depending in the installation I have seen the following statement be both true and false.<br />
+<br />
+In Baan IV although you have used the an index in the where clause, this does not force the index (again seems to be site specific).  It will use it as a suggestiion, but not force it.  If you have added a new index to the table, it can cause a problem.  Look at your where clause and break the index into its seperate fields.  Then starting with Index 1 and moving up, find the index with the most fields included from the where clause.  That is the index that will be used.  To be safe, you should use the Index you want to use in the order by clause.<br />
+<br />
+Was there an index modified or added to your table?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">27th February 2008, 14:52</div></div><div class="posttext">No there were no modifications. <br />
+<br />
+To find the problem I did what you suggested somewhat. I took the query apart and put it back together clause by clause. I found that if I did the simplest query of the BOMs, it came in pono order. It was only when I added the second reference to the item master (using the tmitm alias) and the &quot;as set&quot; clause that the problem occurred. Neither one of those clauses alone caused the problem: it was both together.<br />
+<br />
+Rob</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">toolswizard</div><div class="date">27th February 2008, 15:04</div></div><div class="posttext">Rob,<br />
+<br />
+I didn't mean to suggest that you physically break it apart.  I only wanted you to list all the fields in the Where clause and find the index with the most fields included, that is uaually the index used.  Now at some point in the porting set evolution, this changed and using the index in the clause would force the index.  I don't take the chance and I specify the index if I think there may be an issue.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th February 2008, 16:18</div></div><div class="posttext">Very - interesting.  This happened to me a couple of years back - all of the sudden a couple of sessions had queries that were returning records in a different order.  I also had to go in and include the order by clause.  The second thing that popped up was - comparing doubles.  For some reason those also started having problems - I had to go through and convert some of the contractor developed code to use double.cmp. To make matters worse in both these situations the sessions worked in test, but had problems in production.  I never did figure out why.  So my two suggestions are always use order by to get the records exactly the way you want them, and use double.cmp when comparing to doubles.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

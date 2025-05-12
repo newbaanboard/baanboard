@@ -1,0 +1,90 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Full update of sale statistics, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Full update of sale statistics Distribution, Transportation &amp; Warehousing" />
+	
+	<title>Full update of sale statistics [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Distribution, Transportation &amp; Warehousing</a> &gt; Full update of sale statistics</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">macahu</div><div class="date">19th September 2005, 11:42</div></div><div class="posttext">Hi all,<br />
+<br />
+I'm trying the full update of sales statistics (tdsst0201m000) with no success.<br />
+the tdsst tables 010, 015 and 018 are cleared correctly but for the 020 i get an error :  &quot;Fatal error : error 2562(bdb_errno 2562) on tdsst020908 in clear_table<br />
+           Fatal error :  Can not continue in tdsst0201m000 (tdsls.dll0022.array.length)<br />
+there are 4108763 records in tdsst020 table and the program run under Rollback segment of 2500 Mo.<br />
+<br />
+Recently, i get the last script of tdsst0201 (dated from 23/03/2004) and their I find a correction on db.clear.table function :<br />
+db.clear.table(ttdsst020,no.rollback)<br />
+My question is : is this correction sufficient to run the program properly ?<br />
+and what it means &quot;no.rollback&quot; <br />
+<br />
+<br />
+Thanks for your help</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sportingt</div><div class="date">22nd March 2008, 11:36</div></div><div class="posttext">Hello,<br />
+<br />
+we  had a similar Problem with running a full update (tdsst0201m000).<br />
+I think, it's a problem of to few pages in the logical logs of your Database (if it is Informix).<br />
+<br />
+tdsst0201m000 creates a very long transaction order in database. For long transaction you will need much more space than for short transactions.<br />
+<br />
+First Check your server-variable<br />
+LOGFILES 360 (default 6)<br />
+LOGSIZE 30000 (default 500)<br />
+LOGSMAX 360 (default 6) <br />
+LBU_PRESERVE 1 (default 0)<br />
+<br />
+check your chunk-space and location with onstat -d<br />
+<br />
+If you have not enough logs and space, stop database change variables in the config file of your instance, start server then add chunk and logs.<br />
+<br />
+- stop instance(user informix)<br />
+&gt; onmode -ucky<br />
+- edit config file<br />
+- start instance in single user mode<br />
+&gt; oninit -s<br />
+- create a new and emty ASCII-File in path where you store logical logs<br />
+(e.g. H:\IFMXDATA\baandb_Llog\baandb_llog.02, loction see onstat -d)<br />
+- add new chunk to your logical logs dbspace and format new file (size 2GB, Windows restriction)<br />
+&gt; onspaces -a baandb_llog -p H:\IFMXDATA\baandb_Llog\baandb_llog.02 -o 0 -s 2097144<br />
+- perform a log-switch and checkpoint<br />
+&gt; onmode -l; onmode -c<br />
+- add your amount of new logfiles (e.g. 10, or Max 360 depending on LOGSMAX )<br />
+&gt; for %I in (0 1 2 3 4 5 6 7 8 9)  do onparams -a -d baandb_llog<br />
+- make logs available for use<br />
+&gt; ontape -s<br />
+- start database in multi user mode<br />
+&gt; onmode -m<br />
+<br />
+If you had configured enough space in the logs the programm tdsst0201m000 should be run properly.<br />
+<br />
+best regards<br />
+sportingt</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mig28mx</div><div class="date">24th March 2008, 19:59</div></div><div class="posttext">Hello,<br />
+As a matter of fact, when  you run a full update statistics,the system first try to delete all the sales statistics tables. When I was on Informix database, and reported this problem, the infor solution was to delete the tables manually. Then run update full sales statistics.<br />
+The no.rollback instruction, prevents to store the table on rollback segments before drop the table and do the commit command. <br />
+<br />
+For example, before to delete a table, this table stores on rollback segments (before version 9i) and then delete it. If the rollback segments are small or not enough to store the whole table, then an error is displayed and the table is not deleted.<br />
+<br />
+In theory, this instruction (no rollback) have to be enough to delete the whole table without problems.<br />
+<br />
+Hope this helps.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Programming question, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Programming question Tools Development" />
+	
+	<title>Programming question [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Programming question</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">teddybear</div><div class="date">4th May 2010, 12:40</div></div><div class="posttext">Hi there,<br />
+<br />
+I created a maintain session with form type 3. The table behind this session are with the following fields :<br />
+<br />
+1) Production Order<br />
+2) Sequence<br />
+3) Serial Number<br />
+<br />
+The form will look like this<br />
+<br />
+Production Order :  XXXXXXX<br />
+<br />
+Sequence	Serial number<br />
+10	             1234<br />
+11	             1235<br />
+12	             6446<br />
+13	             3474<br />
+<br />
+With this session, use can enter multiple records without saving the previous record. May I know where Baan store these records before Baan wrote it to the database when the use click on the save button ?<br />
+<br />
+The reason I am asking this is because I want to make validate the serial number enter by the user is not duplicate.<br />
+<br />
+I am on Baan V. <br />
+<br />
+Thanks in advance.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">4th May 2010, 12:52</div></div><div class="posttext">Here's a code example (untested):<br />
+<br />
+...<br />
+domain tcbool sern.ok | must be global<br />
+...<br />
+functions:<br />
+ <br />
+function check.sern()<br />
+{<br />
+  long i<br />
+  sern.ok = true<br />
+  for i = 1 to filled.occ<br />
+    do.occ.without.update(i, check.sern.occ)<br />
+  endfor<br />
+}<br />
+ <br />
+function check.sern.occ()<br />
+{<br />
+  | here you will see sern=10,11,12,13 as in your example<br />
+  if (some condition) then<br />
+    sern.ok = false<br />
+  endif<br />
+}<br />
+<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">amitmmokashi</div><div class="date">4th May 2010, 13:09</div></div><div class="posttext">Hi,<br />
+<br />
+Alternatively you can use &quot;execute(update.db)&quot; or the function &quot;enable.save.on.occ.change()&quot; and then write code to check the validity of serial number.<br />
+<br />
+Regards,<br />
+Amit</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th May 2010, 14:24</div></div><div class="posttext">Adding an additional check to Gunthers code - also need to check the table.  You can also search on sequence number - I believe there might be other examples.<br />
+<br />
+ield.tdcyc010.locf:<br />
+before.input:<br />
+	if update.status = add.set then<br />
+		read.serial.number()<br />
+		search.last.used.seqn.on.screen()<br />
+		tdcyc010.sern = serial.number + 1<br />
+		display(&quot;tdcyc010.sern&quot;)<br />
+		refresh()<br />
+		update.occ()<br />
+	endif<br />
+<br />
+functions:<br />
+<br />
+<br />
+function read.serial.number()<br />
+{<br />
+	serial.number =	0<br />
+	select	max(tdcyc010.sern):serial.number<br />
+	from	tdcyc010<br />
+	where	tdcyc010._index1 = {:tdcyc010.cycg,:tdcyc010.cwaf, :tdcyc010.cwat }<br />
+	as set with 1 rows					<br />
+	selectdo						<br />
+	endselect<br />
+}<br />
+function search.last.used.seqn.on.screen()<br />
+{<br />
+	for occ.no = 1 to (filled.occ -	1)<br />
+		do.occ(occ.no,check.last.used.sern)<br />
+	endfor<br />
+}<br />
+<br />
+function check.last.used.sern()<br />
+{<br />
+	if tdcyc010.sern &gt; serial.number then<br />
+		serial.number =	tdcyc010.sern<br />
+	endif<br />
+}<br />
+<br />
+<br />
+The above works for sequence numbers, but could be modified to check for unique serial type numbers.  You would just need to add the appropriate input.again or set.input.error statements.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">5th May 2010, 00:09</div></div><div class="posttext">Assuming that the serial number is unique to the production order number (that is, it is o.k. for the same serial number to occur in different production order number), then another possibility, assuming that the table is a custom table, is to add a second index (production order/ serial number) which does not allow a duplicate on production order + serial number.<br />
+<br />
+Then, on saving, the user will get a message about the duplicate, which will not be saved.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">teddybear</div><div class="date">5th May 2010, 09:40</div></div><div class="posttext">Here's a code example (untested):<br />
+<br />
+...<br />
+domain tcbool sern.ok | must be global<br />
+...<br />
+functions:<br />
+ <br />
+function check.sern()<br />
+{<br />
+  long i<br />
+  sern.ok = true<br />
+  for i = 1 to filled.occ<br />
+    do.occ.without.update(i, check.sern.occ)<br />
+  endfor<br />
+}<br />
+ <br />
+function check.sern.occ()<br />
+{<br />
+  | here you will see sern=10,11,12,13 as in your example<br />
+  if (some condition) then<br />
+    sern.ok = false<br />
+  endif<br />
+}<br />
+<br />
+Günther<br />
+<br />
+Thanks Günther for your code. I want to give you a big hug. :D<br />
+<br />
+Also, many thanks to those who contribute to this thread.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

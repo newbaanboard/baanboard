@@ -1,0 +1,165 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to Refresh Form Fields, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to Refresh Form Fields AFS/DDC/OLE: Function servers" />
+	
+	<title>How to Refresh Form Fields [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; How to Refresh Form Fields</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ahulikavi</div><div class="date">12th June 2003, 10:12</div></div><div class="posttext">I'am trying to Build AFS session functionality is as follows<br />
+<br />
+user enters value in a field, session should redisplay all other fields updated as per original Baan Session without saving to Databse, sort of a simulate session.<br />
+<br />
+But with the code below changes get saved to database ..<br />
+<br />
+<br />
+field.basic.pric:<br />
+when.field.changes: <br />
+	f0277s000.put.basic_price(basic.pric)<br />
+	update.localised.info()	<br />
+.<br />
+.<br />
+.<br />
+function update.localised.info()<br />
+{<br />
+save.flag = 0 | Dont Save in stpapi.update<br />
+<br />
+ 	 	if f0277s000.update(save.flag,error.msg) = 1 then<br />
+<br />
+ 			get.and.display.localised.fields()<br />
+		else<br />
+			message(&quot;Update Error on tdind0277s000 = %s&quot;, error.msg)<br />
+		endif<br />
+}<br />
+.<br />
+.<br />
+.<br />
+function get.and.display.localised.fields()<br />
+{<br />
+	docu.no 	= f0277s000.get.order_no()<br />
+	posi.no		= f0277s000.get.posi.no()<br />
+	base.dt		= f0277s000.get.base_date()<br />
+	basic.pric	= f0277s000.get.basic_price()<br />
+	basic.price	= f0277s000.get.basic.price()<br />
+         ....<br />
+	display(&quot;docu.no&quot;)<br />
+	display(&quot;posi.no&quot;)		<br />
+	display(&quot;base.dt&quot;)		<br />
+	display(&quot;basic.price&quot;)	<br />
+}<br />
+<br />
+<br />
+my understanding (limited) is if in stpapi.update update.flag is 0 then changes should not be saved to database. But <br />
+<br />
+save.flag = 0 | Dont Save in stpapi.update<br />
+ 	 	if f0277s000.update(save.flag,error.msg) = 1 then<br />
+<br />
+<br />
+<br />
+Saves changes to db.<br />
+<br />
+I tried stpapi.continue, but this too updates db. I also tried<br />
+<br />
+	 	if f0277s000.update(save.flag,error.msg) = 1 then<br />
+ 			get.and.display.localised.fields()<br />
+                           stpapi.recover(&quot;tdind0277s000&quot;, error.msg)<br />
+		else<br />
+			message(&quot;Update Error on tdind0277s000 = %s&quot;, error.msg)<br />
+		endif<br />
+<br />
+<br />
+Still changes updated in db.<br />
+<br />
+<br />
+<br />
+Any suggestions !<br />
+<br />
+<br />
+best regards,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th June 2003, 16:44</div></div><div class="posttext">Which session?  The update mode of 0 just suppresses the execution of the update.db section, your updates are probably happening somewhere else.  If you have source for the session you may want to put it into debug mode and step thru it to find out where the updates really happen.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ahulikavi</div><div class="date">13th June 2003, 06:30</div></div><div class="posttext">Hi Mark,<br />
+<br />
+I am using a localised subsession for 'Change Prices after Maintain Receipts' (tdpur4122m000). I do not have the source code for these.<br />
+<br />
+This subsession tdind0277s000 calculates taxes and duties on the changed price of tdpur4122m000.<br />
+<br />
+When any field is changed in tdind0277s000 all other fields get calculated automatically. But NOT saved unless user saves the record. <br />
+<br />
+What I'am trying to do is build approval mechanism for change prices after maintain receipts. Process thought of is as follows<br />
+1. AFS session for tdtcd4122m000 (identical to tdpur4122m000) get changed price.<br />
+2. zooms to AFS tdtcd0277s000 (identical to tdind0277s000) which calls tdind0277s000 using afs calls to calculate field values for display, user has option to submit changed price for approval.<br />
+3. when user submits the changed price for approval  this session updated customised table with changed price and taxes.<br />
+4. Values of customised table (proposed change price and taxes) and baan table(original price and taxes) are is shown to approving authority using display session.<br />
+5. if approved, approval session updated actual baan tables using AFS.<br />
+<br />
+Since original baan localised session doest not save values unless user clicks Save button, I was hoping Update option should work.<br />
+<br />
+Also, should the session tdind0277s000 not return changed values when i just &quot;put&quot; a field, since original session does that (updates all field when any field value is changed)<br />
+<br />
+<br />
+regards,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th June 2003, 16:12</div></div><div class="posttext">Doing a put will not update all the fields when using stpapi fields, not all events get executed.  So just doing a put will not work.<br />
+<br />
+Is this a Baan 4 or Baan 5 session?  I have access to 4c3/4c4(no source) and neither of our sessions use a tdind sub-session.  The reason I ask is because of the stpapi.form.command, not sure how to use this or if it would be applicable in this case.  <br />
+<br />
+Second I found this in the documentation:<br />
+ <br />
+Use the stpapi.insert(), and stpapi.update() calls with the do.save flag set to True, as this is better for performance. Buffering inserts or updates and saving one time will not work, as subsequent stpapi.* function calls will call update.db implicitly. In case of errors, the calling program does not know whether the update.db of the previous record failed, or that the current record is rejected due to field values.<br />
+<br />
+I have done updates with the flag set to false, but I always did a save next.  You may want to try a test - put your stpapi code in debug mode.  Step through to the update command, after it executes go check the database(table maintenance/display table) and see if the update is already in it.  If the update is not there then step to the first get.field command.  After it executes again check the table.  See which command actually updates the table.<br />
+<br />
+Last but not least, since I am not familiar with the tdind subsession.  Is possible to let the sub-session start, get the variable into some type of hold buffer.  Then if the user does not approve of the update, then just put the old values and do another update.  Not sure if this is possible just a thought.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ahulikavi</div><div class="date">16th June 2003, 06:19</div></div><div class="posttext">Thanks Mark, <br />
+<br />
+I'll try your suggestions and get back shortly.<br />
+<br />
+thanks,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ahulikavi</div><div class="date">16th June 2003, 08:33</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Debugging showed that update was happening at stpapi.end of Main session. So I put<br />
+<br />
+if stpapi.recover(&quot;tdpur4122m000&quot;, error.msg) &lt;&gt; 1 then<br />
+	message(&quot;Recover Error on tdpur4122m000 = %s&quot;, error.msg)<br />
+endif<br />
+f4122m000.end()<br />
+<br />
+<br />
+This has solved the problem. I don't know whether this is the right way, but it has solved the problem for now.<br />
+<br />
+thanks again,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">16th June 2003, 15:23</div></div><div class="posttext">If it works then it must be the right way. :)<br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

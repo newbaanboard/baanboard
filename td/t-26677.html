@@ -1,0 +1,388 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Create ASCII file on User Defined Path, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Create ASCII file on User Defined Path Tools Development" />
+	
+	<title>Create ASCII file on User Defined Path [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Create ASCII file on User Defined Path</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ganesh_kapase</div><div class="date">21st March 2006, 11:10</div></div><div class="posttext">In the existing custz print session we have defined the path to generate ASCII/ TXT file. Instead of pre-defined path in script I wish to generate txt file as per user's choice means user will give path for file in the session input.<br />
+<br />
+existing code<br />
+path.id = sprintf$(&quot;\\prodn_pc\C\Reco download\bomprod.txt&quot;)<br />
+seq.id = seq.open(path.id,&quot;w&quot;)<br />
+if seq.id &lt; 1 then<br />
+	message(&quot;Error in creating file&quot;)<br />
+	exit()<br />
+else<br />
+	create.header()<br />
+	ret1 = seq.puts(hold.header,seq.id)<br />
+	read.main.table.D()<br />
+	seq.close(seq.id)<br />
+endif<br />
+message(&quot;BOM v/s Production Order Report is Generated. File is located at \\prodn_pc\C\Reco download\bomprod.txt&quot;)<br />
+Please tell me how I should write the script.<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">21st March 2006, 11:20</div></div><div class="posttext">If I understood you correctly, then this is extremely simple. Just declare you variable path.id as an external string-variable, let's say <br />
+extern domain tcmcs.str215  path.id<br />
+On the screen you place path.id . You may choose to assign a default path (for instance \\prodn_pc\C\Reco download\bomprod.txt) to it, which the user can choose to overwrite to a different path...<br />
+<br />
+For the rest nothing changes...<br />
+<br />
+Let me know if this helps you..</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Pieter van de L</div><div class="date">21st March 2006, 11:21</div></div><div class="posttext">Hi Ganesh,<br />
+<br />
+Here is an example on how we do that <br />
+<br />
+declaration:<br />
+<br />
+	table	ttisfc001	| sfc order header<br />
+	table	ttisfc010	| sfc order steps<br />
+<br />
+		domain	tcmcs.st50	e.file.name<br />
+	extern	domain	tcmcs.st50	e.file.name1<br />
+	extern	domain	tcmcs.st50	e.file.name2<br />
+	extern	domain	tcyesno		e.local.file<br />
+<br />
+	long	file		| filepointer file<br />
+<br />
+#pragma used dll ottdllbw<br />
+<br />
+|****************************** form section **********************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+field.e.file.name1:<br />
+when.field.changes:<br />
+	e.file.name2 = e.file.name1 &amp; &quot;2&quot;<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	read.main.table()<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()	<br />
+{<br />
+	e.file.name = e.file.name1<br />
+	open.file()<br />
+	write.record(concat$(&quot;;&quot;,&quot;tisfc001&quot;<br />
+				,&quot;Order&quot;<br />
+				,&quot;end item&quot;<br />
+				,&quot;status&quot;<br />
+				,&quot;planning method&quot;<br />
+				,&quot;rework order&quot;<br />
+				,&quot;Requested delivery date&quot;<br />
+				,&quot;Delivery Date&quot;<br />
+				,&quot;Production start date&quot;<br />
+				,&quot;completion date&quot;<br />
+				,&quot;close date&quot;<br />
+				,&quot;ref date&quot;<br />
+				,&quot;calc date&quot;<br />
+				,&quot;actual offline date&quot;<br />
+				,&quot;offline date&quot;<br />
+				,&quot;Last Material Allocation&quot;))<br />
+<br />
+<br />
+	select	tisfc001.*<br />
+	from	tisfc001<br />
+	selectdo<br />
+		write.record(concat$(&quot;;&quot;,&quot;tisfc001&quot;<br />
+					,tisfc001.pdno<br />
+					,tisfc001.mitm<br />
+					,enum.descr$(&quot;tcosta&quot;,tisfc001.osta)<br />
+					,enum.descr$(&quot;tcplcd&quot;,tisfc001.cpla)<br />
+					,enum.descr$(&quot;tcyesno&quot;,tisfc001.rwko)<br />
+					,dat_str(tisfc001.rdld)<br />
+					,dat_str(tisfc001.dldt)<br />
+					,dat_str(tisfc001.prdt)<br />
+					,dat_str(tisfc001.apdt)<br />
+					,dat_str(tisfc001.cmdt)<br />
+					,dat_str(tisfc001.cldt)<br />
+					,dat_str(tisfc001.efdt)<br />
+					,dat_str(tisfc001.cada)<br />
+					,dat_str(tisfc001.opdt)<br />
+					,dat_str(tisfc001.oldt)<br />
+					,dat_str(tisfc001.lmad)<br />
+					))<br />
+	endselect<br />
+	close.file()<br />
+	<br />
+	e.file.name = e.file.name2<br />
+	open.file()<br />
+	write.record(concat$(&quot;;&quot;,&quot;tisfc010&quot;<br />
+				,&quot;Order&quot;<br />
+				,&quot;operation&quot;<br />
+				,&quot;next operation&quot;<br />
+				,&quot;end item&quot;<br />
+				,&quot;task&quot;<br />
+				,&quot;status&quot;<br />
+				,&quot;production start date&quot;<br />
+				,&quot;start date reminder&quot;<br />
+				,&quot;earliest finish date&quot;<br />
+				,&quot;latest finish date&quot;<br />
+				,&quot;actual start date&quot;<br />
+				,&quot;completion date&quot;<br />
+				,&quot;planned start date&quot;<br />
+				,&quot;planned finish date&quot;<br />
+				,&quot;production ready&quot;))<br />
+<br />
+<br />
+	select	tisfc010.*<br />
+	from	tisfc010<br />
+	selectdo<br />
+		write.record(concat$(&quot;;&quot;,&quot;tisfc010&quot;<br />
+					,tisfc010.pdno<br />
+					,tisfc010.opno<br />
+					,tisfc010.nopr<br />
+					,tisfc010.item<br />
+					,tisfc010.tano<br />
+				,enum.descr$(&quot;tisfc.opst&quot;,tisfc010.opst)<br />
+					,dat_str(tisfc010.prdt)<br />
+					,dat_str(tisfc010.rsdt)<br />
+					,dat_str(tisfc010.fidt)<br />
+					,dat_str(tisfc010.lfdt)<br />
+					,dat_str(tisfc010.asdt)<br />
+					,dat_str(tisfc010.cmdt)<br />
+					,dat_str(tisfc010.psdt)<br />
+					,dat_str(tisfc010.pfdt)<br />
+					,dat_str(tisfc010.prrd)))<br />
+	endselect<br />
+	<br />
+	close.file()<br />
+}<br />
+<br />
+function open.file()<br />
+{<br />
+	if e.local.file = tcyesno.yes then<br />
+		file	  = seq.open.local(e.file.name, &quot;w&quot;)<br />
+	else<br />
+		file	   = seq.open(e.file.name, &quot;w&quot;)<br />
+	endif<br />
+	if (file &lt; 1) then<br />
+                message(&quot;fout %d bij openen %s voor schrijven&quot;,<br />
+		file,e.file.name)<br />
+                stop()<br />
+        endif<br />
+}<br />
+<br />
+function write.record(string buffer(1024))<br />
+{<br />
+        long            t.error<br />
+<br />
+	if e.local.file = tcyesno.yes then<br />
+		buffer = buffer &amp; chr$(13) &amp; chr$(10)<br />
+		t.error = seq.write.local(buffer, len(buffer), file)<br />
+		if (t.error &lt; 0) then<br />
+			message(&quot;fout %d bij schrijven in  %s&quot;, t.error,<br />
+			e.file.name)<br />
+        	        stop()<br />
+	        endif<br />
+	else<br />
+		t.error = seq.puts(buffer, file)<br />
+		if t.error  then<br />
+        	        message(&quot;fout %d bij schrijven in  %s&quot;, t.error,<br />
+			e.file.name)<br />
+        	        stop()<br />
+		endif<br />
+        endif<br />
+}<br />
+        <br />
+function close.file()<br />
+{<br />
+        long            t.error<br />
+<br />
+	if e.local.file = tcyesno.yes then<br />
+		seq.close.local(file)<br />
+	else<br />
+		t.error = seq.close(file)<br />
+		if (t.error) then<br />
+	            message(&quot;fout %d bij sluiten %s&quot;, t.error, e.file.name)<br />
+	            stop()<br />
+		endif<br />
+	endif<br />
+}<br />
+<br />
+function string dat_str(domain tcutcd i.date)<br />
+{<br />
+	domain	tcmcs.st20	datestr<br />
+<br />
+	datestr = sprintf$(&quot;%u(%02d-%02m-%04Y) %U(%02H:%02m:%02s)&quot;, <br />
+							i.date, i.date)<br />
+	return(datestr)<br />
+}<br />
+<br />
+Regard,<br />
+<br />
+Pieter</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">21st March 2006, 11:32</div></div><div class="posttext">Pieter, I don't understand why the long detailed sample program. I understood from Ganesh that he has a well-functioning session, and that the only requirement is to have the user control the fileout path, instead of hard-coding it...? <br />
+<br />
+P.s. Ganesh, of course in your message at the end, you will have to replace your hard-coded file path with the variable, like this: <br />
+message(&quot;BOM v/s Production Order Report is Generated. File is located at %s&quot;, file.id)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ganesh_kapase</div><div class="date">21st March 2006, 11:33</div></div><div class="posttext">Hi En<br />
+<br />
+Your guess is correct. Before posting this thread I tried in the same fashion but many times users are choosing path as (C:\Reco download\bomprod.txt) instead of as I defined in the script. Let me know how to overcome this problem. Is there any way to select path and file name by simply click on Browse or Open button.<br />
+<br />
+You may choose to assign a default path (for instance \\prodn_pc\C\Reco download\bomprod.txt) to it, which the user can choose to overwrite to a different path...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RaymondH</div><div class="date">21st March 2006, 13:37</div></div><div class="posttext">Hi Ganesh,<br />
+<br />
+Maybe the following option wil help you.<br />
+<br />
+Create the file on the Baanserver and then transfer it with server2client to the pc of the user. The user can now use C:\Reco download\bomprod.txt as path and file name.<br />
+<br />
+At the following thread you will find the code for an open file dialog on the local machine. <br />
+<br />
+http://www.baanboard.com/baanboard/showthread.php?t=1910<br />
+<br />
+Maybe this code will help you to write a save file dialog.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st March 2006, 14:52</div></div><div class="posttext">Hi En<br />
+<br />
+Your guess is correct. Before posting this thread I tried in the same fashion but many times users are choosing path as (C:\Reco download\bomprod.txt) instead of as I defined in the script. Let me know how to overcome this problem. Is there any way to select path and file name by simply click on Browse or Open button.<br />
+<br />
+The sample by Pieter should work for others looking to write locally on the client.  My question in this is why does the user entering C:\Reco download\bomprod.txt cause a problem?  Are you trying to force them to enter a server name?  It seems to me there was a command to make sure that local directories existed before you used the server2client or seq.write.local commands. You might want to try a search on local directories. If I get a chance I will see if I can find that thread.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">21st March 2006, 21:47</div></div><div class="posttext">It seems to me there was a command to make sure that local directories existed before you used the server2client or seq.write.local commands. You might want to try a search on local directories.<br />
+Refer to the thread - Check client directory (http://www.baanboard.com/baanboard/showthread.php?t=7127&amp;highlight=183)<br />
+Is there any way to select path and file name by simply click on Browse or Open button.<br />
+This is possible in LN Tools -<br />
+<br />
+SSA ERP LN 6.1 Programmers Guide<br />
+ <br />
+seq.open.dialog.local()<br />
+--------------------------------------------------------------------------------<br />
+Syntax <br />
+long seq.open.dialog.local( boolean mselect, string defaultname, string directory, string filter, ref string filename ) <br />
+Description 	This shows the Windows file-open dialog, to allow the user to select one or more local files.<br />
+<br />
+Arguments<br />
+mselect 	When true, multiple select is allowed by the user else only one file can be selected by the user.<br />
+ <br />
+defaultname 	The default filename shown in the file-open dialog.<br />
+ <br />
+directory	The startup directory for this dialog. In case of an empty string the &quot;My Documents&quot; directory will be the default. This parameter may include the string ${BSE_TMP} which indicates the ${BSE}\tmp directory in case of Baan Windows or Windows temp directory in case of Webtop.<br />
+ <br />
+filter 		This argument specifies all possible file extensions for the file. The string must contain pairs of strings that are separated by a &quot;|&quot; character. The first string in each pair is a filter name (for example: &quot;Text Files&quot;). The second string must be a filter patern (for example: &quot;*.txt&quot;). Multiple filter patters can be specified by separating the filter patterns with a semicolon. Example: &quot;All Files(*.*)|*.*|Text Files(*.txt) Word documents(*.doc)|*.txt;*.doc&quot;<br />
+ <br />
+filename 	Output argument which will contain the full path of the file selected by the user. In case mselect is true possible other selected file names can be retrieved using function seq.open.dialog.next()<br />
+ <br />
+Return values <br />
+&gt;0 	Number of files selected by the user.<br />
+0 	File open dialog canceled by the user.<br />
+-1 	Error occurred<br />
+<br />
+Context 	ttdllbw library function.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ganesh_kapase</div><div class="date">22nd March 2006, 07:32</div></div><div class="posttext">Hi Mark<br />
+<br />
+I have given the path as an example. User can enter the path according to the availability of drive/folders on their local PC. There is no compulsion to enter server name. As mentioned by me file is creating as per the path defined in the script. What I reqd. user has to define the path in the inputs and file should get generated accordingly.<br />
+<br />
+My question in this is why does the user entering C:\Reco download\bomprod.txt cause a problem? Are you trying to force them to enter a server name?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">23rd March 2006, 11:34</div></div><div class="posttext">Sorry for late response; had very little time for BaanBoard lately.. I never tried opening a file-browser dialog in Baan, as I see from NPRao, this is available as standard functionality in LN.. Has anyone got a stable flowless way to do it in Baan IV/V?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">23rd March 2006, 15:28</div></div><div class="posttext">Hi all,<br />
+<br />
+here is my solution for local file selection problem. I want to dedicate this to Baanboard and all its members.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">23rd March 2006, 16:10</div></div><div class="posttext">Hi Vahdani,<br />
+<br />
+Thanks for posting your solution. Can you please explain to us what exactly your program is meant to do? I installed it, but received no result...?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">23rd March 2006, 16:33</div></div><div class="posttext">Hi all,<br />
+<br />
+here is my solution for local file selection problem. I want to dedicate this to Baanboard and all its members.<br />
+<br />
+Hello,<br />
+<br />
+what's $BSE/bin/......exe on Unix systems ??<br />
+<br />
+Think it only works on MS systems.<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd March 2006, 16:37</div></div><div class="posttext">I think it can work for a UNIX system also.  I think all you have to do is change the app_start location to something on the client.  Haven't tried it yet, but I hope to have time next week.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">23rd March 2006, 16:59</div></div><div class="posttext">Hi all,<br />
+<br />
+the exe is of course run on client and not on the server! It will be copied first to the Windows Temp directory to find out where this is just type the following in your dos box:   <br />
+     cd %TEMP%<br />
+<br />
+The program generates a text file in this directory which will then be copied back to the server for interrogation ;)<br />
+<br />
+You can do a stand alone test of the exe by copying it to your PC and running it. The usual windows file selector dialog should come up. If you select a file and exit a file BaanFileSelector.txt should be generated in the same directory. <br />
+<br />
+en@frrom: You have to use the Baan function I provided in your own program therfeore this will only be of interest to Baan programers.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">23rd March 2006, 17:33</div></div><div class="posttext">:D Thanks Vahdani for making me smile :D <br />
+<br />
+It didn't work by me at first. After checking, I saw that the exe-file was copied from server to local temp, but the new (local) file was an empty file -&gt; 0kb.. Therefor also of course the second and third attempt didn't work, because the exe-file wasn't re-created... Only after removing the exe-file and running it again, it worked... Strange..<br />
+<br />
+One remark/request: the file-browser dialog header is now in German. Would maybe be nice if you could make it variable, i.e. system language...<br />
+<br />
+Thanks and regards,<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">23rd March 2006, 17:51</div></div><div class="posttext">Ok, it's sticking into a standard DLL ready for use; it's already applied to one session...<br />
+<br />
+One more question: I am sure you had a reason for the suspend(1000) in the function...??</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">24th March 2006, 12:46</div></div><div class="posttext">Hi en@frrom!<br />
+<br />
+that's not your real name; Is it? <br />
+<br />
+I'm glad that you had this running and find it usefull.<br />
+<br />
+As for the Title: I've updated the zip-File with a new version of the exe in which the standard windows title in system language should be shown.<br />
+<br />
+The 1 Sec delay is to allow the windows application (here BaanFileSelector) to launch. MS Word may take longer to launch BaanFileSelector on the other hand definitely takes less.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">24th March 2006, 12:56</div></div><div class="posttext">I just looked in my passport, and indeed my names is not mentioned &quot;en@frrom&quot;. After wondering why, I remembered that the @ symbol didn't really exist back in those days.... So no, my &quot;real&quot; name is not en@frrom...<br />
+<br />
+Thanks Vahdani for the updated version, this looks better...</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,431 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="performing count of field value occurance, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] performing count of field value occurance Tools Development" />
+	
+	<title>performing count of field value occurance [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; performing count of field value occurance</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">10th March 2003, 18:55</div></div><div class="posttext">Yet another!!<br />
+<br />
+I have a function which based on selection criteria pulls a value from a table into a field.<br />
+<br />
+This works fine, however for one set of criteria, there can be 3 values which could be pulled back.  Basically the function always pulls back the first one it comes across, however I want it to pull back the one with the least occurances, hence I want to perform a count....<br />
+<br />
+Any ideas?<br />
+<br />
+Cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">10th March 2003, 19:06</div></div><div class="posttext">Try this:<br />
+<br />
+....<br />
+select   tablefield:value, count(tablefield):cntr<br />
+from     table<br />
+where  ......<br />
+selecteos<br />
+        return<br />
+endselect<br />
+.....<br />
+<br />
+where value and cntr are declared in the function</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">11th March 2003, 10:55</div></div><div class="posttext">ok, just before I give this a go....<br />
+<br />
+select tssma931.instr:value, count(tssma931.instr):cntr<br />
+where tssma931.instr = 007454<br />
+selecteos<br />
+return<br />
+endselect<br />
+<br />
+Will I need to perform this for the 3 different values?<br />
+<br />
+If so what I am guessing is that I write 3 functions to count each individual value and then write a function to compare the results?<br />
+<br />
+cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">11th March 2003, 12:23</div></div><div class="posttext">This returns only the last occurrence and the total number of occurrences if there are no values, returns 0 and 0. <br />
+You have to call this function only one time.<br />
+<br />
+function retrievevalues(domain yourdomain instr, <br />
+                                     ref domain yourdomain value, <br />
+                                     ref long cntr)<br />
+{<br />
+select  tssma931.instr:value, count(tssma931.instr):cntr<br />
+from    tssma931<br />
+where tssma931.instr = instr<br />
+selecteos<br />
+           return<br />
+endselect<br />
+value = 0<br />
+cntr = 0<br />
+}<br />
+<br />
+Ciao</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">11th March 2003, 12:46</div></div><div class="posttext">I have given this a try, but I do not fully understand...<br />
+<br />
+Here is the code I have used...<br />
+<br />
+on the field section....<br />
+<br />
+field.tssma931.instr:<br />
+	before.input:<br />
+		select.instructor()<br />
+	check.input:<br />
+		if tssma931.instr = &quot;007532&quot; or tssma931.instr = &quot;007473&quot; or 		tssma931.instr = &quot;014530&quot; then<br />
+		retrievevalues()<br />
+		endif<br />
+<br />
+<br />
+and the function ....<br />
+<br />
+<br />
+function select.instructor()<br />
+{<br />
+	select tssma938.empno<br />
+	where tssma938.crscd = :tssma931.crscd<br />
+	selectdo<br />
+		tssma931.instr = tssma938.empno<br />
+	endselect<br />
+	<br />
+}<br />
+<br />
+function retrievevalues(domain tccom.empno instr, ref domain long value, ref long cntr)<br />
+<br />
+{<br />
+select tssma931.instr:value, count(tssma931.instr):cntr<br />
+from tssma931<br />
+where tssma931.instr = instr<br />
+selecteos<br />
+return<br />
+endselect<br />
+value = 0<br />
+cntr = 0<br />
+}<br />
+<br />
+I did not know what domain to use for &quot;value&quot; so I have used long.  When I compile this, it is giving me errors....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">11th March 2003, 16:29</div></div><div class="posttext">I don't understand what you are trying to do with retrievevalues().  Your function call has no variables and the select statement appears to be trying to get an instructor value even though it is using one in the where clause.<br />
+<br />
+Are you trying to return one of those three instructor values listed?  If so, perhaps try:<br />
+<br />
+function retrievevalues(ref domain tccom.empno value, ref long cnt)<br />
+{<br />
+	select	tssma931.instr:value, count(tssma931.instr):cnt<br />
+	from	tssma931<br />
+	where	tssma931.instr IN (&quot;007532&quot; , &quot;007473&quot; , &quot;014530&quot;)<br />
+	group by tssma931.instr<br />
+	order by 2<br />
+	as set with 1 rows<br />
+	selecteos<br />
+		return<br />
+	endselect<br />
+	value = &quot;&quot;<br />
+	cnt = 0<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">11th March 2003, 16:46</div></div><div class="posttext">Ed<br />
+<br />
+what you have said makes sense.<br />
+<br />
+essentially one of the 3 instructor values needs to be returned.<br />
+<br />
+the function that I have written which picks the instructor based on the course code entered, has 3 which it can pick from.  It always picks the first one that it comes across.<br />
+<br />
+I want it to use the one which has the least entries and where all have the same amount of entries pick the first it comes across also, if 2 of the 3 instructors have the same amount of entries then pick the first one it comes across.<br />
+<br />
+I will give what you have put down a try...<br />
+<br />
+Cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">11th March 2003, 16:48</div></div><div class="posttext">Ed<br />
+<br />
+I have given it a try mate and it is giving me the error that &quot;2 arguments expected for function 'retrievevalues'<br />
+<br />
+I do not know what it means by this?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kammie</div><div class="date">11th March 2003, 17:11</div></div><div class="posttext">The function 'retrievevalues' Ed suggested, has 2 arguments, to be precisely 'value' and 'cnt'.<br />
+<br />
+So, whenever you call this function, it should be something like<br />
+retrievevalues(my_value, my_cnt)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">12th March 2003, 13:17</div></div><div class="posttext">Kammie<br />
+<br />
+Apologies, but I do not understand, could you elaborate please...<br />
+<br />
+Cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">FransG</div><div class="date">12th March 2003, 13:22</div></div><div class="posttext">How does your function call to retrievevalues(..) look like? You need to pass two arguments as Kammie explained.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">12th March 2003, 13:25</div></div><div class="posttext">Ahhhh now I see what you mean ....<br />
+<br />
+currently here is the field statement...<br />
+<br />
+***********************************************<br />
+<br />
+field.tssma931.instr:<br />
+	before.input:<br />
+		if isspace(tssma931.instr) then select.instructor() endif<br />
+|	check.input:<br />
+		if tssma931.instr = &quot;007532&quot; or tssma931.instr = &quot;007473&quot; or tssma931.instr = &quot;014530&quot; then<br />
+		retrievevalues()<br />
+		endif<br />
+<br />
+***********************************************<br />
+<br />
+Cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">12th March 2003, 13:50</div></div><div class="posttext">I have had a further thought on this, I think that the function actually returns the amount of times that the instructor value has occured?<br />
+<br />
+What I actually need the function to return is the Instructor value that it should be using....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">12th March 2003, 14:00</div></div><div class="posttext">This is an idea that I knocked together, perhaps anyone can see what is wrong with this?<br />
+<br />
+The function that is called on the field, is assign.ct.instructor().<br />
+<br />
+|function assign.ct.instructor()<br />
+|{<br />
+|	count.007532()<br />
+|	count.007473()<br />
+|	count.014530()<br />
+<br />
+|	if count.007532() &gt; count.007473() and<br />
+|	   count.007532() &gt; count.014530()<br />
+|	then tssma931.instr = &quot;007532&quot;<br />
+|	endif<br />
+<br />
+|	if count.007473() &gt; count.007532() and<br />
+|	   count.007473() &gt; count.014530()<br />
+|	then tssma931.instr = &quot;007473&quot;<br />
+|	endif<br />
+<br />
+|	if count.014530() &gt; count.007532() and<br />
+|	   count.014530() &gt; count.014530()<br />
+|	then tssma931.instr = &quot;014530&quot;<br />
+|	endif<br />
+|}<br />
+|function count.007532()<br />
+|{<br />
+|	select tssma931.instr:value, count(tssma931.instr):cntr<br />
+|	where tssma931.instr = &quot;007532&quot;<br />
+|		selecteos<br />
+|			return<br />
+|		endselect<br />
+|}<br />
+<br />
+|function count.007473()<br />
+|{<br />
+|	select tssma931.instr:value, count(tssma931.instr):cntr<br />
+|	where tssma931.instr = &quot;007473&quot;<br />
+|		selecteos<br />
+|			return<br />
+|		endselect<br />
+|}<br />
+<br />
+|function count.014530()<br />
+|{<br />
+|	select tssma931.instr:value, count(tssma931.instr):cntr<br />
+|	where tssma931.instr = &quot;014530&quot;<br />
+|		selecteos<br />
+|			return<br />
+|		endselect<br />
+|}<br />
+<br />
+Cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">12th March 2003, 14:10</div></div><div class="posttext">Further to my last post, I have attached the errors I received when I compiled the script with the above function....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">12th March 2003, 16:15</div></div><div class="posttext">Andy,<br />
+<br />
+If you go back to the retrievevalues() function you had before, just call it like this:  retrievevalues(instructor, inst.count) where instructor is the name of the variable you want to receive the value of the instructor with the lowest count, and inst.count is the variable you want to receive the actual lowest count.  If you notice the definition of the function, the arguments are declared with ref.  This means that they are declared by reference and will have their values &quot;returned&quot; from the function.  This is one way to have more than one &quot;return&quot; value from a function.<br />
+<br />
+I hope this makes sense.  I think your last idea is too much work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">12th March 2003, 17:18</div></div><div class="posttext">Ed<br />
+<br />
+I may be going completely off track here, let me show the code, and I have attached the errors that I am getting....<br />
+<br />
+<br />
+***************declarations*****************<br />
+<br />
+	extern  domain  long	   cntr<br />
+	extern  domain  tccom.empno	   value<br />
+<br />
+**************fields************************<br />
+<br />
+<br />
+field.tssma931.instr:<br />
+	before.input:<br />
+		if isspace(tssma931.instr) then select.instructor() endif<br />
+	check.input:<br />
+		if tssma931.instr = &quot;007532&quot; or tssma931.instr = &quot;007473&quot; or tssma931.instr = &quot;014530&quot; then<br />
+|		assign.ct.instructor()<br />
+<br />
+		retrievevalues(value, cntr.count)	<br />
+			<br />
+			endif<br />
+<br />
+*************functions***********************<br />
+<br />
+function retrievevalues(ref domain tccom.empno value, ref long cntr)<br />
+{<br />
+	select	tssma931.instr:value, count(tssma931.instr):cntr<br />
+	from	tssma931<br />
+	where	tssma931.instr IN (&quot;007532&quot; , &quot;007473&quot; , &quot;014530&quot;)<br />
+	group by tssma931.instr<br />
+	order by 2<br />
+	as set with 1 rows<br />
+	selecteos<br />
+		return value<br />
+	endselect<br />
+	value = &quot;&quot;<br />
+	cntr = 0<br />
+}<br />
+<br />
+***********************************************<br />
+<br />
+Cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">12th March 2003, 17:30</div></div><div class="posttext">Try these changes:<br />
+<br />
+ In your retrievevalues(...) call, change the second argument to cntr.  <br />
+ In the select statement in your function, change your return line to be just return -- this function does not explicitly return a value (other than through the by ref arguments as I mentioned before).<br />
+ <br />
+Let me know if this helps.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">13th March 2003, 18:20</div></div><div class="posttext">Ed<br />
+<br />
+Here is the function call, and the function itself.<br />
+<br />
+Its all compiling with no errors now, however it is not working, the session is still picking up the first of the 3 instructor values that it comes across...<br />
+<br />
+***********************************************<br />
+field.tssma931.instr:<br />
+	before.input:<br />
+		if isspace(tssma931.instr) then select.instructor() endif<br />
+	check.input:<br />
+		<br />
+	if tssma931.instr = &quot;007532&quot; or tssma931.instr = &quot;007473&quot; or tssma931.instr = &quot;014530&quot; then<br />
+<br />
+		retrievevalues(value, cntr.count)	<br />
+			<br />
+			endif<br />
+************************************************<br />
+<br />
+function retrievevalues(ref domain tccom.empno value, ref long cntr)<br />
+{<br />
+	select	tssma931.instr:value, count(tssma931.instr):cntr<br />
+	from	tssma931<br />
+	where	tssma931.instr IN (&quot;007532&quot; , &quot;007473&quot; , &quot;014530&quot;)<br />
+	group by tssma931.instr<br />
+	order by 2<br />
+	as set with 1 rows<br />
+	selecteos<br />
+		return<br />
+	endselect<br />
+	value = &quot;&quot;<br />
+	cntr = 0<br />
+}<br />
+***********************************************<br />
+<br />
+Any ideas?<br />
+<br />
+Many thanks:)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">18th March 2003, 11:26</div></div><div class="posttext">Ed<br />
+<br />
+Could you explain what....<br />
+<br />
+field.tssma931.instr:<br />
+	before.input:<br />
+		if isspace(tssma931.instr) then select.instructor() endif<br />
+	check.input:<br />
+		<br />
+	if tssma931.instr = &quot;007532&quot; or tssma931.instr = &quot;007473&quot; or tssma931.instr = &quot;014530&quot; then<br />
+<br />
+		retrievevalues(value, cntr.count)	<br />
+			<br />
+			endif<br />
+<br />
+...the &quot;retrievevalues(value, cntr.count) actually does?<br />
+<br />
+Is the instructor value that is being picked actually being returned to the field?<br />
+<br />
+I do not understand exactly what is going on here?<br />
+<br />
+Cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">18th March 2003, 15:51</div></div><div class="posttext">The retrievevalues(value, cntr.count) function call launches the function and passes the two arguments (value and cntr.count), which initially are meaningless, to the function.  The function then executes.  Since both variables are called by reference, when the function exits via a return or reaching the ending '}', the value of the arguments specified in the function declaration (in this case value and cntr) are &quot;returned&quot; to their counterparts in the function call.  Perhaps this example will be a little clearer:<br />
+<br />
+my.function(a, b, c)<br />
+...<br />
+function my.function(ref long x, ref domain tcdsca y, long z)<br />
+{<br />
+...<br />
+}<br />
+<br />
+When my.function is called, the variable x is populated with a's value, y is populated with b's value, and z is populated with c's value.  When the function exits, since x and y were defined with the ref keyword, their values are passed back so that a gets x's value and b gets y's value.  Since z is not defined as by reference, its value is not passed back to c (i.e., c remains unchanged).<br />
+<br />
+So, in your code, the function determines the instructor with the lowest count and that count and passes them back (by reference) to the arguments used in the function call.<br />
+<br />
+I hope that helps.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">18th March 2003, 15:55</div></div><div class="posttext">Ed<br />
+<br />
+This makes sense, so when I call the function ...<br />
+<br />
+<br />
+	check.input:<br />
+		<br />
+	if tssma931.instr = &quot;007532&quot; or tssma931.instr = &quot;007473&quot; or tssma931.instr = &quot;014530&quot; then<br />
+<br />
+		retrievevalues(value, cntr.count)	<br />
+			<br />
+			endif<br />
+<br />
+do I need to add something which says that the field = the value?<br />
+<br />
+eg<br />
+<br />
+tssma931.instr = retrievevalues(value)<br />
+<br />
+Is that correct?<br />
+<br />
+Cheers</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

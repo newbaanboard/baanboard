@@ -1,0 +1,125 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS: Close production order, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS: Close production order AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS: Close production order [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS: Close production order</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ralf@lub</div><div class="date">12th March 2007, 10:52</div></div><div class="posttext">Hi, <br />
+<br />
+we want to change all Item of several item groups to tiitm001.kltc = unit (clot administrated). <br />
+<br />
+The procedure is well known, but for items with stoc it's plenty of work. (rework production order, outbound stoc, change item, generade clots, close production order and inbound stoc)<br />
+<br />
+I want to do all these steps with afs. It works fine for the first steps. But I can't close the production order. <br />
+<br />
+The AFS session freezes when I try to handle the subprocess. We don't have the sources for these sessions, so I can just guess the process. <br />
+<br />
+Session tisfc0202m000 seems to zoom to tisfc0507m000 and tisfc0507m000 supposed to open tdilc4113s000. <br />
+<br />
+Is that correct? <br />
+<br />
+Here is some not working code to make it more understandable...<br />
+<br />
+function extern	domain	tcpono	tisfc0201lub00.close.production.order(	domain	tcpdno 	pdno, 	<br />
+							ref string error.msg) {<br />
+	long	retval1, retval2<br />
+	domain tdltc.cert cert<br />
+	string	recover.msg(500)<br />
+	string	sessioncode(14), sessioncode1(14), sessioncode2(14)<br />
+	select 	tisfc001.*<br />
+	from	tisfc001<br />
+	where	tisfc001.pdno = :pdno<br />
+	selectdo<br />
+	selectempty<br />
+		return(false)<br />
+	endselect<br />
+	sessioncode = &quot;tisfc0202m000&quot;	<br />
+	sessioncode1 = &quot;tisfc0507m000&quot;<br />
+	sessioncode2 = &quot;tdilc4113s000&quot;<br />
+	<br />
+	stpapi.put.field(sessioncode, &quot;tisfc0101.orno&quot;, str$(pdno))<br />
+	stpapi.put.field(sessioncode, &quot;qdrv.frm&quot;, str$(tisfc001.qrdr))<br />
+<br />
+	| I played with &quot;add&quot; and &quot;ignore&quot; here. ignore works, but problems occure later then<br />
+<br />
+	stpapi.handle.subproc(sessioncode, sessioncode1, &quot;ignore&quot;)<br />
+	stpapi.continue.process(sessioncode, error.msg)<br />
+	stpapi.enum.answer(sessioncode, &quot;tisfc02029&quot;, tcyesno.yes)<br />
+	stpapi.handle.subproc(sessioncode1, sessioncode2, &quot;add&quot;)<br />
+	| clot is created when documents are printed. <br />
+	| field cert contains pdno as relation<br />
+	tt.align.according.domain(str$(pdno), cert, &quot;tdltc.cert&quot;)<br />
+	<br />
+	select 	tdltc001.clot<br />
+	from	tdltc001<br />
+	where	tdltc001.cert = :cert<br />
+	selectdo<br />
+                          | with &quot;ignore&quot; it freezes here<br />
+		stpapi.put.field(sessioncode2, &quot;tdilc402.clot&quot;, shiftl$(strip$(tdltc001.clot)))<br />
+		stpapi.put.field(sessioncode2, &quot;tdilc402.qstr&quot;, &quot;1&quot;)<br />
+		retval1 = stpapi.insert(sessioncode2, true, error.msg)	<br />
+		if not retval1 then	<br />
+			message(error.msg)<br />
+			retval2 = stpapi.recover(sessioncode2, recover.msg) <br />
+			stpapi.end.session(sessioncode2)<br />
+			retval1 = stpapi.recover(sessioncode, recover.msg) <br />
+			stpapi.end.session(sessioncode1)<br />
+			return(false)<br />
+		endif<br />
+	endselect<br />
+	stpapi.end.session(sessioncode2)<br />
+	stpapi.end.session(sessioncode1)<br />
+	stpapi.end.session(sessioncode)<br />
+	return(true)<br />
+}<br />
+<br />
+<br />
+Anyone who played around with this before or who can tell me the correct order and behavior of the sessions?<br />
+<br />
+Thanks a lot, <br />
+<br />
+Ralf</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th March 2007, 12:41</div></div><div class="posttext">This is the correct form for this post - see if this thread (http://www.baanboard.com/baanboard/showthread.php?t=31085) helps.  I did not compare the code.  Keep in mind you may need updated objects.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Thomasm</div><div class="date">13th March 2007, 09:11</div></div><div class="posttext">Ralf,<br />
+<br />
+Without having read all the details my suggestion would be to use the standard Baan session to close the production orders, not AFS. That session runs by range and only touches orders that are ready to be closed. So it would be easy enough to just run it manually; when you are done with the previous steps for all orders or at another suitable time.<br />
+<br />
+We run this session in a nightly job for all orders.<br />
+<br />
+Good luck,<br />
+/Thomas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ralf@lub</div><div class="date">13th March 2007, 09:22</div></div><div class="posttext">Hi, <br />
+<br />
+<br />
+@marc: the thread was very usefull for me. It works. <br />
+<br />
+@thomas: I think I didn't choose a good subject fot my question. The problem was to recieve the stoc again when changing the status from active to ready. Every single lot wants to be entered one by one. (tdilc4113s000) When changing items with a stoc of several hundred you are quite busy on that ;-)<br />
+<br />
+Thanks a lot for your answers!<br />
+<br />
+Regards, <br />
+Ralf</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

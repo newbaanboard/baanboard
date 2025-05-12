@@ -1,0 +1,132 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Performance issue with query, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Performance issue with query Tools Development" />
+	
+	<title>Performance issue with query [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Performance issue with query</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mgakhar</div><div class="date">20th August 2007, 22:28</div></div><div class="posttext">Hi,<br />
+We've written a program to extract item related info from our Baan system. The query is as follows -<br />
+<br />
+select tiitm001.*<br />
+from   tiitm001<br />
+where tiitm001._index1 inrange {:item.f} and {item.t}<br />
+selectdo<br />
+    get.sales.price()<br />
+   {code to write Item related data to a file}<br />
+endselect<br />
+<br />
+function domain tcpric get.sales.price()<br />
+{<br />
+    select   tdsls032.*<br />
+    from     tdsls032<br />
+    where   tdsls032.item = :tiitm001.item<br />
+    and      tdsls032.stdt &lt;= :curr.date<br />
+    and      (tdsls032.tdat &gt;= :curr.date<br />
+    or        tdsls032.tdat = 0)<br />
+    as set with 1 rows<br />
+    selectdo<br />
+       return(tdsls032.pric)<br />
+    endselect<br />
+    return(0)<br />
+}<br />
+<br />
+The problem with this query is that it is too time consuming (almost 2.5 hrs). Im reading data from quite a few other tables within in the Item select and doing quite some calculations as well. However, I've noticed that its the get.sales.price() function which simply kills the performance. If I comment out the get.sales.price() function call the query takes about 10 mins and with the function call it takes almost 2.5 hours. tdsls032 has about 17K records and we have about 17K items in the system as well. I believe the reason this query hurts so much is that I cannot use any index in the select as this table just 1 index - Pricelist code, item, ..... and so on. <br />
+<br />
+Any ideas on how we can speed this up other than creating new index for this table?<br />
+<br />
+Thanks in advance,<br />
+Manish.<br />
+PS: we are using BaanIVc4.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st August 2007, 02:41</div></div><div class="posttext">Any chance of looking up that pricelist code (or codes) before calling the subroutine?  This way you can reduce the records searched by using the only index.  I do not know anything about the sls tables, but we have project on same tables in indexes and in our case that project is always empty.  So we do use the index, but with project = spaces and that seems to help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">21st August 2007, 11:16</div></div><div class="posttext">I do not know enough (anymore) about the Baan IV tables, but as Mark suggested, I think you should be able to look up the pricelist from the item data.<br />
+<br />
+Regards,<br />
+Eli Nager</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dhananjay</div><div class="date">21st August 2007, 13:27</div></div><div class="posttext">I would like to add one more thing. when you query a table which contains huge data like tiitm001, tccom010 so try to avoid &quot;select  tiitm001.*&quot;. Only write those fields in the query which are required.<br />
+i have noticed one thing that in the subroutine when you are making a query on sls table there is no index used. Writing a query with index is the best programming practice and that reduces the time for searching too.<br />
+<br />
+so try with these tips, it might help you.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">21st August 2007, 13:34</div></div><div class="posttext">I would like to add one more thing. when you query a table which contains huge data like tiitm001, tccom010 so try to avoid &quot;select  tiitm001.*&quot;. Only write those fields in the query which are required.<br />
+i have noticed one thing that in the subroutine when you are making a query on sls table there is no index used. Writing a query with index is the best programming practice and that reduces the time for searching too.<br />
+<br />
+so try with these tips, it might help you.<br />
+<br />
+For your first point: you are right, however selecting all table fields each time will never cause such a huge performance problem.<br />
+For your second point: If you would read the problem described, and the two previous responses, you would realise that mentioning that was rather superfluous...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dhananjay</div><div class="date">21st August 2007, 13:54</div></div><div class="posttext">oh..am sorry i did not read the last part of the problem.:(</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ks_ks_</div><div class="date">21st August 2007, 17:07</div></div><div class="posttext">Hi,<br />
+We've written a program to extract item related info from our Baan system. The query is as follows -<br />
+<br />
+select tiitm001.*<br />
+from   tiitm001<br />
+where tiitm001._index1 inrange {:item.f} and {item.t}<br />
+<br />
+<br />
+Is {item.t} is like that or is it {:item.t}?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st August 2007, 17:31</div></div><div class="posttext">Is {item.t} is like that or is it {:item.t}?<br />
+I think it was just a typo, because otherwise they would get a compile error.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">22nd August 2007, 21:17</div></div><div class="posttext">tdsls032 is &quot;Prices by Price List and Item&quot;, and I suppose you do have a business need to use this instead of just &quot;Prices by Item&quot;.<br />
+<br />
+My recommendation would be to customize the table definition for tdsls032 and add a second index as follows:<br />
+<br />
+tdsls032.item/ tdsls032.cntr/ tdsls032.dile/ tdsls032.qanp/ tdsls032.stdt/ tdsls032.cpls<br />
+<br />
+i.e. copy the primary key index and simply move the tdsls032.cpls as the last field of the index.<br />
+<br />
+After you finish the reconfigure, you can then modify the query as follows:<br />
+<br />
+<br />
+function domain tcpric get.sales.price()<br />
+{<br />
+    select tdsls032.*<br />
+    from tdsls032<br />
+    where tdsls032._index2 = {:tiitm001.item}<br />
+    and tdsls032.stdt &lt;= :curr.date<br />
+    and (tdsls032.tdat &gt;= :curr.date<br />
+    or tdsls032.tdat = 0)<br />
+    order by tdsls032._index2<br />
+    as set with 1 rows<br />
+    selectdo<br />
+        return(tdsls032.pric)<br />
+    endselect<br />
+    return(0)<br />
+}<br />
+<br />
+<br />
+You do realize that, in general, there will be multiple records per item in this table, so what you are getting is the FIRST of the price according to _index2, in addition to the constraints of the where clause. This is because, in general, you will have multiple price list codes per item code.<br />
+<br />
+If this is what you want, this should help. Otherwise, consider the possibility of using &quot;Prices by Item&quot; [still tdsls032, but with Price List Code built in as SPACES]. With this, you can use _index1 with price list code as blank and item code from the Item Data record. Even then, you still have, in general, multiple records per Item Code, due to discount level, quantity and effective date.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

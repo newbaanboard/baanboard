@@ -1,0 +1,121 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Delete from table: two variants, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Delete from table: two variants Tools Development" />
+	
+	<title>Delete from table: two variants [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Delete from table: two variants</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Andron</div><div class="date">28th November 2002, 12:40</div></div><div class="posttext">1.<br />
+select table.* from table<br />
+where .............<br />
+selectdo<br />
+.........<br />
+db.eq(table, lock)<br />
+db.delete(table)<br />
+.................<br />
+endselect<br />
+<br />
+2.<br />
+db.retry.point()<br />
+select table.* from table FOR UPDATE<br />
+where .............<br />
+selectdo<br />
+.........<br />
+db.delete(table, db.retry)<br />
+.................<br />
+endselect<br />
+<br />
+What variants is correctly?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">morpheus</div><div class="date">28th November 2002, 12:48</div></div><div class="posttext">There is another variant -<br />
+<br />
+id = db.bind(&quot;table_name&quot;)<br />
+db.delete(id)<br />
+<br />
+Do not use the second option, if it's a big table. Might take time.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">1st December 2002, 04:11</div></div><div class="posttext">Andron,<br />
+<br />
+I think you have to be explicity in explaining the purpose of what you are trying to do -<br />
+<br />
+If you just like to delete the whole data in a table you can also use - db.clear.table() (http://www.baanboard.com/programmers_manual_baanerp_help_functions_db_operations_db_clear_table) <br />
+<br />
+If you like to delete the table along with its contents - db.drop.table()  (http://www.baanboard.com/programmers_manual_baanerp_help_functions_db_operations_db_drop_table) <br />
+<br />
+If you are trying to delete specific records you have to use -<br />
+<br />
+db.retry.point()<br />
+select table.* from table FOR UPDATE<br />
+where .............<br />
+selectdo<br />
+.........<br />
+db.delete(table, db.retry)<br />
+commit.transaction() <br />
+|* depends on where you like to place the commit, <br />
+|* inside the selectdo or based on number of <br />
+|* records updated, selecteos, or after endselect or<br />
+|* order by with retry.<br />
+.................<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">2nd December 2002, 11:10</div></div><div class="posttext">Take care that when removing  a lot of records from your table and using Oracle as database that you have:<br />
+- or your rollback segment large enough<br />
+- or your query ends frequently<br />
+<br />
+This because the main query says open until the end of the query. This can give an ORA-1555<br />
+<br />
+Also commit on a frequent basis, but not too frequent. An example:<br />
+<br />
+set.min(last.item)<br />
+last.record = false<br />
+<br />
+repeat<br />
+	db.retry.point()<br />
+	tot.records = 0<br />
+<br />
+	select	*<br />
+	from	tcibd001 for update<br />
+	where	tcibd001.item &gt;= :last.item<br />
+	hint array fetching		|* For BaanERP only<br />
+	and array size 100		|* For BaanERP only<br />
+	and buffer 100 rows		|* For BaanERP only`<br />
+	as set with 10000 rows<br />
+	selectdo<br />
+		db.delete(ttcibdm001, db.retry)<br />
+		tot.records = tot.records + 1<br />
+		if tot.records\100 = 0 then<br />
+			commit.transaction()<br />
+			last.item = tcibd001.item  <br />
+		endif<br />
+	selectempty<br />
+		last.record = true<br />
+	selecteos<br />
+		last.record = true<br />
+	endselect<br />
+<br />
+	last.item = tcibd001.item<br />
+	commit.transaction()<br />
+until last.record = true <br />
+<br />
+Good luck with it,<br />
+Dick</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

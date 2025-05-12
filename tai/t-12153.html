@@ -1,0 +1,118 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Error -2 when using ASCIF Device, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Error -2 when using ASCIF Device Tools Administration &amp; Installation" />
+	
+	<title>Error -2 when using ASCIF Device [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Error -2 when using ASCIF Device</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">dsj8481</div><div class="date">11th July 2003, 17:24</div></div><div class="posttext">Sporadic problem - only experienced with the jobmanager.  Has persisted through numerous portingset upgrades and tools patches and updates of the conversion and the open and close objects for printing.<br />
+We are on Unix, Oracle, and Baan IVc2. ASCIF device is setup in the maintain device data session as a rewrite file, 4gl program is ttstpconv, argument is ASCII, path is fileout, change is allowed, page length is 55.<br />
+<br />
+The reports are supposed to be created in the tmp file and then move to the home directory.  The message output lists the step that failed, the session as ttstpconv, and description is conversion to wordprocessor and the message is &quot;Cannot open file /baan/prod/bse/tmp/tmp####### (error -2) Conversion cancelled.  <br />
+The tmp file does not exists.  100% of the time, you can run this manually and it will work.  98% of the time, this job works with the correct output. <br />
+<br />
+We do have a Unix script that runs in the background that cleans the tmp directory, but it only removes files that are over 24 hours old.  Other files from around the same time are not removed.<br />
+<br />
+I have logged several cases at BGS for this problem with no solution.  We can't recreate the situation.  It is horribly sporadic.<br />
+<br />
+Anyone have any ideas?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">11th July 2003, 19:06</div></div><div class="posttext">Checking the error codes in the tools manual-<br />
+<br />
+2  ENOENT  No such file or directory<br />
+<br />
+This occurs when a specified file name should exist but does not, or when one of the directories in a path name does not exist. <br />
+<br />
+. ASCIF device is setup in the maintain device data session as a rewrite file, 4gl program is ttstpconv, argument is ASCII, path is fileout, change is allowed, page length is 55. <br />
+I think that implies that the output file will be created in the user's home directory.<br />
+. 100% of the time, you can run this manually and it will work. 98% of the time, this job works with the correct output.  <br />
+Did you login as the job user and execute it and found it working ?<br />
+&quot;Cannot open file /baan/prod/bse/tmp/tmp####### <br />
+There might be a possibility of a network blurp? when the file system was unavailable and the failover mount points became active.<br />
+<br />
+Also, check if the job users has proper authorization in the $BSE/tmp directory.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dsj8481</div><div class="date">11th July 2003, 19:24</div></div><div class="posttext">Thanks for responding.  <br />
+<br />
+The permissions are ok - the same jobmanager has written files to this directory all night long.<br />
+<br />
+When I test it manually, there is a tmp file that is written in the $BSE/tmp directory and then the file is moved to the directory specificied for the job input.  <br />
+<br />
+I can log in as that job user and run this session and it works.  It even works in the job most of the time. Just every now and then, we will get the error -2 when nothing in Baan has changed.  Not the jobs, not the permissions, not anything.<br />
+<br />
+Checking with the network guys to see if we had problems during that time.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tools123</div><div class="date">12th July 2003, 04:49</div></div><div class="posttext">I have seen this happening when the target directory / space is full (temporarily).The particular file size may be too large?<br />
+<br />
+One remote possibility is the exception within the the actual<br />
+data which might have triggered the interruption.<br />
+<br />
+Is your job data set to continue on error?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dsj8481</div><div class="date">14th July 2003, 15:05</div></div><div class="posttext">I have a cron job that runs every 15 minutes to let me know if that directory is 90% or above.  Nothing has been reported during the times that we have the error -2.<br />
+<br />
+<br />
+The jobs with the error -2 are set to &quot;interrupt&quot; if there is an error.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dsj8481</div><div class="date">14th July 2003, 22:16</div></div><div class="posttext">Hmm...Have been doing more testing.<br />
+<br />
+When using the ascif device, multiple tmp files are generated.  The one referenced in ttaad320 is for the one that is 0 size until the report is completely generated. <br />
+<br />
+I did go to the test system and created a situation where the report would run out of space.  Got a sort error 8 sort failed due to errors in write() when this happened.<br />
+<br />
+This one is baffling me.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">14th July 2003, 22:34</div></div><div class="posttext">The temporary place needed for sorting is not $BSE/tmp by default.  You can use the environment variable BSE_SORT to send sorting to a specific directory/disk.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dsj8481</div><div class="date">14th July 2003, 22:40</div></div><div class="posttext">Thanks for responding!  <br />
+I know that you can change the directory for the sort file - The purpose of my test was to double-check and determine if the error -2 would be output if we did run out of space. The error -2 was not produced.  The sort error was.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">chneves</div><div class="date">7th November 2006, 15:11</div></div><div class="posttext">Hello.<br />
+<br />
+I know that the error occurred the much time. It would like to know if you it found some solution, therefore we are with the same error.<br />
+<br />
+Tks,<br />
+Carlos Enrique</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dsj8481</div><div class="date">7th November 2006, 16:12</div></div><div class="posttext">Still have it- though not as often. We just do a reprint (don't have to rerun the session).  The file is there in $BSE/tmp - just has the error -2 when it tries to move it to the home directory.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">chneves</div><div class="date">7th November 2006, 16:55</div></div><div class="posttext">Thanks for the reply.<br />
+But in ours in case, we do not have as re-print, therefore the error occurs when we are reading a received archive way EDI, and, with this error, the processing is locked<br />
+<br />
+tks,<br />
+Carlos Henrique<br />
+<br />
+PS: Sorry, by my poor english :(</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dsj8481</div><div class="date">7th November 2006, 20:45</div></div><div class="posttext">Error -2 is a Unix file problem - Have you checked with your Unix admin?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">chneves</div><div class="date">8th November 2006, 12:13</div></div><div class="posttext">Yes, but it does not know this error. We open a call with the SSA Global (Infor), but they only replay what it was in this forum.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

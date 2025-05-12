@@ -1,0 +1,150 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="writing records from one session into a different table, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] writing records from one session into a different table Tools Development" />
+	
+	<title>writing records from one session into a different table [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; writing records from one session into a different table</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">11th March 2003, 17:39</div></div><div class="posttext">Another puzzler for you all...<br />
+<br />
+here is the scenario....<br />
+<br />
+We peform an import of a flat file into an Oracle (Baan) table.  Some of the records are missing information, based on this, an Oracle SP takes these records and puts them into a &quot;holding table&quot;.  This holding table has a Baan maintain session what I want to do, is when the changes have been made to the data, it is written back to a different table.<br />
+<br />
+Is this possible to do within the script on the session, and if so how?<br />
+<br />
+Cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">11th March 2003, 18:10</div></div><div class="posttext">Try something like this:<br />
+<br />
+main.table.io:<br />
+after.rewrite:<br />
+	update.other.table()<br />
+<br />
+...<br />
+<br />
+function update.other.table()<br />
+{<br />
+	select	xxyyyzzz.*<br />
+	from	xxyyyzzz for update<br />
+	where	...<br />
+	selectdo<br />
+		&lt;set field values&gt;<br />
+		db.update(txxyyyzzz, db.retry)<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+In this case, you can utilize the db.retry.point() and commit.transaction() of the standard program and not issue them yourself.<br />
+<br />
+after.rewrite gets called once for each update record in the main table.  In this case, I'm assuming that there is a way to select from the secondary table based upon the current record in the session's main table.  If not, we'll have to go another route.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">11th March 2003, 18:39</div></div><div class="posttext">Ed in essence that makes sense.<br />
+<br />
+The idea, is that the record will not exist in the table it is going to be written to.<br />
+<br />
+It exists in a table but needs to be modified eg field data is missing.  Once filled in, it is written to a different table and the record that originally existed is deleted from the first table.<br />
+<br />
+Make sense?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">11th March 2003, 19:48</div></div><div class="posttext">If the record doesn't exist in the second table, skip the select and try something like:<br />
+<br />
+<br />
+function update.other.table()<br />
+{<br />
+	db.set.to.default(t&lt;tablename&gt;)<br />
+	&lt;set field values&gt;<br />
+	db.insert(t&lt;tablename&gt;, db.retry)<br />
+}<br />
+<br />
+<br />
+If you want to delete the original record (the one in the session's main table) after inserting into the second table, that becomes a bit more complicated.  Let's get this piece working first... :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">12th March 2003, 10:46</div></div><div class="posttext">Ok that makes sense, so for example, it would look something like this ...<br />
+<br />
+function update.other.table()<br />
+{<br />
+	db.set.to.default(ttssma931 )<br />
+	&lt;tssma931.instr&gt;<br />
+	db.insert(ttssma930, db.retry)<br />
+}<br />
+<br />
+<br />
+And I would call this function from the main section?<br />
+<br />
+What would I be calling this function from, is there a db.update: that I would use?<br />
+<br />
+Cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">12th March 2003, 15:58</div></div><div class="posttext">You can still call it from after.rewrite or before.rewrite.  It would look something like this:<br />
+<br />
+<br />
+function update.other.table()<br />
+{<br />
+	db.set.to.default(ttssma931)<br />
+	tssma931.xxxx = othertable.yyyy<br />
+	tssma931.aaaa = othertable.bbbb<br />
+	...<br />
+	db.insert(ttssma931, db.retry)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">12th March 2003, 16:04</div></div><div class="posttext">Ed<br />
+<br />
+This is great thanks for this...<br />
+<br />
+so to finish this post off...<br />
+<br />
+***************main i/o********************<br />
+before.rewrite<br />
+<br />
+	update.other.table()<br />
+<br />
+*******************************************<br />
+<br />
+and then the function is where it should be.<br />
+<br />
+Does that all look good ?<br />
+<br />
+Many thanks for all your help these last few days...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">12th March 2003, 20:43</div></div><div class="posttext">You can use a single select to do insert/update if the records are found or not.<br />
+<br />
+function update.other.table()<br />
+{<br />
+	select	xxyyyzzz.*<br />
+	from	xxyyyzzz for update<br />
+	where	...<br />
+	selectdo<br />
+		&lt;set field values&gt;<br />
+		db.update(txxyyyzzz, db.retry)<br />
+		commit.transaction()<br />
+	selectempty<br />
+		&lt;set field values&gt;<br />
+		db.insert(txxyyyzzz, db.retry, db.skip.dupl)<br />
+		commit.transaction()<br />
+	endselect<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

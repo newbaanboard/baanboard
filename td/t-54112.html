@@ -1,0 +1,308 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Session running slow, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Session running slow Tools Development" />
+	
+	<title>Session running slow [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Session running slow</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">manojsharma</div><div class="date">25th October 2008, 18:18</div></div><div class="posttext">Hi All,<br />
+<br />
+I have a customised session which explore BOM from bottom to top. The session is running slow and sometime I get error &quot;Snapshot too old&quot;. Can anybody help me. below is my code<br />
+<br />
+declaration:<br />
+<br />
+	table	ttipln032	|* Maintain Lowest Level Sequence Item<br />
+	table	ttibom010	|* Production BOMs<br />
+	table	ttiitm001	|* Items<br />
+<br />
+		domain	tcitem		sitm(999999)  			<br />
+		domain	tcitem		mitm(999999)	 		<br />
+<br />
+<br />
+		domain	tcitem		mitem<br />
+		long 			ctr<br />
+		long count<br />
+	extern  domain  tcitem		my.sitm, item.f, item.t<br />
+	extern  domain  tcyesno		check.eff.date<br />
+	extern  domain  tcdate		eff.date<br />
+		long	counter<br />
+	extern	domain	tcmcs.str20	mess.disp<br />
+<br />
+before.program:<br />
+<br />
+<br />
+|***************************************forms*******************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+	display.all()<br />
+<br />
+|*************************************choice********************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+<br />
+	if rprt_open() then<br />
+		print.report()<br />
+		rprt_close()<br />
+	else<br />
+		choice.again()<br />
+	endif	<br />
+<br />
+<br />
+|*********************************fields***********************************<br />
+<br />
+field.item.f:<br />
+when.field.changes:<br />
+	item.t = item.f<br />
+<br />
+field.eff.date:<br />
+before.input:<br />
+	if check.eff.date = tcyesno.no then<br />
+		eff.date = 0<br />
+		attr.input = false<br />
+	endif<br />
+<br />
+<br />
+|**********************************read record******************************<br />
+<br />
+functions:<br />
+function print.report()<br />
+{<br />
+	ctr = 0<br />
+	select tipln032.*<br />
+	from   tipln032<br />
+	where	tipln032._index1 inrange {:item.f} and {:item.t}	<br />
+	order by tipln032._index1<br />
+	selectdo<br />
+		if tipln032.litm = tcyesno.yes then<br />
+			init.array()<br />
+			ctr = 1<br />
+			sitm(1,ctr) = tipln032.item<br />
+			explore.bom()<br />
+		endif	<br />
+	endselect	<br />
+}<br />
+<br />
+function explore.bom()<br />
+{<br />
+	<br />
+	long i, j<br />
+	for i = 1 to ctr<br />
+		mitem = sitm(1,i)<br />
+		if not skip.item() then<br />
+			continue<br />
+		endif	<br />
+		<br />
+		select tibom010.sitm,tibom010.mitm,tibom010.exdt,tibom010.indt,tibom010.cpha<br />
+		from tibom010<br />
+		where tibom010._index2 ={:mitem}<br />
+		as prepared set				<br />
+		selectdo<br />
+			if tibom010.exdt = 0 or tibom010.exdt &gt; eff.date then<br />
+			else<br />
+				continue<br />
+			endif<br />
+			if not skip.bom.item() then<br />
+				continue<br />
+			else<br />
+				ctr = ctr + 1<br />
+				sitm(1,ctr) = tibom010.mitm<br />
+			endif	<br />
+		endselect<br />
+<br />
+	endfor<br />
+	<br />
+	count = 0<br />
+	for j = 1 to ctr <br />
+		my.sitm = sitm(1,j)<br />
+		select tibom010.mitm<br />
+		from tibom010<br />
+		where tibom010._index1 ={:my.sitm}<br />
+		as prepared set				<br />
+		selectdo<br />
+			upd.tipln032()						<br />
+		endselect<br />
+	endfor<br />
+	commit.transaction()					<br />
+}<br />
+<br />
+function upd.tipln032()<br />
+{<br />
+	long	count<br />
+	<br />
+	db.retry.point()<br />
+	<br />
+	select	tipln032.*<br />
+	from	tipln032 |for update<br />
+	where   tipln032._index1 = {:my.sitm}			<br />
+	order by tipln032._index1<br />
+	selectdo<br />
+	selectempty<br />
+		tipln032.item = my.sitm<br />
+		tipln032.litm = tcyesno.no<br />
+		tipln032.user = logname$<br />
+		tipln032.time = time.num()<br />
+		tipln032.date = date.num()<br />
+<br />
+		db.insert(ttipln032, db.retry)<br />
+<br />
+		commit.transaction()				<br />
+		get.item.dsca()					<br />
+		rprt_send()					<br />
+	endselect<br />
+	<br />
+}<br />
+<br />
+<br />
+<br />
+function init.array()<br />
+{<br />
+	set.mem(sitm,&quot;&quot;)<br />
+	set.mem(mitm,&quot;&quot;)<br />
+}<br />
+<br />
+function domain tcbool skip.item()<br />
+{<br />
+	select tiitm001.*<br />
+	from   tiitm001<br />
+	where  tiitm001.item=:mitem<br />
+	order by tiitm001._index1<br />
+	selectdo<br />
+		if tiitm001.citg=&quot;ZZZZZZ&quot; or tiitm001.csig=&quot;06W&quot; then<br />
+			return(false)<br />
+		else<br />
+			return(true)<br />
+		endif<br />
+	endselect<br />
+	return(false)<br />
+}<br />
+<br />
+function domain tcbool skip.bom.item()<br />
+{<br />
+	select tiitm001.*<br />
+	from   tiitm001<br />
+	where  tiitm001.item=:tibom010.mitm<br />
+	order by tiitm001._index1<br />
+	selectdo<br />
+		if tiitm001.citg=&quot;ZZZZZZ&quot; or tiitm001.csig=&quot;06W&quot; then<br />
+			return(false)<br />
+		else<br />
+			return(true)<br />
+		endif<br />
+	endselect<br />
+	return(false)<br />
+}<br />
+<br />
+function get.item.dsca()<br />
+{<br />
+	select tiitm001.dsca, tiitm001.item<br />
+	from   tiitm001<br />
+	where  tiitm001._index1={:tipln032.item}<br />
+	selectdo<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pellus</div><div class="date">25th October 2008, 18:38</div></div><div class="posttext">I understand that you update the tipln-table. Is that done often? If you have a lot of &quot;reading&quot; between &quot;commit&quot;; problems like getting slower and db-problems related to rollbacks-segments (oracle) may appear. <br />
+<br />
+Not knowing the specifics on how your data is, and not having studied your whole program in detail .... consider to commit more often, also if no db update has taken place.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manojsharma</div><div class="date">25th October 2008, 20:07</div></div><div class="posttext">Thanks Pellus,<br />
+<br />
+I think that the problem is in arrays that makes program slower. I also modified the script to commit after every 50 transactions but it does not make any difference.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">27th October 2008, 10:35</div></div><div class="posttext">The code is hard to read without reasonable indents, but here are my 2 cent tips ...<br />
+ <br />
+1. I would suggest an additional commit.transaction() at the end of your function upd.tipln032() - just if you don't insert into tipln032.<br />
+ <br />
+2. The possible problem might be &quot;as prepared set&quot;. You should check if you really need that.<br />
+ <br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">27th October 2008, 13:07</div></div><div class="posttext">Some suggestions from a quick glance at the code.<br />
+<br />
+1. Dont use select * where not necessary especially tiitm001<br />
+2. Use tiitm001._index1 instead of  tiitm001.item .<br />
+3. Use alias for tiitm001 and join instead of separate select in a function .<br />
+4. Program does not become slow with use of array. It becomes slow  with excessive repeated  disk io involved in SQL parse, exec and search  . This may probably be functional requirement. If through re-design of code u can reduce this , u can achieve significant performance gains .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manojsharma</div><div class="date">27th October 2008, 13:20</div></div><div class="posttext">Hi all.<br />
+<br />
+Thanks for your reply. I will try and check the performance.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">2nd November 2008, 18:59</div></div><div class="posttext">For my experience there is another problem in the function upd.tipln032()<br />
+<br />
+You are addding new records to your maintable. This will have effect to your first select and change your recordpointer.<br />
+<br />
+I would suggest the following:<br />
+<br />
+function upd.tipln032()<br />
+{<br />
+	long	count<br />
+	<br />
+        &lt;save the fields of the prim. key from the table tipln032&gt;<br />
+<br />
+	select	tipln032.*<br />
+	from	tipln032 |for update<br />
+	where   tipln032._index1 = {:my.sitm}			<br />
+	order by tipln032._index1<br />
+	selectdo<br />
+	selectempty<br />
+                db.retry.point()<br />
+		tipln032.item = my.sitm<br />
+		tipln032.litm = tcyesno.no<br />
+		tipln032.user = logname$<br />
+		tipln032.time = time.num()<br />
+		tipln032.date = date.num()<br />
+<br />
+		db.insert(ttipln032, db.retry)<br />
+<br />
+		commit.transaction()				<br />
+		get.item.dsca()					<br />
+		rprt_send()					<br />
+	endselect<br />
+<br />
+        &lt;restore the fields of the prim. key from the table tipln032&gt;<br />
+<br />
+}<br />
+<br />
+<br />
+This also can be the reason for the long runtime.<br />
+<br />
+hth<br />
+<br />
+Regards<br />
+Christof</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Cesar Lopez</div><div class="date">3rd November 2008, 07:05</div></div><div class="posttext">You also should chek if rollback segments and undo_retention parameters are enough in oracle.<br />
+<br />
+Regards</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

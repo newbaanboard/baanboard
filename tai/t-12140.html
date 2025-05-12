@@ -1,0 +1,170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How do I check who logged into Baan?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How do I check who logged into Baan? Tools Administration &amp; Installation" />
+	
+	<title>How do I check who logged into Baan? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; How do I check who logged into Baan?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mraguthu</div><div class="date">10th July 2003, 19:49</div></div><div class="posttext">Hi All,<br />
+We are running Baan5c (SP10) on AS/400. Porting set = 7.1c.05<br />
+I can go to Q shell through AS/400 to check my number of license consumed by bshell6.2 u command.<br />
+But is their any way I can check who logged in the system at present. Or who are consuming Baan licenses?<br />
+Please help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">10th July 2003, 19:59</div></div><div class="posttext">I am not aware of AS-400 commands. But there should be some commands similar to the Unix commands.<br />
+<br />
+To find who are all the users who are currently logged into the system, you can see with the who command -<br />
+<br />
+$ who<br />
+rwatwate   pts/ta       Jul 10 07:50<br />
+bsp        pts/tf       Jul 10 08:11<br />
+nprao      pts/4        Jul  3 13:04<br />
+bsp200     pts/th       Jul 10 08:12<br />
+bsp210   pts/6        Jul 10 09:43<br />
+nprao      dtremote     Jul 10 09:43<br />
+<br />
+To check who are currently logged into the BaaN environment, you have to grep on the bshell tag name-<br />
+<br />
+$ ps -ef | grep bshell_lmst<br />
+rwatwate 14113 13685  0 08:13:16 ?         0:02 bshell_lmstmbn (rwatwate@mls241602:310/SOCKET&lt;rwatwater@MLS2<br />
+rxkrishn 19442 13685  0 09:01:06 ?         0:07 bshell_lmstmbn (rxkrishn@PAK267264:224/SOCKET&lt;rxkrishnamoort<br />
+    root 13715 13713  0 18:07:30 ?         0:00 bshell_lmstmbn (root:13713/LSOCKET&lt;root@ml018:13713&gt;) 13713 <br />
+ rcromer  8435 13685  0 08:58:44 ?         0:23 bshell_lmstmbn (rcromer@MBN253127:1424/SOCKET&lt;rcromer@MBN253<br />
+pxnujett 16819 11541  2 09:46:57 pts/6     0:00 grep bshell_lmst<br />
+ jryoung 27440 13685  0 09:39:23 ?         0:12 bshell_lmstmbn (jryoung@MBN243053:1016/SOCKET&lt;jryoung@MBN243<br />
+lxnordgr 11000 13685  0 09:13:21 ?         0:09 bshell_lmstmbn (lxnordgr@MLF265300:1476/SOCKET&lt;lanordgren@ML<br />
+$</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">10th July 2003, 22:47</div></div><div class="posttext">Alternatively, use the licmon command.  I don't know the AS/400 syntax, but there should be a -w option, showing who is logged onto Baan.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">hsteenwi</div><div class="date">14th July 2003, 12:23</div></div><div class="posttext">I use an SQL-script to produce a list of users who are currently logged onto Baan, containing Baan-login-ID, full name, OS-login-ID, companynumber and company-description. This SQL-script is being called upon by a shell-script:<br />
+<br />
+<br />
+#!/bin/sh<br />
+USERS=${BSPHOME}/tmp/who2.t<br />
+USERS1=${BSPHOME}/tmp/who1.t<br />
+QUERY=${BSPHOME}/bin/SQL/who1.sql<br />
+rm -f ${USERS} 2&gt;/dev/null<br />
+rm -f ${USERS1} 2&gt;/dev/null<br />
+rm -f ${QUERY}.tmp 2&gt;/dev/null<br />
+<br />
+INSTANCE=${XXTT}<br />
+# Is there anyone logged on?<br />
+NR_BSHELLS=`ps -ef | grep bshell | grep -v job[0-9]* | grep -v grep | wc -l`<br />
+export NR_BSHELLS<br />
+if [ ${NR_BSHELLS} -gt 0 ] 2&gt;/dev/null<br />
+then<br />
+        # Next output is being used in the where clause of the query<br />
+ps -ef | grep bshell | grep -v job | grep -v grep | awk '{print &quot;t$uusr = &quot;&quot;Q&quot;$1&quot;Q&quot;&quot; or &quot;}'|sort &gt; $<br />
+{USERS1} 2&gt;/dev/null<br />
+<br />
+        # Replace Q by a single quote<br />
+        sed '1,$ s/Q/\'\'/g ${USERS1} &gt; ${USERS}<br />
+<br />
+        # Replace in the last line &quot;or&quot; by &quot;);&quot;<br />
+        sed '$ s/or/) order by 2,1 \;/' ${USERS} &gt; ${USERS1} 2&gt;/dev/null<br />
+<br />
+        # Copy the template query to a temp file<br />
+        cp ${QUERY} ${QUERY}.tmp<br />
+<br />
+        # Append the output of the previous &quot;ps -ef&quot; en &quot;exit&quot;  commands to the temporary query<br />
+        cat ${USERS1} &gt;&gt; ${QUERY}.tmp<br />
+        echo exit &gt;&gt; ${QUERY}.tmp<br />
+<br />
+        # Log onto the database, execute the query and show the output<br />
+        sqlplus [username]/[password]\@${INSTANCE} @${QUERY}.tmp /nolog &gt; /dev/null<br />
+        cat ${HOME}/who1.tmp<br />
+else<br />
+        echo &quot;No users logged on.&quot;<br />
+fi<br />
+<br />
+rm -f ${USERS} 2&gt;/dev/null<br />
+rm -f ${USERS1} 2&gt;/dev/null<br />
+rm -f ${QUERY}.tmp 2&gt;/dev/null<br />
+rm -f ${HOME}/who1.tmp 2&gt;/dev/null<br />
+rm -f ${BSPHOME}/tmp/who1.tmp 2&gt;/dev/null<br />
+<br />
+<br />
+The query used, looks like this:<br />
+<br />
+<br />
+set verify off<br />
+set pagesize 9999<br />
+set linesize 80<br />
+spool ${HOME}/who1.tmp<br />
+select  substr(baan.tttaad200000.t$user,1,8) &quot;BaanUser&quot;<br />
+,       substr(baan.tttaad200000.t$name,1,26) &quot;Name&quot;<br />
+,       baan.tttaad200000.t$uusr &quot;UnixUser&quot;<br />
+,       substr(baan.tttaad200000.t$comp,1,7) &quot;Company&quot;<br />
+,       substr(baan.tttaad100000.t$cpnm,1,26) &quot;Name company&quot;<br />
+from    baan.tttaad200000<br />
+,       baan.tttaad100000<br />
+where<br />
+        baan.tttaad200000.t$comp       =        baan.tttaad100000.t$comp<br />
+and     baan.tttaad200000.t$user       not like 'job%'<br />
+and     (</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">slawko</div><div class="date">14th July 2003, 16:07</div></div><div class="posttext">hi<br />
+When Baan starts on the AS400 system, it starts up the subsystem and the jobs needed to run. To see logged in baan users, you will have to display these information.<br />
+You have to use AS400 commands: Work with Active Jobs (WRKACTJOB) or Work with Subsystem Jobs (WRKSBSJOB).<br />
+When you started your Baan, the following jobs will appear:<br />
+SHMTIME6 - the shared memory deamon<br />
+PDEAMON6 - printer deamon<br />
+DB4_SRV6(if preanter deamon is started) - the database driver<br />
+QBFCLISTEN - the database connection deamon<br />
+<br />
+Using WRKACTJOB you should see one BSHELL6 and at least one DB4_SRV5V6 job for each logged on user. <br />
+Next to the 'Subsystem/Job' column, you will find 'User' column where you find your logged on users.<br />
+<br />
+I hope it will solve your problems<br />
+Slawek</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mraguthu</div><div class="date">15th July 2003, 21:28</div></div><div class="posttext">Command &quot;Who&quot; is working in AS/400.<br />
+I need to execute &quot;licmon6.2&quot; command before I use &quot;who&quot; command.<br />
+<br />
+For me this is more easy to see who logged than compared to &quot;WRKACTJOB&quot; command in AS/400.<br />
+<br />
+Thanks again.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cnchhabi</div><div class="date">22nd July 2003, 11:42</div></div><div class="posttext">In Window NT Start-&gt;Programs-&gt;Administraive Tool(Common)-&gt;Windows NT Diagnostics-&gt;Network  shows the user which occupies the license.This is because nt user and baan user has one-to-one correspondence.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">slawko</div><div class="date">12th August 2003, 15:35</div></div><div class="posttext">hi<br />
+The last post made me think how does it look in Windows 2000 Server and I found sth:<br />
+Setting-&gt;Control Panel-&gt;Administrative Tools-&gt;Performance-&gt; in the right pane click add button, you will get window Add Counters:<br />
+<br />
+Performance object:         Baan System<br />
+Select Counter form List:  BaanERP licenses in use<br />
+<br />
+<br />
+You can even create an alert there, which will inform that  currently for example: 50 BaanERP licenses are in use.<br />
+<br />
+This also works as a remote way of finding how many users are logged in Baan.<br />
+<br />
+Does anybody know a better way of finding who is logged in Baan (Win 2000 Server) and to see what are the names of the users?<br />
+(except Windows Task Manager-&gt;Processes)<br />
+<br />
+Slawek</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

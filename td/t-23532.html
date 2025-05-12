@@ -1,0 +1,102 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Using sum with array of tdsls401.copr field, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Using sum with array of tdsls401.copr field Tools Development" />
+	
+	<title>Using sum with array of tdsls401.copr field [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Using sum with array of tdsls401.copr field</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">vyp_007</div><div class="date">24th March 2005, 13:33</div></div><div class="posttext">Hi,<br />
+I have written a function to collect some data from tdsls400 and tdsls401 tables. In that function I want to use copr field, which is basically aaray of three figures. I want to use first field to calculate sum of the field. Following code has been used.  But I am getting some error.<br />
+<br />
+{<br />
+	domain	tcamnt		mtr.amnt		| MTR Amount<br />
+	domain	tcmcs.str4	sell.enty		| Selling Entity	<br />
+	long	recd.cntr				| Record Counter<br />
+<br />
+	recd.cntr = 0<br />
+<br />
+	db.retry.point()<br />
+	select	tdsls400.cofc, tdsls401.citg, <br />
+		tdsls401.cpln, sum(tdsls401.copr(1)):mtr.amnt<br />
+	from	tdsls400, tdsls401<br />
+	where	tdsls401.invd &gt;= :from.date <br />
+	and	tdsls401.invd &lt;= :to.date <br />
+	and	tdsls401.orno REFERS TO tdsls400<br />
+	group by tdsls400.cofc, tdsls401.citg,<br />
+		tdsls401.cpln<br />
+	selectdo<br />
+			<br />
+	sell.enty = get.selling.entity()	|To get Selling Entity<br />
+<br />
+	insert.data.for.MTR.and.IC.details(sell.enty, tdsls401.citg, <br />
+						tdsls401.cpln, -1 * mtr.amnt, &quot;mtra&quot;)<br />
+		mtr.amnt = 0<br />
+		recd.cntr = recd.cntr + 1<br />
+		if recd.cntr &gt;= 100 then<br />
+			commit.transaction()<br />
+			recd.cntr = 0<br />
+		endif<br />
+	endselect <br />
+	commit.transaction()<br />
+}<br />
+<br />
+Please suggest me some solution....<br />
+<br />
+VYP_007</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jvdmunt</div><div class="date">24th March 2005, 21:43</div></div><div class="posttext">Hi,<br />
+<br />
+You cannot use sum in an array field, try the following<br />
+<br />
+db.retry.point()<br />
+select tdsls400.cofc, tdsls401.citg, <br />
+tdsls401.cpln<br />
+from tdsls400, tdsls401<br />
+where tdsls401.invd &gt;= :from.date <br />
+and tdsls401.invd &lt;= :to.date <br />
+and tdsls401.orno REFERS TO tdsls400<br />
+group by tdsls400.cofc, tdsls401.citg,<br />
+tdsls401.cpln<br />
+selectdo<br />
+ select tdsls401.copr<br />
+ from tdsls401<br />
+ where tdsls401.invd &gt;= :from.date <br />
+ and tdsls401.invd &lt;= :to.date <br />
+ and tdsls401.orno REFERS TO tdsls400<br />
+ and tdsls401.orno = :tdsls401.orno  |use the fields form the first query<br />
+ and tdsls400.cofc = :tdsls400.cofc<br />
+ and tdsls401.citg = :tdsls401.citg<br />
+ and tdsls401.cpln = :tdsls401.cpln<br />
+ selectdo<br />
+   mtr.amnt = mtr.amnt + tdsls401.copr(1)<br />
+ selecteos<br />
+   sell.enty = get.selling.entity() |To get Selling Entity<br />
+<br />
+   insert.data.for.MTR.and.IC.details(sell.enty, tdsls401.citg, <br />
+   tdsls401.cpln, -1 * mtr.amnt, &quot;mtra&quot;)<br />
+   mtr.amnt = 0<br />
+   recd.cntr = recd.cntr + 1<br />
+   if recd.cntr &gt;= 100 then<br />
+     commit.transaction()<br />
+     recd.cntr = 0<br />
+   endif<br />
+ enselect<br />
+endselect</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Tuning oracle for table TFGLD498, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Tuning oracle for table TFGLD498 Operating Systems &amp; Databases" />
+	
+	<title>Tuning oracle for table TFGLD498 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Tuning oracle for table TFGLD498</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">eppesuiG</div><div class="date">5th September 2008, 15:46</div></div><div class="posttext">So, we have now this new company live since three months and we are checking how much oracle space has been used.<br />
+<br />
+We found good result for all tables except this one:  TFGLD498.<br />
+The problem is that its row size is quite large and oracle uses one 8kb blocks for ETCH record.<br />
+<br />
+I believe that it should store more than one record in a single block, since otherwise its datafiles would grow too much.<br />
+<br />
+Currently this is what oracle writes about this table<br />
+<br />
+  1  select table_name, tablespace_name, num_rows, blocks, empty_blocks, avg_space, AVG_ROW_LEN, CHAIN_CNT<br />
+  2  from all_tables<br />
+  3* where table_name = 'TTFGLD498500'<br />
+<br />
+TABLE_NAME    TABLESPACE_NAME      NUM_ROWS     BLOCKS EMPTY_BLOCKS  AVG_SPACE AVG_ROW_LEN  CHAIN_CNT<br />
+------------- ------------------ ---------- ---------- ------------ ---------- ----------- ----------<br />
+TTFGLD498500  DATA_500              3425033    3461341         3875       4246       3838          0<br />
+<br />
+Its tablespace uses 8kb blocks, so it seems that oracle uses 8192 bytes for a 3838 bytes record.<br />
+<br />
+Oracle uses automatically allocation for this tablespace, so I cannot use any STORAGE parameter in ora_storage.<br />
+<br />
+I think one solution could be to create a tablespace dedicated to this table, using a 32kb block. In this case I think oracle would store at least 6-7 records per page, wasting only about 12-18% instead of 50%.<br />
+<br />
+Any other ideas?<br />
+<br />
+Thanks,<br />
+Giuseppe</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">5th September 2008, 20:09</div></div><div class="posttext">Depends on your disk setup. You could make a 4k tablespace and put all of the zero sized tables + this table into it, that'd save you more space. But if your OS is doing 8k blocks, then it won't matter.<br />
+<br />
+It's kind of a micromanaged point though, if this is your biggest worry, then you're doing pretty well...<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eppesuiG</div><div class="date">6th September 2008, 10:32</div></div><div class="posttext">Hi Dave,<br />
+thanks for your reply. I agree with you: setting up a tablespace with 4kb pages for empty/small tables is quite micromanagement.<br />
+<br />
+My question is only about table TFGLD498 since we reached 14Gb of real data (28Gb of oracle segment size plus a small amount for indexes) and we are only at 3 month since live (with 3.5 million records on this table).<br />
+<br />
+I am afraid in two years we will need 100Gb of real data, i.e., 200Gb of segment size. This really need to change our backup strategy since the total company size (data and indexes, segment size) is about 47Gb as of today.<br />
+<br />
+Anyway, I think you agree that my proposed solution (moving to 32kb or 64kb block size for a tablespace for this table) is the right one.<br />
+<br />
+Thanks.<br />
+Giuseppe</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">6th September 2008, 20:47</div></div><div class="posttext">Yes that's probably the best option.<br />
+<br />
+I'd be worried about generating that much data though, what table is that?<br />
+I don't have a 5c/LN env to look at. Can it be archived? <br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">6th September 2008, 23:28</div></div><div class="posttext">I am afraid in two years we will need 100Gb of real data, i.e., 200Gb of segment size. This really need to change our backup strategy since the total company size (data and indexes, segment size) is about 47Gb as of today.<br />
+Refer to the link - Oracle Compression (http://www.baanboard.com/baanboard/showthread.php?t=41021)<br />
+I found the document has published more information for this table as a good candidate for compression.<br />
+<br />
+Disk space reduction<br />
+There is a large reduction in disk space for a number of tables in the tfgld range. The actual percentage will differ per customer based on data stored in the tables.<br />
+Table Gain in diskspace<br />
+Table compression Table + Index compression<br />
+% %<br />
+tfgld481 88 88<br />
+tfgld482 29 68<br />
+tfgld495 43 72<br />
+tfgld498 96 96<br />
+<br />
+Recommendation<br />
+Infor recommends enabling table and indexing compression only for the largest tables in the tfgld range:<br />
+Table Data access Comments<br />
+Tfgld481 Only inserts Being replaced by tfgld465<br />
+Tfgld465 Only inserts Only available in new ERP LN versions<br />
+Tfgld482 Inserts and updates<br />
+Tfgld495 Inserts and updates<br />
+Tfgld498 Only inserts When ‘log all elements’ is disabled, this table is no longer being used<br />
+The general recommendation is to enable table and index compression for large transaction logging and history tables which have none, or limited, updates and deletes.<br />
+Note that compression is not always very effective. In our test to compress tdsls451 there was 0% disk space improvement for table compression and only 9% for index compression.<br />
+1-4 | Summary<br />
+Infor does not recommend enabling compression on other ERP LN tables.<br />
+<br />
+Table TFGLD498 Logged elements, 1279994 records<br />
+Initial<br />
+Table<br />
+compress<br />
+Table+Index<br />
+compress<br />
+Segment Bytes Bytes Bytes<br />
+TTFGLD498100 3507486720 90177536 90177536<br />
+TTFGLD498100$IDX1 55574528 55574528 40894464<br />
+Total size (MB) 3398 139 125<br />
+Gain % 0 96 96<br />
+<br />
+Time to compress and rebuild indexes<br />
+To indicate the expected downtime, the table below shows the duration of the table compressions and index rebuild in our environment. The server is an IBM AIX p550 server with 4 * 1.65 GHz CPU.<br />
+Table or index Rows Duration of table<br />
+compress<br />
+Duration of index<br />
+rebuild + compress<br />
+Tfgld498 127999<br />
+4<br />
+71 sec -<br />
+Tfgld498101$IDX1 - 5 sec</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eppesuiG</div><div class="date">7th September 2008, 00:58</div></div><div class="posttext">Hi NPRao,<br />
+thanks for the link. I read the whole guide and I think I could try oracle compression. I have to check what oracle licence we have, since EE is required.<br />
+<br />
+Bye,<br />
+Giuseppe</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">15th September 2008, 16:58</div></div><div class="posttext">Giuseppe,<br />
+<br />
+My 2 cents:<br />
+- please also read this thread (http://www.baanboard.com/baanboard/showthread.php?t=41021).<br />
+- the document you mentionend has been updated.<br />
+<br />
+Best regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">alflundpedersen</div><div class="date">19th November 2008, 22:49</div></div><div class="posttext">Hi,<br />
+TFGLD498 is only used until you have set up prober reconciliation, please look for this in manual.<br />
+ <br />
+best regards<br />
+alf</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eppesuiG</div><div class="date">20th November 2008, 10:55</div></div><div class="posttext">I solved the problem in a different way. Still using 8kb blocks it is possible to change PCT_USED and PCT_FREE in order to get two records per block.<br />
+<br />
+Bye,<br />
+Giuseppe</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

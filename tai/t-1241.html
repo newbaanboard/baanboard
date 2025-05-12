@@ -1,0 +1,142 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How can I prevent the users from using a company?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How can I prevent the users from using a company? Tools Administration &amp; Installation" />
+	
+	<title>How can I prevent the users from using a company? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; How can I prevent the users from using a company?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">i96nds</div><div class="date">5th March 2002, 22:25</div></div><div class="posttext">Let me tell you the whole story. We have a large Baan instalation, with more than 10 companies. There are people from several countries working on this server. We have 4 package combination for the live companies, so there are package combinations that have several companies on.<br />
+<br />
+ We need to do some cleaning periodically in the database, because the tablespace get fragmented after a while. The size of the companies is growing quite fast (with so many &quot;hungry&quot; users...). So, we need to dump the company, fill the new ora_storage parameters (a biger INIT), coalesce the tablespaces, upload the data. <br />
+<br />
+ Of course, nobody should be working in that company while we do this. But it is not easy to keep informed hundreds of people from several countries....  It happened that people were working...<br />
+<br />
+ The major problem is that we cannot afford that all users should be logged out! While we reorganize a company, ALL other companies should be available. <br />
+<br />
+  How can I find out which users are working in a certain company at a certain moment? Or, how can I find out in which company a user is at a certain moment? <br />
+<br />
+ I can not use the default company of the user at a certain moment because the user may have switched the company.<br />
+<br />
+ Let's have an example. User AAA is authorised to use the companies:<br />
+<br />
+ 100, 200, 300. <br />
+<br />
+We want to reorganize company 100, which is the default company for user AAA. <br />
+<br />
+ Suppose we have few super users, these can be informed not to use the company 100. The problems are with normal users.<br />
+<br />
+ One ideea we had was to search in the table with company authorisations (for normal users, of course) and to find all users that are authorised tu use that company, say 100. Then we create a SQL script that does a <br />
+ <br />
+REVOKE r_baan to AAA , and to all users in the same category. Another script will do a GRANT r_baan to AAA, after the activity of reorganizing the company is OK.<br />
+<br />
+ Problem: I need that user AAA should be able to use companies 200 and 300 while I reorganize 100.... This cannot be done with the previos ideea which &quot;locks&quot; the user at Oracle level.<br />
+<br />
+ Another idea was to copy the table &quot;Authorizations by company&quot; to another table, detele the records containing company 100, do a convert  to runtime for all users. At the end, load back the table, as it was, and again Convert to DD for all users. <br />
+<br />
+ Disadvantage:<br />
+If user AAA has as default company company 100, and I delete his authorization for company 100, is is not quite good, since a user should be allowed to use his default company... <br />
+ It is also inacceptable to change the default company for 400 users and then to set it back...<br />
+ Also... I hope nobody runs the Convert to RDD in this hours of maintanance....<br />
+ <br />
+<br />
+ Any suggestion will be highly appreciated. Please feel free to correct my mistakes, or comment upon what I have posted here.<br />
+<br />
+ Regards,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">5th March 2002, 23:33</div></div><div class="posttext">Use the bshcmd tool.<br />
+<br />
+I am not sure what different versions are out there, but bshcmd6.2 will produce the following output:<br />
+<br />
+bshcmd6.2 -p -s -w 10 [bshell pid]<br />
+<br />
+   PID   PPID   PGRP SESSION            TICKS FLAGS    S CMP MEM<br />
+     1      0      1 ottstpoledaem         69 00000060 B 100   206744<br />
+<br />
+and as you can see it has a column for the company.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">6th March 2002, 10:53</div></div><div class="posttext">Hi there,<br />
+<br />
+what you could prepare would be this:<br />
+$BSE/lib/user contains the user-profiles, which are read at bshell start (here you find the PC and the default company for the user)<br />
+Save the complete directory, change the default companies for the users of company 100 to 200, convert to runtime. Save this complete user directory as user_no100. Continue this process, and you will have different user directories which you can activate at will (simply swap them).<br />
+This solves the problem that users still log on to the &quot;forbidden&quot; company when the start a bshell.<br />
+Lock the company you want to change with oracle means so that they cannot switch to the company that you reorg.<br />
+About the &quot;hope that nobody starts convert runtime&quot;:<br />
+if you insert a record into ttadv501 (company 000) for a package combination, this should be locked for &quot;convert to runtime DD&quot; -<br />
+I not sure here, you have to experiment with this.<br />
+<br />
+good luck<br />
+<br />
+Norbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">i96nds</div><div class="date">6th March 2002, 11:25</div></div><div class="posttext">Lock the company you want to change with oracle means so that they cannot switch to the company that you reorg <br />
+<br />
+<br />
+ This is really a problem for me, Norbert, I do not know how can I do this. Any suggestion? The method with REVOKE r_baan to AAA has the disadvantages I mentioned in the first note.<br />
+<br />
+ About converting to runtime, I meant &quot;Convert to RDD&quot; but for users. Table ttadv501 is only used for the tables which were changed and must be converted to RDD. Anyway, this problem can be solved, I think, if I reset the file permissions to 440 in $BSE/lib/user. In this way it should be OK. After I reorganize the company, I should set back file permissions to bsp:bsp and 660. The reorganizing should take less than few days for the biggest companies (500 GB in Oracle). As root, I should be able to convert some users to RDD, if necessary.<br />
+<br />
+  Francesco had a good idea, I will try to write a script that finds the PID of all active bshells, then runs bshcmd6.1 for each of them, prints out the company. In this way I will know if somebody is using a certain company at a certain moment. <br />
+<br />
+  Maybe the solution to my problem is obvious but I cannot see it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">victor_cleto</div><div class="date">6th March 2002, 12:14</div></div><div class="posttext">I would use a script that would do the following to block users from company xxx:<br />
+<br />
+Create $BSE/lib/user_xxx directory<br />
+Search in $BSE/lib/user for the ufiles of users using company xxx, and for each one of them do:<br />
+- copy itto $BSE/lib/user_xxx (backup)<br />
+- do a chmod 600 on the file (avoid them to change the ufile by converting themselfs to runtime<br />
+- revoke access to company xxx by removing the xxx entry from 'compnr:' (the next company would be the active one)<br />
+Note: if the user has only access to one company, then just remove the ufile (do not allow the user to log in).<br />
+Check with bshcmd6.x if the user is currently logged in, and if yes, send him a message to ask him to loggof/login again (to prevent him to change company and to update his ufile)<br />
+<br />
+Before start any activity, do again a check, and if no message was sent to the users, that means that nobody is working within that company. After the work, you just copy back the files from $BSE/lib/user_xxx to $BSE/lib/user.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Pierre</div><div class="date">6th March 2002, 16:08</div></div><div class="posttext">As an extra security what I would do is;<br />
+Go in the session Assign tables to database and assign all tables of companies 100 to an inexisting database (alternatively you can manually edit the file tabledef6.1).<br />
+Whenever BaaN will try to read the data of this company it will report an error so you can be sure that nobody will ever access the tables of company 100.<br />
+As for the ora_storage, if you are using oracle 7 than you could put the pctincrease to 100 in order to limit fragmentation. If you are using oracle 8i you could use the new functionality to have system management of the extents.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">i96nds</div><div class="date">6th March 2002, 16:32</div></div><div class="posttext">The idea that Pierre had, about tabledef6.1, is really interesting, I did not think about it. I will keep it in mind. It should work, but only for the new connections, since the old ones have the tabledef in memory. This leads to another topic:<br />
+<br />
+ How can I find if the currently logged users are using company 100? I did an attempt with bshcmd6.1, as Francesco suggested, but unfortunately the output is &quot;appended&quot; and not &quot;overwritten&quot; !!! (chech the file $BSE/tmp/bshell.PID after you issue two or three bshcmd6.1 -p commands...)<br />
+<br />
+ The problem with Pierre's idea is that I, as administrator, need to work in this company !!! I need to reorganize it, etc. I think I should use the &quot;-d driver&quot; option for bdbpre6.1 and bdbpost6.1, so that these utilities will not take the information from tabledef6.1. <br />
+<br />
+ What do you think?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Alick Wilson</div><div class="date">16th April 2002, 19:33</div></div><div class="posttext">I am working on the same problem and came up with a similar method to Victor.  This is based on unix and awk!  In essence the problems encountered are:<br />
+<br />
+One problem I had when looking to the non-default company is that the companies are concatenated into one.  So if a user has access to 111 222 and 333 becomes &quot;compauth:111222333&quot; and the command 'grep compauth $USER | grep 112' will find a hit in error (where $USER is the current user file being processed).  I have therefore had to use awk to split the field and then check if valid.  So as not to create backups of backed up files, this script will not run if backed up files currently exist.<br />
+<br />
+As to the $BSE_TEMP file being appended, we delete them prior to the script being ran.  Alternatively save them elsewhere.<br />
+<br />
+Problems still to conquer:<br />
+<br />
+The problem with the bshcmd6.? command is if a user is logged in but not doing any processing, no logging takes place.  In our situation (unlike i96nds) this is not an issue as we manually check all users and ask those in the company to log out.  However, we would like to automate this checking and also post a message.<br />
+<br />
+As to the creating run time, we have not tested the effect of this.  We will have to enforce a process to ensure the various admin people do not use this session.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

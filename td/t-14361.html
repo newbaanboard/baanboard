@@ -1,0 +1,124 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Standard fields to show user who changes records?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Standard fields to show user who changes records? Tools Development" />
+	
+	<title>Standard fields to show user who changes records? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Standard fields to show user who changes records?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">pjohns</div><div class="date">2nd February 2004, 14:11</div></div><div class="posttext">Hello,<br />
+<br />
+Are there any standard fields available in Baan that will show when a record was added or last changed and by which user?<br />
+<br />
+Thanks<br />
+<br />
+PJ</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">2nd February 2004, 14:50</div></div><div class="posttext">You can get this information only via audit files.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tools123</div><div class="date">2nd February 2004, 15:21</div></div><div class="posttext">Depending on the Table / Session used to add/ update the record, you may actually find it under that table or a history table associated with it.<br />
+sometimes custom tables are designed to record this in the background<br />
+<br />
+if these are not present, then audit files are the places to look.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">2nd February 2004, 16:16</div></div><div class="posttext">tdsls050 and tdpur050 are the only tables I've ever used with the user field on it.<br />
+<br />
+Our previous system used to contain a user and date time stamp shown at the bottom of the screen on all static data. Something which the users miss due to the ability to quickly track any problems associated with static data issues to a department.<br />
+<br />
+Now these issues have to be solved via audit which means IT always have to have an involvement.<br />
+<br />
+Cheers<br />
+Neal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pjohns</div><div class="date">2nd February 2004, 17:52</div></div><div class="posttext">...for your comments.<br />
+<br />
+I have found a solution.<br />
+<br />
+In my table I will create some additional fields for 'Record Added' and 'Record Updated' and then have a trigger on the table which will update these fields. The only field I can not have is the one relating to the user as we have one Oracle user to many Baan users.<br />
+<br />
+Thanks again.<br />
+<br />
+Regards<br />
+<br />
+PJ</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tools123</div><div class="date">2nd February 2004, 18:37</div></div><div class="posttext">=========<br />
+The only field I can not have is the one relating to the user as we have one Oracle user to many Baan users.<br />
+=====<br />
+what exactly do you mean by this?<br />
+if you have a new field say 'usrt' or any other name in your table,you can write a simple program to update that field  everytime someone modifies a record.<br />
+the user name is  present in 'logname$' at any time.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nneilitz</div><div class="date">2nd February 2004, 19:44</div></div><div class="posttext">Pjohns is referring to using oracle triggers, all system users within baan generally have the same oracle username (depending on the implementation).  But you can actually get the user id by retrieving the os user.  I attached some samples from triggers we did on purchasing and item master.  The triggers populate new custom tables (I prefer this to adding on to BaaN standard tables, it is a little cleaner).<br />
+<br />
+CREATE OR REPLACE TRIGGER TTDPUR041100_UPDATE<br />
+BEFORE UPDATE ON TTDPUR041100<br />
+FOR EACH ROW<br />
+DECLARE<br />
+  username varchar2(15);<br />
+BEGIN<br />
+select osuser into username from v$session where audsid = (select userenv ('sessionid') from dual);<br />
+IF   :old.T$ITEM &lt;&gt; :new.T$ITEM OR :old.T$OQUA  &lt;&gt; :new.T$OQUA <br />
+   OR :old.T$CWAR &lt;&gt; :new.T$CWAR OR :old.T$PRIC &lt;&gt; :new.T$PRIC OR :old.T$DDTA &lt;&gt; :new.T$DDTA  THEN<br />
+   insert into ttdpur941100 values ( :new.T$ORNO,:new.T$PONO,'UPD' , sysdate,username,:old.T$ITEM,:new.T$ITEM,:old.T$OQUA,:new.T$OQUA,:old.T$CWAR, :new.T$CWAR, :old.T$PRIC,:new.T$PRIC,:old.T$DDTA, :new.T$DDTA,0,0);<br />
+END IF;<br />
+END TTDPUR04100_UDPATE;<br />
+<br />
+CREATE OR REPLACE TRIGGER TTDPUR041100_INSERT<br />
+BEFORE INSERT ON TTDPUR041100<br />
+FOR EACH ROW<br />
+DECLARE<br />
+  username varchar2(15);<br />
+BEGIN<br />
+select osuser into username from v$session where audsid = (select userenv ('sessionid') from dual);<br />
+insert into ttdpur941100 values ( :new.T$ORNO,:new.T$PONO,'ADD' , sysdate,username,:new.T$ITEM,:new.T$ITEM,:new.T$OQUA,:new.T$OQUA,:new.T$CWAR, :new.T$CWAR, :new.T$PRIC,:new.T$PRIC,:new.T$DDTA, :new.T$DDTA,0,0);<br />
+END TTDPUR04100_INSERT;<br />
+<br />
+<br />
+<br />
+CREATE OR REPLACE TRIGGER TTDPUR041100_DELETE<br />
+BEFORE DELETE ON TTDPUR041100<br />
+FOR EACH ROW<br />
+DECLARE<br />
+  username varchar2(15);<br />
+BEGIN<br />
+select osuser into username from v$session where audsid = (select userenv ('sessionid') from dual);<br />
+insert into ttdpur941100 values ( :old.T$ORNO,:old.T$PONO,'DEL' , sysdate,username,:old.T$ITEM,:old.T$ITEM,:old.T$OQUA,:old.T$OQUA,:old.T$CWAR, :old.T$CWAR, :old.T$PRIC,:old.T$PRIC,:old.T$DDTA, :old.T$DDTA,0,0);<br />
+END TTDPUR04100_DELETE;</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pjohns</div><div class="date">3rd February 2004, 11:59</div></div><div class="posttext">Spot on nneilitz!<br />
+<br />
+This is exactly what I want!<br />
+<br />
+Thank you<br />
+<br />
+PJ</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nneilitz</div><div class="date">3rd February 2004, 18:34</div></div><div class="posttext">Notes<br />
+You will need to add access to the V$SESSION table to the standard baan user for this to work.  <br />
+<br />
+The modify function, along with the table definition of the custom audit table will need to be changed according to what fields you want to audit changes (in our case we are only auditing 3).   In any case the field order must match the custom table. (in this case tdpur941)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

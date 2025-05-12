@@ -1,0 +1,121 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Switch to Company in AFS does not work, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Switch to Company in AFS does not work AFS/DDC/OLE: Function servers" />
+	
+	<title>Switch to Company in AFS does not work [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Switch to Company in AFS does not work</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Babu Nagarajan</div><div class="date">19th July 2016, 14:13</div></div><div class="posttext">Hi Friends,<br />
+<br />
+We are using Inter company transactions to make purchase and sales transactions between sister companies.<br />
+<br />
+My parent company is 10 where I create an AR batch and sister company is 20 where I create an AP batch.<br />
+<br />
+I have written a AFS script to do the process<br />
+<br />
+I dont have problem in creating AP batch and transactions.<br />
+<br />
+While creating the AP Batch I use switch.to.company(Child.company) before inserting the Data in the session tfgld1101m000. Subsequently I do the stpapi.handle.subproc() to insert the transaction data in tfacp1110s000. Then I do an stpapi.end.session() and then I do the switch.to.company(Parent.company).<br />
+<br />
+Till here everything is fine. Now when my next AP batch is to be created in company 55 (another child company), again the AR batch and transaction is properly created in company 10 but when I do switch.to.company(child.company), the new AP batch is still getting created in company 20. On the back end the session tfgld1101m000 is not coming out of the previous process.<br />
+<br />
+Is there anyone who came across the same kind of situation. I need to be able to switch companies using stpapi. I am attaching the sample code.<br />
+<br />
+It will be really helpful if I can find a help. <br />
+<br />
+Thanks<br />
+Babu<br />
+<br />
+switch.to.company(sister.company)<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;tedt.f&quot;,str$(invoice.date))<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;tfgld101.year&quot;,str$(year.f))<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;bref.f&quot;,str$(&quot;Markup&quot;))<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;fprd.f&quot;,str$(prno.f))<br />
+	retval = stpapi.change.view(&quot;tfgld1101m000&quot;,errm)<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;tfgld101.ttyp&quot;,str$(tfgld503.ttyp))<br />
+	retval = stpapi.insert(&quot;tfgld1101m000&quot;,true,errm)<br />
+	stpapi.get.field(&quot;tfgld1101m000&quot;,&quot;tfgld101.btno&quot;,btno)<br />
+<br />
+	retval = stpapi.mark(&quot;tfgld1101m000&quot;,errm)<br />
+	stpapi.handle.subproc(&quot;tfgld1101m000&quot;,&quot;tfacp1110s000&quot;,&quot;add&quot;)<br />
+	stpapi.continue.process(&quot;tfgld1101m000&quot;,errm)<br />
+<br />
+<br />
+|	tfgld501.famt = 1000<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;,&quot;tfacp200.suno&quot;,str$(tfgld503.suno))<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;,&quot;tfacp200.docd&quot;,str$(invoice.date))<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;,&quot;screen.amnt&quot;,str$(tfgld501.famt))<br />
+	isup = str$(tfgld501.tran)&amp;&quot;/&quot;&amp;str$(tfgld501.idoc)<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;,&quot;tfacp200.isup&quot;,str$(isup))<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;,&quot;tfacp200.refr&quot;,str$(&quot;Markup&quot;))<br />
+	stpapi.handle.subproc(&quot;tfacp1110s000&quot;,&quot;tfacp1120s000&quot;,&quot;add&quot;)<br />
+	retval = stpapi.insert(&quot;tfacp1110s000&quot;,true,errm)<br />
+	stpapi.save(&quot;tfacr4100m000&quot;,errm)<br />
+	enter.purchase.invoice.transaction()<br />
+	stpapi.get.field(&quot;tfacp1110s000&quot;,&quot;tfacp200.ttyp&quot;,ap_ttyp)<br />
+	stpapi.get.field(&quot;tfacp1110s000&quot;,&quot;tfacp200.ninv&quot;,ap_ninv)<br />
+	stpapi.end.session(&quot;tfacp1110s000&quot;)<br />
+	stpapi.end.session(&quot;tfacp1101m000&quot;)<br />
+	<br />
+endselect<br />
+}<br />
+<br />
+function enter.purchase.invoice.transaction()<br />
+{<br />
+<br />
+select	tfgld501.*<br />
+from	tfgld501<br />
+where	tfgld501._compnr = :ncmp<br />
+and	tfgld501._index1 = {:tfgld500.cuno}<br />
+and	tfgld501.tran = :ttyp<br />
+and	tfgld501.idoc = :ninv2<br />
+selectdo<br />
+	stpapi.put.field(&quot;tfacp1120s000&quot;,&quot;tfgld102.leac&quot;,str$(tfgld503.muas))<br />
+	stpapi.put.field(&quot;tfacp1120s000&quot;,&quot;tfgld102.dim1&quot;,str$(tfgld501.dimx))<br />
+	stpapi.put.field(&quot;tfacp1120s000&quot;,&quot;amount&quot;,str$(tfgld501.famt))<br />
+	retval = stpapi.insert(&quot;tfacp1120s000&quot;,true,errm)<br />
+endselect<br />
+	stpapi.end.session(&quot;tfacp1120s000&quot;)<br />
+	switch.to.company(parent.company)<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">19th July 2016, 14:36</div></div><div class="posttext">You can search this forum, but a quick search turned up this http://www.baanboard.com/baanboard/showthread.php?t=22982&amp;highlight=switch.to.company here.  What I don't see in your code is closing all of the sessions in the process.  Are you making sure everything is closed including the tfgld1101m000?  This is where if you notice in the link that it looks like it might not support multiple company switches - I do not know that for sure, never done it myself.<br />
+<br />
+The other thing the link made me thing of is putting the transactions creations inside separate sessions - kind of like:<br />
+Switch.to.company(parent.company)<br />
+zoom.to.session(...put new session herewhat you need here...)<br />
+switch.to.company(child.company)<br />
+zoom.to.session(....put new session here to create what is needed)<br />
+<br />
+I was thinking that by zooming and closing a session it might clear up anything that is being cached in memory while running thru the process.  Not sure it will work, but might be worth a shot.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Babu Nagarajan</div><div class="date">20th July 2016, 08:00</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Thank you very much for pointing out the mistake. I have made a mistake in the stpapi.end.session(&quot;tfacp1101m000&quot;). It should be stpapi.end.session(&quot;tfgld1101m000&quot;). It is working fine now.<br />
+<br />
+Thanks<br />
+Regards<br />
+Babu Nagarajan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th July 2016, 15:43</div></div><div class="posttext">That is really good to hear.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

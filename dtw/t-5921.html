@@ -1,0 +1,242 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Inventory valuation in Baan 1Vc4, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Inventory valuation in Baan 1Vc4 Distribution, Transportation &amp; Warehousing" />
+	
+	<title>Inventory valuation in Baan 1Vc4 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Distribution, Transportation &amp; Warehousing</a> &gt; Inventory valuation in Baan 1Vc4</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">BaanRal</div><div class="date">23rd July 2002, 20:40</div></div><div class="posttext">Does any one has logic of how baan calculates inventory valuation. We are looking at table tdilc101 to get the inventory as on today. But the baan standard report tdinv6230m000 gives a different value than in the table tdilc101.<br />
+<br />
+Appreciate if any one can explain the difference.<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">23rd July 2002, 21:48</div></div><div class="posttext">There are different methods of looking at the value of your warehouse. I believe that Baan IV offered standard and actual value, and lot value was introduced in Baan V.<br />
+<br />
+It all depends on what you have chosen for your valuation method.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanRal</div><div class="date">23rd July 2002, 22:13</div></div><div class="posttext">The value on hand inventory in tdilc101 shows as 29 for an item but the standard report tdinv6230m000 gives the onhand as 19 !!<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">PV Ramone</div><div class="date">24th July 2002, 14:12</div></div><div class="posttext">please check all inventory tables for this item:<br />
+tiitm001<br />
+tdinv001<br />
+tdilc101<br />
+tdltc001<br />
+<br />
+the total inventory should match in all of them. (29 or 19 in your case).<br />
+<br />
+I believe the inventory valuation report is looking into the tdinv001 table. The difference with the 2 reports is that one is adding up the inventory from all warehouses and the other one isn't.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">amarpreet</div><div class="date">25th July 2002, 11:28</div></div><div class="posttext">Or you can check inventory in all the tables by running session tdinv0252m000. <br />
+<br />
+Please ensure that all the users are logged out from BaaN &amp; run this session first with &quot;UPDATE NO&quot;. You take a print of all the error reports, compare these with tdinv7410m000 (or table tdinv700). If you think that there is really an error in different tables then update &quot;YES&quot;.<br />
+<br />
+Be carefull all the users must logged out while running this session.<br />
+<br />
+Best of Luck<br />
+<br />
+Amarpreet..</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">benito</div><div class="date">25th July 2002, 19:13</div></div><div class="posttext">I have looked at this a few months ago. From what I've found, if the date is current it looks at the on hand qty at tiitm001. If not, then it looks at tdinv700. I'm in IVc2 though. <br />
+<br />
+This is the small script i wrote to check the item calculated by adding/subtracting transactions in tdinv700 vs. tiitm001 table vs. Warehouse Quantity tdinv001.<br />
+<br />
+<br />
+|****************************************************************************** <br />
+|* tiitm9409  0  VRC B40p c2 prod <br />
+|* Print Items Transactions vs Warehouse Qty<br />
+|* benito                  <br />
+|* 2001-11-07<br />
+|****************************************************************************** <br />
+|* Main table tdinv001 Items per Warehouse, Form Type 4 <br />
+|****************************************************************************** <br />
+                                                                                 <br />
+|****************************** declaration section *************************** <br />
+declaration:<br />
+  	table	ttiitm001		| Items<br />
+ 	table	ttdinv001		| Items by Warehouse Groups<br />
+	table	ttccom001		| Employees<br />
+	table	ttdinv700		| Inventory Transactions by Item<br />
+<br />
+  	extern	domain	tcitem        	item.f<br />
+ 	extern	domain	tcitem        	item.t	<br />
+	extern	domain	tcqiv1		stoc<br />
+	extern	domain	tcqiv1		ordr<br />
+	extern	domain	tcqiv1		allo<br />
+	extern	domain	tcqiv1		difs,	difo, difa<br />
+	extern	domain	tcmcs.long		flag<br />
+	extern	domain	tcemno		emno<br />
+	extern	domain	tcqiv1		item.stoc<br />
+	extern	domain	tgyenox		dif.only<br />
+	extern	domain	tcqiv1		difx, dify<br />
+    <br />
+		domain	tcmcs.long	stoc.date<br />
+<br />
+|****************************** form section **********************************  <br />
+form.1: <br />
+init.form:<br />
+ 	get.screen.defaults()  <br />
+	stoc.date = date.num()<br />
+<br />
+|****************************** choice section ********************************  <br />
+choice.cont.process: <br />
+on.choice:<br />
+ 	execute(print.data)<br />
+  <br />
+choice.print.data: <br />
+on.choice:<br />
+ 	if rprt_open() then<br />
+		if dif.only &lt;&gt; tgyenox.yes then<br />
+ 			read.main.table()<br />
+		else<br />
+			read.main.table.dif()<br />
+		endif<br />
+ 		rprt_close()<br />
+ 	else <br />
+		choice.again()<br />
+ 	endif   <br />
+<br />
+|****************************** field section *********************************  <br />
+field.item.f: <br />
+when.field.changes:<br />
+ 	item.t = item.f<br />
+<br />
+|****************************** function section ******************************  <br />
+functions:  <br />
+<br />
+function read.main.table.dif() <br />
+{<br />
+ 	select	tiitm001.*<br />
+ 	from		tiitm001<br />
+ 	where   tiitm001._index1 inrange {:item.f} and {:item.t}<br />
+	order by tiitm001._index1 <br />
+	selectdo<br />
+<br />
+		if tiitm001.buyr &lt;&gt; 0 then<br />
+			emno = tiitm001.buyr<br />
+		else<br />
+			emno = tiitm001.cplb<br />
+		endif<br />
+<br />
+		select tccom001.nama<br />
+		from	tccom001<br />
+		where tccom001.emno = :emno<br />
+		selectdo<br />
+		selectempty<br />
+			tccom001.nama = &quot;*****&quot;<br />
+		endselect <br />
+	<br />
+		stoc = 0.0<br />
+		ordr = 0.0<br />
+		allo = 0.0<br />
+<br />
+ 	 	select tdinv001.*<br />
+ 		from	tdinv001<br />
+ 		where tdinv001._index2 = {:tiitm001.item}<br />
+		selectdo<br />
+			stoc = stoc + tdinv001.stoc<br />
+			ordr = ordr + tdinv001.ordr<br />
+			allo = allo + tdinv001.allo<br />
+ 		endselect <br />
+		determine.item.stock.level()<br />
+		difx = tiitm001.stoc - stoc<br />
+		dify = stoc - item.stoc<br />
+		if	(difx &lt;&gt; 0 or dify &lt;&gt; 0) then<br />
+			rprt_send()<br />
+		endif<br />
+	selectempty<br />
+ 	endselect <br />
+}<br />
+<br />
+<br />
+function read.main.table() <br />
+{<br />
+ 	select	tiitm001.*<br />
+ 	from		tiitm001<br />
+ 	where   tiitm001._index1 inrange {:item.f} and {:item.t}<br />
+	order by tiitm001._index1 <br />
+	selectdo<br />
+<br />
+		if tiitm001.buyr &lt;&gt; 0 then<br />
+			emno = tiitm001.buyr<br />
+		else<br />
+			emno = tiitm001.cplb<br />
+		endif<br />
+<br />
+		select tccom001.nama<br />
+		from	tccom001<br />
+		where tccom001.emno = :emno<br />
+		selectdo<br />
+		selectempty<br />
+			tccom001.nama = &quot;*****&quot;<br />
+		endselect <br />
+	<br />
+		stoc = 0.0<br />
+		ordr = 0.0<br />
+		allo = 0.0<br />
+<br />
+ 	 	select tdinv001.*<br />
+ 		from	tdinv001<br />
+ 		where tdinv001._index2 = {:tiitm001.item}<br />
+		selectdo<br />
+			stoc = stoc + tdinv001.stoc<br />
+			ordr = ordr + tdinv001.ordr<br />
+			allo = allo + tdinv001.allo<br />
+ 		endselect <br />
+		determine.item.stock.level()<br />
+		difx = tiitm001.stoc - stoc<br />
+		dify = stoc - item.stoc<br />
+		rprt_send()<br />
+	selectempty<br />
+ 	endselect <br />
+}<br />
+<br />
+function determine.item.stock.level() <br />
+{ <br />
+	item.stoc = 0<br />
+<br />
+	select tdinv700.* <br />
+	from tdinv700 <br />
+	where tdinv700._index1 = {:tiitm001.item} <br />
+	and tdinv700.trdt &lt;= :stoc.date <br />
+	selectdo <br />
+		if tdinv700.kost = tckost.stc.correction or <br />
+			( tdinv700.kost = tckost.stc.transfer and <br />
+			tdinv700.koor &lt;&gt; tckoor.act.sls and <br />
+			tdinv700.koor &lt;&gt; tckoor.sma.order ) or <br />
+			tdinv700.kost = tckost.pur.receipt or <br />
+			tdinv700.kost = tckost.prd.receipt or <br />
+			tdinv700.kost = tckost.rpl.receipt then <br />
+			item.stoc = item.stoc + tdinv700.quan <br />
+		else <br />
+			item.stoc = item.stoc - tdinv700.quan <br />
+		endif <br />
+	endselect <br />
+} <br />
+<br />
+<br />
+|************************* END OF SCRIPT ***************************</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

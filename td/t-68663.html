@@ -1,0 +1,132 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Error in query with concatenation, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Error in query with concatenation Tools Development" />
+	
+	<title>Error in query with concatenation [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Error in query with concatenation</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Ciesiel</div><div class="date">23rd February 2016, 10:16</div></div><div class="posttext">I would like to write the query:<br />
+select dmcom010.srid (38, 4): o_emp_grp from dmcom010, tfacp100<br />
+^ Where dmcom010.fmid = 'FATT_DOC_REV'<br />
+^ And dmcom010.trid = '{' &amp; tfacp100.ninv &amp; '}'<br />
+<br />
+where for example. tfacp100.ninv = 529 and dmcom010.trid = {529}<br />
+I got an error. When I use &quot;{529}&quot; instead of variable everything works<br />
+<br />
+Concat $ also does not work<br />
+<br />
+Can anyone help me?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">24th February 2016, 07:57</div></div><div class="posttext">Hi,<br />
+<br />
+You need to use something like this in your 4GL script.- <br />
+<br />
+domain dmcom.lnkd temp.trid<br />
+<br />
+select tfacp200.ninv<br />
+from tfacp200<br />
+selectdo<br />
+       temp.trid = &quot;{&quot; &amp; str$(tfacp200.ninv) &amp; &quot;}&quot;<br />
+       select dmcom010.*<br />
+       from dmcom010<br />
+       where dmcom010._index1 = &quot;FATT_DOC_REV&quot;<br />
+       and dmcom010.trid = :temp.trid<br />
+       selectdo<br />
+<br />
+          |**** Print or process the record<br />
+       endselect<br />
+endselect<br />
+<br />
+It won't be possible to do it in a query directly. For that, you can select dmcom010 records and in your report script you can handle the printing.<br />
+<br />
+e.g.<br />
+<br />
+Main query -<br />
+<br />
+select dmcom010.*<br />
+from dmcom010<br />
+where dmcom010._index1 = &quot;FATT_DOC_REV&quot;<br />
+<br />
+<br />
+And in your report script you can write this -<br />
+<br />
+<br />
+<br />
+declaration:<br />
+          table ttfacp200<br />
+          domain tfgld.docn docn<br />
+detail.1:<br />
+before.layout:<br />
+<br />
+<br />
+<br />
+lattr.print = false<br />
+string.scan(dmcom010.trid,&quot;{%d}&quot;,docn)<br />
+select tfacp200.*<br />
+from tfacp200<br />
+where tfacp200.ninv = {:docn}<br />
+selectdo<br />
+        lattr.print = false<br />
+endselect<br />
+<br />
+<br />
+Though its not a good idea to compare directly with the document number as it may repeat for different transaction types.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">24th February 2016, 18:42</div></div><div class="posttext">Where do you want or intend to write it? SQL Queries or in 4 GL script or Report Script?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ciesiel</div><div class="date">26th February 2016, 12:12</div></div><div class="posttext">Thank you bhushanchanda. <br />
+Ajesh I write in 4GL.<br />
+<br />
+I wrote: <br />
+select tglpl200.wdoc <br />
+from tglpl200,tglpl100,dmcom010 <br />
+where  tglpl200.wdoc=tglpl100.wdoc<br />
+and tglpl100.obid=dmcom010.trid<br />
+and tglpl200.ninv = tfacp100.ninv - in this table,Idont need to use to connect { with ninv.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">29th February 2016, 09:11</div></div><div class="posttext">If dmcom010.trid and tfacp100.ninv do not belong to same domain they cannot be compared,Looks like the domain of tfacp100.ninv is long and dmcom010.trid is string.<br />
+<br />
+tfacp100.ninv needs to be converted to string and then compared.<br />
+<br />
+<br />
+<br />
+string hold.ninv<br />
+<br />
+select tfacp200.ninv<br />
+from tfacp200<br />
+where tfacp200._index1 = {:hold.val1,:hold.val2}  |tfacp200 record is |selected first according to the selection criteria<br />
+selectdo<br />
+             hold.ninv = '{' &amp; strip$(str$(tfacp200.ninv)) &amp; '}'<br />
+            select dmcom010.srid(38,4):o_emp_grp<br />
+             from dmcom010<br />
+             where dmcom010.fmid = 'FATT_DOC_REV'<br />
+             and dmcom010.trid = :hold.ninv<br />
+             selectdo<br />
+                                |The actions which you need to do<br />
+             endselect<br />
+endselect<br />
+<br />
+<br />
+<br />
+In the second example, looks like both the fields belong to the same domain.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

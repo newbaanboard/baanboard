@@ -1,0 +1,296 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Oracle select for Baan NULL dates in where clause, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Oracle select for Baan NULL dates in where clause Operating Systems &amp; Databases" />
+	
+	<title>Oracle select for Baan NULL dates in where clause [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Oracle select for Baan NULL dates in where clause</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jroberts</div><div class="date">31st October 2003, 19:52</div></div><div class="posttext">Hello,<br />
+When using Oracle SQL against a Baan table with NULL dates, I am having problems selecting on the NULL dates.<br />
+<br />
+The example I am working with is the tibom010 table (bill of material) and the field is exdt (expiry date).<br />
+<br />
+Oracle displays the dates as :<br />
+<br />
+T$MITM           T$SITM           T$EXDT              <br />
+---------------- ---------------- --------------------<br />
+A4400            43700            00-000-00  <br />
+<br />
+<br />
+But when I try to include the expiry date field in my where clause, such as:<br />
+<br />
+<br />
+select t$mitm, t$sitm, t$exdt<br />
+from baandb.ttibom010200<br />
+where t$exdt = '00-000-00'<br />
+<br />
+<br />
+Oracle returns the following error<br />
+<br />
+T$MITM           T$SITM           T$EXDT              <br />
+---------------- ---------------- --------------------<br />
+ORA-01847: day of month must be between 1 and last day of month<br />
+<br />
+<br />
+I can work around the problem by using a where clause like<br />
+where t$exdt &lt; '01-JAN-72' but that is not very elegant.<br />
+<br />
+Any suggestions ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">1st November 2003, 08:15</div></div><div class="posttext">Baan stores dates as long . So empty date means 0 .<br />
+<br />
+So can write ur SQL as <br />
+<br />
+<br />
+select t$mitm, t$sitm, t$exdt<br />
+from baandb.ttibom010200<br />
+where t$exdt = 0</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gguymer</div><div class="date">3rd November 2003, 16:35</div></div><div class="posttext">In your db_resource file, if ora_date is set to 0 (zero is the default if ora_date is not specified), then the Baan NULL date value is 01/01/-9999. If ora_date is set to 1, then the Baan NULL date value is 01/01/-4712. Oracle does not support the use of the value 01/01/-9999 in SQL statements, but does support the value 01/01/-4712. So if you will try using the following, it should work for you.<br />
+<br />
+select t$mitm, t$sitm, t$exdt<br />
+from baandb.ttibom010200<br />
+where t$exdt &lt;= to_date('01/01/-4712','MM/DD/SYYYY')<br />
+<br />
+<br />
+Gilbert Guymer<br />
+Database Administrator<br />
+Lufkin Industries, Inc.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jroberts</div><div class="date">3rd November 2003, 16:47</div></div><div class="posttext">Thanks Gilbert,<br />
+This has been bugging me for a while, so it is really nice to know the correct way of using the NULL date in the where clause,<br />
+<br />
+Thanks again,<br />
+John</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">4th November 2003, 16:27</div></div><div class="posttext">All Baan columns have a NOT NULL constraint so your query should not give any results. Baan is filling all columns with a value, even when it look likes if you have an empty field from enduser perspective.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Gert Verheyen</div><div class="date">17th June 2004, 12:47</div></div><div class="posttext">Hi,<br />
+<br />
+This might be a workable sollution for you:<br />
+<br />
+We are using Triton 3.1 with Oracle V7.3.4.5.0.<br />
+<br />
+Our current default 0 date is also 01-JAN-99 before christ.<br />
+<br />
+<br />
+We have an oracle-package function that returns the current 0 date:<br />
+That might help you, but does not replace/solve the issue. It is a work arround<br />
+to get some oracle sql statements running outside of Triton.<br />
+I do appologize for the dutch text in here.<br />
+If you need more info, just aks.<br />
+<br />
+-- f_def_date<br />
+--    doel : teruggeven van een dataveld met de 'default triton-date'<br />
+--<br />
+--    geen argumenten<br />
+--<br />
+--    resultaat : date 1/jan/9999 00h00min00s voor christus<br />
+--<br />
+--    voorbeeld  : update ...<br />
+--                    set t$.... = ster.f_def_date<br />
+--                  where ...<br />
+--<br />
+--                 select ...<br />
+--                   from ...<br />
+--                  where t$.... = ster.f_def_date<br />
+--<br />
+--    rev 1 pvb 7/9/98<br />
+--              na upgrade van oracle 7.3.2.1 naar 7.3.4.0.0<br />
+--               verscheen een ora-01841 fout<br />
+--               (datums voor 1/1/4713 voor christus niet geldig)<br />
+--              Oracle Belgie omschreef dit als een 'opgeloste bug'<br />
+--               (lognummer 147683) - het had dus nooit mogen werken<br />
+--              workaround : tabel dummy_date met 1 veld v_date<br />
+--                            en 1 rij welke de triton default bevat<br />
+--              de terug-te-geven waarde wordt uit deze hulptabel opgehaald<br />
+--               ipv via een to_date functie<br />
+--<br />
+--<br />
+--    rev 2 pvb 22/4/99<br />
+--              default mask van f_nvl_date datum op RR ipv YY gezet<br />
+--<br />
+--      rev 3 gerhey 17 may 2000: extra fie: get unix username for current user<br />
+--<br />
+--<br />
+-- f_nvl_date<br />
+--    doel : vervangt waarde van een datum veld door een opgegeven waarde<br />
+--           als dit datum veld de triton-default heeft (01-jan-9999 bc)<br />
+--             anders wordt originele datum teruggegeven<br />
+--           (cfr de nvl functie voor null-velden)<br />
+--<br />
+--    argumenten<br />
+--       - datum veld<br />
+--       - een datum als char met default oracle date formaat ('dd-mon-yy')<br />
+--       - optioneel een geldige datum-format-mask<br />
+--             (dit mask wordt indien aanwezig op vorig argument toegepast)<br />
+--<br />
+--    resultaat<br />
+--       - een datum<br />
+--<br />
+--    voorbeeld : select ...<br />
+--                  from ...<br />
+--                 where ster.f_nvl_date(t$.... , '01-jan-97') = ...<br />
+--<br />
+--                select ...<br />
+--                  from ...<br />
+--                 where ster.f_nvl_date(t$.... , '01-jan-2000','dd-mon-yyyy')=.<br />
+--<br />
+--<br />
+<br />
+<br />
+create or replace package triton.ster as<br />
+<br />
+ function f_def_date<br />
+  return date;<br />
+<br />
+ function f_nvl_date<br />
+  (p_date   in date,<br />
+   p_nvl    in char,<br />
+   p_mask   in char default 'DD-MON-RR')<br />
+  return date;<br />
+<br />
+ function f_get_osuser<br />
+  return varchar2;<br />
+<br />
+ -- pragma's nodig om functies binnen sql te kunnen gebruiken<br />
+<br />
+ pragma restrict_references (f_def_date  , WNDS, WNPS);<br />
+ pragma restrict_references (f_nvl_date  , WNDS, WNPS);<br />
+ pragma restrict_references (f_get_osuser, WNDS, WNPS);<br />
+ pragma restrict_references (ster        , WNDS, WNPS);<br />
+<br />
+ end ster;<br />
+/<br />
+<br />
+sho errors<br />
+<br />
+create or replace package body triton.ster as<br />
+<br />
+v_def_date date;<br />
+<br />
+cursor c_date is<br />
+       select v_date<br />
+         from dummy_date;<br />
+<br />
+function f_def_date<br />
+ return date<br />
+is<br />
+begin<br />
+ return v_def_date;<br />
+end;<br />
+<br />
+function f_nvl_date<br />
+ (p_date   in date,<br />
+  p_nvl    in char,<br />
+  p_mask   in char)<br />
+ return date<br />
+is<br />
+begin<br />
+if p_date = v_def_date then<br />
+   return to_date(p_nvl,p_mask);<br />
+else<br />
+   return p_date;<br />
+end if;<br />
+end f_nvl_date;<br />
+<br />
+function f_get_osuser<br />
+ return varchar2<br />
+is<br />
+         osuser v$session.osuser%type;<br />
+begin<br />
+        select osuser into osuser<br />
+        from v$session<br />
+        where audsid=(select userenv('sessionid') from dual);<br />
+<br />
+ return osuser;<br />
+end f_get_osuser;<br />
+<br />
+-- initialisatie van de package<br />
+<br />
+begin<br />
+  open c_date;<br />
+  fetch c_date into v_def_date;<br />
+  close c_date;<br />
+  --<br />
+  -- onderstaande statements werken dus niet meer in 7.3.4<br />
+  --<br />
+  -- v_def_date :=<br />
+  --     to_date('01-jan-9999 bc 00:00:00','dd-mon-yyyy bc hh24:mi:ss');<br />
+end ster;<br />
+<br />
+/<br />
+<br />
+sho errors<br />
+<br />
+create public synonym ster for triton.ster;<br />
+<br />
+grant execute on triton.ster to public;<br />
+<br />
+-------------------------------------------------<br />
+The table dummy date looks as follows:<br />
+SQL&gt; desc dummy_date<br />
+ Name                            Null?    Type<br />
+ ------------------------------- -------- ----<br />
+ V_DATE                                   DATE<br />
+<br />
+SQL&gt; select * from dummy_date;<br />
+<br />
+V_DATE<br />
+---------<br />
+01-JAN-99<br />
+<br />
+<br />
+To get that table created, use an sql statement, that get's the date from any triton table with the 0 date in it.<br />
+(e.g. create table dummy_date as (select t$ddta from ttdsls041333 where ...)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nelsonR</div><div class="date">18th June 2004, 17:56</div></div><div class="posttext">Below is a test is did in Oracle 9.2<br />
+<br />
+Oracle9i Enterprise Edition Release 9.2.0.4.0 - Production<br />
+With the Partitioning, Real Application Clusters, OLAP and Oracle Data Mining options<br />
+JServer Release 9.2.0.4.0 - Production<br />
+<br />
+SQL&gt; select t$cont,t$item,t$pref from baandb.ttdssc001300 where t$pref=0;<br />
+select t$cont,t$item,t$pref from baandb.ttdssc001300 where t$pref=0<br />
+                                                                 *<br />
+ERROR at line 1:<br />
+ORA-00932: inconsistent datatypes: expected DATE got NUMBER<br />
+<br />
+<br />
+  1* select t$cont,t$item,t$pref from baandb.ttdssc001300 where t$pref=to_date('01/01/-4712','MM/DD/SYYYY')<br />
+<br />
+no rows selected<br />
+<br />
+  1* select t$cont,t$item,t$pref from baandb.ttdssc001300 where to_char(t$pref,'YYYYMMDD')='00000000'<br />
+<br />
+1873 rows selected.<br />
+SQL&gt; <br />
+<br />
+<br />
+Roy</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

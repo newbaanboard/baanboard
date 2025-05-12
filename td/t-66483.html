@@ -1,0 +1,205 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Ascertain if a table record is locked when read, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Ascertain if a table record is locked when read Tools Development" />
+	
+	<title>Ascertain if a table record is locked when read [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Ascertain if a table record is locked when read</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">4th June 2014, 11:32</div></div><div class="posttext">When reading a table record that has been created by another process, but that has perhaps not yet been committed by that process, I want to be able to determine whether the record is available for update / deletion at the point of reading it.  Does anyone know a method of doing this?<br />
+<br />
+Scenario:<br />
+- Process A creates a record in a Baan table, then moves on to create other records, but has not yet committed the entries.<br />
+- Process B is a continuous process that is running concurrently and reads the record that has been created by process A (but not yet committed).  Currently, process B creates an output file from the record it has read, then attempts to delete the record from the table (generating a retry and, ultimately, a fatal error).<br />
+I want to be able to identify, at the point of reading the record in process B, that it is not yet available to delete and skip it until the next cycle.<br />
+<br />
+Any thoughts, anyone?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">4th June 2014, 12:58</div></div><div class="posttext">OK, I have worked around this by making the following change to process B:<br />
+After reading the record without update,<br />
+1) Set a start time<br />
+2) Set a retry point<br />
+3) Set a finish time<br />
+4) Compare start and finish time and if &gt; 2 seconds have elapsed, abort the transaction and skip the read of this record (indicates a retry)<br />
+5) Read the record for update<br />
+6) Back up the contents of a field value<br />
+7) Change the field value<br />
+8) Commit the change (if this fails, it will return to 2, above)<br />
+9) If the commit was successful, restore the field value from backup and proceed to process the record<br />
+<br />
+This works, but if there is a better method that anyone can think of, then I would be interested to hear from you!<br />
+<br />
+Andy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">4th June 2014, 14:42</div></div><div class="posttext">Hi,<br />
+<br />
+I guess setting the time will not help and could cause issues. DB operations are rather fast and you dont have a time stamp for separating the interval.<br />
+<br />
+I will go with a flag setting way. You can hold old values in temp variables after commit you can check if the commit is done or not. <br />
+<br />
+Btw, I am still not sure about what you are looking for. If you can post your code snippet, that will help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">4th June 2014, 20:15</div></div><div class="posttext">There a couple ways you can handle this.  The easiest would be to modify your db.update (if using 'db' instead of DAL) to trap errors instead of going to the retry point.  This way, you can gracefully handle the ELOCKED (record locked) or EFLOCKED (file locked) situations by disregarding the line until the next run that it becomes available.<br />
+<br />
+<br />
+reterr = db.update(ttableid, db.retry, db.return.error)<br />
+if (reterr = ELOCKED or reterr = EFLOCKED) then<br />
+    | do nothing, wait until next update<br />
+else<br />
+    | handle other type of error yourself<br />
+endif<br />
+<br />
+<br />
+<br />
+<br />
+You might be able to check for the lock ahead of time using db.check.row.dlocked:<br />
+<br />
+<br />
+      | tableid is a table with two fields in the primary index.<br />
+      | fill all index fields<br />
+tableid.field1 = ...<br />
+tableid.field2 = ...<br />
+if (db.check.row.dlocked(ttableid) = 0) then<br />
+     | record is not locked, fill fields and update<br />
+else<br />
+     | record is locked, wait until next run - dlock &gt; 0 is locked, &lt; 0  is error.<br />
+endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th June 2014, 22:00</div></div><div class="posttext">Okay - did I miss something or am I not understanding something.  I see this statement - &quot;When reading a table record that has been created by another process, but that has perhaps not yet been committed by that process&quot;  - if the record has not been committed then another process would not be able to read it.  So in your exampe - until process A commits the record process B would not be able to read it.  As far as I know that is how Oracle works - is informix different?<br />
+<br />
+PS - I use application locks for records on tables that I do not want to be messed with.  Those are easy to set and release.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">5th June 2014, 11:04</div></div><div class="posttext">Re: Setting a flag at db.delete / db.update:<br />
+Thanks bhushanchanda &amp; BaanInOhio, but by the time the program reaches this point, it has already created O/S file entries and I want to prevent it from doing so in the first place, if it is not available for update.<br />
+<br />
+Re: db.check.row.dlocked:<br />
+Thanks BaanInOhio - I wasn't aware of this function and it's not in the manuals I have seen.  It seems like the perfect solution, but doesn't seem to work for me.  I'm handling a bespoke table tried this:<br />
+ecedi904.pmno = i.pmno (Assigns single-field primary key)<br />
+tableid_ecedi904 = db.bind(&quot;tecedi904&quot;) (Creates pointer successfully)<br />
+if (db.check.row.dlocked(tableid_ecedi904) = 0) then	(Zero is returned here, even though this record is locked by the other process)<br />
+Any ideas? (In this scenario, the Baan version is Vb - do you know whether this function is compatible?)<br />
+<br />
+Mark_h:<br />
+Thanks for your thoughts.  Process A in my scenario is creating multiple records in a bespoke table and commits at the end.  As it is processing and before the commit point, the records are available to read - in fact these can be viewed via ttaad4500 before commit.  (If the process were to be deliberately terminated without committing, for example, then the records are not written and are no longer visible - this is the same for all Baan tables during update operations on AS400 / DB2.)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">5th June 2014, 11:05</div></div><div class="posttext">Process A in my scenario is creating multiple records in a bespoke table and commits at the end. As it is processing and before the commit point, the records are available to read - in fact these can be viewed via ttaad4500 before commit. (If the process were to be deliberately terminated without committing, for example, then the records are not written and are no longer visible - this is the same for all Baan tables during update operations on AS400 / DB2.)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th June 2014, 15:48</div></div><div class="posttext">I never knew that about AS400/DB2.<br />
+<br />
+How many records are being written before being committed?  If it is not a lot of records then process A could set an application lock when it writes the record.  Then it could remove the application when it does the commit.  Process b could read the record, check for application lock, if it exists skip the record.<br />
+<br />
+Now if it is writing 1000's of records this would probably not be a good solution.  And there is probably something better.  I know what bhushan an baaninohio recommended should work.   I only used something like it once, but I think I just skipped any error - the next run would pick up the record.  Can't seem to find that code.<br />
+<br />
+I found some old code a contractor wrote on our system - not sure if it helps or would even work in your case.  Basically it looks like he tried to lock the record - if it was already locked it could not be updated.<br />
+<br />
+	select	tdpur041.orno, tdpur041.pono<br />
+	from	tdpur041<br />
+	where	tdpur041.orno = :tdpur040.orno<br />
+	selectdo<br />
+		save.error.bypass = error.bypass<br />
+		error.bypass = 2<br />
+		retry.count  = 0  <br />
+		db.eq(ttdpur041,db.delayed.lock)	<br />
+		while db.error(ttdpur041) = ELOCKED  <br />
+			if retry.count &lt; 10 then <br />
+				mess(&quot;tibom11106&quot;,0, tdpur041.orno, <br />
+				      tdpur041.pono, retry.count)<br />
+				| Record of positon %d/%d is locked; Retried<br />
+				| for %d  sec. <br />
+				retry.count = retry.count + 1<br />
+				suspend (1000) | 1 seconds<br />
+				db.eq(ttdpur041,db.delayed.lock) <br />
+			else <br />
+				clean.mess() <br />
+				lines.locked = true<br />
+				return <br />
+			endif <br />
+		endwhile <br />
+		error.bypass = save.error.bypass<br />
+		if retry.count &lt;&gt; 0 then<br />
+			clean.mess()<br />
+		endif<br />
+		lines.locked = false <br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">6th June 2014, 10:13</div></div><div class="posttext">Thanks for the snippet, Mark - looks useful!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ashu2814</div><div class="date">10th September 2014, 14:59</div></div><div class="posttext">Hi Mark,<br />
+<br />
+The code you have posted is not working in BaaN V.<br />
+ g.tcibd100.id = db.bind(&quot;ttcibd100&quot;,&quot;&quot;,011)<br />
+	select  tcibd100.*<br />
+	from    tcibd100  <br />
+	where   tcibd100._index1 = {:1}<br />
+	order by tcibd100._index1<br />
+	as set with 1 rows<br />
+	wherebind(1, item.f)<br />
+	selectdo<br />
+		save.error.bypass = error.bypass<br />
+		error.bypass = 2<br />
+		retry.count  = 0  <br />
+		db.eq(g.tcibd100.id,db.delayed.lock)	<br />
+		g.lc.c =  db.error(g.tcibd100.id) <br />
+		while db.error(g.tcibd100.id) = ELOCKED  <br />
+			if retry.count &lt; 10 then <br />
+				<br />
+				retry.count = retry.count + 1<br />
+				suspend (1000) | 1 seconds<br />
+				db.eq(ttcibd100,db.delayed.lock) <br />
+			else <br />
+				clean.mess() <br />
+				lines.locked = true<br />
+				return <br />
+			endif <br />
+		endwhile <br />
+		error.bypass = save.error.bypass<br />
+		if retry.count &lt;&gt; 0 then<br />
+			clean.mess()<br />
+		endif<br />
+		lines.locked = false <br />
+	endselect<br />
+<br />
+	if ( lines.locked = false ) then<br />
+		|no lockin g	<br />
+		select  tcibd100.*<br />
+		from    tcibd100 for update<br />
+		where   tcibd100._index1 = {:1}<br />
+		order by tcibd100._index1<br />
+		as set with 1 rows<br />
+		wherebind(1, item.f)<br />
+		selectdo<br />
+			tcibd100.ncst = tcncst.no<br />
+			tcibd100.ncdt = 0<br />
+			 db.update( ttcibd100, db.retry ) <br />
+		endselect<br />
+	else<br />
+		g.fp.c = seq.open(&quot;\\kuuerp03\userdata\asha\011_Monitor.txt&quot;,&quot;at+&quot;)<br />
+		seq.puts(trim$(item.f) &amp; &quot; ; &quot; &amp; str$(g.lc.c),g.fp.c)<br />
+		seq.close(g.fp.c)<br />
+	endif	<br />
+	 commit.transaction()</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

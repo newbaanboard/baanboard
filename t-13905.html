@@ -1,0 +1,179 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Creating AFS for Supplier Invoices, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Creating AFS for Supplier Invoices AFS/DDC/OLE: Function servers" />
+	
+	<title>Creating AFS for Supplier Invoices [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Creating AFS for Supplier Invoices</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">DStroud</div><div class="date">10th December 2003, 14:48</div></div><div class="posttext">I am trying to create a AFS process to insert Supplier Invoices into finance and everything works until I try to actually insert record in tfacp1110s000 (ACP200 table). I get an error Process not available.   Can anyone help?<br />
+<br />
+I have listed my sample script below.<br />
+<br />
+|   AP Supplier Invoices<br />
+<br />
+#pragma used dll &quot;ottstpapihand&quot;<br />
+<br />
+	domain	tcmcs.str80 	error.msg<br />
+	domain	tcmcs.str10	data.strg<br />
+<br />
+function main()<br />
+{<br />
+	long ret <br />
+	long ret2<br />
+  <br />
+	stpapi.put.field(&quot;tfgld1100m000&quot;,&quot;tfgld100.bref&quot;,&quot;AFS Sup Invoice Batch&quot;)<br />
+| Insert tfgld100 (Batch Status)  <br />
+	ret = stpapi.insert(&quot;tfgld1100m000&quot;,1,error.msg)<br />
+	if not ret then<br />
+		message(&quot;Error %s during insert of batch &quot;, error.msg)<br />
+		ret2 = stpapi.recover(&quot;tfgld1100m000&quot;, error.msg)<br />
+	else<br />
+| Get the Batch Number <br />
+		ret = stpapi.browse.set(&quot;tfgld1100m000&quot;, &quot;last.set&quot;)<br />
+      		stpapi.get.field(&quot;tfgld1100m000&quot;, &quot;tfgld100.btno&quot;, data.strg)<br />
+      		message(&quot;Batch Number is %s&quot;, data.strg)<br />
+      	 endif<br />
+	<br />
+	stpapi.handle.subproc(&quot;tfgld1100m000&quot;, &quot;tfgld1101s000&quot;, &quot;add&quot;)<br />
+<br />
+| Switch the view<br />
+	if stpapi.change.view(&quot;tfgld1101s000&quot;, error.msg) &gt; 0 then<br />
+   		stpapi.put.field(&quot;tfgld1101s000&quot;, &quot;tfgld101.btno&quot; , str$(data.strg))<br />
+   		stpapi.put.field(&quot;tfgld1101s000&quot;, &quot;tfgld101.ttyp&quot; , &quot;PM1&quot;)<br />
+   		stpapi.put.field(&quot;tfgld1101s000&quot;, &quot;tfgld101.amnt&quot; , str$(0.00))<br />
+| Insert Transaction <br />
+   		ret = stpapi.insert(&quot;tfgld1101s000&quot;, 1, error.msg)<br />
+		if not ret then<br />
+        		message(&quot;Insert Error for PM1 = %s &quot;, error.msg)<br />
+			ret2 = stpapi.recover(&quot;tfgld1101s000&quot;, error.msg)<br />
+   		endif<br />
+	 	ret = stpapi.save(&quot;tfgld1101s000&quot;, error.msg)<br />
+		if not ret then<br />
+        		message(&quot;Save Error for PM1 = %s &quot;, error.msg)<br />
+			ret2 = stpapi.recover(&quot;tfgld1101s000&quot;, error.msg)<br />
+   		endif<br />
+	endif<br />
+<br />
+<br />
+	stpapi.handle.subproc(&quot;tfgld1101s000&quot;, &quot;tfacp1110s000&quot;, &quot;add&quot;)<br />
+<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.btno&quot;, str$(data.strg))<br />
+   	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.ttyp&quot;, &quot;PM1&quot;)<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.refr&quot;, &quot;AFS Supplier Invoices&quot;)<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.suno&quot;, &quot;100001&quot;)<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.orno&quot;, str$(100012))<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.amnt&quot;, str$(8550.00))<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.isup&quot;, &quot;Sup Inv 6&quot;)<br />
+<br />
+	ret = stpapi.insert(&quot;tfacp1110s000&quot;,1 ,error.msg)<br />
+<br />
+	if not ret then<br />
+        	message(&quot;Insert Error for ACP Record = %s &quot;, error.msg)<br />
+		ret2 = stpapi.recover(&quot;tfacp1110s000&quot;, error.msg)<br />
+	endif<br />
+<br />
+	stpapi.end.session(&quot;tfacp1110s000&quot;)<br />
+	stpapi.end.session(&quot;tfgld1101s000&quot;)<br />
+	stpapi.end.session(&quot;tfgld1100m000&quot;)<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th December 2003, 15:41</div></div><div class="posttext">The message &quot;Process not found&quot; does not always mean there is an error.  Some of my function servers still work even when I get this message.  Does it still work?<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">DStroud</div><div class="date">10th December 2003, 16:42</div></div><div class="posttext">Mark,<br />
+<br />
+I found my problem, but now I have another problem. Now when I do the insert  tfacp1110s000 the system just doesnt return.<br />
+<br />
+Revised Code:<br />
+<br />
+#pragma used dll &quot;ottstpapihand&quot;<br />
+	domain	tcmcs.str80 	error.msg<br />
+	domain	tcmcs.str10	data.strg<br />
+function main()<br />
+{<br />
+	long ret <br />
+	long ret2<br />
+| Switch the view<br />
+	if stpapi.change.view(&quot;tfgld1101s000&quot;, error.msg) &gt; 0 then<br />
+   		stpapi.put.field(&quot;tfgld1101s000&quot;, &quot;tfgld101.btno&quot; , str$(data.strg))<br />
+   		stpapi.put.field(&quot;tfgld1101s000&quot;, &quot;tfgld101.ttyp&quot; , &quot;PM1&quot;)<br />
+   		stpapi.put.field(&quot;tfgld1101s000&quot;, &quot;tfgld101.amnt&quot; , str$(0.00))<br />
+| Insert Transaction <br />
+   		ret = stpapi.insert(&quot;tfgld1101s000&quot;, 1, error.msg)<br />
+		if not ret then<br />
+        		message(&quot;Insert Error for PM1 = %s &quot;, error.msg)<br />
+			ret2 = stpapi.recover(&quot;tfgld1101s000&quot;, error.msg)<br />
+   		endif<br />
+	 	ret = stpapi.save(&quot;tfgld1101s000&quot;, error.msg)<br />
+		if not ret then<br />
+        		message(&quot;Save Error for PM1 = %s &quot;, error.msg)<br />
+			ret2 = stpapi.recover(&quot;tfgld1101s000&quot;, error.msg)<br />
+   		endif<br />
+	endif<br />
+<br />
+	ret = stpapi.browse.set(&quot;tfgld1101s000&quot;, &quot;last.set&quot;)<br />
+      	stpapi.get.field(&quot;tfgld1101s000&quot;, &quot;tfgld100.btno&quot;, data.strg)<br />
+      	message(&quot;Batch Number is %s&quot;, data.strg)<br />
+<br />
+	ret = stpapi.mark(&quot;tfgld1101s000&quot;, error.msg)<br />
+<br />
+	stpapi.handle.subproc(&quot;tfgld1101s000&quot;, &quot;tfacp1110s000&quot;, &quot;add&quot;)<br />
+<br />
+	stpapi.continue.process(&quot;tfgld1101s000&quot;, error.msg)<br />
+<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.btno&quot;, str$(data.strg))<br />
+   	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.ttyp&quot;, &quot;PM1&quot;)<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.refr&quot;, &quot;AFS Supplier Invoices&quot;)<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.suno&quot;, &quot;100001&quot;)<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.orno&quot;, str$(100012))<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.amnt&quot;, str$(8550.00))<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.isup&quot;, &quot;Sup Inv 6&quot;)<br />
+<br />
+	ret = stpapi.insert(&quot;tfacp1110s000&quot;,1 ,error.msg)<br />
+<br />
+	if not ret then<br />
+        	message(&quot;Insert Error for ACP Record = %s &quot;, error.msg)<br />
+		ret2 = stpapi.recover(&quot;tfacp1110s000&quot;, error.msg)<br />
+	endif<br />
+<br />
+	stpapi.end.session(&quot;tfacp1110s000&quot;)<br />
+	stpapi.end.session(&quot;tfgld1101s000&quot;)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th December 2003, 17:00</div></div><div class="posttext">Doug,<br />
+<br />
+Do you have the latest acp1110 session objects?  I can not remember if you all have source or not.  If you have source you may want to put that session in debug mode to see what is causing it to lock up.  Sometime in the next couple of weeks I will be testing my code on 4c4 and I will see if I have any problems.  I do know Gordon made some changes to our version of acp1110 using qkey, but I see nothing that would help the api code work. Once I get it tested I will post again.<br />
+<br />
+Good Luck!<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pconde</div><div class="date">10th December 2003, 18:18</div></div><div class="posttext">Hello,<br />
+<br />
+Are you sure that tfacp1110s000 doesn't call session tfacp1120s000 after the insert. The baan default  call this session automatically after the insert/save</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">DStroud</div><div class="date">10th December 2003, 23:15</div></div><div class="posttext">Thanks for the input on where to look. The problem was actually with tfacp1230s000 which was zoomed to automatically if the ACP parameter Auto Match was yes.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

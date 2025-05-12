@@ -1,0 +1,135 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Merging PJL code into PCL BaaN driver, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Merging PJL code into PCL BaaN driver Tools Administration &amp; Installation" />
+	
+	<title>Merging PJL code into PCL BaaN driver [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Merging PJL code into PCL BaaN driver</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">fvdpbaan</div><div class="date">9th February 2007, 10:08</div></div><div class="posttext">Hello Baanboard,<br />
+<br />
+recently we bought Multi Functional Printers. These printers have a feature called &quot;Printing on demand&quot;. We want to use this functionality when printing from BaaN.<br />
+<br />
+The supplier told us that there is no PCL escape code for this functionality. Instead of PCL escape codes you can use a PJL string code to use this functionality says the supplier. An example of this PJL string code is shown below.<br />
+<br />
+Is it possible to merge this PJL code in our BaaN PCL code driver, for example in the 'initpr' section?<br />
+<br />
+Greetings, Frank<br />
+<br />
+Example PJL string code:<br />
+%-12345X@PJL COMMENT OTHER = &quot;0C020177000000000077000000000000&quot;<br />
+@PJL COMMENT RPJL,WIN2000,PCL5C,1.2.0.0,GRAYSCALE<br />
+@PJL JOB NAME=&quot;Document&quot;<br />
+@PJL SET JOBNAME=&quot;Document&quot;<br />
+@PJL SET PRINTINFO=&quot;DUPLEX_NUP=00000000/SCALING=3/OTHER=00000000&quot;<br />
+@PJL SET HOSTLOGINNAME=&quot;M.B&quot;<br />
+@PJL SET AUTHENTICATIONUSERNAME=&quot;&quot;<br />
+@PJL SET AUTHENTICATIONUSERNAMECHARSET=2<br />
+@PJL SET DISKIMAGE=OFF<br />
+@PJL PAUSEDJOB<br />
+@PJL SET SAVEMODE=OFF<br />
+@PJL SET ACCESSMODE=PRIVATE<br />
+@PJL SET USERID=&quot;Martijn&quot;<br />
+@PJL SET JOBID=&quot;&quot;<br />
+%-12345X</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">11th February 2007, 13:28</div></div><div class="posttext">Should be possible.<br />
+<br />
+You need a barcode script (typexx file). Set a field (value or length is not important, you only need it for starting the shell script) at the beginning of your report. In the type-file you can add any PCL commands to your report datastream with echo &lt;value&gt; (you can also echo the content of a file this way with cat. If I remember my experiments correctly, the file doesn't need to exist at the beginnig of printig the report. You also can create it during printing)<br />
+Maybe you need a special printer for this because you have to modify the printer device file (different/no init string ?, didn't test it).<br />
+<br />
+Important: Don't forget to set an ESC&amp;f0S at the beginning of the commands you add to the datastream and an ESC&amp;F1S at the end to save/restore the actual cursor position. Without this your output becomes corrupted because Baan doesn't know anything about the length of the data you include and reserves only the space of your field.<br />
+<br />
+hth<br />
+<br />
+Regards<br />
+csecgn</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fvdpbaan</div><div class="date">12th February 2007, 13:02</div></div><div class="posttext">Hello baanboarduser(s),<br />
+<br />
+I don't exacly know what you mean with the barcode file? This morning the printer supplier was at our office. We tried several things and have a solution for UNIX printing but not for BaaN printing. We tried the next thing:<br />
+<br />
+I stopped printer spooler with the command &quot;disable &lt;printer&gt;&quot;.<br />
+I switched to directory &quot;/usr/spool/lp/request/&lt;printer&gt;&quot;.<br />
+<br />
+The document I printed from BaaN is listed here in the queue. I then appended the PJL string which I mentioned to the first line of the queued document. When I enabled the printer the functionality worked.<br />
+<br />
+The question now is, how can I get this work from BaaN?<br />
+<br />
+Best regards, Frank</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">12th February 2007, 13:49</div></div><div class="posttext">Do you know the barcode handling in Baan? It's in the report editor, Maintain report fields, section Font/Barcode. The first part is font, keep it empty. The second part is a number. This number corresponds to a shell script that is executed during printing the report. The name of the script is ever type&lt;number you entered&gt;, i.e. type10 if you entered 10. The script is a regular shell script. You can do there all you like, and i.e. enter additional PCL commands to your report.<br />
+We use it to enter Barcodeinformation (with modules in our printers) and for background layouts (also stored in the printer).<br />
+<br />
+Example for a type-file<br />
+<br />
+#!/bin/sh<br />
+<br />
+code=$1<br />
+<br />
+echo &quot;\033&amp;f0S \c&quot;<br />
+echo &quot;\033&amp;a850h7650V\033(s1p14vsb11000T$code \c&quot;<br />
+echo &quot;\033&amp;a850h7750V\033(s1p14vsb11000T$code \c&quot;<br />
+echo &quot;\033&amp;a850h7850V\033(s1p14vsb11000T$code\033(10U\033(s1p11vsb4148T \c&quot;<br />
+echo &quot;\033&amp;f1S \c&quot;<br />
+<br />
+This Type file adds the code for an CODE 39 barcode to the report. Because the fonts of our modules are not scalable, I print it three times at different vertical positions.<br />
+<br />
+In your case the file would look similar to this:<br />
+<br />
+#!/bin/sh<br />
+echo &quot;\033&amp;f0S \c&quot;<br />
+echo &quot;\033%-12345X@PJL COMMENT OTHER = &quot;0C020177000000000077000000000000&quot; \c&quot;<br />
+echo &quot;@PJL COMMENT RPJL,WIN2000,PCL5C,1.2.0.0,GRAYSCALE  \c&quot;<br />
+echo &quot;@PJL JOB NAME=&quot;Document&quot;  \c&quot;<br />
+echo &quot;@PJL SET JOBNAME=&quot;Document&quot;  \c&quot;<br />
+echo &quot;@PJL SET PRINTINFO=&quot;DUPLEX_NUP=00000000/SCALING=3/OTHER=00000000&quot;  \c&quot;<br />
+...<br />
+echo &quot;\033&amp;f1S \c&quot;<br />
+<br />
+<br />
+The location of the type files is controlled by the baan driver within the line barcode<br />
+<br />
+Example<br />
+<br />
+...<br />
+#******************************************************************************<br />
+# Barcode Directory<br />
+#******************************************************************************<br />
+barcode_dir=hp_port,<br />
+...<br />
+<br />
+The base dir is always $BSE/lib/barcode. Don't forget to make the type file executable. I've needed an hour to find such a bug :D .<br />
+<br />
+I'm not sure if this commands can follow the regular init-string for the report. If no, you have to remove the init from the printer driver and add it to the type-file.<br />
+<br />
+hth<br />
+<br />
+Regards<br />
+Christof</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fvdpbaan</div><div class="date">12th February 2007, 15:16</div></div><div class="posttext">Thx Christof, i'll try it the way you wrote.<br />
+<br />
+Best regards,<br />
+<br />
+Frank</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

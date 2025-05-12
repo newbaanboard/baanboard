@@ -1,0 +1,135 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Reorganize Table, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Reorganize Table Operating Systems &amp; Databases" />
+	
+	<title>Reorganize Table [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Reorganize Table</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Nancy Mathew</div><div class="date">26th February 2003, 05:29</div></div><div class="posttext">Hi,<br />
+ What are the risks associated with Reorganize Table?<br />
+What are the precautions to be taken before doing reorganize.<br />
+Is it as risky as doing reconfigure.<br />
+<br />
+Regards,<br />
+Nancy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">morpheus</div><div class="date">26th February 2003, 08:49</div></div><div class="posttext">Reorganizing the tabels, recreates the tables as per the new DD. It creates the &quot;R&quot; file and drops the table. While creating the new table, it reads &quot;R&quot; file. In case there is an interruption, and &quot;R&quot; is not created completely, then there is a possibility of losing the data. So, either use this session on the server, or the best way is to keep a sequential dump of the table.<br />
+Hope this helps.<br />
+:)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Nancy Mathew</div><div class="date">26th February 2003, 09:34</div></div><div class="posttext">Is it Reorganize or reconfigure that recreates the table</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lauras</div><div class="date">26th February 2003, 16:55</div></div><div class="posttext">As I understand it, both reorg and reconfig recreate the table.  It is a good idea to have either a DB backup or sequential dump before starting.  We had an interruption once on a reorg of tfgld418, and that was a mess.  It took months to get all the records recreated and fixed.  Whenever I can, I use Oracle to reorg the tables, it goes faster and rarely has a problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">26th February 2003, 19:31</div></div><div class="posttext">Reorganize and Reconfigure are 2 very different things.<br />
+<br />
+Reorganize:<br />
+Calls bdbpre6.X and bdbpost6.X to drop and re-create the table. Followed by refint6.X to repair any reference counters.<br />
+<br />
+Why would you want to do this?<br />
+1) If you're a level 1 driver, its the 2nd eaisest way to drop and re-create a corrupt index on a table. (gcommand being the first)<br />
+2) If you have a lot of fragmentation in your tables and do not have a DBA, you can edit your X_storage (ora, inf, msql) file to tell it the initial and next extents and then run reorganize to coalesce your table.<br />
+<br />
+Problems that may occur:<br />
+1) if your X_storage file is not up to date, you're table will be just as fragmented as it was when it went in. <br />
+2) some OS's have a 2 GB filesize limit, that can cause problems on older porting sets. <br />
+3) refint6.X might kick off, this can take forever and you don't always need it.<br />
+<br />
+Reconfigure:<br />
+the key binary is bdbreconfig6.X, which is called from Create Runtime DD and Convert to runtime DD. <br />
+This is how you make physical changes to a table. (add a field, index or change a domain). <br />
+This is what creates R.&lt;table&gt; files and reads them back in.<br />
+<br />
+I hope this helps!<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lauras</div><div class="date">26th February 2003, 19:46</div></div><div class="posttext">I agree, there are big differences between reconfig and reorg.  However, both do create the R file.  I avoid Baan reorgs whenever possible, Oracle is faster and easier to recover from mishaps.<br />
+<br />
+I'm curious about this gcommand.  What is it and how does one use it?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">26th February 2003, 20:14</div></div><div class="posttext">Ya know. I never noticed that before.<br />
+reorg calls bdbreconfig with the -Z option which means that its going to look at the current dd instead of the .new dd. Instead of using bdbpre and bdbpost.<br />
+<br />
+I guess you learn something new every day!<br />
+<br />
+But I agree, unless you're level 2 don't bother with reorg.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jak_tn</div><div class="date">26th February 2003, 23:01</div></div><div class="posttext">OK, I'm curious about this gcommand, too!  Please tell us more!<br />
+<br />
+Thanks,<br />
+Judy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">askajale</div><div class="date">28th February 2003, 00:40</div></div><div class="posttext">Hi Nancy,<br />
+<br />
+The basic difference is<br />
+<br />
+Reorganize - It is related to data and in which all the links, indices and reference counters are updated.<br />
+<br />
+Reconfigure - Here first the table is exported (to R file), the table is dropped and is created with new defn and the data is loaded.<br />
+<br />
+Now if you are thinking of RISK factors, Baan creates &quot;.R&quot; files under $BSE_TMP folder, these files are deleted once the data is loaded completely. Now when u do this with large volume of data, it is possible to keep the copy of these &quot;.R&quot; files and if the process is failed due to some reason, you can recover the table with this file.<br />
+<br />
+Pl mail me if you need ano more info.<br />
+<br />
+-- Avinash</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">timb25</div><div class="date">27th March 2003, 15:37</div></div><div class="posttext">How do you perform an oracle reorg on a table?<br />
+<br />
+-Tim</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lauras</div><div class="date">27th March 2003, 22:48</div></div><div class="posttext">First export the data using Oracle's export command.  Then delete or truncate the tables either in Baan or Oracle.  Then import the data using Oracle's import command.<br />
+  I usually do a Baan dump (Create sequential dump) also, just in case Oracle freaks out or otherwise doesn't work.  I've only used the Baan dump once, so I consider it my safety net - if I have it, I don't need it.;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">askajale</div><div class="date">28th March 2003, 02:04</div></div><div class="posttext">Hi Timb25,<br />
+<br />
+Do you mean when we reorg the data in Baan application where the backend is Oracle?<br />
+<br />
+or <br />
+<br />
+How data is reorganised in Oracle database?<br />
+<br />
+Basically Reorganise data is somewhat unique concept of Baan in which we can rebuild the reference counters, rebuild indices etc. And for all these each database has it's own command.<br />
+<br />
+-- Avinash</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manojlathwal</div><div class="date">22nd January 2008, 13:21</div></div><div class="posttext">could you please suggest the steps to recover data from &quot;.R&quot; file as data loss happen to me and luckyly i have that &quot;.R&quot; file.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Brendan Shine</div><div class="date">23rd January 2008, 03:22</div></div><div class="posttext">Regarding gcommand, for more information on the gcommand search the Infor support website along with technical notes las gcommand is NOT an end-user/customer tool but more of an internal Infor command that is used for example to test that certain scenarios have been fixed in a porting set upgrade.<br />
+<br />
+So in the technical notes Infor would explain how to use the gcommand to create/test this scenario (ex. use gcommand to enter data into the table, drop table, etc).  So be very careful with this command as it is NOT intuitive so you need to understand what you are doing :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Brendan Shine</div><div class="date">23rd January 2008, 03:25</div></div><div class="posttext">To recover using R. file see the bdbreconfig options with the plus &quot;+&quot; option in the Infor documentation or search baanboard with appropriate keywords.  Make sure to take a backup copy of the R. file beforehand.  Also, make sure you've dealt with the root cause of why the reconfigure stopped in the middle and left the R. file in the first place.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

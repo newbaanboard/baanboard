@@ -1,0 +1,374 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="JOB Automation using 'cron', baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] JOB Automation using 'cron' Tools Development" />
+	
+	<title>JOB Automation using 'cron' [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; JOB Automation using 'cron'</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rajeev2012</div><div class="date">9th June 2007, 08:34</div></div><div class="posttext">Hi<br />
+<br />
+I want to automate a job but am not able to setup the same. PLease find below the steps that I am folllowing.<br />
+<br />
+- I have created a job in company xxx having periodical and use external sched flag checked. (with user test - superuser)<br />
+- The relevant sessions have been added to this job<br />
+- The status of this job is &quot;Free&quot;<br />
+- In /var/spool/cron/crontabs/job file the following line is added<br />
+  30 20 * * 1 $BSE/etc/rc.startjob xxx &gt;&gt;/home/test/job.log 2&gt;&gt;/home/test/job2.log<br />
+   (The user &quot;job&quot; is linked to company 000)<br />
+- I did restart cron using /sbin/init.d/cron start command<br />
+<br />
+It didn't work. The job has got executed (log files are created) but the linked sessions are not being executed.<br />
+<br />
+Next, I though the problem would be the user &quot;job&quot; is linked to &quot;000&quot; company. Hence I tried to create a new file with same user name &quot;test&quot; in /var/spool/cron/crontabs/job and have copied the cotent of &quot;job&quot; into it and restart the cron. Still no luck.<br />
+<br />
+I have seen many threads on the same topic in this forum but couldn't get the answer. It seems that I am missing out some thing, help appreciated ..<br />
+<br />
+-Raj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rajeev2012</div><div class="date">9th June 2007, 08:37</div></div><div class="posttext">Please find below &quot;rc.start&quot;<br />
+<br />
+#!/bin/sh<br />
+##########################################################################################<br />
+#<br />
+# RC.START	Main part of rc.start<br />
+# VERSION	1996/04/10<br />
+#<br />
+# If rc.start executes successfully, the file ${BSE_TMP}/rc.start_done<br />
+# is created and the file ${BSE_TMP}/rc.stop_done is removed.<br />
+#<br />
+# 19940922LJ 	Test if user has logged on as root.<br />
+#<br />
+# 19950205LJ 	Test on root changed. 'id -u' not supported by UNIX-WARE.<br />
+#	     	Changed in expression.<br />
+#<br />
+# 19960410RKl	File rc.start broken down into separate units<br />
+#<br />
+# 19980902TVH	IBM_AS400-port <br />
+#<br />
+# 19990726LJ	Start Baan Login Daemon<br />
+#<br />
+##########################################################################################<br />
+<br />
+<br />
+BSE=/apps/extend<br />
+BSE_TMP=/apps/extend/tmp<br />
+export BSE BSE_TMP<br />
+ <br />
+# 040298:MBA<br />
+PLATFORM=`uname`<br />
+IBM_AS400=&quot;OS400&quot;<br />
+<br />
+Nl=/dev/null        # The grinder<br />
+#  This is a file on IBM_AS400<br />
+<br />
+<br />
+if [ $# -eq 0 ];then<br />
+	licd_pdaemon=1<br />
+else<br />
+	licd_pdaemon=0<br />
+fi<br />
+<br />
+if [ ${PLATFORM} != ${IBM_AS400} ]<br />
+  then<br />
+    set `id 2&gt;$Nl`<br />
+    # test if user logged on as root<br />
+    if expr &quot;{$1}&quot; : '^.*uid=0' &gt;$Nl 2&gt;&amp;1<br />
+      then :; else<br />
+      echo &quot;\nYou have to log on as root\n&quot;<br />
+	  exit 1<br />
+    fi<br />
+   # if not an AS400<br />
+   #test if you have *ALLOBJ and *SAVSYS special authorities<br />
+else   <br />
+    # IBM_AS400: there is a link to ckaut.pgm <br />
+    $BSE/bin/chkaut<br />
+    rc=$?<br />
+    if [ ! $rc = 1 ]<br />
+      then<br />
+       echo &quot;\You have to have *ALLOBJ and *SAVSYS authorities!\n&quot;<br />
+	   exit 1<br />
+    fi<br />
+fi<br />
+<br />
+# the next sleep is built in for avoiding error 22 on HP systems.<br />
+echo 'Initializing...'<br />
+if [ ${PLATFORM} != ${IBM_AS400} ]<br />
+then<br />
+sleep 10<br />
+fi<br />
+<br />
+# Initialize Shared Memory<br />
+${BSE}/etc/rc.start_shm<br />
+if [ $? -ne 0 ];then exit 1;fi<br />
+<br />
+# Initialize Licence Daemon<br />
+if [ ${licd_pdaemon} -eq 1 ];then<br />
+	${BSE}/etc/rc.start_licd<br />
+fi<br />
+<br />
+# initialize Baan Login Daemon<br />
+${BSE}/etc/rc.start_blogind<br />
+if [ $? -ne 0 ];then exit 1;fi<br />
+<br />
+# Load Runtime DD in Shared Memory<br />
+${BSE}/etc/rc.start_srdd<br />
+<br />
+#Optional Remove all Application Locks<br />
+#${BSE}/etc/rc.start_remall<br />
+<br />
+# Initialize Printer Daemon<br />
+if [ ${licd_pdaemon} -eq 1 ];then<br />
+	${BSE}/etc/rc.start_pdaemon<br />
+fi<br />
+<br />
+#Optional to start the jobdaemon.<br />
+#${BSE}/etc/rc.startjobdm<br />
+<br />
+rm -f ${BSE_TMP}/rc.stop_done<br />
+echo &quot;The script rc.start executed sucessfully&quot; &gt; ${BSE_TMP}/rc.start_done<br />
+<br />
+# end</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">11th June 2007, 12:02</div></div><div class="posttext">Hi,<br />
+<br />
+inprincipal you are on the right track. Here is what you do, if you want croin for scheduling jobs in Baan:<br />
+<br />
+a) For each company, where you want to run jobs, create a user, job000, job100, job500 etc.<br />
+<br />
+b) Test for each user, whether you can log onto Baan and have appropriate Super User rights.<br />
+<br />
+c) For each user, create a crontab, with the script you listed already.<br />
+<br />
+d) Restart cron or edit the crontab with crontab -e, depending on your Unix derivat.<br />
+<br />
+e) Make sure the user is allowed to use cron (cron.allow).<br />
+<br />
+Post the rc.startjob file here to have a look. The rc.start file is of now interest, in this matter.<br />
+<br />
+Regards<br />
+<br />
+Markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rajeev2012</div><div class="date">11th June 2007, 12:45</div></div><div class="posttext">Hi,<br />
+<br />
+Thanks for your input...<br />
+<br />
+- I believe the first threee points (a,b, c and d), i have already covered. I suppose &quot;job&quot; is not a mandatory word in user name (in my case it is &quot;test&quot;). Please let me know in case you find any issues with it.<br />
+<br />
+- I have added &quot;test&quot; in cron.allow file.<br />
+<br />
+[code]<br />
+<br />
+PLease find below rc.startjob script<br />
+<br />
+<br />
+<br />
+# rc.startjob, should be located in $BSE/etc<br />
+<br />
+# version 94/06/29 (Erwin Derksen)<br />
+<br />
+# * added setting of TERM to this file<br />
+<br />
+# version 94/04/21 (initial version)<br />
+<br />
+#<br />
+<br />
+# script to start a job in the background<br />
+<br />
+# BAMODE=1 : No output to screen. <br />
+<br />
+# Be sure to define the BSE, BSE_TMP and PATH variable, because when started<br />
+<br />
+# from the crontab these variables often are not defined <br />
+<br />
+<br />
+<br />
+BSE=/apps/extend<br />
+<br />
+BSE_TMP=/apps/extend/tmp<br />
+<br />
+export BSE BSE_TMP<br />
+<br />
+PATH=$BSE/bin:$PATH<br />
+<br />
+export PATH<br />
+<br />
+<br />
+<br />
+# It turned out that the TERM variable could be unset when running in a cron<br />
+<br />
+TERM=vt100        ;export TERM<br />
+<br />
+<br />
+<br />
+# If you want to use several companies you can create several users for e.g.<br />
+<br />
+# root who probably is running this script. If so, copy this script and use<br />
+<br />
+# the next line to define the USER variable (&lt;root100&gt; is just an example).<br />
+<br />
+#USER=&lt;root100&gt; ;export USER<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+if [ $# -lt 1 ];then<br />
+<br />
+    echo &quot;Usage : rc.startjob &lt;jobname&gt; [jobok_file]&quot;<br />
+<br />
+    exit 1<br />
+<br />
+fi<br />
+<br />
+if [ $1 = &quot;-U&quot; -o $1 = &quot;-u&quot; ];then<br />
+<br />
+    echo &quot;Usage : rc.startjob &lt;jobname&gt; [jobok_file]&quot;<br />
+<br />
+    exit 1<br />
+<br />
+fi<br />
+<br />
+<br />
+<br />
+#jobok_file contains the characters &quot;OK&quot; if the job was successful !<br />
+<br />
+#If jobok_file is not specified, then output is written to $BSE/tmp/job<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+BAMODE=1        ;export BAMODE<br />
+<br />
+DS_SERVER=ba        ;export DS_SERVER<br />
+<br />
+BSH_JOB=$1        ;export BSH_JOB<br />
+<br />
+<br />
+<br />
+if [ $# -gt 1 ];then<br />
+<br />
+    BSH_JOBOK=$2    ;export BSH_JOBOK<br />
+<br />
+    echo $BSH_JOBOK<br />
+<br />
+fi<br />
+<br />
+<br />
+<br />
+ba6.2 ttaad5203m000 2&gt;${BSE_TMP}/rc.startjoberr &amp;<br />
+<br />
+[code]</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">11th June 2007, 12:58</div></div><div class="posttext">ba6.2 ttaad5203m000 2&gt;${BSE_TMP}/rc.startjoberr &amp;<br />
+<br />
+<br />
+<br />
+The script looks good. So what does rc.startjoberr say?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rajeev2012</div><div class="date">11th June 2007, 14:12</div></div><div class="posttext">The rc.startjoberr has only following two lines:<br />
+<br />
+&quot;Connecting with bshell...<br />
+Connection established.&quot;</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">11th June 2007, 14:14</div></div><div class="posttext">Make sure, that the rc.startjoberr is not an old one, by deleting it first.<br />
+<br />
+The content looks correct, so:<br />
+<br />
+a) Did you check logs in $EBSE/log<br />
+b) Is the job at all started in Baan, what does the job history say?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rajeev2012</div><div class="date">11th June 2007, 18:32</div></div><div class="posttext">I have also tried to run the job from command lione but it didn't work. I have tried the following command:<br />
+sh rc.startjob XXX &gt;&gt;/home/test/job.log 2&gt;&gt;/home/test/job2.log<br />
+<br />
+&quot;job.log&quot; is balnk and job2.log has followed line:<br />
+<br />
+/apps/extend/tmp/rc.startjoberr: Cannot create the specified file.<br />
+<br />
+<br />
+hence, i beileve something is wrong with my setup ... <br />
+<br />
+Please let me know your views</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">11th June 2007, 18:36</div></div><div class="posttext">ok, that clarifies a lot and you should have the same message in the mail of the corresponding user.<br />
+<br />
+It also mean, that your BSE_TMP is pointing to /apps/extend/tmp, which is a bit non-standard, but ok.<br />
+<br />
+Simply correct (as user root) the ownership and permissions of the directory:<br />
+<br />
+chown -R bsp:bsp /apps/extend/tmp<br />
+chmod -R 775 /apps/extend/tmp<br />
+<br />
+Regards<br />
+<br />
+Markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rajeev2012</div><div class="date">12th June 2007, 10:45</div></div><div class="posttext">Hi Markus,<br />
+<br />
+I have made th said changes and have managed to get the job run manually (through commandline). However, still I am not succeed to get it automated. I think the problem would be company or access/permission. <br />
+<br />
+-Raj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">12th June 2007, 11:41</div></div><div class="posttext">If it runs manually from the shell, then you took a big hurdle.<br />
+<br />
+One reason, why these things then opften fail to run from cron, are simply environment settings. When you log into unix, a ton of enviornment variables are set (type env to see, depending on the shell you arer using). These enviornment variables are missing within cron. So you have to set them within the rc.startjob script. For example missing oracle enviornment variables could be the cause.<br />
+<br />
+Regards<br />
+<br />
+Markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rajeev2012</div><div class="date">12th June 2007, 15:27</div></div><div class="posttext">Hi Markus<br />
+<br />
+Another scheduled jobs (patch management related) work for another user &quot;job&quot; ( the only difference is &quot;job&quot; is linked to &quot;000&quot; company)<br />
+<br />
+Howevere, I will check and will get back to you with my findings.<br />
+<br />
+-Raj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rajeev2012</div><div class="date">12th June 2007, 16:15</div></div><div class="posttext">I have compared output of env command of &quot;root&quot; and &quot;test&quot; user. I hav efound couple of difference, listed below<br />
+ - for root &quot;PATH&quot; variable has an extra entry &quot;/usr/sbin:&quot; that is missing in &quot;test&quot;<br />
+ - for root SHELL=/usr/bin/ksh wheras for &quot;test&quot; it is SHELL=/usr/bin/sh<br />
+<br />
+I am not sure about the first difference but i feel teh later doesn't make any difference (as i tried sh as well as ksh command for manual job activation and uit worked).<br />
+<br />
+-Raj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rajeev2012</div><div class="date">13th June 2007, 12:56</div></div><div class="posttext">I am still stuck with it, any clue what am i missing ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rajeev2012</div><div class="date">15th June 2007, 10:56</div></div><div class="posttext">Thanks a lot for all your input. I have managed to get it worked. I was making a small mistake. I had created &quot;crontab&quot; file by copying the old existing file. Hence, I suppose all relevant fiels were not being updated with the same. Now, I have removed the &quot;crontab&quot; file and have created a new &quot;crontab&quot; file with the followed command &quot;crontab -e&quot; using &quot;test&quot; login.<br />
+<br />
+Though, it's woking, I am still curious to know which file was not getting updated  and causing the issue.<br />
+<br />
+-Raj</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

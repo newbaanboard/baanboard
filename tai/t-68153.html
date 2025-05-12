@@ -1,0 +1,120 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Question on Commit, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Question on Commit Tools Administration &amp; Installation" />
+	
+	<title>Question on Commit [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Question on Commit</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">garlapati</div><div class="date">18th September 2015, 16:02</div></div><div class="posttext">I have a interface table A<br />
+db.retry.point<br />
+select A.*<br />
+from A for update<br />
+selectdo<br />
+     --------<br />
+     ----------<br />
+    i am inserting record into whinh220 table<br />
+    dal.new(whinh220......)<br />
+    if ret.value = 0 then<br />
+         commit.transaction()   -- 1<br />
+              A.status  = processed<br />
+              dal.update(A,.........)--------- error line<br />
+              if ret.value = 0 then<br />
+                   commit.transaction()   ----2<br />
+              endif<br />
+    endif<br />
+<br />
+in the above code after the record is inserted into whinh220 table and commit is sucessfull then as soon as i hit dal.update for interface table A it is saying record not locked (206) error.<br />
+<br />
+if i remove the commit----1 then its not throwing error &amp; updating correct.<br />
+<br />
+Any guidance on this ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">18th September 2015, 16:32</div></div><div class="posttext">Hi,<br />
+<br />
+the first commit ends the transaction. Your code should only have one commit per started transaction! Something like the following:<br />
+<br />
+	db.retry.point()<br />
+	select	A.*<br />
+	from	A for update<br />
+	selectdo<br />
+		--------<br />
+		----------<br />
+		|i am inserting record into whinh220 table<br />
+		dal.new(whinh220......)<br />
+		if ret.value = 0 then<br />
+			|commit.transaction() -- 1  &lt;&lt; not correct!!<br />
+			A.status = processed<br />
+			dal.update(A,.........)--------- error line<br />
+			if ret.value = 0 then<br />
+				commit.transaction() ----2<br />
+			else<br />
+				abort.transaction()<br />
+			endif<br />
+		else<br />
+			abort.transaction()<br />
+		endif<br />
+	endselect<br />
+	commit.transaction()	|stop transaction even if nothing found!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">garlapati</div><div class="date">18th September 2015, 16:58</div></div><div class="posttext">Yes Vadhani.<br />
+keeping the commit in the end is good practise.<br />
+But keeping commit --1 for table whinh220 and do some processing and update table A and then commit, should not trouble technically or logically.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">18th September 2015, 21:32</div></div><div class="posttext">Vahdani is correct. What your code does is - &gt;<br />
+<br />
+1. It select a record of table A and locks it for commit/abort.<br />
+2. It inserts a value in table B and commits it.<br />
+3. It updates the table A record which is no more locked for any transaction.<br />
+<br />
+<br />
+The problem in this step is, the system thinks that the commit has been made for the locked/selected record of Table A and hence when you again do an update on table A, boom.. You get an error.<br />
+<br />
+So, as he suggested, you need to have a combine commit or probably 2 isolated transactions in order to achieve what you are looking for.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">garlapati</div><div class="date">21st September 2015, 12:15</div></div><div class="posttext">what vadhani said was correct.<br />
+but still i am not clear <br />
+1. when the actual transaction lock will be applied on a record<br />
+    at time of db.retry.point or at db.udpate/dal.update or at time of commit?<br />
+if at db.retry.point <br />
+    after commit --1 i wrote db.retry.point to see if the error goes out. but still same error.<br />
+if at commit<br />
+   after commit--1 can't start new transaction and write another commit to handle it?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">21st September 2015, 12:23</div></div><div class="posttext">Hi,<br />
+<br />
+The for update locks the record and db.retry.point() is just for error handling and should only be set before starting a transaction.<br />
+<br />
+In your case, when you do the first commit, the program assumes that the commit has been made on the locked record for table A. So, when you do next transaction on table A, it throws error saying record not locked which is correct, because you have already released it with a commit and a new lock is required for a new transaction. <br />
+<br />
+I am wondering why you don't want a single commit for both transactions? Any good reason for not doing it?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">garlapati</div><div class="date">21st September 2015, 12:39</div></div><div class="posttext">there is no big reason for that. <br />
+as per my the bookish understanding of delayed lock: the record is locked when commit line is hit. till that the transaction even though updated in memory but lock is not applied yet. <br />
+Actual lock is applied when the commit transaction is hit.<br />
+<br />
+so i am not able to justify myself with the error in my case.<br />
+if the lock is applied with &quot;for update&quot; when record is read then writing commit in the end of all changes is good enough.<br />
+Thanks Bhushan</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Querys in MSSQL are wrongly translated, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Querys in MSSQL are wrongly translated Operating Systems &amp; Databases" />
+	
+	<title>Querys in MSSQL are wrongly translated [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Querys in MSSQL are wrongly translated</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">chavez</div><div class="date">25th May 2006, 19:55</div></div><div class="posttext">Hi,<br />
+Were running BaanIVc4 using the level 2 driver with MS SQL Server 2000.<br />
+We've been noticing that in some sessions the performance was degrading abnormally.<br />
+We did a little survey and found this strange behavior:<br />
+When running the session tdsls3200m000 using the SQL Server Profiler we notice that function tfacr005 in a tfacr200 query the system was querying the data using the index 7 and in the script the query was wrote using index 2.<br />
+This was even stranger because the optimizer was turned off and running the query in the sql server against the optimizer it suggests the use of index 9.<br />
+Then we turned the optimizer on in Baan (adding NOIDXHINT in the sqlstorage file) and the problem got weirder because Baan kept querying the data using index 7 although the script stated index 2 and the optimizer suggestion was index 9.<br />
+We did the tests with porting sets 6.1c.07.07 and 6.1c.07.10.<br />
+Does anyone have an explanation for this?<br />
+Thank you</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">25th May 2006, 20:08</div></div><div class="posttext">What does the query look like in Baan?<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">chavez</div><div class="date">25th May 2006, 21:16</div></div><div class="posttext">Originally it was like this:<br />
+select tfacr200.balc, tfacr200.dued from tfacr200	<br />
+where	tfacr200._compnr = :tfgld001.ncmp<br />
+and	tfacr200._index2 <br />
+inrange { :tmp.cuno, :min.ttyp, :min.ninv, :min.line, &quot;&quot;, :min.docn, :min.lino }<br />
+  and { :tmp.cuno, :max.ttyp, :max.ninv, :max.line, &quot;&quot;, :max.docn, :max.lino }<br />
+and	tfacr200.dued &lt;= :tmp.date  and	tfacr200.balc &gt; 0.001	<br />
+as set with 1 rows<br />
+<br />
+I changed it to:<br />
+select tfacr200.cuno, tfacr200.balc, tfacr200.dued from tfacr200	<br />
+where	tfacr200._compnr = :tfgld001.ncmp<br />
+and	tfacr200._index2 = {:tmp.cuno}<br />
+and tfacr200.tdoc = &quot;&quot; <br />
+and	tfacr200.dued &lt;= :tmp.date  and tfacr200.balc &gt; 0.001	<br />
+as set with 1 rows<br />
+<br />
+and it got a little better but the index problem remained.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">25th May 2006, 21:25</div></div><div class="posttext">ok - a couple of things.<br />
+<br />
+When you use _index2 in a selectivity statement, you're using shorthand, you're not specificing what index to use.<br />
+<br />
+The only way to Force an index in Baan IV 4GL is to do an &quot;order by &lt;index name&gt;&quot;<br />
+<br />
+also, it looks like indexes 7 and up are custom, what columns do they include?<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">chavez</div><div class="date">26th May 2006, 13:54</div></div><div class="posttext">Thanks. We changed the select clause and added the order by statement and it worked fine.<br />
+The indexes 9 to 13 are from the portuguese localizations. The index 7 is dued, cuno, index1 and 9 is cuno, dued, index1.<br />
+What's the point of putting indexx in a where clause? As far as I can tell the programmer has no control on this? <br />
+What is the purpose of NOIDXHINT statement in the sql_storage file? As far as I can tell it has absolutely no effect on queries.<br />
+I wonder now how many selects are like these.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">26th May 2006, 14:20</div></div><div class="posttext">Glad it worked!<br />
+<br />
+the index in the where clause is just a shorthand (i want to match all of the columns in this index...) it's the same as doing<br />
+table.cuno = a<br />
+table.sern = b<br />
+and so on..<br />
+<br />
+You may be formatting your mssql_storage incorrectly, those files are very picky, and if you've got an extra space or a colon or comma in the wrong spot it might not fly.<br />
+<br />
+Otherwise, it may be a bug - call support! =)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

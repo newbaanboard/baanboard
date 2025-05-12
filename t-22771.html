@@ -1,0 +1,1022 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="error mesg when maintain receipt using AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] error mesg when maintain receipt using AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>error mesg when maintain receipt using AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; error mesg when maintain receipt using AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Kingsto88</div><div class="date">5th January 2005, 11:09</div></div><div class="posttext">Hi experts,<br />
+<br />
+I am on baan4c4 and the code is as below<br />
+<br />
+stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;form.dino&quot;, &quot;SUP345&quot;)<br />
+		stpapi.handle.subproc(&quot;tdpur4120m000&quot;, &quot;tdpur4224s000&quot;, &quot;add&quot;)<br />
+		stpapi.put.field(&quot;tdpur4224s000&quot;, &quot;form.orno&quot;, &quot;220033&quot;)<br />
+		stpapi.continue.process(&quot;tdpur4224s000&quot;,error.msg)<br />
+		message(&quot;child error = %s&quot;,error.msg)<br />
+		stpapi.end.session(&quot;tdpur4224s000&quot;)<br />
+<br />
+		stpapi.change.view(&quot;tdpur4120m000&quot;)<br />
+<br />
+		stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.orno&quot;,&quot;220033&quot;)<br />
+		stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.pono&quot;,&quot;10&quot;)<br />
+		stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.diqu&quot;,&quot;2&quot;)<br />
+		stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.date&quot;,&quot;20032004&quot;)<br />
+		stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.dqua&quot;,&quot;2&quot;)<br />
+		stpapi.insert(&quot;tdpur4120m000&quot;,1,err)<br />
+<br />
+But I am getting this errors.<br />
+<br />
+1) session not available<br />
+2) maximum two digits allowed for series<br />
+<br />
+<br />
+Could anyone tell me what went wrong?<br />
+<br />
+<br />
+rgds</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th January 2005, 16:05</div></div><div class="posttext">Below is what works for me.  I have two subroutines - 1 creates the receipt and 1 modifies the receipt.  This way if I have a open receipt for a PO/LINE I can just go modify and receive the line.  You can see the flow and modify it as you see fit - you may not have to do conversion quantities or lot controlled items.  Just remember that what works on my system may not work on yours - patch levels, porting set, object versions, etc.<br />
+<br />
+Good Luck!<br />
+<br />
+Mark<br />
+<br />
+<br />
+|******************************************************************************<br />
+|* API Code for creating a new receipt<br />
+|******************************************************************************<br />
+function extern domain tcrcno create_receipt(	domain	tcrcno		receipt.number,<br />
+				domain  tcorno		purchase.order,<br />
+				domain	tcpono  	purchase.line,<br />
+				domain	tcqiv1		packingslip.qty,<br />
+				domain	tcqiv1		received.qty,<br />
+				domain	tcdate		received.date,<br />
+				domain	tdltc.clot	purchase.lot,<br />
+				domain	tcdate		purchaselot.date,<br />
+				domain	tcconv		conv.factor,<br />
+				domain	tccuni		purchase.unit,<br />
+				domain	tcitem		purchase.item,<br />
+				ref     string          msg())<br />
+{<br />
+	string	dummy(6)<br />
+<br />
+| Creating a receipt always use 0 for the tdpur045.reno field.<br />
+	msg = &quot;&quot;<br />
+	stpapi.handle.subproc(&quot;tdpur4120m000&quot;,&quot;tdpur4224s000&quot;,&quot;add&quot;)<br />
+ 	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,str$(0))<br />
+ 	stpapi.change.view(&quot;tdpur4120m000&quot;,msg)<br />
+	if not isspace(msg) then<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return(receipt.number)<br />
+	endif<br />
+<br />
+| Always use tdpur4224s000 to create receipt for all lines.<br />
+   	stpapi.put.field(&quot;tdpur4224s000&quot;,&quot;form.orno&quot;,str$(purchase.order))<br />
+  	stpapi.continue.process(&quot;tdpur4224s000&quot;,msg)<br />
+ 	stpapi.end.session(&quot;tdpur4224s000&quot;)<br />
+             |Currently tdpur4224s000 continue returns Process is gone<br />
+	if not isspace(msg) and strip$(msg)&lt;&gt; &quot;Process is gone&quot; then<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return(receipt.number)<br />
+	endif<br />
+	msg = &quot;&quot;<br />
+	<br />
+| Try a pause to make sure receipt is completed.	<br />
+	suspend(3000)<br />
+<br />
+| Get the receipt so you can use the modify receipt to update the fields.<br />
+ 	stpapi.get.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,dummy)<br />
+	receipt.number = val(dummy)<br />
+	stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+	<br />
+| Verify this receipt number has this PO and line on it.<br />
+	select	tdpur045.reno<br />
+	from	tdpur045<br />
+	where	tdpur045._index6 = {:receipt.number,:purchase.order,:purchase.line}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	selectempty<br />
+		receipt.number = 0<br />
+	endselect<br />
+	if receipt.number = 0 then<br />
+		msg = &quot;Receipt failed.&quot;<br />
+		return(0)<br />
+	endif<br />
+	<br />
+| Now go modify the new receipt.	<br />
+	modify_receipt(	receipt.number,<br />
+			purchase.order,<br />
+			purchase.line,<br />
+			packingslip.qty,<br />
+			received.qty,<br />
+			received.date,<br />
+			purchase.lot,<br />
+			purchaselot.date,<br />
+			conv.factor,<br />
+			purchase.unit,<br />
+			purchase.item,<br />
+			msg)<br />
+	return(receipt.number)<br />
+}<br />
+|******************************************************************************<br />
+|* API Code for modifying an existing receipt.<br />
+|******************************************************************************<br />
+function extern modify_receipt(	domain	tcrcno		receipt.number,<br />
+				domain  tcorno		purchase.order,<br />
+				domain	tcpono  	purchase.line,<br />
+				domain	tcqiv1		packingslip.qty,<br />
+				domain	tcqiv1		received.qty,<br />
+				domain	tcdate		received.date,<br />
+				domain	tdltc.clot	purchase.lot,<br />
+				domain	tcdate		purchaselot.date,<br />
+				domain	tcconv		conv.factor,<br />
+				domain	tccuni		purchase.unit,<br />
+				domain	tcitem		purchase.item,<br />
+				ref     string          msg())<br />
+{<br />
+		long	rc, cnt<br />
+		string	dummy(6), error_code(16)<br />
+	domain	tcorno	get.orno<br />
+	domain	tcpono	get.pono<br />
+	<br />
+	select	tiitm001.stgu, tiitm001.kitm<br />
+	from	tiitm001<br />
+	where	tiitm001._index1 = {:purchase.item}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	endselect<br />
+	<br />
+	msg = &quot;&quot;<br />
+	boi.call = &quot;tdboidll0011.Create&quot;<br />
+ 	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,str$(receipt.number))<br />
+  	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.orno&quot;,str$(purchase.order))<br />
+ 	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.pono&quot;,str$(purchase.line))<br />
+	rc = stpapi.find(&quot;tdpur4120m000&quot;,msg)<br />
+	if not isspace(msg) or rc&lt;&gt;1 then<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return<br />
+	endif<br />
+	stpapi.get.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.orno&quot;,dummy)<br />
+| Prepare to handle lot controlled items.	<br />
+	if ((not isspace(purchase.lot) or conv.factor&gt;1 or  purchase.unit &lt;&gt; tiitm001.stgu)<br />
+	and (tiitm001.kitm=tckitm.purchase or tiitm001.kitm = tckitm.manufacture))	then<br />
+		stpapi.handle.subproc(&quot;tdpur4120m000&quot;,&quot;tdilc4113s000&quot;,&quot;add&quot;)<br />
+	endif<br />
+	<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.diqu&quot;,str$(packingslip.qty))<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.date&quot;,str$(received.date))<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.dqua&quot;,str$(received.qty))<br />
+	stpapi.update(&quot;tdpur4120m000&quot;,1,msg)<br />
+	if not isspace(msg) or rc&lt;&gt;1 then<br />
+		if not isspace(purchase.lot) or conv.factor&gt;1 then<br />
+			stpapi.end.session(&quot;tdilc4113s000&quot;)<br />
+		endif<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return<br />
+	endif<br />
+<br />
+| Need to handle the conversion factor.<br />
+	if ((not isspace(purchase.lot) or conv.factor&gt;1 or  purchase.unit &lt;&gt; tiitm001.stgu)<br />
+	and (tiitm001.kitm=tckitm.purchase or tiitm001.kitm = tckitm.manufacture))	then<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.clot&quot;,purchase.lot)<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.date&quot;,str$(purchaselot.date))<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.qstr&quot;,str$(received.qty*conv.factor))<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.qstc&quot;,str$(received.qty*conv.factor))<br />
+		stpapi.insert(&quot;tdilc4113s000&quot;,1,msg)<br />
+		error_code = stpapi.get.mess.code(&quot;tdilc4113s000&quot;,msg)<br />
+		if strip$(error_code) = &quot;tdilc40062&quot; then<br />
+			msg = &quot;&quot;<br />
+		endif<br />
+		stpapi.end.session(&quot;tdilc4113s000&quot;)<br />
+	endif<br />
+ 	stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kingsto88</div><div class="date">6th January 2005, 03:43</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Thank you very much for your answer to my question.<br />
+<br />
+I don't understand why we need to modify the receipt. Can't we just combine both the create and modify together? I mean during the create receipt, we can also pass in the other fields, right?<br />
+<br />
+Do I do the same if I want to generate outbound advice, ie. do i create the outbound record first and then modify it. Do you have the sample for generating outbound and release outbound.<br />
+<br />
+Thanks and regards,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th January 2005, 04:25</div></div><div class="posttext">I do it this way because in my program I may get a PO that has 40 lines.  When they receive line 1 I create a receipt for all lines.  Then when line two comes in I just jump in and complete the line - no new receipt.  So, yes you could combine my two sub-routines if you wanted - but I kept it separate because not all receipts go thru my interface.  I never know what the user has done before so I need to create and I need to do a modify.<br />
+<br />
+Yeah - I have a version and I will post it tomorrow.  Yes I have different routines to do generate, maintain, release.  I do this because I load the outbound into a temp table that allows the users to maintain it, my version is friendly than the Baan maintain outbound.  I will post that code tomorrow.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th January 2005, 16:55</div></div><div class="posttext">Below are my routines for outbound.  Just keep in mind that these are written for our current system.  Most are generic, but some outbound sessions have company developed modifications.  Example is gendate field - we track when outbound was created.  So again this is just an example that you can try on your system.<br />
+<br />
+Something that may work for you is the stpapi.clear - I have started putting all fields so that way user defaults do not get in the way.  Some of our outbound forms have been changed to be empty anyway - keep the user from generating, printing, or releasing everything.<br />
+<br />
+Mark<br />
+<br />
+|******************************************************************************<br />
+|* 20041119	Mark 	11/19/2004<br />
+|* Add generate date to print_outbound routine.  Was only printing current<br />
+|* days outbound.  Also traced duplicate tdilc970 records to this subroutine<br />
+|* need to pass an apishort variable to tdilc4201 to skip updating the<br />
+|* tdilc970 table.<br />
+|******************************************************************************<br />
+|* 20041011	Mark 	10/11/2004<br />
+|* Add routine for generating outbound data.<br />
+|******************************************************************************<br />
+|* 092404	Mark 	09/24/04<br />
+|* Include lot date and lot to the insert outbound routine.<br />
+|******************************************************************************<br />
+|******************************************************************************<br />
+|* Script Type: Library<br />
+|******************************************************************************<br />
+	table	ttiitm001		| Items<br />
+	table	ttdpur045		| Receipts<br />
+	<br />
+#pragma	used	dll	ottstpapihand	| Baan API Handler<br />
+	extern  domain  tcmcs.str132    boi.call<br />
+	extern		long		rc<br />
+	extern		string		some.msg(180)<br />
+	extern	domain	tcmcs.str15 	apishort<br />
+|******************************************************************************<br />
+|* API Code for Maintaining Outbound.<br />
+|******************************************************************************<br />
+function extern insert_outbound(	domain	tcmcs.str12	runnumber,<br />
+					domain  tdilc.kooa	order.type,<br />
+					domain	tcorno		order.number,<br />
+					domain	tcpono		order.position,<br />
+					domain	tdilc.loca	order.location,<br />
+					domain	tccuni		order.stun,<br />
+					domain	tcqiv1		order.qty,<br />
+					domain	tdltc.clot	order.lot,<br />
+					domain	tcdate		order.date,<br />
+					ref	string		strsera(),<br />
+					ref	string		strserb(),<br />
+					ref     string          msg())<br />
+{<br />
+	msg = &quot;&quot;<br />
+	stpapi.handle.subproc(&quot;tdilc4101m000&quot;,&quot;tdilc4102s000&quot;,&quot;add&quot;)<br />
+	stpapi.put.field(&quot;tdilc4101m000&quot;,&quot;runnumber&quot;,runnumber)<br />
+	stpapi.put.field(&quot;tdilc4101m000&quot;,&quot;k.o.order&quot;,str$(order.type))<br />
+	stpapi.put.field(&quot;tdilc4101m000&quot;,&quot;ordernr&quot;,str$(order.number))<br />
+	stpapi.continue.process(&quot;tdilc4101m000&quot;,msg)<br />
+	if not isspace(msg) then<br />
+		stpapi.end.session(&quot;tdilc4101m000&quot;)<br />
+		return<br />
+	endif<br />
+	stpapi.enum.answer(&quot;tdilc4102s000&quot;,&quot;tdilc4102.1&quot;,tcyesno.no)<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.pono&quot;,str$(order.position))<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.loca&quot;,order.location)<br />
+| 092404.st - Add lot and date to insert outbound.	<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.clot&quot;,order.lot)<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.date&quot;,str$(order.date))<br />
+| 092404.end	<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.stun&quot;,order.stun)<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.qstr&quot;,str$(order.qty))<br />
+	rc = stpapi.insert(&quot;tdilc4102s000&quot;,1,msg)<br />
+	if isspace(msg) then<br />
+		stpapi.get.field( &quot;tdilc4102s000&quot;, &quot;tdilc401.sera&quot;, strsera )<br />
+		stpapi.get.field( &quot;tdilc4102s000&quot;, &quot;tdilc401.serb&quot;, strserb )<br />
+	endif<br />
+	stpapi.end.session(&quot;tdilc4513s000&quot;)<br />
+	stpapi.end.session(&quot;tdilc4102s000&quot;)<br />
+	stpapi.end.session(&quot;tdilc4101m000&quot;)<br />
+}<br />
+|******************************************************************************<br />
+|* API Code for Printing outbound for a production order.  spool.report must<br />
+|* be set in order to use this library routine.<br />
+|******************************************************************************<br />
+function extern print_outbound(		domain	tcmcs.str12	runnumber,<br />
+					domain  tcorno		run.order.f,<br />
+					domain  tcorno		run.order.t,<br />
+					domain	tcpono		run.opno.f,<br />
+					domain	tcpono		run.opno.t,<br />
+					domain	tcitem		run.item.f,<br />
+					domain	tcitem		run.item.t,<br />
+					domain	tccwar		run.cwar.f,<br />
+					domain	tccwar		run.cwar.t,<br />
+					domain	tcdate		run.gendate.f,<br />
+					domain	tcdate		run.gendate.t,<br />
+					domain	tcmcs.str15	run.report,<br />
+					ref     string          msg())<br />
+{<br />
+	msg = &quot;&quot;<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;runnumber.f&quot;,runnumber)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;runnumber.t&quot;,runnumber)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;koor.f&quot;,str$(tdilc.koob.act.sfc))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;koor.t&quot;,str$(tdilc.koob.act.sfc))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;orno.f&quot;,str$(run.order.f))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;orno.t&quot;,str$(run.order.t))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;opno.f&quot;,str$(run.opno.f))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;opno.t&quot;,str$(run.opno.t))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;prdt.t&quot;,str$(date.num()+1000))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;ddta.f&quot;,str$(date.num()-1000))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;ddta.t&quot;,str$(date.num()+1000))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;item.f&quot;,run.item.f)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;item.t&quot;,run.item.t)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;cwar.f&quot;,run.cwar.f)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;cwar.t&quot;,run.cwar.t)<br />
+| 20041119 - Start passing generate date	<br />
+	|stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;gendate.f&quot;,str$(date.num()))<br />
+	|stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;gendate.t&quot;,str$(date.num()))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;gendate.f&quot;,str$(run.gendate.f))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;gendate.t&quot;,str$(run.gendate.t))<br />
+| 20041119	<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;gcid.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;gcid.t&quot;,&quot;ZZZZZZZZZZZZZZZZZZZZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;ship.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;ship.t&quot;,&quot;ZZZZZZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;cuno.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;cuno.t&quot;,&quot;ZZZZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;cprj.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;cprj.t&quot;,&quot;ZZZZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;cntr.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;cntr.t&quot;,&quot;ZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;crte.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;crte.t&quot;,&quot;ZZZZZ&quot;)<br />
+	|stpapi.set.report(&quot;tdilc4401m000&quot;,&quot;rtdilc440109000&quot;,spool.device,msg)<br />
+	stpapi.set.report(&quot;tdilc4401m000&quot;,run.report,spool.device,msg)<br />
+	<br />
+	if isspace(msg) then<br />
+		stpapi.continue.process(&quot;tdilc4401m000&quot;,msg)<br />
+		some.msg = stpapi.get.mess.code(&quot;tdilc4401m000&quot;,msg)<br />
+	endif<br />
+	stpapi.end.session(&quot;tdilc4401m000&quot;)<br />
+}<br />
+|******************************************************************************<br />
+|* API Code for releasing outbound for a production order<br />
+|******************************************************************************<br />
+function extern release_outbound(	domain	tcmcs.str12	runnumber.f,<br />
+					domain	tcmcs.str12	runnumber.t,<br />
+					domain  tcorno		run.order.f,<br />
+					domain  tcorno		run.order.t,<br />
+					domain	tcpono		run.oper.f,<br />
+					domain	tcpono		run.oper.t,<br />
+					domain	tcitem		run.item.f,<br />
+					domain	tcitem		run.item.t,<br />
+					domain	tccwar		run.cwar.f,<br />
+					domain	tccwar		run.cwar.t,<br />
+					domain	tcmcs.str14	run.sess,<br />
+					ref     string          msg())<br />
+{<br />
+	msg = &quot;&quot;<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;runnumber.f&quot;,runnumber.f)<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;runnumber.t&quot;,runnumber.t)<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;koor.f&quot;,str$(tdilc.koob.act.sfc))<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;koor.t&quot;,str$(tdilc.koob.act.sfc))<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;orno.f&quot;,str$(run.order.f))<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;orno.t&quot;,str$(run.order.t))<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;opno.f&quot;,str$(run.oper.f))<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;opno.t&quot;,str$(run.oper.t))<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;prdt.t&quot;,str$(date.num()+1000))<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;ddta.f&quot;,str$(date.num()-1000))<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;ddta.t&quot;,str$(date.num()+1000))<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;item.f&quot;,run.item.f)<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;item.t&quot;,run.item.t)<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;cwar.f&quot;,run.cwar.f)<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;cwar.t&quot;,run.cwar.t)<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;gcid.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;gcid.t&quot;,&quot;ZZZZZZZZZZZZZZZZZZZZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;pino.f&quot;,&quot;0&quot;)<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;pino.t&quot;,&quot;999999&quot;)<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;cuno.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;cuno.t&quot;,&quot;ZZZZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;cprj.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;cprj.t&quot;,&quot;ZZZZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;cntr.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;cntr.t&quot;,&quot;ZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;crte.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;crte.t&quot;,&quot;ZZZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4202m000&quot;,&quot;deliver.costitem&quot;,str$(etol(tcyesno.no)))<br />
+	if strip$(run.sess) = &quot;tdapi4201m000&quot; then<br />
+		spool.fileout = creat.tmp.file$(bse.tmp.dir$())<br />
+		stpapi.set.report(&quot;tdilc4202m000&quot;,&quot;rtdilc440201000&quot;,&quot;ASCIF&quot;,msg)<br />
+	else<br />
+		stpapi.set.report(&quot;tdilc4202m000&quot;,&quot;rtdilc440201000&quot;,spool.device,msg)<br />
+	endif<br />
+	if isspace(msg) then<br />
+		stpapi.continue.process(&quot;tdilc4202m000&quot;,msg)<br />
+		some.msg = stpapi.get.mess.code(&quot;tdilc4202m000&quot;,msg)<br />
+	endif<br />
+	stpapi.end.session(&quot;tdilc4202m000&quot;)<br />
+}<br />
+|******************************************************************************<br />
+|* API Code for Deleting outbound for a production order.<br />
+|******************************************************************************<br />
+function extern delete_outbound(	domain	tcmcs.str12	runnumber,<br />
+					domain  tcorno		run.order,<br />
+					domain	tcpono		run.pono.f,<br />
+					domain	tcpono		run.pono.t,<br />
+					ref     string          msg())<br />
+{<br />
+	msg = &quot;&quot;<br />
+	stpapi.put.field(&quot;tdilc4211m000&quot;,&quot;runnumber.f&quot;,runnumber)<br />
+	stpapi.put.field(&quot;tdilc4211m000&quot;,&quot;runnumber.t&quot;,runnumber)<br />
+	stpapi.put.field(&quot;tdilc4211m000&quot;,&quot;koor.f&quot;,str$(tdilc.koob.act.sfc))<br />
+	stpapi.put.field(&quot;tdilc4211m000&quot;,&quot;koor.t&quot;,str$(tdilc.koob.act.sfc))<br />
+	stpapi.put.field(&quot;tdilc4211m000&quot;,&quot;gcid.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4211m000&quot;,&quot;gcid.t&quot;,&quot;ZZZZZZZZZZZZZZZZZZZZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4211m000&quot;,&quot;ship.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4211m000&quot;,&quot;ship.t&quot;,&quot;ZZZZZZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4211m000&quot;,&quot;orno.f&quot;,str$(run.order))<br />
+	stpapi.put.field(&quot;tdilc4211m000&quot;,&quot;orno.t&quot;,str$(run.order))<br />
+	stpapi.put.field(&quot;tdilc4211m000&quot;,&quot;pono.f&quot;,str$(run.pono.f))<br />
+	stpapi.put.field(&quot;tdilc4211m000&quot;,&quot;pono.t&quot;,str$(run.pono.t))<br />
+	stpapi.continue.process(&quot;tdilc4211m000&quot;,msg)<br />
+	stpapi.end.session(&quot;tdilc4211m000&quot;)<br />
+}<br />
+|******************************************************************************<br />
+|* API Code for Generating outbound data for a production runnumber, order,<br />
+|* operation, item or warehouse.<br />
+|******************************************************************************<br />
+function extern generate_outbound(	domain	tcmcs.str12	runnumber,<br />
+					domain  tcorno		run.order.f,<br />
+					domain  tcorno		run.order.t,<br />
+					domain	tcpono		run.opno.f,<br />
+					domain	tcpono		run.opno.t,<br />
+					domain	tcitem		run.item.f,<br />
+					domain	tcitem		run.item.t,<br />
+					domain	tccwar		run.cwar.f,<br />
+					domain	tccwar		run.cwar.t,<br />
+					domain	tgyenox		run.advice,<br />
+					ref     string          msg())<br />
+{<br />
+	apishort= &quot;&quot;<br />
+	export(&quot;apishort&quot;,apishort)<br />
+	msg = &quot;&quot;<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;runnumber&quot;,runnumber)<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;koor.f&quot;,str$(tdilc.koob.act.sfc))<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;koor.t&quot;,str$(tdilc.koob.act.sfc))<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;cuno.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;cuno.t&quot;,&quot;ZZZZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;orno.f&quot;,str$(run.order.f))<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;orno.t&quot;,str$(run.order.t))<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;opno.f&quot;,str$(run.opno.f))<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;opno.t&quot;,str$(run.opno.t))<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;prdt.t&quot;,str$(date.num()+1000))<br />
+	|stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;ddat.f&quot;,str$(date.num()-1000))<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;ddat.t&quot;,str$(date.num()+1000))<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;cprj.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;cprj.t&quot;,&quot;ZZZZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;item.f&quot;,run.item.f)<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;item.t&quot;,run.item.t)<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;cwar.f&quot;,run.cwar.f)<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;cwar.t&quot;,run.cwar.t)<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;cntr.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;cntr.t&quot;,&quot;ZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;crte.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4201m000&quot;,&quot;crte.t&quot;,&quot;ZZZZZ&quot;)<br />
+<br />
+| The next 4 lines generate both the advice and shortages, if you want<br />
+| just one report then set the flags correctly, but always point the report<br />
+| to the advice report - This is the only way to get it to work.<br />
+| Advice Report<br />
+	if run.advice = tgyenox.yes then<br />
+		stpapi.put.field( &quot;tdilc4201m000&quot;, &quot;print.recom&quot;, str$(tcyesno.yes) )<br />
+	else<br />
+		stpapi.put.field( &quot;tdilc4201m000&quot;, &quot;print.recom&quot;, str$(tcyesno.no) )<br />
+	endif<br />
+	stpapi.put.field( &quot;tdilc4201m000&quot;, &quot;prnt.shortage&quot;, str$(tcyesno.no) )<br />
+	stpapi.put.field( &quot;tdilc4201m000&quot;, &quot;pr.peg.shortage&quot;, str$(tcyesno.no) )<br />
+	stpapi.set.report( &quot;tdilc4201m000&quot;,&quot;rtdilc420101000&quot;,spool.device, msg )<br />
+	<br />
+	stpapi.continue.process(&quot;tdilc4201m000&quot;,msg)<br />
+	stpapi.end.session(&quot;tdilc4201m000&quot;)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kingsto88</div><div class="date">10th January 2005, 05:53</div></div><div class="posttext">Dear Mark,<br />
+<br />
+Thank you for the sample. I will try it on my server and see.<br />
+<br />
+Thanks and regards,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kingsto88</div><div class="date">11th January 2005, 06:21</div></div><div class="posttext">Dear mark,<br />
+<br />
+I have these errors when i compiled.<br />
+<br />
+(196) error: 'boi.call' not declared<br />
+(197) error: dimension in array assignment differs 0:1<br />
+<br />
+The script on these two lines are :<br />
+196	boi.call = &quot;tdboidll0011.Create&quot;<br />
+197	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,str$(receipt.number))<br />
+<br />
+Please tell me what is wrong.<br />
+<br />
+Thanks and regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kingsto88</div><div class="date">11th January 2005, 11:16</div></div><div class="posttext">Hi Mark,<br />
+<br />
+My intention is to use the barcode scanner in our warehouse.<br />
+<br />
+To use it during the receipt and issuing of goods. My thots are :<br />
+<br />
+1) Print barcode for any goods that is received eg. receive a box of 12 pcs<br />
+2) Paste the barcode on the goods ie. on the 12pcs box<br />
+3) During issue of stock, print another barcode<br />
+and then paste on the goods (different quantity - issue only 2 pcs)<br />
+One barcode to issue the 2 pcs<br />
+4) Scan this barcode to update Release outbound and maintain<br />
+delivery<br />
+<br />
+<br />
+To implement the barcode scanner, I need to<br />
+1) Buy the scanner - should i get the wireless one?<br />
+2) Read the scanned data to Baan. How do I do this?<br />
+3) Write a program using stpapi to run the maintain receipt session<br />
+and update the appropriate tables. The scanner must be able<br />
+to run this stpapi program after each scan. How do I do this?<br />
+<br />
+Thanks and regards,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th January 2005, 15:42</div></div><div class="posttext">I have boi.call declared like this:<br />
+<br />
+	extern  domain  tcmcs.str132    boi.call<br />
+<br />
+<br />
+We do it just like you mention - Print Receipt barcode tag at time of receipt, tag is scanned for storing the item.  Then when outbound is generated we generate another tag(Pick Tag) and is used for the release.  <br />
+<br />
+As for implementing barcode:<br />
+(1) Depends on what you are doing.  Our receiving department has a couple of desks with PC's so we used fixed scanners on them.  Eventually we will get to wireless but not at this point.  Our users just need to get the feel of doing it the new way.<br />
+(2) With our scanners they are just like using the keyboard - they connect in the same port. So normal Baan sessions work.  The only problem I have not completely overcome yet is doing a barcode for the enter key.  This way the user does not even need the keyboard.<br />
+(3)  I use normal 4GL Baan programs to do what I am talking about.  If you are talking about a programmable Barcode machine that is different. I have not done that - maybe in the future.  On our system the user logs in using a PC/Laptop, runs a session, picks a option(like tdapi4120m000-receipt).  Then they scan purchase order, purchase item, date received, qty received - then they hit the enter key. It processes the receipt and waits for them to scan next Purchase Order.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kingsto88</div><div class="date">14th January 2005, 03:27</div></div><div class="posttext">Dear Mark,<br />
+<br />
+Thanks, I got it compiled already.<br />
+<br />
+But sorry for my ignorance. Need to ask another question.<br />
+<br />
+In your explanation, you say we scan in the PO information and quantity to be received. <br />
+<br />
+Before that we must print a receipt Tag with all these information to be scanned in.<br />
+<br />
+So what I don't understand is what is the purpose of the barcode if we still have to enter these information in another screen, print the receipt tag then scan in the information again. It will be the same if we just enter the information in the normal maintain receipt session.<br />
+<br />
+Thanks and regards,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kingsto88</div><div class="date">14th January 2005, 03:51</div></div><div class="posttext">Hi Mark,<br />
+<br />
+I tried your functions but nothing happens. Maintain receipt is not done.<br />
+<br />
+Could you troubleshoot my code and see what i have done wrong.<br />
+<br />
+thanks and regards<br />
+<br />
+|******************************************************************************<br />
+|* tdpur9449mctm  0  VRC B40C c4 PRD <br />
+|* Update Receipts<br />
+|* System - Admin User           <br />
+|* 2005-01-10<br />
+|******************************************************************************<br />
+|* Main table tdpur045 Receipts, Form Type 4<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+<br />
+	table	ttdpur045	| Receipts<br />
+	table	ttcmcs003	| Warehouses<br />
+	table	tticpr010	| Cost Price Components<br />
+	table	ttisfc001	| Production Orders<br />
+	table	tticst002	| Estimated and Actual Hours<br />
+	table	ttrtoc120	| Logistic Bill of Material<br />
+	table	ttcmcs005	| Reasons for Rejection<br />
+	table	ttiitm001<br />
+<br />
+	extern	domain	ttyeno        	txta.txt<br />
+<br />
+	extern	domain	tcorno        	orno.f<br />
+	extern	domain	tcorno        	orno.t<br />
+	extern	domain	tcpono        	pono.f<br />
+	extern	domain	tcpono        	pono.t<br />
+	extern	domain	tcsrnb        	srnb.f<br />
+	extern	domain	tcsrnb        	srnb.t<br />
+	extern	domain	ttyeno        	txta.txt<br />
+	extern	domain	tcrcno		pass.recno<br />
+	extern	string			pass.mess(30)<br />
+<br />
+	extern  domain  tcmcs.str132    boi.call<br />
+<br />
+	#pragma used dll ottstpapihand<br />
+<br />
+|****************************** form section **********************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	|read.main.table()<br />
+	pass.recno = create_receipt(0,220033,10,2.0,2.0,date.num(),&quot;&quot;,0,0.0,&quot;PCS&quot;,&quot;&quot;,pass.mess)<br />
+<br />
+<br />
+|****************************** field section *********************************<br />
+<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{<br />
+	long	count<br />
+	<br />
+	db.retry.point()<br />
+	<br />
+	select	tdpur045.*<br />
+	from	tdpur045<br />
+	where   tdpur045._index1 inrange {:orno.f, :pono.f, :srnb.f}<br />
+	                             and {:orno.t, :pono.t, :srnb.t}<br />
+	order by tdpur045._index1<br />
+	selectdo<br />
+		| update set<br />
+		count = count + 1<br />
+		if count &gt; 50 then<br />
+			count = 0<br />
+			commit.transaction()<br />
+		endif<br />
+	endselect<br />
+	<br />
+	commit.transaction()<br />
+}<br />
+<br />
+|******************************************************************************<br />
+|* API Code for creating a new receipt<br />
+|******************************************************************************<br />
+function extern domain tcrcno create_receipt(	domain	tcrcno		receipt.number,<br />
+				domain  tcorno		purchase.order,<br />
+				domain	tcpono  	purchase.line,<br />
+				domain	tcqiv1		packingslip.qty,<br />
+				domain	tcqiv1		received.qty,<br />
+				domain	tcdate		received.date,<br />
+				domain	tdltc.clot	purchase.lot,<br />
+				domain	tcdate		purchaselot.date,<br />
+				domain	tcconv		conv.factor,<br />
+				domain	tccuni		purchase.unit,<br />
+				domain	tcitem		purchase.item,<br />
+				ref     string          msg())<br />
+{<br />
+	string	dummy(6)<br />
+<br />
+| Creating a receipt always use 0 for the tdpur045.reno field.<br />
+	msg = &quot;&quot;<br />
+	stpapi.handle.subproc(&quot;tdpur4120m000&quot;,&quot;tdpur4224s000&quot;,&quot;add&quot;)<br />
+ 	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,str$(0))<br />
+ 	stpapi.change.view(&quot;tdpur4120m000&quot;,msg)<br />
+	if not isspace(msg) then<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return(receipt.number)<br />
+	endif<br />
+<br />
+| Always use tdpur4224s000 to create receipt for all lines.<br />
+   	stpapi.put.field(&quot;tdpur4224s000&quot;,&quot;form.orno&quot;,str$(purchase.order))<br />
+  	stpapi.continue.process(&quot;tdpur4224s000&quot;,msg)<br />
+ 	stpapi.end.session(&quot;tdpur4224s000&quot;)<br />
+	if not isspace(msg) and strip$(msg)&lt;&gt; &quot;Process is gone&quot; then<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return(receipt.number)<br />
+	endif<br />
+	msg = &quot;&quot;<br />
+	<br />
+| Try a pause to make sure receipt is completed.	<br />
+	suspend(3000)<br />
+<br />
+| Get the receipt so you can use the modify receipt to update. the field.<br />
+ 	stpapi.get.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,dummy)<br />
+	receipt.number = val(dummy)<br />
+	stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+	<br />
+| Verify this receipt number has this PO and line on it.<br />
+	select	tdpur045.reno<br />
+	from	tdpur045<br />
+	where	tdpur045._index6 = {:receipt.number,:purchase.order,:purchase.line}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	selectempty<br />
+		receipt.number = 0<br />
+	endselect<br />
+	if receipt.number = 0 then<br />
+		msg = &quot;Receipt failed.&quot;<br />
+		return(0)<br />
+	endif<br />
+	<br />
+| Now go modify the new receipt.	<br />
+	modify_receipt(	receipt.number,<br />
+			purchase.order,<br />
+			purchase.line,<br />
+			packingslip.qty,<br />
+			received.qty,<br />
+			received.date,<br />
+			purchase.lot,<br />
+			purchaselot.date,<br />
+			conv.factor,<br />
+			purchase.unit,<br />
+			purchase.item,<br />
+			msg)<br />
+	return(receipt.number)<br />
+}<br />
+|******************************************************************************<br />
+|* API Code for modifying an existing receipt.<br />
+|******************************************************************************<br />
+function extern modify_receipt(	domain	tcrcno		receipt.number,<br />
+				domain  tcorno		purchase.order,<br />
+				domain	tcpono  	purchase.line,<br />
+				domain	tcqiv1		packingslip.qty,<br />
+				domain	tcqiv1		received.qty,<br />
+				domain	tcdate		received.date,<br />
+				domain	tdltc.clot	purchase.lot,<br />
+				domain	tcdate		purchaselot.date,<br />
+				domain	tcconv		conv.factor,<br />
+				domain	tccuni		purchase.unit,<br />
+				domain	tcitem		purchase.item,<br />
+				ref     string          msg())<br />
+{<br />
+		long	rc, cnt<br />
+		string	dummy(6), error_code(16)<br />
+	domain	tcorno	get.orno<br />
+	domain	tcpono	get.pono<br />
+	<br />
+	select	tiitm001.stgu, tiitm001.kitm<br />
+	from	tiitm001<br />
+	where	tiitm001._index1 = {:purchase.item}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	endselect<br />
+	<br />
+	msg = &quot;&quot;<br />
+	boi.call = &quot;tdboidll0011.Create&quot;<br />
+ 	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,str$(receipt.number))<br />
+  	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.orno&quot;,str$(purchase.order))<br />
+ 	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.pono&quot;,str$(purchase.line))<br />
+	rc = stpapi.find(&quot;tdpur4120m000&quot;,msg)<br />
+	if not isspace(msg) or rc&lt;&gt;1 then<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return<br />
+	endif<br />
+	stpapi.get.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.orno&quot;,dummy)<br />
+	get.orno = val(dummy)<br />
+	stpapi.get.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.pono&quot;,dummy)<br />
+	get.pono = val(dummy)<br />
+<br />
+| Prepare to handle lot controlled items.	<br />
+	if ((not isspace(purchase.lot) or conv.factor&gt;1 or  purchase.unit &lt;&gt; tiitm001.stgu)<br />
+	and (tiitm001.kitm=tckitm.purchase or tiitm001.kitm = tckitm.manufacture))	then<br />
+		stpapi.handle.subproc(&quot;tdpur4120m000&quot;,&quot;tdilc4113s000&quot;,&quot;add&quot;)<br />
+	endif<br />
+	<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.diqu&quot;,str$(packingslip.qty))<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.date&quot;,str$(received.date))<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.dqua&quot;,str$(received.qty))<br />
+	stpapi.update(&quot;tdpur4120m000&quot;,1,msg)<br />
+	if not isspace(msg) or rc&lt;&gt;1 then<br />
+		if not isspace(purchase.lot) or conv.factor&gt;1 then<br />
+			stpapi.end.session(&quot;tdilc4113s000&quot;)<br />
+		endif<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return<br />
+	endif<br />
+<br />
+| Need to handle the conversion factor.<br />
+	if ((not isspace(purchase.lot) or conv.factor&gt;1 or  purchase.unit &lt;&gt; tiitm001.stgu)<br />
+	and (tiitm001.kitm=tckitm.purchase or tiitm001.kitm = tckitm.manufacture))	then<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.clot&quot;,purchase.lot)<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.date&quot;,str$(purchaselot.date))<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.qstr&quot;,str$(received.qty*conv.factor))<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.qstc&quot;,str$(received.qty*conv.factor))<br />
+		stpapi.insert(&quot;tdilc4113s000&quot;,1,msg)<br />
+		error_code = stpapi.get.mess.code(&quot;tdilc4113s000&quot;,msg)<br />
+		if strip$(error_code) = &quot;tdilc40062&quot; then<br />
+			msg = &quot;&quot;<br />
+		endif<br />
+		stpapi.end.session(&quot;tdilc4113s000&quot;)<br />
+	endif<br />
+ 	stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th January 2005, 15:38</div></div><div class="posttext">In your explanation, you say we scan in the PO information and quantity to be received. <br />
+<br />
+Before that we must print a receipt Tag with all these information to be scanned in.<br />
+<br />
+<br />
+When we receive a purchase order from a supplier the barcodes are already on the paper work.  That is what we scan for the receipt.  Then we print a tag that is used for the inbound piece - this is what we call a receipt tag.  Our purchasing department worked with our suppliers on getting them to send in barcoded information - most already did, but some needed some help.<br />
+<br />
+I will look at the code and see if I see anything glaring.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th January 2005, 15:52</div></div><div class="posttext">In this section what happens?<br />
+<br />
+<br />
+| Creating a receipt always use 0 for the tdpur045.reno field.<br />
+	msg = &quot;&quot;<br />
+	stpapi.handle.subproc(&quot;tdpur4120m000&quot;,&quot;tdpur4224s000&quot;,&quot;add&quot;)<br />
+ 	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,str$(0))<br />
+ 	stpapi.change.view(&quot;tdpur4120m000&quot;,msg)<br />
+	if not isspace(msg) then<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return(receipt.number)<br />
+	endif<br />
+<br />
+| Always use tdpur4224s000 to create receipt for all lines.<br />
+   	stpapi.put.field(&quot;tdpur4224s000&quot;,&quot;form.orno&quot;,str$(purchase.order))<br />
+  	stpapi.continue.process(&quot;tdpur4224s000&quot;,msg)<br />
+ 	stpapi.end.session(&quot;tdpur4224s000&quot;)<br />
+	if not isspace(msg) and strip$(msg)&lt;&gt; &quot;Process is gone&quot; then<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return(receipt.number)<br />
+	endif<br />
+| Get the receipt so you can use the modify receipt to update. the field.<br />
+ 	stpapi.get.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,dummy)<br />
+	receipt.number = val(dummy)<br />
+	stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+<br />
+<br />
+Run in debug mode and see if stpapi.change.view(&quot;tdpur4120m000&quot;,msg) actually starts tdpur4224s000.  Use option dialog and start a shell.  Do a ps and make sure that you see tdpur4120m000 and tdpur4224s000 as subprocesses for this program.  If that works then step through tdpur4224s000.  The key is to first make sure that you get a receipt. <br />
+<br />
+Typically for something like this I build it one step at a time, making sure each piece works through debug mode.  And keep in mind that what happens on my system may not happen on your system - just because the code I posted works at my site does not mean it will work at your site.  Our site is on the A&amp;D extension.  One of the first things I almost always recommend is getting the latest stpapi patch from Baan.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kingsto88</div><div class="date">17th January 2005, 06:54</div></div><div class="posttext">Hi Mark,<br />
+<br />
+I debug and add in messge to see the error.<br />
+<br />
+No it does not open tdpur4224s000.<br />
+<br />
+ Creating a receipt always use 0 for the tdpur045.reno field.<br />
+	msg = &quot;&quot;<br />
+	stpapi.handle.subproc(&quot;tdpur4120m000&quot;,&quot;tdpur4224s000&quot;,&quot;add&quot;)<br />
+ 	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,str$(0))<br />
+ 	stpapi.change.view(&quot;tdpur4120m000&quot;,msg)<br />
+	if not isspace(msg) then<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return(receipt.number)<br />
+	endif<br />
+<br />
+msg variable is not space, so it ends session tdpur4120m00 and return.<br />
+<br />
+the msg variable contains &quot;Series must be filled&quot;<br />
+What does it mean? What must I do now? I dont see any series to be filled.<br />
+<br />
+Thanks and regards,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th January 2005, 17:32</div></div><div class="posttext">When doing a receipt manually do you all enter something in receipt number or packing slip number?  I am not sure if you can force that with parameter settings or not.  Do you have source code for tdpur4120 where you can debug it?<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kingsto88</div><div class="date">19th January 2005, 05:21</div></div><div class="posttext">Hi Mark,<br />
+<br />
+I changed the receipt number to &quot;10&quot; instead of just &quot;0&quot;.<br />
+This is because we set 2 digits series for our receipt number.<br />
+<br />
+Now the receipt is working. I need to try the outbound now.<br />
+<br />
+thanks and rgds</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kingsto88</div><div class="date">24th January 2005, 03:24</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Need your help again.<br />
+<br />
+I managed to get it to create a new receipt if I put in the series 10 as in the example below and not 0.<br />
+Is this correct?<br />
+<br />
+<br />
+function create_receipt()<br />
+...<br />
+stpapi.handle.subproc(&quot;tdpur4120m000&quot;,&quot;tdpur4224s000&quot;,&quot;add&quot;)<br />
+ 	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,str$(10))<br />
+...<br />
+<br />
+<br />
+Also I call the create_receipt with <br />
+pass.recno = create_receipt(0,orno.t,pono.t,2.0,2.0,date.num(),&quot;&quot;,0,0.0,&quot;PCS&quot;,&quot;&quot;,pass.mess)<br />
+Is this correct?<br />
+<br />
+Problem now I have is it hangs at this point in the modify_receipt:<br />
+<br />
+function modify_receipt()<br />
+...<br />
+stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.diqu&quot;,str$(packingslip.qty))<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.date&quot;,str$(received.date))<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.dqua&quot;,str$(received.qty))<br />
+	stpapi.update(&quot;tdpur4120m000&quot;,1,msg)<br />
+	-----  &quot;hang here&quot;<br />
+	if not isspace(msg) or rc&lt;&gt;1 then<br />
+		if not isspace(purchase.lot) or conv.factor&gt;1 then<br />
+			stpapi.end.session(&quot;tdilc4113s000&quot;)<br />
+		endif<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return<br />
+	endif<br />
+...<br />
+<br />
+The process seems to hang at stpapi.update(&quot;tdpur4120m000&quot;,1,msg)<br />
+If I use option dialog and kill tdilc4113s000 and tdpur4120m000, then only the process continues from there.<br />
+What must I do now?<br />
+<br />
+Thanks and regards,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th January 2005, 15:38</div></div><div class="posttext">if ((not isspace(purchase.lot) or conv.factor&gt;1 or purchase.unit &lt;&gt; tiitm001.stgu)<br />
+and (tiitm001.kitm=tckitm.purchase or tiitm001.kitm = tckitm.manufacture)) then<br />
+stpapi.handle.subproc(&quot;tdpur4120m000&quot;,&quot;tdilc4113s000&quot;,&quot;add&quot;)<br />
+endif<br />
+<br />
+stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.diqu&quot;,str$(packingslip.qty))<br />
+stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.date&quot;,str$(received.date))<br />
+stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.dqua&quot;,str$(received.qty))<br />
+stpapi.update(&quot;tdpur4120m000&quot;,1,msg)<br />
+if not isspace(msg) or rc&lt;&gt;1 then<br />
+if not isspace(purchase.lot) or conv.factor&gt;1 then<br />
+stpapi.end.session(&quot;tdilc4113s000&quot;)<br />
+endif<br />
+<br />
+<br />
+In the above is the &quot;if ((not isspace(purchase.lot)....&quot; being executed?  It sounds like my if statement does not work for you.  The stpapi.handle.subproc(&quot;tdpur4120m000&quot;,&quot;tdilc4113s000&quot;,&quot;add&quot;) needs to be executed in order to control the tdilc4113s000 sub-session.  I know I have found a couple of cases where our items are set-up incorrectly and the if statement does not work.  The update launches tdilc4113 and my program locks.  <br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kingsto88</div><div class="date">2nd February 2005, 11:42</div></div><div class="posttext">Dear Mark,<br />
+<br />
+Thanks again for you help with the receipt. It is working now and am still testing on it.<br />
+Anyway, i am required to write another program where the session is a print session. At the end of this session, we need to run another print session automatically. <br />
+In the second print session, I need to pass in the fields from the first session then activate the continue process. <br />
+My sample is below but it does not work.<br />
+<br />
+if rprt_open() then<br />
+		read.main.table()<br />
+		rprt_close()<br />
+<br />
+		msg = &quot;&quot;<br />
+		stpapi.handle.subproc(&quot;tfacr2411m000&quot;,&quot;&quot;,&quot;add&quot;)<br />
+		stpapi.put.field(&quot;tfacr2411m000&quot;,&quot;cuno.f&quot;,&quot;A00980&quot;)<br />
+		stpapi.put.field(&quot;tfacr2411m000&quot;,&quot;cuno.t&quot;,&quot;A00980&quot;)<br />
+	  	<br />
+	  	stpapi.continue.process(&quot;tfacr2411m000&quot;,msg)<br />
+ 		stpapi.end.session(&quot;tfacr2411m000&quot;)<br />
+<br />
+	else<br />
+		choice.again()<br />
+	endif<br />
+<br />
+Thanks and regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kbartelds</div><div class="date">2nd February 2005, 12:10</div></div><div class="posttext">skip the handle.subproc, set the report (and device) and it will work.<br />
+<br />
+Regards,<br />
+Klaas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd February 2005, 14:45</div></div><div class="posttext">You also need to set which report and device to use.  So as Klaas said skip the handle.subproc and add a stpapi.set.report command like below.<br />
+<br />
+stpapi.set.report(&quot;tdilc4202m000&quot;,&quot;rtdilc440201000&quot;,&quot;ASCIF&quot;,msg)<br />
+<br />
+In my case I am sending it to a temp file.  You can use something like this to send it to the same printer as the first report.<br />
+<br />
+stpapi.set.report(&quot;tdilc4202m000&quot;,&quot;rtdilc440201000&quot;,spool.device,msg)<br />
+<br />
+Of course fill in the your session and report number in these commands.<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

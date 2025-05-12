@@ -1,0 +1,131 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Error 206, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Error 206 Tools Development" />
+	
+	<title>Error 206 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Error 206</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">cazerpa</div><div class="date">11th May 2004, 15:48</div></div><div class="posttext">I have a sesion TYPE 2 on table txxxxxx, in after.field is necessary update that field like this:<br />
+<br />
+<br />
+function update.tfacr980()<br />
+{<br />
+		<br />
+<br />
+		itfgld0038.dim.rcd(ttfacr980)<br />
+		itfgld0038.store.rcd.fields.no.lock.info(ttfacr980)<br />
+<br />
+		db.retry.point()<br />
+<br />
+	        select	tfacr980.*<br />
+		from	tfacr980 for update<br />
+		where	tfacr980._index2 = {:tfacr980.cuno,:tfacr980.ttyp,:tfacr980.ninv}<br />
+		selectdo<br />
+			tfacr980.rete = value<br />
+			db.update(ttfacr980,db.retry)<br />
+		<br />
+		endselect<br />
+		commit.transaction()		<br />
+<br />
+		itfgld0038.restore.rcd.fields(ttfacr980)<br />
+<br />
+}<br />
+<br />
+<br />
+But i want exit, i've got the error 206.<br />
+<br />
+<br />
+Any suggestions would be greatly appreciated!<br />
+<br />
+Carlos Zerpa</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th May 2004, 16:31</div></div><div class="posttext">I am not familiar with the error numbers - is this the transaction is on error? <br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cazerpa</div><div class="date">12th May 2004, 16:45</div></div><div class="posttext">If I excluded that SubRotiune, I wouldn't that error. Why am i doing wrong?<br />
+<br />
+<br />
+Thanks,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nick_rogers</div><div class="date">12th May 2004, 16:55</div></div><div class="posttext">add :<br />
+<br />
+order by tfacr980._index2 with retry</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">12th May 2004, 23:08</div></div><div class="posttext">Mark, <br />
+<br />
+Error 206 means that the record is not locked. <br />
+Transaction is on error occurs when you update a record, but do not send a commit.transaction()...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">12th May 2004, 23:23</div></div><div class="posttext">As defined in the Programmer's Manual: http://www.baanboard.com/programmers_manual_baanerp_help_errors_206_ENOTLOCKED</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">13th May 2004, 13:34</div></div><div class="posttext">The reason why u get error 206 is that u have written the update function<br />
+in an after field section which comes in the way of standard program.<br />
+So when standard program tries to lock the record on main table , it can not lock <br />
+the same.<br />
+<br />
+U can write the same function (without db.retry.point &amp; commit.transaction ) in before.<br />
+write or before.rewrite section. You will not hit the error.<br />
+<br />
+Or else call a separate program which does this updates to other table. This however is less <br />
+preferred route.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cazerpa</div><div class="date">13th May 2004, 14:57</div></div><div class="posttext">I forgot , The main table is the same (tfacr980) that is used in the function.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">wiggum</div><div class="date">14th May 2004, 12:06</div></div><div class="posttext">You should try to save the record buffer before the update an move it back after it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">14th May 2004, 15:55</div></div><div class="posttext">As Hitesh said - if it is the main table of the session there may be a problem with the standard script locking the record as well.  What section are you calling the function from?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">14th May 2004, 16:16</div></div><div class="posttext">Lisa,The function is called in after.field section of a field. <br />
+<br />
+The function  to store record buffer is save.rcd.main()  and and to restore the record buffer restore.rcd.main() .  Save record buffer  before calling ur update function and immediately after that restore record buffer. I think this also will work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">14th May 2004, 16:33</div></div><div class="posttext">O I missed that - after.field section.<br />
+<br />
+I am not sure if you can get around committing while in that section, even if you do save the record using those commands.   Maybe, but I have not tried, but better to look at why.  Why after.field?  The user is not even sure they will keep this action.  They could undo, they could exit without saving..and you have saved the value based on their change.    I think beyond the technical problem, there is an issue of if this is really what you want to do.  As you said, the after.write and after.rewrite sections are better for this, because at that point the user is sure they are going to keep that change.<br />
+<br />
+What is the reason for updating so soon?  It looks like you are updating the current record...is that true?  If you just want to update it so the field value is changed as they are tabbing through, then the record is current, just change the value.   Something like:<br />
+<br />
+<br />
+tfacr980.somefield:<br />
+after.field:<br />
+    tfacr980.rete = value<br />
+    display.field(&quot;tfacr980.rete&quot;)<br />
+<br />
+<br />
+Then, if the user chooses 'write', it will be written this way.  If the user aborts, it will not be changed.  Actually, when.field.changes is the standard section for that type of change.<br />
+<br />
+If you are not updating the current record so they see the values as they tab through, then I would suggest waiting until the after.write and after.rewrite section to update a different record.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">14th May 2004, 16:40</div></div><div class="posttext">Agreed , After.field section is really not a good choice. Probably when.field.changes could be a better choice.<br />
+<br />
+Technically i am also not sure about saving and restoring record buffer. I have used rcd main functions but in an altogether different context. I just elaborated the suggestion  of wiggum  and want to get the feedback.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

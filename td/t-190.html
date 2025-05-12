@@ -1,0 +1,121 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Baan null date field view from oracle sql, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Baan null date field view from oracle sql Tools Development" />
+	
+	<title>Baan null date field view from oracle sql [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Baan null date field view from oracle sql</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">zaidlaz</div><div class="date">19th September 2001, 14:05</div></div><div class="posttext">Hi Guys,<br />
+<br />
+Baan date fields are known to be &quot;NOT NULL&quot;. If were enter null date in a baan table and viewed it using oracle it will be shown as '01-JAN-99'. How does baan allows us to enter a null date value in a not null date field? How can I perform an insert of a null date from sqlplus? Appreciate if anyone could enlighten this phenomena. Thank you.<br />
+<br />
+<br />
+Best Wishes,<br />
+Zaid</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">19th September 2001, 18:32</div></div><div class="posttext">Baan uses 01-01-9999 as their NULL date in Oracle. So,<br />
+<br />
+insert into baan.ttadvxxx(..., t$date, ...)<br />
+   values(..., to_date('01-01-9999', 'mm-dd-yyyy'), ...);</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gguymer</div><div class="date">21st September 2001, 19:51</div></div><div class="posttext">Oracle will not let you insert the date '01/01/-9999' using SQLPlus or PL/SQL. Oracle will return: ORA-01841: (full) year must be between -4713 and +9999. I asked Oracle support how they thought Baan was getting this date into Oracle and they believed that it was being done through OCI since it doesn't validate dates. There is a flag that can be set in the db_resource file of Baan that will change the Baan NULL date to -4713 instead of -9999, but you would have to convert all date fields over to that value before doing that. The only way I got around this was to create a Baan table with one row in it. That row contains a Baan NULL date that I had Baan populate. Oracle will let you copy the NULL date from that table into the date field of any table you want. Hope this helps.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">21st September 2001, 21:11</div></div><div class="posttext">The OCI call interface lets Baan get away with more things than just the NULL date. Another example is the current problem with negative document numbers (t$docn) in tfgld018 on Oracle8 installations. See also: http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=10</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JamesV</div><div class="date">21st September 2001, 21:25</div></div><div class="posttext">Baan does make an OCI call in order to insert the binary date into the field.  This has caused some problems for me when doing Oracle replication projects, but we were able to work around the problem.<br />
+<br />
+The methodology described is also correct as far as correcting the problem.  <br />
+<br />
+Here are some details from the U7076BUS documentation of the Baan Oracle Database driver:<br />
+<br />
+           Driver resource: ora_date<br />
+  Environment variable: ORA_DATE<br />
+Client/Server resource: Set for server only<br />
+                            Type: Integer<br />
+                        Default: 1<br />
+Description<br />
+This resource indicates the valid date range used by<br />
+the Oracle driver. If set to 1 (default) the range is from<br />
+01 Jan. 0001 to 31 Dec. 4712. If set to 0, the range will<br />
+be 01 Jan. 9999 BC to 31 Dec. 9999. It is<br />
+recommended that the default be used; Driver resource ora_date<br />
+Environment variable ORA_DATE<br />
+Client/Server resource Set for server only<br />
+Type Integer<br />
+Default 1<br />
+Description This resource indicates the valid date range used by<br />
+the Oracle driver. If set to 1 (default) the range is from<br />
+01 Jan. 0001 to 31 Dec. 4712. If set to 0, the range will<br />
+be 01 Jan. 9999 BC to 31 Dec. 9999. It is<br />
+recommended that the default be used; the range<br />
+allowed with the value 0 will not be supported in future<br />
+BaanERP releases because the date range cannot be<br />
+handled by non-Baan programs.<br />
+<br />
+-------------------------<br />
+<br />
+It is important to eliminate the old date format as ERP 5.0c no longer supports the old -9999 BC start of epoch.  It also does not use the OCI binary date insert.  So, if you are on ERP get rid of it.<br />
+If you are on Baan IV, you can live with it depending on your use of advanced Oracle features or third-party applications.<br />
+<br />
+-- Jim</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">22nd September 2001, 00:14</div></div><div class="posttext">I said &quot;Baan uses 01-01-9999 as their NULL date in Oracle.&quot; Where did all this 01/01/-9999 come from?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zaidlaz</div><div class="date">23rd September 2001, 02:14</div></div><div class="posttext">I've create a table with one field as select from the baan table field which contains the null date presumel seen as '01-JAN-9999'.<br />
+Alter the PL/SQL procedure to select from this table. It worked perfectly!<br />
+<br />
+<br />
+High Five! to all who contirbuted to this.<br />
+<br />
+<br />
+Best Wishes,<br />
+Zaid</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gguymer</div><div class="date">24th September 2001, 15:23</div></div><div class="posttext">Originally posted by gfasbender <br />
+I said &quot;Baan uses 01-01-9999 as their NULL date in Oracle.&quot; Where did all this 01/01/-9999 come from? <br />
+<br />
+<br />
+It is meant to highlight the fact that the Baan NULL date in Oracle has a negative year. You can format dates any way you want, but yours does not show that the date is negative. Your format uses a dash as a separator, and mine uses a foward shash as a separator with a dash next to the year indicating it as a negative number. If you will use this Oracle format mask, 'MM/DD/SYYYY' in the TO_CHAR funtion, it will display the date the same as I orignally posted it showing the sign of the year.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gurmeetmakkar</div><div class="date">19th June 2006, 08:43</div></div><div class="posttext">How to find out the Null date from the database <br />
+<br />
+<br />
+Gurmeet Singh</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">PeterM</div><div class="date">21st June 2006, 17:13</div></div><div class="posttext">I know the following two possibilities to compare such dates in Oracle:<br />
+<br />
+select ... <br />
+from ttimjr913...<br />
+where T$exdat &lt; to_date('01.01.0001','DD.MM.YYYY')<br />
+<br />
+or<br />
+<br />
+select ...<br />
+from ttimjr913...<br />
+where T$exdat = least(T$exdat)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

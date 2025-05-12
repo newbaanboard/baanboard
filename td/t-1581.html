@@ -1,0 +1,118 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Selecting twice on the same index, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Selecting twice on the same index Tools Development" />
+	
+	<title>Selecting twice on the same index [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Selecting twice on the same index</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Haggis</div><div class="date">4th April 2002, 13:38</div></div><div class="posttext">Hi<br />
+<br />
+I am trying to run a SQL query that has the following condition:<br />
+<br />
+select <br />
+        tczz016.item<br />
+from <br />
+        tczzz016<br />
+<br />
+where<br />
+        ((tczzz016._index3={90,&quot;FIBRE&quot;})<br />
+and<br />
+        (tczzz016._index3={120,&quot;CAN&quot;})<br />
+<br />
+Now I know there is data that qualifies for this where statement.  But it returns no data.  If I use an OR instead of the AND in the statement it returns me the firstly for those items that qualify for the first condition followed by the items that qualify for the second condition.<br />
+<br />
+Is there a problem because by using two conditions in the statement that relate to the same index it finds nothing and cancel each other out?  Does anyone know of a better way of putting this?<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th April 2002, 16:23</div></div><div class="posttext">&quot;Or&quot; is what you should be using, because you want all records where index3 matches your selection. This easiest comparision I can come up with is on the item master. Ex.<br />
+<br />
+Select tiitm001.*<br />
+where tiitm001.item = &quot;X&quot; and tiitm001.item = &quot;Y&quot;<br />
+<br />
+You would never find a record. But on using or you should get two records.  So &quot;OR&quot; should get you what you are looking for.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Haggis</div><div class="date">4th April 2002, 16:39</div></div><div class="posttext">Hi mark_h<br />
+<br />
+I see what you mean.  The problem is that the number 90 refers to a line number and the &quot;FIBRE&quot; is the response to the line.  So for each item they have responses for each line.  Thus I would want all items where the response was FIBRE to line number 90 and CAN to line 120.  They are the same fields but different records about the same item.  <br />
+<br />
+Not sure how I would go about this then.  I need all items where the response to line number 90 is FIBRE and to line 120 is CAN.  Any ideas how I would go about this?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">4th April 2002, 17:15</div></div><div class="posttext">How about something like this:<br />
+<br />
+select	tczzz016.item<br />
+from	tczzz016<br />
+where	tczzz016._index3 = {90, &quot;FIBRE&quot;}<br />
+and	tczzz016.item IN<br />
+	(select	tczzz016.item<br />
+	 from	tczzz016<br />
+	 where	tczzz016._index3 = {120, &quot;CAN&quot;})<br />
+<br />
+<br />
+I don't think you need to alias the table in this case, but you might try it if the first attempt fails.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th April 2002, 17:21</div></div><div class="posttext">I was thinking that the &quot;or&quot; statement would return all records where the line was 90, the response was &quot;Fibre&quot;, it would also return all records where the line was 120 and the response was &quot;Can&quot;.  So the way I picture the records is like below<br />
+<br />
+Item        line       response<br />
+1           80         none<br />
+1           90         fibre<br />
+1           120        can<br />
+2           90         fibre<br />
+2           120        can<br />
+<br />
+In this case I would expect it to return 4 records - item 1 twice and item 2 twice.  If you only wanted two records then you could use the group by statement.<br />
+<br />
+This is assuming I have the record structure correct in a simplified version.  If I got it wrong could you post a few sample records.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">5th April 2002, 05:16</div></div><div class="posttext">Let us say 'FIBER' or 'CAN' is the field fld1.<br />
+Let us say the numbers are fld2.<br />
+<br />
+I think what you need is:<br />
+<br />
+<br />
+<br />
+where (     (fld1 = &quot;FIBER&quot; and fld2 = 90)<br />
+        OR  (fld1 = &quot;CAN&quot; and fld2 =120))<br />
+<br />
+ <br />
+<br />
+I am afraid you will not be able to use the index.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">5th April 2002, 09:50</div></div><div class="posttext">If the &quot;in&quot; clause didn't work, use the following:<br />
+<br />
+select  tczzz016.item<br />
+from    tczzz016<br />
+where   tczzz016._index3 = {90, &quot;FIBRE&quot;}<br />
+  and   exists (<br />
+        select '1'<br />
+        from   tczzz016 a<br />
+        where  a._index3 = {120, &quot;CAN&quot;}<br />
+          and  a.item = tczzz016.item<br />
+        )</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

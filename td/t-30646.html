@@ -1,0 +1,232 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to write a SQL to get the result?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to write a SQL to get the result? Tools Development" />
+	
+	<title>How to write a SQL to get the result? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; How to write a SQL to get the result?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jeffersyuan</div><div class="date">31st January 2007, 05:08</div></div><div class="posttext">Hi,<br />
+Just like table whinr110,<br />
+Item                  Warehouse          Date          Stock<br />
+===============================================<br />
+A                       A01                  2006-12-30         100<br />
+A                       A01                  2006-12-25         80<br />
+A                       A02                  2006-12-27         20<br />
+B                       A01                  2006-12-21         30 <br />
+B                       A02                  2006-12-28         25 <br />
+B                       A02                  2006-12-26         18<br />
+<br />
+Is there an easy way to get the stock at a time point, like '2006-12-31'<br />
+<br />
+result may be<br />
+<br />
+Item                  Warehouse          Stock<br />
+===================================================<br />
+A                       A01                   100<br />
+A                       A02                   20<br />
+B                       A01                   30<br />
+B                       A02                   25<br />
+<br />
+Thank you.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">David Eagar</div><div class="date">31st January 2007, 06:55</div></div><div class="posttext">Something like<br />
+select t_item, t_stoc from twhinr110700<br />
+where t_trdt = '2006-04-17 23:19:53.000'</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">31st January 2007, 12:35</div></div><div class="posttext">If I understand correctly, you want per warehouse/item combination, the stock corresponding to the input date, based on whinr110.<br />
+<br />
+So the following concept will do the job probably in the most efficient/performant way:<br />
+<br />
+<br />
+                                                                               <br />
+|****************************** DECLARATION SECTION ***************************<br />
+declaration:<br />
+<br />
+	table	twhinr110<br />
+	<br />
+	extern	domain	tcdate		stoc.date	|considering that user inputs requested date,<br />
+	extern	domain	tcitem		item.f, item.t	|item range<br />
+	extern	domain	tccwar		cwar.f, cwar.t	|and warehouse range<br />
+<br />
+		domain	tcbool		init<br />
+		domain	tcitem		hold.item<br />
+		domain	tccwar		hold.cwar<br />
+		domain	tcdate		max.trdt<br />
+		domain	tcqiv1		stoc<br />
+<br />
+<br />
+|****************************** PROGRAM     SECTION ***************************<br />
+<br />
+<br />
+|****************************** ZOOM FROM   SECTION ***************************<br />
+|****************************** FORM	     SECTION ***************************<br />
+|****************************** CHOICE      SECTION ***************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+	if rprt_open() then<br />
+		read.main.table()<br />
+		rprt_close()<br />
+	else<br />
+		choice.again()<br />
+	endif<br />
+<br />
+<br />
+|****************************** FIELD       SECTION ***************************<br />
+|****************************** MAIN TABLE  SECTION ***************************<br />
+|****************************** FUNCTION    SECTION ***************************<br />
+<br />
+function read.main.table()<br />
+{<br />
+	init = true<br />
+<br />
+	select	whinr110.*<br />
+	from	whinr110<br />
+	where	whinr110._index1 inrange {:item.f, :cwar.f} and<br />
+					  {:item.t, :cwar.t}<br />
+	and	whinr110.trdt &lt; :stoc.date<br />
+	order by whinr110._index1<br />
+	selectdo<br />
+		if init then<br />
+			init = false<br />
+			hold.item = whinr110.item<br />
+			hold.cwar = whinr110.cwar<br />
+			max.trdt = whinr110.trdt<br />
+			stoc = whinr110.stoc<br />
+		endif<br />
+		<br />
+		if whinr110.item &lt;&gt; hold.item or whinr110.cwar &lt;&gt; hold.cwar then<br />
+			rprt_send()<br />
+			hold.cwar = whinr110.cwar<br />
+			hold.item = whinr110.item<br />
+			max.trdt = whinr110.trdt<br />
+			stoc = whinr110.stoc<br />
+		else<br />
+			if whinr110.trdt &gt; max.trdt then<br />
+				max.trdt = whinr110.trdt<br />
+				stoc = whinr110.stoc<br />
+			endif<br />
+		endif<br />
+	selecteos<br />
+		rprt_send()<br />
+	endselect				<br />
+}<br />
+<br />
+<br />
+In the report the printed input fields should be hold.cwar, hold.item, stoc (and if you want to print the date of last transaction within selected date, you can add max.date).<br />
+<br />
+Let us know if it works fine for you. Good luck!!<br />
+<br />
+<br />
+Regards,<br />
+Eli Nager</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">markerpln</div><div class="date">18th March 2010, 04:35</div></div><div class="posttext">Sir i need also a help that i want to assign a specific date and time into whinr110.trdt..<br />
+<br />
+ex of my codes..<br />
+<br />
+domain tcqdhc jan<br />
+domain tctrns.date jandate<br />
+<br />
+domain tcqdhc feb<br />
+domain tctrns.date febdate<br />
+<br />
+<br />
+|January date<br />
+jandate = 01-31-2010 23:59        <br />
+<br />
+select whinr110.qhnd,whinr110.trdt<br />
+from whinr110             |where whinr110.trdt &lt; :trdt.f<br />
+where whinr110.trdt &lt;= :jandate<br />
+and whinr110.cwar={:whwmd215.cwar}<br />
+and whinr110.item={:whwmd215.item}<br />
+selectdo<br />
+jan=whinr110.qhnd  |ENDING INVENTORY of the Month January<br />
+endselect<br />
+<br />
+<br />
+|February date<br />
+febdate = 02-31-2010 23:59        <br />
+<br />
+select whinr110.qhnd,whinr110.trdt<br />
+from whinr110             |where whinr110.trdt &lt; :trdt.f<br />
+where whinr110.trdt &lt;= :febdate<br />
+and whinr110.cwar={:whwmd215.cwar}<br />
+and whinr110.item={:whwmd215.item}<br />
+selectdo<br />
+feb=whinr110.qhnd  |ENDING INVENTORY of the Month February<br />
+endselect<br />
+<br />
+the report is just like this<br />
+<br />
+ENDING INVENTORY PER MONTH<br />
+|January|February|<br />
+|  2000  |   3000  |<br />
+<br />
+Thnxs,,<br />
+<br />
+The problem is my statement is not working..need help for the codes..</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">wiggum</div><div class="date">18th March 2010, 12:47</div></div><div class="posttext">At first 02-31-2010 isn't a valid date perhaps this is the problem.<br />
+<br />
+How you assign the dates to the fields? As they are utc dates you have to use the function date.to.utc().</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">markerpln</div><div class="date">29th March 2010, 07:32</div></div><div class="posttext">i Want to equl my variable to the specific date for ex..<br />
+This variabl eis the ending inventory of the month,then i want my variable equal to my sql statement.<br />
+<br />
+<br />
+domain long UTCTime<br />
+<br />
+UTCTime=inputstr.to.utc(&quot;1312010&quot;,&quot;%D(%1m%02d%04Y)&quot;,&quot;235959&quot;,&quot;%U(%02H%02m%02s)&quot;)<br />
+<br />
+<br />
+select whinr110.qhnd,whinr110.trdt<br />
+from whinr110            <br />
+where whinr110.trdt &lt;= :UTCTime<br />
+and whinr110.cwar={:whwmd215.cwar}<br />
+and whinr110.item={:whwmd215.item}<br />
+selectdo<br />
+jan=whinr110.qhnd / convertion<br />
+endselect<br />
+<br />
+<br />
+my layout look like this:<br />
+<br />
+Ending inventory of the month:<br />
+January | February<br />
+3000     | 2000<br />
+<br />
+<br />
+can u give a sample codes for this??thnxs<br />
+and what domain that i must use in my layout for the UTCTime to see the value of my Variable??</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">29th March 2010, 16:21</div></div><div class="posttext">U need to write only 1 SQL  for entire year . Have a variable for month  of record which in input var for report also . Use only one  variable for 12 months as against 12 variables u have . In the report in aggregate condition , equate month variable  to  respective column month . This will give total of all months in separate column .<br />
+<br />
+There is  other method use arrays also if u r comfortable with arrays.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

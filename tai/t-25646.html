@@ -1,0 +1,204 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Not possible to customize reports after updating from Oracle 7.3.4 to 9.2.5, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Not possible to customize reports after updating from Oracle 7.3.4 to 9.2.5 Tools Administration &amp; Installation" />
+	
+	<title>Not possible to customize reports after updating from Oracle 7.3.4 to 9.2.5 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Not possible to customize reports after updating from Oracle 7.3.4 to 9.2.5</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">halvorn</div><div class="date">16th November 2005, 09:08</div></div><div class="posttext">The tables ttadv304, ttadv335, ttadv364 have a field &quot; layo&quot; which store binary data (Baan IV c4).<br />
+<br />
+How these fields got corrupted:<br />
+Stupid me dumped out company 000 from the Oracle database having  NLS_LANG=american_america.we8dec<br />
+Oracle 9.2.5 was installed and then I created the 000 company at Oracle 9.2.5 having this <br />
+NLS_LANG=american_america.we8iso8859p1<br />
+<br />
+Everything worked fine for 6 months, then some user wanted me to change some reports. This is not possible in our system because the layo field is corrupted.<br />
+<br />
+Before I noticed this problem I have done a lot of Patching so I'm afraid to restore the tables, because I see they have been influenced by the patches.<br />
+<br />
+Regarding Oracle support it is a design mistake to store Binary data in a varchar / char field.<br />
+<br />
+Regarding SSA this is a known issue, so it is only me that is stupid.  :eek: <br />
+<br />
+So is this a known issue ?  that you cannot migrate from one <br />
+NLS_LANG to another the way I did ?<br />
+<br />
+And,,does anybody have any advice how to solve it?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">16th November 2005, 14:30</div></div><div class="posttext">Yes, it's a widly known issue (i think the Baan solution that talks about it dates back to 1998 or something...)<br />
+<br />
+There are different levels of this problem. It will present the same if there is a mismatch somewhere (for example NLS_LANG in your App server's Windows registry says US7ASCII where your DB server is we8iso8859p1. <br />
+That's an easy fix, just make them match. But if everything's matching the only way to fix it is to correct binary values by hand... so basically, there is  no fix.<br />
+<br />
+However, you might get lucky if you just set your NLS_LANG to your old character set and try to access the data. you might be able to get at your old stuff that way.. (don't just pre and post the table at this point though, because new records are in the new NLS format!)<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">halvorn</div><div class="date">16th November 2005, 15:45</div></div><div class="posttext">Right, widly known issue. I'm not that wide  :) <br />
+One relevant hit when searching for layo in SSA knowledge base:<br />
+83    Error &quot;Index n out of dims[n] n &quot; on form, report, menu layout tables on ORACLE <br />
+  1955 ttB40b advformedit 11 Mar 1998 <br />
+<br />
+<br />
+I think I have to correct it by hand when I need to customize the report. The only problem is that I don't know what to type in.  :confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">17th November 2005, 09:15</div></div><div class="posttext">To be honest, I think you are fu**ed. Sorry to say. Correcting by hand sounds to me pretty impossible.<br />
+<br />
+Your only real chance involves a lot of work and some spare hardware:<br />
+<br />
+Restore an old backup on a test system<br />
+Apply the patches again<br />
+Make sure SW level on test system and life system is the same<br />
+Dump company 000 as big dump in Baan without separators<br />
+Read this dump into your production company<br />
+<br />
+A lot of work, but without this you will have endless trouble until you switch off Baan and migrate to another system. Not only report layouts, but also menus and forms are affected, so basically everything, which involves customizations.<br />
+<br />
+<br />
+The only other &quot;theoretical&quot; way I see is the following: Baan is obviously running fine in your installation. Even though the layout tables are corrupt. The reason for this is, that the layouts used are actually in the runtime files on disk. So if somebody reverse engineers these files and writes a small program to write them back into the tables, than you should be fine. This might actually be worth the effort, compared to the first option I described.<br />
+But unfortunately it might also not be possible, because the runtime files should contain translated labels, while the layout will only contain label placeholders. So this might be a one way mapping only.<br />
+<br />
+Regards<br />
+<br />
+Markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">halvorn</div><div class="date">12th December 2005, 23:58</div></div><div class="posttext">Very strange. :confused: <br />
+<br />
+The 000 dump was made in Baan IV by using session &quot;Create Sequential Dump of Table&quot;. The environment was using NLS_LANG=american_america.WE8DEC.<br />
+<br />
+Then I imported the dump file to the new environment by using the script file below: <br />
+<br />
+#!/bin/ksh<br />
+cd /u04/app/bse<br />
+export BSE=/u04/app/bse<br />
+export TARGET_COMPANY=000<br />
+export SOURCE_COMPANY=000<br />
+export PCOMB=B40D_dv1<br />
+export SOURCEDIR=/u04/bdump<br />
+export LOGFILE=${SOURCEDIR}/imp_${TARGET_COMPANY}.log<br />
+export ORACLE_BASE=/u04/app/oracle<br />
+export ORACLE_HOME=/u04/app/oracle/product/9.2.0<br />
+export ORACLE_SID=B4<br />
+export PATH=$BSE/bin:/usr/bin:/u04/app/oracle/product/9.2.0/bin<br />
+<br />
+#------ DO NOT EDIT BELOW THIS LINE -----------------------<br />
+export BSE_TMP=${BSE}/tmp<br />
+export ORA_INIT=0111000<br />
+export ORA_MAX_ARRAY_INSERT=1000<br />
+export ORA_MAX_ARRAY_FETCH=1000<br />
+export NLS_LANG=american_america.WE8ISO8859P1<br />
+<br />
+clear<br />
+echo BSE=$BSE<br />
+echo TARGET_COMPANY=$TARGET_COMPANY<br />
+echo SOURCE_COMPANY=$SOURCE_COMPANY<br />
+echo PCOMB=$PCOMB<br />
+echo SOURCEDIR=$SOURCEDIR<br />
+echo LOGFILE=$LOGFILE<br />
+echo ORACLE_SID=$ORACLE_SID<br />
+echo ORACLE_HOME=$ORACLE_HOME<br />
+echo NLS_LANG=$NLS_LANG<br />
+echo &quot;&quot;<br />
+<br />
+case $1 in<br />
+DOIT)   echo &quot;Importing tables from company ${SOURCE_COMPANY} to company ${TARGE<br />
+T_COMPANY} while deleting existing tables...&quot;<br />
+        echo &quot;&quot;<br />
+        date +&quot;%d.%m.%y %H:%M:%S              Import tables to company ${TARGET_<br />
+COMPANY} and delete existing tables...&quot; &gt; ${LOGFILE}<br />
+        echo &quot;&quot; &gt;&gt; ${LOGFILE}<br />
+        nohup /u04/app/bse/bin/bdbpost6.1 -doracle8 -f -k -c${TARGET_COMPANY} -e<br />
+${SOURCEDIR}/err_000.log -m -n -p${PCOMB} &lt; ${SOURCEDIR}/dump.${SOURCE_COMPANY}<br />
+&gt;&gt; ${LOGFILE}<br />
+        date +&quot;%d.%m.%y %H:%M:%S               COMPANY 000 IMPORTED&quot; &gt;&gt; ${LOGFIL<br />
+E}<br />
+        echo &quot;-----------------------------------------------------&quot; &gt;&gt; ${LOGFIL<br />
+E}<br />
+        echo &quot;IMPORT COMPLETED!&quot;;;<br />
+*)      clear<br />
+        echo &quot;You didn't specify the mandatory parameter to run this script&quot;<br />
+        echo &quot;&quot;<br />
+        echo &quot;This script will OVERWRITE all tables in Company ${TARGET_COMPANY}<br />
+!&quot;<br />
+        echo &quot;If you are sure this is what you want, run this script with the pa<br />
+rameter &quot;DOIT&quot;, like this:&quot;<br />
+        echo &quot;&quot;<br />
+        echo &quot;imp000.sh DOIT&quot;<br />
+        echo &quot;This will execute this script with the following parameters:&quot;<br />
+        echo &quot;&quot;<br />
+        echo BSE=$BSE<br />
+        echo SOURCE_COMPANY=$SOURCE_COMPANY<br />
+        echo TARGET_COMPANY=$TARGET_COMPANY<br />
+        echo PCOMB=$PCOMB<br />
+        echo SOURCEDIR=$SOURCEDIR<br />
+        echo LOGFILE=$LOGFILE<br />
+        echo ORACLE_SID=$ORACLE_SID<br />
+        echo ORACLE_HOME=$ORACLE_HOME<br />
+        echo NLS_LANG=$NLS_LANG<br />
+        echo &quot;&quot;;;<br />
+esac<br />
+#<br />
+<br />
+It is strange that it does not work to create a dump by using NLS_LANG=american_america.WE8DEC<br />
+and then import it to a new environment with another NLS_LANG=american_america.WE8ISO8859P1<br />
+<br />
+I have changed $BSE/lib/tabledef6.1<br />
+to contain:<br />
+<br />
+*:*:oracle8(NLS_LANG=AMERICAN_AMERICA.WE8ISO8859P1,ORACLE_SID=B4):N<br />
+<br />
+and I have restored the tables ttadv304, ttadv335 and ttadv364 by using session &quot;Create Table from Sequential Dump&quot; and used the Dump file that was from the old Environment with WE8DEC. But the problem with layo out of dims is still current.<br />
+Logical because it was the same import that was done concerning NLS_LANG in the first place, using the script above with WE8ISO8859P1.<br />
+<br />
+So how can I fix the problem ?<br />
+Switch the language for Oracle and in tabledef6.1 back to WE8DEC and live with the fact that with Baan on Oracle. it is not possible to change Character set.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">13th December 2005, 00:04</div></div><div class="posttext">First off - you're sure that your NLS_LANG was set to american_america.WE8DEC in the old database? I've never seen that particular characterset before - it seems strange. Also - by default if you didn't specify it in your tabledef or db_resource it would have defaulted to US7ASCII. (no matter what your DB was set to).<br />
+<br />
+Second, are you moving from 1 box to the next? if so, try gzipping the tables and transfering them in binary. <br />
+<br />
+Just some thoughts.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">i96nds</div><div class="date">19th January 2006, 19:46</div></div><div class="posttext">I am sorry I did not log in for a while. I guess you have already solved the problem. Besides the problem with NLS_LANG, NLS_SORT and other oracle stuff, are you sure that the problem is not in BAAN?<br />
+<br />
+Usually this problem comes up when you upgrade to a porting set that takes by default &quot;ora_column_format=8&quot; instead of 7. I think it is the same problem for you. I guess you also changed the porting set for the upgrade. So all you need to do is to add:<br />
+<br />
+ora_column_format:7 to the file db_resource, for example. <br />
+<br />
+In this way in oracle you will have two columns for the same baan column, due to the &quot;255 max length&quot; limitation for a column in Oracle7.<br />
+Since ttadv335.layo has 260 characters, it will be split in t$layo$1 and t$layo$2.<br />
+<br />
+<br />
+I hope this info may help someone, someday, altthough it may not be the case for your exact problem, I know....<br />
+<br />
+<br />
+P.S. I forgot to say... In your particular case, you should take a look in Oracle to see if you have two columns or if you have one column with bigger length. <br />
+2 columns means you should set (in Baan) ora_column_format=7<br />
+1 larger column means you should set ora_column_format=8<br />
+<br />
+The setting can be either as a resource variable or as an evironment variable, as you wish. I recommend db_resource file.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Another attempt to get AFS to work for me..., baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Another attempt to get AFS to work for me... AFS/DDC/OLE: Function servers" />
+	
+	<title>Another attempt to get AFS to work for me... [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Another attempt to get AFS to work for me...</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">9th June 2005, 16:57</div></div><div class="posttext">I tried getting a print session to work with AFS:cisli2405m000 (reprint invoice). The session is activated, report is being sent, yet no output. When I look in the device que, there is no data in the report. I started debugging cisli2405 now, and it seems to me that half the values, like sfcp.f/t, ityp.f/t, idoc.f/t are not filled at the moment the report is being printed... Is my syntax correct? Have I filled all the necessary variables? And have I called/actiavted the report in the correct way? (Baan 5.0b)<br />
+<br />
+Here is the code:<br />
+	select	cisli240.*<br />
+	from	cisli240<br />
+	where	(cisli240._index1 inrange {:slcp, 1, :fo.f} and {:slcp, 1, :fo.t}<br />
+	or	cisli240._index1 inrange {:slcp, 1, :fv.f} and {:slcp, 1, :fv.t}<br />
+	or	cisli240._index1 inrange {:slcp, 1, :fc.f} and {:slcp, 1, :fc.t}<br />
+	or	cisli240._index1 inrange {:slcp, 1, :fw.f} and {:slcp, 1, :fw.t})<br />
+	and	cisli240.date inrange :date.f and :date.t<br />
+	order by cisli240._index1<br />
+	selectdo<br />
+		select	tdsls400._index1, tdsls400.cofc<br />
+		from	tdsls400<br />
+		where	tdsls400._index1 = {:cisli240.slso}<br />
+		and	tdsls400.cofc(5;2) = &quot;EX&quot;<br />
+		order by tdsls400._index1 <br />
+		as set with 1 rows<br />
+		selectdo<br />
+<br />
+			select	cisli245.*<br />
+			from	cisli245<br />
+			where	cisli245._index1 = {:cisli240.slcp, :cisli240.ortp, :cisli240.slso}<br />
+			order by cisli245._index1 <br />
+			as set with 1 rows<br />
+			selectdo<br />
+			selectempty<br />
+			endselect<br />
+	<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;form.sel.by.br&quot;, &quot;2&quot;)<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;sel.by.inv&quot;, &quot;1&quot;)<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;sel.by.bp&quot;, &quot;2&quot;)	<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;scmp&quot;, &quot;cisli240.slcp&quot;)<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;sfcp.f&quot;, &quot;cisli245.sfcp&quot;)<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;sfcp.t&quot;, &quot;cisli245.sfcp&quot;)<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;ityp.f&quot;, &quot;cisli245.ityp&quot;)<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;ityp.t&quot;, &quot;cisli245.ityp&quot;)<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;idoc.f&quot;, &quot;cisli245.idoc&quot;)<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;idoc.t&quot;, &quot;cisli245.idoc&quot;)<br />
+				<br />
+			stpapi.set.report(&quot;cisli2405m000&quot;, &quot;rcisli220011000&quot;, &quot;HP4000N1&quot;, error)<br />
+			if isspace(error) then<br />
+				stpapi.form.command(&quot;cisli2405m000&quot;, 5, &quot;exec.cont.process&quot;, error)<br />
+			endif<br />
+		selectempty<br />
+		endselect		<br />
+	endselect<br />
+	stpapi.end.session(&quot;cisli2405m000&quot;)<br />
+<br />
+<br />
+Thanks for your input.<br />
+<br />
+Regards,<br />
+<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">9th June 2005, 17:39</div></div><div class="posttext">Oh ok, I found the problem already: I added the table field values with quotations, which turned it ino a string instead of the value of the field. After removing the quotations, it works fine:<br />
+<br />
+	select	cisli240.*<br />
+	from	cisli240<br />
+	where	(cisli240._index1 inrange {:slcp, 1, :fo.f} and {:slcp, 1, :fo.t}<br />
+	or	cisli240._index1 inrange {:slcp, 1, :fv.f} and {:slcp, 1, :fv.t}<br />
+	or	cisli240._index1 inrange {:slcp, 1, :fc.f} and {:slcp, 1, :fc.t}<br />
+	or	cisli240._index1 inrange {:slcp, 1, :fw.f} and {:slcp, 1, :fw.t})<br />
+	and	cisli240.date inrange :date.f and :date.t<br />
+	order by cisli240._index1<br />
+	selectdo<br />
+		select	tdsls400._index1, tdsls400.cofc<br />
+		from	tdsls400<br />
+		where	tdsls400._index1 = {:cisli240.slso}<br />
+		and	tdsls400.cofc(5;2) = &quot;EX&quot;<br />
+		order by tdsls400._index1 <br />
+		as set with 1 rows<br />
+		selectdo<br />
+<br />
+			select	cisli245.*<br />
+			from	cisli245<br />
+			where	cisli245._index1 = {:cisli240.slcp, :cisli240.ortp, :cisli240.slso}<br />
+			order by cisli245._index1 <br />
+			as set with 1 rows<br />
+			selectdo<br />
+			selectempty<br />
+			endselect<br />
+	<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;form.sel.by.br&quot;, &quot;2&quot;)<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;sel.by.inv&quot;, &quot;1&quot;)<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;sel.by.bp&quot;, &quot;2&quot;)	<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;scmp&quot;, str$(cisli240.slcp))<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;sfcp.f&quot;, str$(cisli245.sfcp))<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;sfcp.t&quot;, str$(cisli245.sfcp))<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;ityp.f&quot;, cisli245.ityp)<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;ityp.t&quot;, cisli245.ityp)<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;idoc.f&quot;, str$(cisli245.idoc))<br />
+			stpapi.put.field(&quot;cisli2405m000&quot;, &quot;idoc.t&quot;, str$(cisli245.idoc))<br />
+				<br />
+			stpapi.set.report(&quot;cisli2405m000&quot;, &quot;rcisli220011000&quot;, &quot;HP4000N1&quot;, error)<br />
+			if isspace(error) then<br />
+				stpapi.form.command(&quot;cisli2405m000&quot;, 5, &quot;exec.cont.process&quot;, error)<br />
+			endif<br />
+		selectempty<br />
+		endselect		<br />
+	endselect<br />
+	stpapi.end.session(&quot;cisli2405m000&quot;)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,285 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Sum of Array fields, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Sum of Array fields Tools Development" />
+	
+	<title>Sum of Array fields [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Sum of Array fields</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">sureca</div><div class="date">5th January 2015, 10:00</div></div><div class="posttext">Good Noon All,<br />
+                  My requirement is to get sum of a array field.. Here bptmm111.hrea is the array field.. If my input cprj is s010001c and it is the index field of main table ltrpd300 and it has another index cact.. <br />
+In table ltrpd300                             In table bptmm111<br />
+For cprj:S010001C                           cprj:s0100001c<br />
+Cact is:01                                      cact :01<br />
+          02                                               02<br />
+          03                                               03<br />
+ I want sum of all the records which matches with the main table ltrpd300.   <br />
+i.e if for 01 hrea is 12 then for 02 hrea is 12 then for 03 hrea is 2 then on the whole normal should be 26<br />
+<br />
+Here is my script:<br />
+<br />
+function extern summary()<br />
+{	| normal = 0<br />
+	| othrs = 0<br />
+	select ltrpd300.*<br />
+	from ltrpd300<br />
+	where ltrpd300._index1 inrange {:cprj.f} and {:cprj.t} and<br />
+		ltrpd300.loca inrange {:loca.f} and {:loca.t}<br />
+	selectdo<br />
+		normal = 0<br />
+		othrs = 0<br />
+		select sum(ltrpd300.rhrs):rccp , sum(ltrpd300.bhrs):book<br />
+		from ltrpd300<br />
+		where ltrpd300._index1 inrange {:cprj.f} and {:cprj.t} and<br />
+			ltrpd300.wtyp = ltrpd.wctype.labour<br />
+		selectdo<br />
+			ltrpd300.rhrs = rccp<br />
+			ltrpd300.bhrs = book<br />
+			varhrs = book - rccp<br />
+			varper = varhrs/rccp*100<br />
+			select bptmm111.hrea,bptmm111.cact,bptmm111.cprj,bptmm111.chlt<br />
+			from bptmm111<br />
+			where bptmm111.cprj = :ltrpd300.cprj and <br />
+				bptmm111.cact = :ltrpd300.cact<br />
+			selectdo<br />
+				if bptmm111.chlt = &quot;REG&quot; then<br />
+					normal1 = bptmm111.hrea(1)+bptmm111.hrea(2)+<br />
+						bptmm111.hrea(3)+bptmm111.hrea(4)+<br />
+						bptmm111.hrea(5)+bptmm111.hrea(6)+<br />
+						bptmm111.hrea(7)+bptmm111.hrea(8)<br />
+						message(str$(normal1))<br />
+							<br />
+					normal = normal1 + (bptmm111.hrea(1)+bptmm111.hrea(2)+<br />
+						bptmm111.hrea(3)+bptmm111.hrea(4)+<br />
+						bptmm111.hrea(5)+bptmm111.hrea(6)+<br />
+						bptmm111.hrea(7)+bptmm111.hrea(8))<br />
+						message(str$(normal))<br />
+				else<br />
+					if trim$(bptmm111.chlt) = &quot;OT&quot; then<br />
+						othrs = bptmm111.hrea(1)+bptmm111.hrea(2)+<br />
+							bptmm111.hrea(3)+bptmm111.hrea(4)+<br />
+							bptmm111.hrea(5)+bptmm111.hrea(6)+<br />
+							bptmm111.hrea(7)+bptmm111.hrea(8)<br />
+								<br />
+						othrs = othrs + (bptmm111.hrea(1)+bptmm111.hrea(2)+<br />
+							bptmm111.hrea(3)+bptmm111.hrea(4)+<br />
+							bptmm111.hrea(5)+bptmm111.hrea(6)+<br />
+							bptmm111.hrea(7)+bptmm111.hrea(8))<br />
+					endif	<br />
+				endif<br />
+			endselect<br />
+		endselect<br />
+	endselect <br />
+	brp.ready(brp_id1)	<br />
+}<br />
+<br />
+<br />
+But its giving the last record value i.e 12+12 =24<br />
+Am not getting the whole sum value...<br />
+please help...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th January 2015, 22:32</div></div><div class="posttext">My first thought was you are reading from the same table twice, so I would recommend using an alias for the second query - even though you are summing a couple of fields.<br />
+<br />
+Then the more I looked at what you are doing the more confused I became.  It looks like you are getting a range of records, then trying to sum individual records.  But you reset normal hours(for example) each time you execute the outer query.   The way I look at it if you want the report to have project, location(assuming that is what they represent.  Then you would move the brp.ready inside the query right before the last end select.<br />
+<br />
+So I speculated on what might be wanted. Just a wild ass swag.<br />
+<br />
+function extern summary()<br />
+{	| normal = 0<br />
+	| othrs = 0<br />
+	select ltrpd300.*<br />
+	from ltrpd300<br />
+	where ltrpd300._index1 inrange {:cprj.f} and {:cprj.t} and<br />
+		ltrpd300.loca inrange {:loca.f} and {:loca.t}<br />
+	selectdo<br />
+		| Init sums<br />
+		rccp = 0 <br />
+		book = 0<br />
+		normal = 0<br />
+		othrs = 0<br />
+| This sum would return only 1 record for the complete project range as you<br />
+| had it. | Is that what is wanted - or do you just want the project from the<br />
+| above query.  I assumed you wanted only one project since that<br />
+| is what is in the next query's select statement and the first query finds<br />
+| a complete range.<br />
+		select sum(a.rhrs):rccp , sum(a.bhrs):book<br />
+		from ltrpd300 a<br />
+		where a._index1 = :ltrpd300.cprj<br />
+		and a.wtyp = ltrpd.wctype.labour<br />
+		selectdo<br />
+		endselect<br />
+| No clue what these would do.<br />
+|			ltrpd300.rhrs = rccp<br />
+|			ltrpd300.bhrs = book<br />
+<br />
+		varhrs = book - rccp<br />
+		varper = varhrs/rccp*100<br />
+		<br />
+|Now get normal and ot hours.  Not sure why you add stuff twice, but my <br />
+|sepeculation is <br />
+		select bptmm111.hrea,bptmm111.cact,bptmm111.cprj,bptmm111.chlt<br />
+		from bptmm111<br />
+		where bptmm111.cprj = :ltrpd300.cprj and <br />
+			bptmm111.cact = :ltrpd300.cact<br />
+		selectdo<br />
+			if bptmm111.chlt = &quot;REG&quot; then<br />
+				| Normal1 contains current record's hours if chlt = REG<br />
+				normal1 = bptmm111.hrea(1)+bptmm111.hrea(2)+<br />
+					bptmm111.hrea(3)+bptmm111.hrea(4)+<br />
+					bptmm111.hrea(5)+bptmm111.hrea(6)+<br />
+					bptmm111.hrea(7)+bptmm111.hrea(8)<br />
+					message(str$(normal1))<br />
+							<br />
+				| Normal contains the total for all records found.			<br />
+				normal = normal + normal1 <br />
+			else<br />
+				if trim$(bptmm111.chlt) = &quot;OT&quot; then<br />
+					| othrs1 contains current record's hours if chlt = OT<br />
+					othrs1 = bptmm111.hrea(1)+bptmm111.hrea(2)+<br />
+						bptmm111.hrea(3)+bptmm111.hrea(4)+<br />
+						bptmm111.hrea(5)+bptmm111.hrea(6)+<br />
+						bptmm111.hrea(7)+bptmm111.hrea(8)<br />
+<br />
+					| Othrs contains total for all records found.<br />
+					othrs = othrs + othrs1<br />
+				endif<br />
+			endif<br />
+		endselect<br />
+| Print project, location othrs, normal, varhrs, variation percent.		<br />
+		brp.ready(brp_id1)	<br />
+	endselect <br />
+|	brp.ready(brp_id1)	<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th January 2015, 22:40</div></div><div class="posttext">In this iteration I assumed you only wanted to print one record for the complete project and location range.  In this case you could move the one sum outside the first query - you could remove the alias, but since I was cutting and pasting I left it in.  Now my swag looks like below - notice the variable init is outside the queries now for the total normal and ot hours.<br />
+<br />
+<br />
+<br />
+function extern summary()<br />
+{<br />
+	rccp = 0 <br />
+	book = 0<br />
+	normal = 0<br />
+	othrs = 0<br />
+<br />
+<br />
+|Assuming you want only one record to go to the report<br />
+	select sum(a.rhrs):rccp , sum(a.bhrs):book<br />
+	from ltrpd300 a<br />
+	where a._index1 inrange {:cprj.f} and {:cprj.t}<br />
+	and a.wtyp = ltrpd.wctype.labour<br />
+	selectdo<br />
+	endselect<br />
+	varhrs = book - rccp<br />
+	varper = varhrs/rccp*100<br />
+<br />
+<br />
+	select ltrpd300.*<br />
+	from ltrpd300<br />
+	where ltrpd300._index1 inrange {:cprj.f} and {:cprj.t} and<br />
+		ltrpd300.loca inrange {:loca.f} and {:loca.t}<br />
+	selectdo<br />
+<br />
+|Now get normal and ot hours.  Not sure why you add stuff twice, but my <br />
+|sepeculation is <br />
+		select bptmm111.hrea,bptmm111.cact,bptmm111.cprj,bptmm111.chlt<br />
+		from bptmm111<br />
+		where bptmm111.cprj = :ltrpd300.cprj and <br />
+			bptmm111.cact = :ltrpd300.cact<br />
+		selectdo<br />
+			if bptmm111.chlt = &quot;REG&quot; then<br />
+				| Normal1 contains current record's hours if chlt = REG<br />
+				normal1 = bptmm111.hrea(1)+bptmm111.hrea(2)+<br />
+					bptmm111.hrea(3)+bptmm111.hrea(4)+<br />
+					bptmm111.hrea(5)+bptmm111.hrea(6)+<br />
+					bptmm111.hrea(7)+bptmm111.hrea(8)<br />
+					message(str$(normal1))<br />
+							<br />
+				| Normal contains the total for all records found.			<br />
+				normal = normal + normal1 <br />
+			else<br />
+				if trim$(bptmm111.chlt) = &quot;OT&quot; then<br />
+					| othrs1 contains current record's hours if chlt = OT<br />
+					othrs1 = bptmm111.hrea(1)+bptmm111.hrea(2)+<br />
+						bptmm111.hrea(3)+bptmm111.hrea(4)+<br />
+						bptmm111.hrea(5)+bptmm111.hrea(6)+<br />
+						bptmm111.hrea(7)+bptmm111.hrea(8)<br />
+<br />
+					| Othrs contains total for all records found.<br />
+					othrs = othrs + othrs1<br />
+				endif<br />
+			endif<br />
+		endselect<br />
+	endselect <br />
+| Print 1 record for the project and location range.		<br />
+	brp.ready(brp_id1)	<br />
+}<br />
+<br />
+<br />
+Using the combination of these two you should find something to point you in the right direction.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sureca</div><div class="date">6th January 2015, 05:20</div></div><div class="posttext">Thank you mark for understanding my requirement properly...<br />
+ltrpd300.rhrs - i used in ssrs to get the sum of ltrpd300.rhrs i.e sum(ltrpd300.rhrs):rccp<br />
+ltrpd300.bhrs - to get sum of bhrs i.e sum(ltrpd300.bhrs):book<br />
+<br />
+At last i wrote my query as:<br />
+<br />
+function extern summary()<br />
+ {<br />
+	select ltrpd300.*<br />
+	from ltrpd300<br />
+	where ltrpd300._index1 inrange {:cprj.f} and {:cprj.t} and<br />
+		ltrpd300.loca inrange {:loca.f} and {:loca.t}<br />
+	selectdo<br />
+		select sum(ltrpd300.rhrs):rccp , sum(ltrpd300.bhrs):book<br />
+		from ltrpd300<br />
+		where ltrpd300._index1 inrange {:cprj.f} and {:cprj.t} and<br />
+			ltrpd300.wtyp = ltrpd.wctype.labour<br />
+		selectdo<br />
+			ltrpd300.rhrs = rccp<br />
+			ltrpd300.bhrs = book<br />
+			varhrs = book - rccp<br />
+			varper = varhrs/rccp*100<br />
+			select bptmm111.hrea,bptmm111.cact,bptmm111.cprj,bptmm111.chlt<br />
+			from bptmm111<br />
+			where bptmm111.cprj = :ltrpd300.cprj and <br />
+				bptmm111.cact = :ltrpd300.cact<br />
+			selectdo<br />
+				if bptmm111.chlt = &quot;REG&quot; then<br />
+					normal = normal + (bptmm111.hrea(1)+bptmm111.hrea(2)+<br />
+						bptmm111.hrea(3)+bptmm111.hrea(4)+<br />
+						bptmm111.hrea(5)+bptmm111.hrea(6)+<br />
+						bptmm111.hrea(7)+bptmm111.hrea(8))<br />
+							<br />
+				else<br />
+					if trim$(bptmm111.chlt) = &quot;OT&quot; then<br />
+						othrs = othrs + (bptmm111.hrea(1)+bptmm111.hrea(2)+<br />
+							bptmm111.hrea(3)+bptmm111.hrea(4)+<br />
+							bptmm111.hrea(5)+bptmm111.hrea(6)+<br />
+							bptmm111.hrea(7)+bptmm111.hrea(8))<br />
+					endif	<br />
+				endif<br />
+			endselect<br />
+		endselect<br />
+	endselect <br />
+	brp.ready(brp_id1)	<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

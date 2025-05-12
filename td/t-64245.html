@@ -1,0 +1,161 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="modify.set, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] modify.set Tools Development" />
+	
+	<title>modify.set [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; modify.set</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">nolihayati isma</div><div class="date">3rd July 2013, 04:35</div></div><div class="posttext">Hi all,<br />
+<br />
+Need your advise. I am using form type 3 with 13 occurances.<br />
+<br />
+User having 2 choices to update the records within 1 order.<br />
+<br />
+1) choice = Add.set - add new item and I am able to control duplicate item without issue by checking in after.input<br />
+<br />
+2) choice = modify.set - user will update existing order and might be change the item. I need to check the new updated item must not duplicate within same order. How I can make a check for this situation? I am try the same method as per add.set but failed.<br />
+<br />
+Anybody, can assist me please.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">3rd July 2013, 11:39</div></div><div class="posttext">if it is a key field (part o index), it will not allow you to save the records(it will pop a msg saying skip ..).  i am not really sure what your requirement is.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd July 2013, 17:04</div></div><div class="posttext">And if it is not a key field then what you do is in the check input run a quick check against the table to make sure it is not already on the table.  Then - since this is a multi-occurrence session you have to check the screen for other possible updates. Below is a sample of how we do this for line numbers.  I am assuming that the view field is something like make item and the occurrence field has something like sub-item.<br />
+<br />
+<br />
+function long get.next.tdvss130.line()<br />
+{<br />
+	<br />
+	select 	max(tdvss130_1.line):max.line<br />
+	from	tdvss130 tdvss130_1<br />
+	where	tdvss130_1._index1 = {:tdvss130.logn,:tdvss130.seqn}<br />
+	selectdo<br />
+	selectempty<br />
+		max.line = 0<br />
+	endselect<br />
+	<br />
+	search.last.used.line.on.screen()<br />
+	max.line = max.line + 1<br />
+	return(max.line)<br />
+}<br />
+function search.last.used.line.on.screen()<br />
+{<br />
+	long	i<br />
+	for i = 1 to (filled.occ -	1)<br />
+		do.occ(i ,check.last.used.line)<br />
+	endfor<br />
+}<br />
+function check.last.used.line()<br />
+{<br />
+	if tdvss130.line &gt; max.line then<br />
+		max.line =	tdvss130.line<br />
+	endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nolihayati isma</div><div class="date">4th July 2013, 04:08</div></div><div class="posttext">Hi,<br />
+<br />
+item code not part of index and i need to check manually to avoid duplicate.<br />
+<br />
+below input triggered via add.set<br />
+<br />
+Form as below. Original input.<br />
+seqn     item code     supplier     desc         price<br />
+-----    ---------     --------    ---------   ------<br />
+  1                           ABC         abd_desc      10<br />
+  2         123                            123_desc       2<br />
+  3         456              CDE         cde_desc       3<br />
+<br />
+Users are allowed to modify the code in modify.set but I dont want to allow<br />
+user to enter duplicate item code. They can update seqn 1 with other values but not 123 or 456. They can change others seqn but the item code must not duplicate. That's my requirement.<br />
+<br />
+seqn     item code     supplier     desc         price<br />
+-----    ---------     --------    ---------   ------<br />
+  1                           ABC         abd_desc      10<br />
+  2         123                            123_desc       2<br />
+  3         456              CDE         cde_desc       3</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nolihayati isma</div><div class="date">4th July 2013, 06:26</div></div><div class="posttext">sorry....the sample given is out of alligment. 1st row, the item code is blank</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">4th July 2013, 07:34</div></div><div class="posttext">There are a lot of options. Well here's one more thing you can do, you can use:-<br />
+<br />
+field.fieldname:<br />
+<br />
+before.input:<br />
+<br />
+|get the current item name in a variable and also the index fields of the current record in some variables:-<br />
+<br />
+curr.item = field_name<br />
+a = field_name | Index part 1 of current record<br />
+b = field_name | Index part 2 of current record<br />
+| .. .. number of parts<br />
+<br />
+when.field.changes:<br />
+|Get the new item name in a variable. <br />
+<br />
+new_item = field_name<br />
+|Now check if this item is present in the table against the same index or not using a select loop. <br />
+<br />
+select table_name.*<br />
+from   table_name<br />
+where table_name._index1 = {:a , :b}<br />
+and    table_name.item = :new_item<br />
+selectdo<br />
+        message(&quot;Duplicates not allowed&quot;)<br />
+        field_name = curr.item<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nolihayati isma</div><div class="date">4th July 2013, 11:29</div></div><div class="posttext">Hi Bhushan,<br />
+<br />
+The problem resolved with your solution :). Below is the lastest code<br />
+<br />
+<br />
+before.input:<br />
+item.ori = tsrep124.item<br />
+a = tsrep124.orno | Index part 1 of current record<br />
+<br />
+when.field.changes:<br />
+item.mod = tssma102.item<br />
+<br />
+select tsrep124.*<br />
+from   tsrep124<br />
+where  tsrep124._index1 = {:a}<br />
+and    tsrep124.item = :item.mod<br />
+selectdo<br />
+        message(&quot;Item Code is duplicated&quot;)<br />
+        input.again()<br />
+        tsrep124.item= item.ori<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">4th July 2013, 11:45</div></div><div class="posttext">Good. Glad that worked for you. :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">4th July 2013, 11:57</div></div><div class="posttext">if i am not wrong, you dont want duplicate item at any point of time..... and also you dont want duplicate seq at any point of time ..........<br />
+<br />
+in that case  i would have two indexs.<br />
+1) order no. , seq.no  ----&gt; this makes sure for single order you dont have duplicate seq.no<br />
+2)order no  , item ----&gt; this makes sure for single order you dont have duplicate items<br />
+<br />
+if you want to check for duplicate only while modifying the record then i think you need to code otherwise i dont think.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

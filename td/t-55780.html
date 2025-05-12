@@ -1,0 +1,151 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Customized Session, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Customized Session Tools Development" />
+	
+	<title>Customized Session [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Customized Session</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rajesh_bamane</div><div class="date">5th May 2009, 10:30</div></div><div class="posttext">Hi,<br />
+<br />
+I have developed new session in baan IV. Now customized function is working fine.<br />
+But when i am closing or saving the session using standard buttons, i am getting fatal error &quot;Record is not locked&quot;<br />
+<br />
+Please suggest the solution to resolve this error<br />
+<br />
+<br />
+regards<br />
+Rajesh</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sprasad</div><div class="date">5th May 2009, 11:19</div></div><div class="posttext">Hi Rajesh,<br />
+Is the session maintain or update,can you post the script.<br />
+<br />
+Regards,<br />
+Sai Prasad</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">wiggum</div><div class="date">5th May 2009, 11:25</div></div><div class="posttext">You get this error if you're trying to update a record without selecting it for update or you have committed the transaction after selecting the record and before updating it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rajesh_bamane</div><div class="date">5th May 2009, 12:45</div></div><div class="posttext">declaration:<br />
+<br />
+table	ttdnci041	      <br />
+table ttdpur041<br />
+table ttdpur045<br />
+extern domain tcorno tdnci041.pono<br />
+extern domain tfgld.lino tdnci041.lino<br />
+extern domain tfgld.amnt tdnci041.bpric<br />
+extern domain tfgld.amnt tdnci041.apric<br />
+	 domain tfgld.amnt bamnt <br />
+<br />
+|****************************** Field section **********************************<br />
+field.tdnci041.lino:<br />
+when.field.changes:<br />
+	get_Receipt()<br />
+field.tdnci041.bpric:<br />
+when.field.changes:<br />
+	get_cost()<br />
+|****************************** Functions *************************************<br />
+functions:<br />
+<br />
+function get_Receipt()<br />
+{<br />
+<br />
+<br />
+select tdpur041.pric,tdpur041.oqua,tdpur045.orno,tdpur045.item,tdpur045.reno from tdpur041 ,tdpur045 <br />
+where <br />
+tdpur041.orno=tdpur045.orno and<br />
+tdpur041.pono=tdpur045.pono and<br />
+tdpur041.orno=:tdnci041.pono and<br />
+tdpur045.pono=:tdnci041.lino and<br />
+tdpur045.reno&lt;&gt;0<br />
+selectdo<br />
+<br />
+tdnci041.pono=tdnci041.pono<br />
+tdnci041.lino=tdnci041.lino<br />
+tdnci041.reno=tdpur045.reno<br />
+tdnci041.item=tdpur045.item<br />
+tdnci041.qty=tdpur041.oqua<br />
+tdnci041.pric=tdpur041.pric<br />
+<br />
+db.insert(ttdnci041,db.retry,db.skip.dupl)<br />
+commit.transaction()<br />
+<br />
+<br />
+endselect<br />
+<br />
+}<br />
+function get_cost()<br />
+{<br />
+bamnt=tdnci041.bpric<br />
+<br />
+db.retry.point() <br />
+<br />
+select tdnci041.*<br />
+from tdnci041 for update<br />
+where <br />
+tdnci041.pono=:tdnci041.pono and<br />
+tdnci041.lino=:tdnci041.lino <br />
+<br />
+selectdo<br />
+<br />
+tdnci041.pono=tdnci041.pono<br />
+tdnci041.lino=tdnci041.lino<br />
+tdnci041.bpric=bamnt<br />
+tdnci041.gl=tdnci041.bpric-tdnci041.pric<br />
+tdnci041.lcost=bamnt<br />
+tdnci041.apric=tdnci041.apric<br />
+tdnci041.rate=tdnci041.bpric/tdnci041.qty<br />
+<br />
+db.update(ttdnci041,db.retry,db.skip.dupl)<br />
+commit.transaction()<br />
+<br />
+endselect<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">litrax</div><div class="date">5th May 2009, 16:31</div></div><div class="posttext">wiggum is right.<br />
+<br />
+First you should set the db.retry.point().<br />
+Then you must select a table for update.<br />
+Then use db.update or db.insert or db.delete.<br />
+After that you must use commit or abort transaction.<br />
+<br />
+Please look at this manual:<br />
+http://www.baanboard.com/programmers_manual_baanerp_help_functions_database_handling_locking<br />
+Roughly use the schema under &quot;Delayed locks&quot; there.<br />
+<br />
+The most answers to your questions can be found in the Programmer's Manual.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th May 2009, 19:51</div></div><div class="posttext">All are correct.  Things I noticed -<br />
+<br />
+(1) Get_receipt does not have a db.retry point.<br />
+(2) You are using when field changes - this starts a transaction.  You might be able to get away with an execute(update.db) before the db.retry point on both functions. In my thinking this would save and commit the recent change ending the transaction, then execute the function to do your updates(which would be new transactions).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rajesh_bamane</div><div class="date">6th May 2009, 10:18</div></div><div class="posttext">Hi <br />
+<br />
+After removing the db.update from script my code is working fine.<br />
+Std save is working fine<br />
+<br />
+Regards<br />
+Rajesh</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

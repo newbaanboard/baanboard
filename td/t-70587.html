@@ -1,0 +1,151 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="UTC to Normal Date in SQL, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] UTC to Normal Date in SQL Tools Development" />
+	
+	<title>UTC to Normal Date in SQL [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; UTC to Normal Date in SQL</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">pralash</div><div class="date">15th November 2017, 15:55</div></div><div class="posttext">Hi,<br />
+<br />
+I have stored a date in the UTC format in the baan table... When I applied a query, I got the date in UTC format as follows...<br />
+<br />
+select tccom450.name, tccom450.date from tccom450<br />
+<br />
+Result :<br />
+Ram -----2017-11-14 16:27<br />
+Bala -----2017-11-14 16:47<br />
+<br />
+But I need to  print date as a normal format as follows...<br />
+Ram -----2017-11-14<br />
+Bala -----2017-11-14<br />
+<br />
+So how can I modify the query &quot;select tccom450.name, tccom450.date from tccom450&quot; to a new one for support the normal date...?<br />
+Can anybody assist me is there any function are available in SQL to perform this conversion...?<br />
+Thanks in advance<br />
+Regards,<br />
+Pralash</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">15th November 2017, 16:24</div></div><div class="posttext">Hello,<br />
+use sprintf$()<br />
+<br />
+Search the Forum, and you'll get a lot of Information and hints.<br />
+<br />
+e.g. : http://www.baanboard.com/baanboard/showthread.php?t=68705&amp;highlight=sprintf%24%28%29<br />
+<br />
+string     only.date(10)<br />
+<br />
+only.date = sprintf$(&quot;%u(%02d.%02m.%04Y)&quot;,tccom450.date)<br />
+<br />
+Yours : only.date = sprintf$(&quot;%u(%04Y-%02m-%02d)&quot;,tccom450.date)<br />
+Should give : YYYY-MM-DD<br />
+<br />
+or formate the utc date in Report field with sprintf$()<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pralash</div><div class="date">16th November 2017, 12:25</div></div><div class="posttext">Hi,<br />
+<br />
+As you suggested, I can convert the UTC format date into the normal format by using sprint function.<br />
+<br />
+But I'm not able to count the number of users who are logged into LN by using the following script...<br />
+<br />
+function read.count.table()<br />
+{<br />
+    <br />
+	select tctls903.logg,count(*):counter<br />
+	from tctls903 <br />
+	group by tctls903.logg<br />
+        where   tctls903._index1 inrange {:logg.f}<br />
+                                    and {:logg.t}<br />
+      	selectdo<br />
+      		 act.date = sprintf$(&quot;%u(%04Y-%02m-%02d)&quot;,tctls903.logg)<br />
+  		rprt_send()<br />
+	endselect<br />
+}<br />
+<br />
+I got the normal date in the report by using the variable act.date which one is defined in the input field of the report as follows<br />
+<br />
+2017-11-10            ---- 1 (count)<br />
+2017-11-10            ---- 1<br />
+2017-11-10            ---- 1<br />
+2017-11-10            ---- 1<br />
+2017-11-11            ---- 1<br />
+2017-11-11            ---- 1<br />
+<br />
+Actually the date is stored in the UTC in the table... So I can get the count for 1 because of minute and sec are differ for each record...<br />
+Note:<br />
+But I need the count for 4 as on date 2017-11-10... And total count 2 as on date 2017-11-11. So how can I do that...?<br />
+<br />
+Result is expected as follows...<br />
+2017-11-10            ---- 4<br />
+2017-11-11            ---- 2<br />
+<br />
+<br />
+Please assist me.<br />
+Regards,<br />
+Pralash</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">16th November 2017, 13:38</div></div><div class="posttext">Hi,<br />
+<br />
+You can do something like this -<br />
+<br />
+    domain tcbool first.time<br />
+    domain tcmcs.long cnt |* For counting<br />
+    domain tcmcs.str50 prev.date<br />
+    <br />
+    cnt = 0<br />
+    first.time = true<br />
+    prev.date = &quot;&quot;<br />
+    <br />
+    select tctls903.logg<br />
+    from tctls903<br />
+    where tctls903._index1 inrange {:logg.f} and {:logg.t}<br />
+    order by tctls903.logg<br />
+    selectdo<br />
+        act.date = sprintf$(&quot;%u(%04Y-%02m-%02d)&quot;,tctls903.logg)<br />
+        if first.time then<br />
+           first.time = false<br />
+           prev.date = trim$(act.date)<br />
+           cnt = cnt + 1<br />
+        else<br />
+               if trim$(prev.date) &lt;&gt; trim$(act.date) then<br />
+                   rprt_send()<br />
+                cnt = 0<br />
+               else<br />
+                   cnt = cnt +1<br />
+               endif<br />
+        endif         <br />
+    selecteos<br />
+               cnt = cnt + 1<br />
+               rprt_send()<br />
+    endselect<br />
+<br />
+Just make sure you print prev.date instead of act.date on your report.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pralash</div><div class="date">16th November 2017, 14:41</div></div><div class="posttext">Thanks so much for providing the script....<br />
+When I applied this script in my program, it printed the counting for the first date in the table and the rest one in not considered....<br />
+I attached the output here. So what can I do for finding the counts for all remaining date?<br />
+Please assist.<br />
+Regards,<br />
+Pralash</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

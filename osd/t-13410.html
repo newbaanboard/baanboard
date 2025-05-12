@@ -1,0 +1,120 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="how can i find out which sessions is using the rollback segments, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] how can i find out which sessions is using the rollback segments Operating Systems &amp; Databases" />
+	
+	<title>how can i find out which sessions is using the rollback segments [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; how can i find out which sessions is using the rollback segments</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">beksalur</div><div class="date">27th October 2003, 09:51</div></div><div class="posttext">hi all,<br />
+our Baan IV ERP is running on a hardware cluster environment.Our Oracle 9i db on a ibm p630 server, and Baan IV on the other p630 server.<br />
+<br />
+we want to find out which Baan IV sessions is using the rollback segment(s) on Oracle 9i.We can find which users is using the rollback segment but couldnt find their Baan session names.<br />
+<br />
+Thanks in advance.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gguymer</div><div class="date">27th October 2003, 19:20</div></div><div class="posttext">You won't be able to see Baan session names on the Oracle side because the session is a program generating any number of SQL statements that get passed to Oracle through the Baan/Oracle driver. The only thing Oracle sees are the SQL statements associated with a user. The session controls the frequency of commits, so if you don't have the source code you won't know what that is. You can create a trace of the execution of SQL statements on both the Baan and Oracle side which would give you a better picture of what the session is doing. <br />
+<br />
+Are you wanting to size rollbacks better?<br />
+<br />
+Gilbert Guymer<br />
+Database Administrator<br />
+Lufkin Industries, Inc.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">27th October 2003, 19:38</div></div><div class="posttext">Now that you have the userid's you can at least see what processes are being used by those users at the unix level. <br />
+<br />
+ps -ef |grep bshell |grep &lt;userid&gt; will show you their bshell.<br />
+<br />
+bshcmd6.1 -p -s -w 10 &lt;bshell_pid&gt;<br />
+<br />
+will show all the session that they are running. <br />
+<br />
+You can probably surmise from this what session is taking up the rollback segment... <br />
+<br />
+If you have multiple bshell's per user, you'll have to track down the PID of the oracle connection (via v$session) and then trace that back to the driver which will trace it back to the bshell, if you really need info on how to do that let us know.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">beksalur</div><div class="date">28th October 2003, 09:08</div></div><div class="posttext">yes,we are getting ora-1555 errors and we think our rollback segment sizes isnt enough for those long running sessions which is  making lots of undo data.our aim is capturing the Baan IV sessions which is let the ora-1555 errors.<br />
+<br />
+Regards.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">James</div><div class="date">28th October 2003, 10:14</div></div><div class="posttext">You can also query view v$session_longops to view long running sessions - from this view you'll be able find the osuser and unix process id - hence subsequently the Baan user/session.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">28th October 2003, 14:01</div></div><div class="posttext">Doesn't log.oracleX tell you the session?<br />
+<br />
+To combat 1555, i'd suggest you do a search on Baan's support site, there is a general solution on it that will help you understand it..<br />
+<br />
+Also, what does your rollback segment setup look like? The first thing Baan support is going to look at is this.. <br />
+<br />
+I have mine set at 10 meg initial 10 meg next optimal 20 meg. I find that is a good setup for rollback's, if i get a 1555, Baan will usually provide a fix via the session.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">29th October 2003, 09:44</div></div><div class="posttext">One of the big advantages of Oracle 9 is that you don't need the use of rollback segments anymore but can use undo tablespaces. <br />
+<br />
+Please RTFM to find the advantages of it. Hereby a couple:<br />
+- you don't need to bother about minimal, optimal, shrink and number of rollback segments.<br />
+- if you can query data of the past (undo_management and undo_retention)<br />
+- No error 1555 anymore (ok, if the tablespace is full, you get another eror)<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">beksalur</div><div class="date">29th October 2003, 11:01</div></div><div class="posttext">dave_23,<br />
+i cant see the session name but the follwing log in the alert.log file of oracle.if i set anything on oracle side, can i see the sessions which causing ora-1555?how?<br />
+<br />
+We use Dictionary space management (not automatic undotbs) and have 30 rollback segment with 10 meg initial 10 meg next optimal 20 meg as yours.we assigned 6GB rollback segment tablespace(RBS) the them.<br />
+<br />
+Regards.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">29th October 2003, 14:15</div></div><div class="posttext">Hi beksalur,<br />
+<br />
+Dick's right, with 9i you really should use undo tablespace.  You can keep everything else dictionary managed if you'd like, but the undo tablespace with oracle 9i is specifically ment to address this!!<br />
+<br />
+But as for your sessions, no the oracle alert log won't help in this case.<br />
+<br />
+but I'm confused.. aren't you're users calling you complaining that they're getting this error? How about the log.bshell it doesn't show the username / session?<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">beksalur</div><div class="date">29th October 2003, 15:20</div></div><div class="posttext">we can see the user but not the session  which causes the ora-1555 err as you can see from the following log.bshell log.<br />
+<br />
+2003-10-17[13:33:54]:E:bim5: ******* S T A R T of Error message *******<br />
+2003-10-17[13:33:54]:E:bim5: Log message called from /view/port.6.1c.07/vobs/tt/mir/mir/bdb_fun.c: #1031 keyword: DB error<br />
+2003-10-17[13:33:54]:E:bim5: Pid 2875444 Uid 262 Euid 262 Gid 125 Egid 125<br />
+2003-10-17[13:33:54]:E:bim5: user_type S language T user_name bim5 tty ote locale ISO88591/NULL<br />
+2003-10-17[13:33:54]:E:bim5: Errno 0 bdb_errno 2555 (bdb_errno 2555)<br />
+2003-10-17[13:33:54]:E:bim5: Log_mesg: Error 2555 (bdb_errno 2555) on SELECT<br />
+2003-10-17[13:33:54]:E:bim5: ******* E N D of Error message *******</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">29th October 2003, 15:27</div></div><div class="posttext">If the enduser is not complaining, you probably don't have a problem ;) but probably the user will call you and can immediately tell you what session he was running. If it is a batch session, take a look at the job history. It will exactly tell you what session caused the problem.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

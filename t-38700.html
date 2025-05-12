@@ -1,0 +1,504 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Maintain Multicompany Jobs, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Maintain Multicompany Jobs Code &amp; Utilities" />
+	
+	<title>Maintain Multicompany Jobs [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Code &amp; Utilities</a> &gt; Maintain Multicompany Jobs</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">litrax</div><div class="date">6th July 2007, 17:08</div></div><div class="posttext">Here is my try to get rid of the annoying task to display (and maintain) all jobs in all companys:<br />
+<br />
+<br />
+|******************************************************************************<br />
+|* tccom9100.0000  0  VRC B40C c4 mef1<br />
+|* Multicompany Jobs verwalten<br />
+|* 2006-04-19<br />
+|******************************************************************************<br />
+|* Main table tccom000 Firmen, Form Type 1<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+<br />
+|******************************    tables ****************************************<br />
+<br />
+    table    ttccom000    | Firmen<br />
+    table    tttaad500    | Jobdaten<br />
+    table    tttadv300    | Forms<br />
+    table    ttccom903    | Temptabelle Jobs<br />
+<br />
+|******************************    form variables ********************************<br />
+<br />
+    extern domain    tcmcs.str5    ltim, stim<br />
+<br />
+|******************************    prog variables ********************************<br />
+<br />
+            long        day_local, time_local, day_temp, time_temp<br />
+            long        day_now, time_now, h_temp, m_temp, s_temp<br />
+            long        ok, ret, i<br />
+            long        l_ltim, l_stim<br />
+            long        input.ok<br />
+<br />
+            long        l_comp_t, l_comp_s<br />
+    extern    domain    tcmcs.str3    s_comp_t, s_comp_s<br />
+    extern    domain    tcncmp        start_comp    |Startfirma<br />
+    extern    domain    tcncmp        urs_comp    |Ursprungsfirma<br />
+    extern    domain    tcncmp        akt_comp    |aktuelle Firma<br />
+    extern    domain    tcmcs.long    check_switch    |Firmenwechsel ok?<br />
+                            |1 = ok<br />
+<br />
+            long        flag.extension<br />
+<br />
+|******************************    zoom variables ********************************<br />
+<br />
+|******************************    defines     **************************************<br />
+<br />
+|    #define ADD            update.status = add.set<br />
+    #define MODIFY            update.status = modify.set<br />
+|    #define DELETE            update.status = mark.delete<br />
+<br />
+|******************************    includes **************************************<br />
+|    #pragma used dll ottdllconvert<br />
+    #pragma used dll &quot;ottdllinputstr&quot;    | DLL to handle inputstrings<br />
+    #pragma used dll &quot;ottdllbw&quot;        | DLL to handle bw- functions<br />
+<br />
+|****************************** program section *******************************<br />
+before.program:<br />
+    flag.extension = 0<br />
+    l_comp_s = get.compnr()<br />
+    change_company(1, l_comp_s)<br />
+<br />
+|    get.jobdata()<br />
+    initialise.tccom903()<br />
+|****************************** form section **********************************<br />
+<br />
+|****************************** choice section ********************************<br />
+choice.user.0:<br />
+on.choice:<br />
+    initialise.tccom903()<br />
+|    for i = 1 to filled.occ<br />
+|        do.occ.without.update (i, refresh)<br />
+|    endfor    <br />
+<br />
+    do.all.occ(refresh)<br />
+    execute(first.set)<br />
+<br />
+choice.user.1:<br />
+on.choice:<br />
+    zoomsession(&quot;tt&quot;, &quot;aad&quot;, &quot;5100m0001&quot;)<br />
+<br />
+choice.user.2:<br />
+on.choice:<br />
+<br />
+    zoomsession(&quot;tt&quot;, &quot;aad&quot;, &quot;5204m0001&quot;)<br />
+<br />
+choice.user.3:<br />
+on.choice:<br />
+<br />
+    zoomsession(&quot;tt&quot;, &quot;aad&quot;, &quot;5511m0001&quot;)<br />
+<br />
+choice.user.4:<br />
+on.choice:<br />
+<br />
+    zoomsession(&quot;tt&quot;, &quot;aad&quot;, &quot;5101m0001&quot;)<br />
+<br />
+choice.user.5:<br />
+on.choice:<br />
+    if flag.extension = 0 then<br />
+        flag.extension = 1<br />
+        query.extension = &quot;tccom903.jsta = tcjsta.queue or tccom903.jsta = tcjsta.active or tccom903.jsta = tcjsta.runtime.error&quot;<br />
+        to.key(2)<br />
+        rebuild.query()<br />
+|        initialise.tccom903()    |not really needed!?!<br />
+    else<br />
+        flag.extension = 0<br />
+        query.extension = &quot;&quot;    |????<br />
+        rebuild.query()<br />
+|        initialise.tccom903()    |not really needed!?!<br />
+    endif<br />
+<br />
+    do.all.occ(refresh)<br />
+    execute(first.set)<br />
+    execute(find.data)<br />
+<br />
+choice.end.program:<br />
+before.choice:<br />
+    clear.temp.table()<br />
+    exit(1)<br />
+<br />
+choice.abort.program:<br />
+before.choice:<br />
+    clear.temp.table()<br />
+    exit(0)<br />
+|****************************** form section **********************************<br />
+<br />
+|****************************** field section *********************************<br />
+field.tccom903.comp:<br />
+before.input:<br />
+    if MODIFY then<br />
+        attr.input = false<br />
+    endif<br />
+<br />
+field.tccom903.cjob:<br />
+before.input:<br />
+    if MODIFY then<br />
+        attr.input = false<br />
+    endif<br />
+<br />
+field.ltim:<br />
+before.display:<br />
+    if tccom903.ltim &gt;= 2300 then<br />
+        l_ltim = tccom903.ltim - 2200<br />
+    else<br />
+        l_ltim = tccom903.ltim + 200<br />
+    endif<br />
+<br />
+    ltim = str$(l_ltim)<br />
+<br />
+    if len(shiftl$(strip$(ltim))) = 3 then<br />
+        ltim = &quot;0&quot; &amp; ltim<br />
+    endif<br />
+<br />
+    if len(shiftl$(strip$(ltim))) = 1 then<br />
+        ltim = &quot;0&quot; &amp; ltim &amp; &quot;00&quot;<br />
+    endif<br />
+<br />
+    ltim = ltim(1;2) &amp; &quot;:&quot; &amp; ltim(3;2)<br />
+<br />
+field.stim:<br />
+before.display:<br />
+<br />
+    if tccom903.stim &gt;= 2300 then<br />
+        l_stim = tccom903.stim - 2200<br />
+    else<br />
+        l_stim = tccom903.stim + 200<br />
+    endif<br />
+<br />
+    stim = str$(l_stim)<br />
+<br />
+    if len(shiftl$(strip$(stim))) = 3 then<br />
+        stim = &quot;0&quot; &amp; stim<br />
+    endif<br />
+<br />
+    if len(shiftl$(strip$(stim))) = 1 then<br />
+        stim = &quot;0&quot; &amp; stim &amp; &quot;00&quot;<br />
+    endif<br />
+<br />
+    stim = stim(1;2) &amp; &quot;:&quot; &amp; stim(3;2)<br />
+<br />
+field.tccom903.edte:<br />
+before.input:<br />
+    if MODIFY then<br />
+        if tccom903.jsta = tcjsta.not.active<br />
+        or tccom903.jsta = tcjsta.interrupted then<br />
+            attr.input = true<br />
+        else<br />
+            attr.input = false<br />
+        endif<br />
+    endif<br />
+before.display:<br />
+    if tccom903.stim &gt;= 2300 then<br />
+        tccom903.edte = tccom903.edte + 1<br />
+    endif<br />
+<br />
+field.tccom903.ldat:<br />
+before.display:<br />
+    if tccom903.ltim &gt;= 2300 then<br />
+        tccom903.ldat = tccom903.ldat + 1<br />
+    endif<br />
+<br />
+field.tccom903.jsta:<br />
+before.input:<br />
+    if MODIFY then<br />
+        enum2()<br />
+    endif<br />
+|****************************** function section ******************************<br />
+functions:<br />
+function initialise.tccom903()<br />
+{<br />
+    db.retry.point()<br />
+<br />
+    select     tccom903.*<br />
+    from    tccom903 for update<br />
+    selectdo<br />
+        db.delete(ttccom903, db.retry)<br />
+        commit.transaction()<br />
+    endselect<br />
+    <br />
+    get.jobdata()<br />
+}<br />
+<br />
+function get.jobdata()<br />
+{<br />
+    select    tccom000.*<br />
+    from    tccom000<br />
+    where    tccom000.ncmp in (100, 110, 115, 120, 125, 140, 165, 190)<br />
+    selectdo<br />
+        select    ttaad500.*<br />
+        from    ttaad500<br />
+        where    ttaad500._compnr = :tccom000.ncmp<br />
+        selectdo<br />
+            fill.tccom903()<br />
+        endselect<br />
+    endselect<br />
+}<br />
+<br />
+function fill.tccom903()<br />
+{<br />
+    <br />
+    long    status<br />
+<br />
+    db.retry.point()<br />
+<br />
+    select     tccom903.*<br />
+    from    tccom903 for update<br />
+    where    tccom903._index1 = {:tccom000.ncmp, :ttaad500.cjob}<br />
+    selectdo<br />
+        tccom903.comp = tccom000.ncmp<br />
+        tccom903.cjob = ttaad500.cjob<br />
+        tccom903.desc = ttaad500.desc<br />
+        tccom903.ldat = ttaad500.ldat<br />
+        tccom903.ltim = ttaad500.ltim<br />
+        tccom903.edte = ttaad500.edte<br />
+        tccom903.stim = ttaad500.stim<br />
+        status = etol(ttaad500.jsta)<br />
+        tccom903.jsta = ltoe(status)<br />
+        db.update(ttccom903, db.retry)<br />
+        commit.transaction()<br />
+    selectempty<br />
+        tccom903.comp = tccom000.ncmp<br />
+        tccom903.cjob = ttaad500.cjob<br />
+        tccom903.desc = ttaad500.desc<br />
+        tccom903.ldat = ttaad500.ldat<br />
+        tccom903.ltim = ttaad500.ltim<br />
+        tccom903.edte = ttaad500.edte<br />
+        tccom903.stim = ttaad500.stim<br />
+        status = etol(ttaad500.jsta)<br />
+        tccom903.jsta = ltoe(status)<br />
+        db.insert(ttccom903, db.retry, db.skip.dupl)<br />
+        commit.transaction()<br />
+    endselect<br />
+}<br />
+<br />
+function clear.temp.table()<br />
+{<br />
+    db.retry.point()<br />
+<br />
+    select     tccom903.*<br />
+    from    tccom903 for update<br />
+|    where    tccom903._index1 = {:tccom000.ncmp, :ttaad500.cjob}<br />
+    selectdo<br />
+        db.delete(ttccom903, db.retry)<br />
+        commit.transaction()<br />
+    endselect<br />
+}<br />
+<br />
+function enum2()<br />
+{<br />
+    on case tccom903.jsta<br />
+        case tcjsta.not.active:<br />
+            set.enum.values(tcjsta.not.active, tcjsta.queue,<br />
+            tcjsta.blocked)<br />
+            break<br />
+        case tcjsta.waiting:<br />
+            attr.input = false<br />
+            break<br />
+        case tcjsta.active:<br />
+            attr.input = false<br />
+            break<br />
+        case tcjsta.interrupted:<br />
+            tccom903.jsta = tcjsta.not.active    |!?<br />
+            set.enum.values(tcjsta.interrupted, tcjsta.not.active,<br />
+            tcjsta.queue, tcjsta.blocked)<br />
+            break<br />
+        case tcjsta.runtime.error:<br />
+            tccom903.jsta = tcjsta.not.active    |!?<br />
+            set.enum.values(tcjsta.not.active,<br />
+            tcjsta.interrupted, tcjsta.queue, tcjsta.blocked)<br />
+            break<br />
+        case tcjsta.queue:<br />
+            set.enum.values(tcjsta.queue, tcjsta.not.active,<br />
+            tcjsta.interrupted, tcjsta.blocked)<br />
+            break<br />
+        case tcjsta.blocked:<br />
+            set.enum.values(tcjsta.blocked, tcjsta.not.active,<br />
+            tcjsta.interrupted, tcjsta.queue)<br />
+            break<br />
+    endcase<br />
+}<br />
+<br />
+function long ascii.input.string(string mwindow.title(80),<br />
+                 string label(80),<br />
+                 long p.width,<br />
+                 ref string s_comp_t() )<br />
+{<br />
+    long win_id<br />
+    long height, width, row, col <br />
+    long attrs(WINMAXSIZE)<br />
+<br />
+    long new_color, red_int, green_int, blue_int<br />
+<br />
+    mwindow.title = strip$(mwindow.title)<br />
+    label = strip$(label)<br />
+<br />
+<br />
+    new_color = rgb(0,0,0)<br />
+    red_int    = red.component( new_color )        | 46<br />
+    green_int = green.component( new_color )    | 139<br />
+    blue_int = blue.component( new_color )        | 87<br />
+<br />
+    height = 5<br />
+    width = max(len(mwindow.title), len(label) + p.width + 2) + 4<br />
+<br />
+    win_id = current.window()<br />
+<br />
+    get.window.attrs(win_id, attrs)<br />
+    row = win.height(attrs)<br />
+    col = win.width(attrs)<br />
+    row = int(row / 2.0) - int(height / 2.0)<br />
+    col = int(col / 2.0) - int(width  / 2.0)<br />
+<br />
+    win_id = sub.window(win_id, height, width, row, col )<br />
+<br />
+    box(1, 1, width, height, 1)<br />
+<br />
+    row = 1<br />
+    col = 3<br />
+    if not isspace( mwindow.title) then<br />
+        print cp$(col, row) &amp; &quot; &quot; &amp; mwindow.title &amp; &quot; &quot;<br />
+    endif<br />
+<br />
+    row = 3<br />
+    if not isspace(label) then<br />
+        print cp$(col, row) &amp; label<br />
+        col = col + len(label) + 2<br />
+    endif<br />
+    data.input(sprintf$(&quot;%d %d 0 %d L='\E'&quot;, col, row, p.width),<br />
+           s_comp_t,<br />
+           s_comp_t)<br />
+<br />
+    cl.screen(1, 1, width, height)<br />
+    del.window(win_id)<br />
+    refresh()<br />
+    <br />
+    return (s_comp_t &lt;&gt; chr$(27)) <br />
+}<br />
+<br />
+function long change_company(long mode, long target_comp)<br />
+{<br />
+    if mode = 1 then<br />
+        start_comp = get.compnr()<br />
+    endif<br />
+    urs_comp = get.compnr()<br />
+    check_switch = switch.to.company(target_comp)<br />
+    if check_switch &lt;&gt; 1 then<br />
+        mess(&quot;tcmcss0000&quot;,1, target_comp) |Sie haben keine Berechtigung für Firma...<br />
+        return(false)<br />
+    else<br />
+        akt_comp = get.compnr()<br />
+        return(true)<br />
+    endif<br />
+    return(false)<br />
+}<br />
+<br />
+function long check_job_status(long target_comp, domain tccjob job, long status)<br />
+{<br />
+|    status = etol(ttaad500.jsta)<br />
+<br />
+    select    ttaad500.*<br />
+    from    ttaad500<br />
+    where    ttaad500._index1 = {:job}<br />
+    and    ttaad500._compnr = :target_comp<br />
+    selectdo<br />
+        if ttaad500.jsta = ltoe(status) then<br />
+            return(true)<br />
+        endif<br />
+    endselect<br />
+    return(false)<br />
+}<br />
+function zoomsession(string package(2), string module(3), string formnumber(9))<br />
+{<br />
+    s_comp_t = &quot;&quot;<br />
+    <br />
+    string    formname(60)<br />
+    string    sess(13)<br />
+    sess = package &amp; module &amp; formnumber<br />
+<br />
+    select    ttadv300.*<br />
+    from    ttadv300<br />
+|    where    ttadv300._index1 inrange {&quot;3&quot;, :package, :module, :formnumber, &quot;&quot;, &quot;&quot;, &quot;&quot;}<br />
+|    and    {&quot;3&quot;, :package, :module, :formnumber, &quot;ZZZZ&quot;, &quot;ZZ&quot;, &quot;ZZZZ&quot;}<br />
+|    and    ttadv300._compnr = &quot;000&quot;<br />
+|    as set with 1 rows<br />
+|    where    ttadv300._index1 = {&quot;3&quot;, :package, :module, :formnumber, &quot;&quot;, &quot;&quot;, &quot;&quot;}<br />
+    where    ttadv300.clan = &quot;3&quot;<br />
+    and    ttadv300.cpac = :package<br />
+    and    ttadv300.cmod = :module<br />
+    and    ttadv300.cfrm = :formnumber<br />
+    and    ttadv300._compnr = &quot;000&quot;<br />
+    selectdo<br />
+        formname = ttadv300.desc<br />
+    endselect<br />
+<br />
+    if graphical.mode then<br />
+        input.ok = input.string(formname, &quot;Geben Sie die Zielfirma an...&quot;, 3, 3, s_comp_t)<br />
+    else<br />
+        input.ok = ascii.input.string(formname, &quot;Geben Sie die Zielfirma an...&quot;, 3, s_comp_t)<br />
+    endif<br />
+    if input.ok and not isspace(s_comp_t) then<br />
+        l_comp_t = lval(s_comp_t)<br />
+        if change_company(2, l_comp_t) then<br />
+            zoom.to$(sess,z.session,&quot;&quot;,&quot;&quot;,0)<br />
+            change_company(2, l_comp_s)<br />
+        endif<br />
+    else<br />
+        |abort()<br />
+    endif<br />
+<br />
+    do.all.occ(refresh)<br />
+}<br />
+<br />
+<br />
+Some remarks:<br />
+<br />
+<br />
+ UTC: The times in the job tables are in UTC- format. I couldn't manage it to convert the times to the local format because of errors. If somebody got an idea what library to include, or elsehow got a clue, please let me know. So far the times are converted manually. Unfortunately one must change this, when summer- and wintertime changes.<br />
+ The custom table tccom903 is used and the custom domain tcjsta, a copy of the domain ttaad.jsta with the same enum-values, is used.<br />
+ The company numbers in the function get.jobdata() must be adjusted to your prefered company numbers.<br />
+ The function check_job_status() is declared but not yet used.<br />
+ A few remarks and messages are in german but they should be easily translated into english.<br />
+ It usually was intended to maintain the dates, times, states etc. in this session (write it to tccom903 and ttaad500). Therefor there are some pieces of code that are not actually used/needed eg. field.tccom903.edte:<br />
+before.input:<br />
+if MODIFY then<br />
+        if tccom903.jsta = tcjsta.not.active<br />
+        or tccom903.jsta = tcjsta.interrupted then<br />
+            attr.input = true<br />
+        else<br />
+            attr.input = false<br />
+        endif<br />
+    endif<br />
+ Actually there is no documentation of this little thing, but I think one should figure out to handle it if he could read and understand the code...<br />
+<br />
+<br />
+Attached is a ZIP-file with the following tarballs:<br />
+dtcjsta.tar.gz - the dump of the domain tcjsta<br />
+tccom9100m000.tar.gz - the dump of the session<br />
+ttccom903.tar.gz - the dump of the table tccom903 including the labels<br />
+<br />
+So try it out and let me know if you have any suggestions to improve the code, form, etc.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

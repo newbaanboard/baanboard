@@ -1,0 +1,189 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="dll script issue, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] dll script issue Tools Development" />
+	
+	<title>dll script issue [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; dll script issue</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">tracylee</div><div class="date">6th July 2018, 10:10</div></div><div class="posttext">Hi,<br />
+<br />
+Now i try to write a dll script but when I compile a script prompt the message &quot;Error: Unresolved reference to function 'tcmcs.dll0050.check.and.generate.order.number'.<br />
+&quot;. Please refer my script. Please advise. Thanks.<br />
+<br />
+|******************************************************************************<br />
+|* tccus020  0  VRC B61C a  pmb <br />
+|* DAL for Project Order - Header<br />
+|* is<br />
+|* 06-07-18 [13:49]<br />
+|******************************************************************************<br />
+|* Script Type: DAL<br />
+|******************************************************************************<br />
+                                                                                <br />
+#include &lt;bic_dal2&gt;<br />
+#define NUMBER.GROUP	&quot;PRJ&quot;	| Project Order Header - Series No.<br />
+<br />
+table ttccus020		| Project Order<br />
+table ttcmcs050		| First Free Numbers<br />
+table ttcmcs051		| Number Groups<br />
+<br />
+<br />
+function extern long set.object.defaults()<br />
+{<br />
+	tccus020.user = toupper$(logname$)<br />
+	tccus020.nrgr = NUMBER.GROUP<br />
+	tccus020.hsta = tchsta.new<br />
+<br />
+	return(0)<br />
+}<br />
+<br />
+function extern long before.open.object.set()<br />
+{<br />
+	dal.field.depends.on(&quot;tccus020.srno&quot;, HOOK_UPDATE, &quot;tccus020.orno&quot;)<br />
+<br />
+	return(0)<br />
+}<br />
+<br />
+function extern long before.save.object(long type)<br />
+{<br />
+	long	ret<br />
+	domain	tcorno	orno<br />
+<br />
+	if type = DAL_NEW then<br />
+		<br />
+<br />
+		orno = tccus020.orno<br />
+		ret = tcmcs.dll0050.check.and.generate.order.number(3, orno, tccus020.nrgr, 9, &quot;&quot;)<br />
+<br />
+		tccus020.orno = orno<br />
+	endif<br />
+<br />
+	return(0)<br />
+}<br />
+<br />
+function extern long tccus020.orno.check(long has_changed)<br />
+{<br />
+	long	ret, cnt<br />
+<br />
+	ret = 0<br />
+	cnt = 0<br />
+<br />
+	if has_changed = DAL_NEW then<br />
+<br />
+		select count(*) :cnt<br />
+		from tcmcs050<br />
+		where tcmcs050.nrgr = :tccus020.nrgr<br />
+		and tcmcs050.seri = :tccus020.orno<br />
+		selectdo<br />
+			break<br />
+		endselect<br />
+<br />
+		if cnt = 0 then<br />
+			|| Invalid requisition number!<br />
+			dal.set.error.message(&quot;txcus00001&quot;)<br />
+			ret = DALHOOKERROR<br />
+		endif<br />
+<br />
+	endif<br />
+<br />
+	return(ret)<br />
+}<br />
+<br />
+function extern void tccus020.srno.update(long has_changed)<br />
+{<br />
+	if has_changed = DAL_NEW then<br />
+		tccus020.srno = tccus020.orno<br />
+	endif<br />
+}<br />
+<br />
+function extern boolean tccus020.hsta.is.derived()<br />
+{<br />
+	return(true)<br />
+}<br />
+<br />
+function extern boolean method.is.allowed(long method)<br />
+{<br />
+	boolean		ret<br />
+	long		cnt<br />
+<br />
+	ret = true<br />
+<br />
+	on case method<br />
+	case DAL_NEW:<br />
+<br />
+		break<br />
+<br />
+	case DAL_UPDATE:<br />
+<br />
+		break<br />
+<br />
+	case DAL_DESTROY:<br />
+<br />
+		on case trim$(tccus020.srno)<br />
+		case &quot;POR&quot;:<br />
+			select count(*) :cnt<br />
+			from tccus021 a1<br />
+			where a1.orno = :tccus020.orno<br />
+			and a1.lsta not in(tclsta.canceled, tclsta.rejected)<br />
+			selectdo<br />
+				break<br />
+			endselect<br />
+<br />
+			ret = (cnt = 0 and tccus020.hsta = tchsta.new)<br />
+<br />
+			break<br />
+		endcase<br />
+<br />
+		break<br />
+	endcase<br />
+<br />
+	return(ret)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">6th July 2018, 10:25</div></div><div class="posttext">hi,<br />
+<br />
+the compiler cannot find the function. For us it is easy to know that the function is in the DLL tcmcsdll0050 but we must also tell this to the compiler!!<br />
+<br />
+You could add tcmcsdll0050 to the list of Libraries. Just mark your DAL and call &quot;libraries&quot; option<br />
+... or you can add the library to the script as follows:<br />
+table ttccus020		| Project Order<br />
+table ttcmcs050		| First Free Numbers<br />
+table ttcmcs051		| Number Groups<br />
+<br />
+#pragma used dll otcmcsdll0050	|Check order series<br />
+... and don't forget the &quot;o&quot; :D</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tracylee</div><div class="date">6th July 2018, 10:36</div></div><div class="posttext">hi,<br />
+<br />
+the compiler cannot find the function. For us it is easy to know that the function is in the DLL tcmcsdll0050 but we must also tell this to the compiler!!<br />
+<br />
+You could add tcmcsdll0050 to the list of Libraries. Just mark your DAL and call &quot;libraries&quot; option<br />
+... or you can add the library to the script as follows:<br />
+table ttccus020		| Project Order<br />
+table ttcmcs050		| First Free Numbers<br />
+table ttcmcs051		| Number Groups<br />
+<br />
+#pragma used dll otcmcsdll0050	|Check order series<br />
+... and don't forget the &quot;o&quot; :D<br />
+<br />
+Hi Vahdani,<br />
+<br />
+Thanks for your reply. Now can compile after add the library to the script. Thanks a lot.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

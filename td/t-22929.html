@@ -1,0 +1,734 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="before.rewrite, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] before.rewrite Tools Development" />
+	
+	<title>before.rewrite [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; before.rewrite</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mquinio</div><div class="date">21st January 2005, 11:38</div></div><div class="posttext">Hello,<br />
+i have a problem whith a specific script that i've create :<br />
+the main table of my session is tdsls041, and the user select a range of citg and the process read the tdsls041 (with a query extension to select only records wanted), then in the main.io section, i select only one record by orno using skip.io for the others.<br />
+in the next step the user can change a value of a validation field whith yes or no. My problem is now : when the user change this value and next use a button (for global validation or for another selection), i 've an error 206 on table tdlsl041. <br />
+I've skipped this error using skip.io in before.rewrite section, (i don't need at this step to let the process do an update), but after, i've a message wich appears : &quot;Record not modified&quot; and i've to press the OK button.<br />
+How can I avoid this message, because the user has the possibility of<br />
+modifying several lines and several pages, so the message will appear a lot.<br />
+If somebody can help me !!<br />
+<br />
+Join a bitmap of the session and the source.<br />
+<br />
+|*******************************************************************************<br />
+|* sls4000 Gestion planif Commandes<br />
+|* Michel QUINIO <br />
+|* 21/11/04<br />
+|*<br />
+|*******************************************************************************<br />
+declaration:<br />
+<br />
+<br />
+|******************************	tables ****************************************<br />
+<br />
+	table	ttccom010	|* Customers<br />
+	table	ttipcs020	|* Projects<br />
+	table	ttdsls040	|* Sales Orders<br />
+	table	ttdsls041	|* Sales Order Lines<br />
+	table	ttdsls045	|* Sales Deliveries<br />
+	table	tsppcs005	|* complément info prj	<br />
+<br />
+|						<br />
+|******************************	form variables ********************************<br />
+<br />
+	extern domain tcqsl1		qte.cde<br />
+	extern domain tcyesno		confirmed<br />
+	<br />
+|******************************	zoom variables ********************************<br />
+<br />
+	extern domain tcmcs.byte	zoom.ckey<br />
+	extern domain tcyesno		choice.4220<br />
+	extern domain tcmcs.long	trac.code<br />
+	extern domain tcparm		citg4.f<br />
+	extern domain tcparm		citg4.t<br />
+	extern domain tccitg		citg.f<br />
+	extern domain tccitg		citg.t		<br />
+	extern domain tcmcs.str8 	cosn	<br />
+	extern domain tccdis		ctcd	<br />
+	extern domain tccdis		crcd		<br />
+<br />
+	extern	domain	tcsess		calling.program<br />
+<br />
+|******************************	prog variables ********************************<br />
+<br />
+	long			counter<br />
+	long 			idmax<br />
+	long			id1<br />
+	long			ret<br />
+	extern	long		currkey		<br />
+	domain tcbool		rechcours		<br />
+	domain tcbool		inp.tbl	<br />
+	domain tcbool		prjvalid<br />
+	domain tcbool		trecran		<br />
+	domain tcorno		skip.orno<br />
+	domain tcorno		ornocours<br />
+	domain tccitg		skip.citg	<br />
+	domain tcorno		check.orno<br />
+	domain tccitg		check.citg	<br />
+	domain tcorno		tab_orno(999)<br />
+	domain tcyesno		tab_flag(999)<br />
+	domain tcdate		tab_date(999)<br />
+	string			tab_refa(20,999)<br />
+	domain	tcdate 		nvdate<br />
+	domain	tcdate 		olddate	<br />
+	string			nvref(20)	<br />
+	string			oldref(20)		<br />
+<br />
+	domain tcbool		old.occ				    |#89211-1.n<br />
+<br />
+	domain tcpsts old.psts		 | old project status<br />
+	domain tcpsts new.psts		 | old project status<br />
+<br />
+	extern	domain	tctext	error.message	| error message<br />
+<br />
+|								|#72661-2.so<br />
+|	domain tcqiv1		item.stoc			|#17768-1.n<br />
+|								|#72661-2.eo<br />
+	extern domain tcstno		stno.4120		|#10022675.n<br />
+<br />
+|******************************	includes **************************************<br />
+<br />
+|	#include &quot;itccom0007&quot;	|* Round quantity with given domain and<br />
+<br />
+	#include &lt;bic_text&gt;	|* Triton Tools functions<br />
+<br />
+|******************************	defines	***************************************<br />
+	#define CTRL.Q		17<br />
+	#define ESC		6				|#71261-1.sn<br />
+	#define UP_ARROW	11<br />
+	#define DOWN_ARROW	10				|#71261-1.en<br />
+	#define LEFT_ARROW	8				|#84595-1.n<br />
+<br />
+|******************************	program	***************************************<br />
+before.program:<br />
+<br />
+	calling.program = prog.name$<br />
+	cosn = &quot;&quot;<br />
+	ctcd = &quot;&quot;<br />
+	crcd = &quot;&quot;	<br />
+	<br />
+	init_tbl()<br />
+	<br />
+|	query.extension = 	&quot;tdsls041.citg INRANGE :citg.f AND :citg.t and &quot;&amp;<br />
+<br />
+	query.extension = &quot;(tdsls041._index7 inrange &quot;&amp;<br />
+				&quot;{:citg.f} and {:citg.t}) and &quot;&amp;<br />
+				&quot;tdsls041.cprj &lt;&gt; &quot;&quot;      &quot;&quot; and &quot;&amp;<br />
+				&quot;tdsls041.cprj refers to tipcs020 and &quot;&amp;<br />
+				&quot;tipcs020.psts = tcpsts.simulation&quot;<br />
+	<br />
+|		SELECT 	tdsls041.citg, tdsls040.ddta,tdsls041.cprj,tdsls040.orno<br />
+|		tdsls040.refb, tdsls040.crte, tdsls040.cfrw,sum(tdsls041.oqua) as qte_cde<br />
+|	FROM 		tdsls041, tipcs020, tdsls040<br />
+|	AND		tdsls041.citg INRANGE :citg.f AND :citg.t<br />
+|	AND		tdsls041.cprj REFERS TO tipcs020<br />
+|	AND		tdsls041.orno REFERS TO tdsls040<br />
+|	AND		tipcs020.psts = tcpsts.simulation<br />
+|	ORDER BY	tdsls041.citg, tdsls041.ddta, tdsls041.cprj, tdsls041.orno<br />
+|	GROUP BY 	tdsls041.citg, tdsls040.ddta,tdsls041.cprj,tdsls040.orno<br />
+|			tdsls040.refb, tdsls040.crte, tdsls040.cfrw<br />
+<br />
+|******************************	form ******************************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+<br />
+	citg4.f = &quot;    &quot;<br />
+	citg4.t = &quot;ZZZZ&quot;<br />
+	<br />
+|******************************	choice ****************************************<br />
+<br />
+|choice.change.order:<br />
+|after.choice:<br />
+|	currkey = curr.key				|#10022675.n<br />
+|	execute(def.find)<br />
+<br />
+|choice.update.db:<br />
+|before.choice:<br />
+|choice.again()<br />
+|counter = 1<br />
+|remove.mark()<br />
+|on.choice:<br />
+|counter =1<br />
+|remove.mark()<br />
+|choice.first.set:<br />
+|after.choice:<br />
+|	counter = 1<br />
+<br />
+|choice.start.set:<br />
+|after.choice:<br />
+|	counter = 1<br />
+<br />
+|choice.find.data:<br />
+|after.choice:<br />
+|	counter = 1<br />
+<br />
+choice.last.set:<br />
+after.choice:<br />
+	counter = 1<br />
+<br />
+choice.modify.set:<br />
+before.choice:<br />
+counter = 1<br />
+|------ trecran sert à ne pas recalculer la qte cde si pas besoin ---<br />
+<br />
+	if not trecran then<br />
+		trecran = true<br />
+	endif<br />
+	<br />
+|	for counter =	1 to filled.occ<br />
+|		restore.rcd.main(counter)<br />
+|	endfor<br />
+	<br />
+|choice.resize.frm:<br />
+|after.choice:<br />
+|	counter = 1<br />
+|choice.mark.occur:<br />
+|before.choice:<br />
+|counter = 1	<br />
+|on.choice:<br />
+|remove.mark()<br />
+|<br />
+| ***** Bouton Validation<br />
+|<br />
+| ***** Effectuer :	passage du statut prj de simalation à actif (cf tipcs2102m000)<br />
+| *****			avancement du statut 1 au statut 2 	    (cf tdsls4401m000)<br />
+| *****			validation des dtes si modif 		    (cf tdsls4101m000)<br />
+choice.user.1:<br />
+<br />
+on.choice:<br />
+<br />
+|	db.retry.point()				<br />
+	<br />
+|	do.all.occ(validation.commande)<br />
+<br />
+	validation.commande()<br />
+	<br />
+	init_tbl()<br />
+	citg4.f = &quot;    &quot;<br />
+	display(&quot;citg4.f&quot;)<br />
+	citg4.t = &quot;ZZZZ&quot;<br />
+	display(&quot;citg4.t&quot;)<br />
+        execute(start.set)<br />
+<br />
+|	else<br />
+|		do.all.occ(deliver.one.line)<br />
+<br />
+|	endif<br />
+<br />
+| ***** Bouton Nvelle Sélection<br />
+choice.user.2:<br />
+<br />
+on.choice:<br />
+	init_tbl()<br />
+	citg4.f = &quot;    &quot;<br />
+	display(&quot;citg4.f&quot;)<br />
+	citg4.t = &quot;ZZZZ&quot;<br />
+	display(&quot;citg4.t&quot;)	<br />
+	execute(start.set)<br />
+|	execute(find.data)	<br />
+<br />
+| ***** Bouton Quitter<br />
+choice.user.3:<br />
+on.choice:<br />
+	execute(end.program)<br />
+<br />
+|******************************	fields ****************************************<br />
+<br />
+|field.all:<br />
+|before.zoom:<br />
+|	clean.mess()<br />
+|after.zoom:<br />
+|--------------------<br />
+field.citg4.f:<br />
+|before.zoom:<br />
+|	procesinfo$ = &quot;to.key(3)&quot;<br />
+before.display:<br />
+	counter = 1<br />
+before.input:<br />
+	if rechcours then<br />
+		attr.input = false<br />
+	else<br />
+		attr.input = true<br />
+	endif<br />
+	<br />
+after.input:<br />
+	if citg4.f = &quot;    &quot; then<br />
+		citg4.t = &quot;ZZZZ&quot;<br />
+	else<br />
+		citg4.t = citg4.f<br />
+	endif<br />
+<br />
+	citg.f = citg4.f &amp; &quot;  &quot;<br />
+<br />
+|-------------------<br />
+field.citg4.t:<br />
+<br />
+before.input:<br />
+	if rechcours then<br />
+		attr.input = false<br />
+	else<br />
+		attr.input = true<br />
+	endif<br />
+	<br />
+after.input:<br />
+	skip.orno = 0<br />
+	skip.citg = &quot;      &quot;<br />
+	citg.t = citg4.t &amp; &quot;ZZ&quot;<br />
+|when.field.changes:<br />
+|--------------------<br />
+field.tdsls040.ddat:<br />
+before.display:<br />
+	if idmax &gt; 0 then<br />
+		check.orno = tdsls041.orno<br />
+		rec_ddat(check.orno)<br />
+	endif<br />
+before.input:<br />
+<br />
+when.field.changes:<br />
+	check.orno = tdsls041.orno<br />
+	alim_tbl(check.orno)<br />
+<br />
+|--------------------<br />
+field.tdsls040.refa:<br />
+before.display:<br />
+	if idmax &gt; 0 then<br />
+		check.orno = tdsls041.orno<br />
+		rec_refa(check.orno)<br />
+	endif<br />
+<br />
+before.input:<br />
+|--------------------<br />
+<br />
+when.field.changes:<br />
+	check.orno = tdsls041.orno<br />
+	alim_tbl(check.orno)<br />
+<br />
+<br />
+|--------------------<br />
+field.qte.cde:<br />
+before.display:<br />
+	if not trecran then<br />
+		check.orno = tdsls041.orno<br />
+		check.citg = tdsls041.citg<br />
+|		rec_qte(check.orno,check.citg)<br />
+		on.main.table(rec_qte,check.orno,check.citg)<br />
+	endif<br />
+	<br />
+|--------------------<br />
+field.confirmed:<br />
+before.display:<br />
+<br />
+	confirmed = tcyesno.yes<br />
+	if idmax &gt; 0 then<br />
+		check.orno = tdsls041.orno<br />
+		rec_flag(check.orno)<br />
+	endif<br />
+	<br />
+before.input:<br />
+<br />
+when.field.changes:<br />
+	check.orno = tdsls041.orno<br />
+	alim_tbl(check.orno)<br />
+	valid.pcs005(tdsls041.cprj)<br />
+|******************************	main table io *********************************<br />
+main.table.io:							|EV#10022675<br />
+<br />
+read.view:<br />
+	counter = 1<br />
+<br />
+before.read:<br />
+	counter = 1<br />
+	if not rechcours then<br />
+		rechcours = true<br />
+	endif<br />
+	<br />
+after.read:<br />
+<br />
+	if trecran then<br />
+		trecran = false<br />
+	endif<br />
+	<br />
+	if (skip.orno &lt;&gt; tdsls041.orno or skip.citg &lt;&gt; tdsls041.citg) then<br />
+		prjvalid = false<br />
+		rec_pcs005(tdsls041.cprj)<br />
+		if prjvalid then<br />
+			skip.orno = tdsls041.orno<br />
+			skip.citg = tdsls041.citg<br />
+			check.orno = tdsls041.orno<br />
+			inp.tbl = true<br />
+			alim_tbl(check.orno)<br />
+		else<br />
+			skip.io(&quot;&quot;)<br />
+		endif<br />
+	else<br />
+		skip.io(&quot;&quot;)<br />
+	endif<br />
+<br />
+before.rewrite:<br />
+	counter = 1<br />
+<br />
+	skip.io(&quot; &quot;)<br />
+	clean.mess()<br />
+after.rewrite:<br />
+	counter = 1<br />
+<br />
+|******************************	functions *************************************<br />
+functions:<br />
+<br />
+function rec_pcs005(domain tccprj tdsls041.cprj)<br />
+{<br />
+	select 	sppcs005.*<br />
+	from 	sppcs005<br />
+	where	sppcs005._index1 = {:tdsls041.cprj}<br />
+	selectdo<br />
+		if sppcs005.epla = tcyesno.yes then<br />
+			prjvalid = true<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+function rec_qte(domain tcorno check.orno,domain tccitg check.citg)<br />
+{<br />
+	qte.cde = 0<br />
+	select 	sum(tdsls041.oqua):qte.cde<br />
+	from	tdsls041<br />
+	where 	tdsls041._index1 = {:check.orno} and<br />
+		tdsls041.citg = :check.citg<br />
+	selectdo<br />
+	endselect<br />
+	<br />
+}						<br />
+<br />
+function alim_tbl(domain tcorno check.orno)	<br />
+{<br />
+	domain	tcbool trouve<br />
+	trouve = false<br />
+	<br />
+|**** inp.tbl si true ==&gt; on est en alimentation de tble et pas de modif si trouve.<br />
+|**** Si tbl déjà renseignée alors modif, sinon ajout.<br />
+<br />
+	if idmax &lt;&gt; 0 then<br />
+		for id1 = 1 to idmax<br />
+			if tab_orno(id1) = check.orno then<br />
+				trouve = true<br />
+				break<br />
+			endif<br />
+		endfor<br />
+	endif<br />
+	<br />
+	if not trouve then<br />
+		idmax = idmax + 1<br />
+		id1   = idmax<br />
+	endif<br />
+|***** Si lecture table alors on prend sppcs005.cpla *****<br />
+	if (inp.tbl and not trouve) then<br />
+		confirmed = sppcs005.cpla<br />
+	endif<br />
+<br />
+	if ((inp.tbl and not trouve) or (not inp.tbl and trouve)) then<br />
+<br />
+		if confirmed &lt;&gt; tcyesno.no and confirmed &lt;&gt; tcyesno.yes then<br />
+			confirmed = tcyesno.yes<br />
+		endif<br />
+	<br />
+		tab_orno(id1) = check.orno<br />
+		tab_flag(id1) = confirmed<br />
+		tab_date(id1) = tdsls040.ddat<br />
+		tab_refa(1,id1) = tdsls040.refa<br />
+	endif<br />
+	<br />
+	if inp.tbl then<br />
+		inp.tbl = false<br />
+	endif<br />
+}<br />
+<br />
+function rec_flag(domain tcorno check.orno)		<br />
+{<br />
+	<br />
+	for id1 = 1 to idmax <br />
+		if tab_orno(id1) = check.orno then<br />
+			confirmed = tab_flag(id1)<br />
+			break<br />
+		endif<br />
+	endfor<br />
+	<br />
+}						<br />
+<br />
+function rec_ddat(domain tcorno check.orno)<br />
+{<br />
+	for id1 = 1 to idmax<br />
+		if tab_orno(id1) = check.orno then<br />
+			tdsls040.ddat = tab_date(id1)<br />
+			break<br />
+		endif<br />
+	endfor<br />
+	<br />
+}						<br />
+<br />
+function rec_refa(domain tcorno check.orno)		<br />
+{<br />
+	for id1 = 1 to idmax <br />
+		if tab_orno(id1) = check.orno then<br />
+			tdsls040.refa = tab_refa(1,id1)<br />
+			break<br />
+		endif<br />
+	endfor<br />
+	<br />
+}						<br />
+<br />
+function init_tbl()					<br />
+{<br />
+	<br />
+	idmax = 0<br />
+	ret = set.mem(tab_orno,0)<br />
+	ret = set.mem(tab_flag,tcyesno.yes)<br />
+	ret = set.mem(tab_date,0)<br />
+	ret = set.mem(tab_refa,&quot;&quot;)	<br />
+	rechcours = false<br />
+	trecran = false<br />
+	confirmed = tcyesno.yes<br />
+|---------- A refaire lors de la fin de la validation -----<br />
+<br />
+}						<br />
+<br />
+<br />
+function validation.commande()<br />
+{<br />
+	skip.orno = 0<br />
+<br />
+	db.retry.point()<br />
+<br />
+	select 	tdsls041.*,tipcs020.*,sppcs005.*<br />
+	from   	tdsls041,tipcs020<br />
+	where 	tdsls041._index7 inrange {:citg.f} and {:citg.t} and <br />
+		tdsls041.cprj &lt;&gt; &quot;      &quot; and <br />
+		tdsls041.cprj = tipcs020.cprj and <br />
+		tipcs020.psts = tcpsts.simulation and<br />
+		tdsls041.cprj = sppcs005.cprj and<br />
+		sppcs005.cpla = tcyesno.yes<br />
+	selectdo<br />
+		if skip.orno &lt;&gt; tdsls041.orno then<br />
+			skip.orno = tdsls041.orno<br />
+			valid.statut.cprj(tdsls041.cprj)<br />
+			ornocours = tdsls041.orno<br />
+			valid.date.orno(tdsls041.orno)<br />
+			valid.accuse.rcp(tdsls041.orno)<br />
+			commit.transaction()<br />
+		endif<br />
+	endselect<br />
+}		<br />
+<br />
+|function validation.commande()<br />
+|{<br />
+|	confirmed = tcyesno.yes<br />
+|	if idmax &gt; 0 then<br />
+|		check.orno = tdsls041.orno<br />
+|		rec_flag(check.orno)<br />
+|	endif<br />
+|	if confirmed = tcyesno.yes then<br />
+|		mess(&quot;tototototo&quot;,0)<br />
+|		valid.statut.cprj(tdsls041.cprj)<br />
+|		ornocours = tdsls041.orno<br />
+|		valid.date.orno(tdsls041.orno)<br />
+|		valid.accuse.rcp(tdsls041.orno)<br />
+|		commit.transaction()<br />
+|	else<br />
+|		valid.pcs005(tdsls041.cprj)<br />
+|	endif<br />
+|}		<br />
+<br />
+<br />
+<br />
+function valid.statut.cprj(domain tccprj tdsls041.cprj)<br />
+{<br />
+	select 	tipcs020.* <br />
+	from 	tipcs020 for update<br />
+	where 	tipcs020._index1 = {:tdsls041.cprj} and<br />
+		tipcs020.psts = tcpsts.simulation<br />
+	selectdo<br />
+		new.psts = tcpsts.active<br />
+		old.psts = tcpsts.simulation<br />
+	   	tipcs.dll2102.validate.new.project.status(<br />
+			tipcs020.cprj,<br />
+			old.psts,<br />
+			new.psts,<br />
+			error.message)<br />
+		if not isspace(error.message) then<br />
+			tipcs020.psts = old.psts<br />
+				message(error.message)<br />
+				input.again()<br />
+<br />
+		else<br />
+			tipcs020.dtpl = date.num()<br />
+			tipcs020.psts = tcpsts.active<br />
+			tipcs.dll2102.process.project.status.change(tipcs020.cprj)<br />
+			db.update(ttipcs020, db.retry)<br />
+		endif<br />
+		<br />
+	endselect<br />
+}<br />
+<br />
+function valid.date.orno(domain tcorno ornocours)<br />
+{<br />
+	<br />
+|	check.orno = tdsls041.orno<br />
+|	rec_ddat(check.orno)<br />
+|	nvdate  = tdsls040.ddat<br />
+|	olddate = tdsls040.ddat<br />
+|	<br />
+|	check.orno = tdsls041.orno<br />
+|	rec_refa(check.orno)<br />
+|	nvref = tdsls040.refa<br />
+|<br />
+	select 	tdsls040.*<br />
+	from	tdsls040 for update<br />
+	where	tdsls040._index1 = {:ornocours} <br />
+|		(tdsls040.ddat &lt;&gt; :nvdate or tdsls040.refa &lt;&gt; :nvref)<br />
+	selectdo<br />
+		olddate = tdsls040.ddat<br />
+		oldref  = tdsls040.refa<br />
+<br />
+		check.orno = tdsls041.orno<br />
+		rec_ddat(check.orno)<br />
+		nvdate  = tdsls040.ddat<br />
+		tdsls040.ddat = olddate<br />
+		<br />
+		check.orno = tdsls041.orno<br />
+		rec_refa(check.orno)<br />
+		nvref = tdsls040.refa<br />
+		tdsls040.refa = oldref<br />
+<br />
+		if tdsls040.ddat &lt;&gt; nvdate or tdsls040.refa &lt;&gt; nvref then<br />
+			if tdsls040.ddat &lt;&gt; nvdate then<br />
+				tdsls040.ddat = nvdate<br />
+				tdsls040.prdt = nvdate<br />
+			endif<br />
+		<br />
+			tdsls040.refa = nvref<br />
+		<br />
+			db.update(ttdsls040,db.retry)<br />
+			commit.transaction()<br />
+		endif<br />
+		<br />
+	endselect<br />
+<br />
+	if olddate &lt;&gt; nvdate then<br />
+		status.off()<br />
+		zoom.to$(&quot;tdsls4809s000&quot;,z.session,&quot;sls4101&quot;,&quot;&quot;,0)<br />
+		status.on()<br />
+	endif<br />
+}<br />
+<br />
+function valid.accuse.rcp(domain tcorno tdsls041.orno)<br />
+{<br />
+<br />
+	select 	tdsls045.* <br />
+	from	tdsls045 for update<br />
+	where 	tdsls045._index1 = {:tdsls041.orno}<br />
+	selectdo<br />
+		if tdsls045.pmsk(1;1) &lt;&gt; &quot;n&quot; then<br />
+			if tdsls045.ssls = 1 then<br />
+				tdsls045.pmsk(1;1) = &quot;e&quot;<br />
+				tdsls045.ssls =	2<br />
+			endif<br />
+			db.update(ttdsls045,db.retry)<br />
+		endif<br />
+	endselect	<br />
+<br />
+}<br />
+<br />
+function valid.pcs005(domain tccprj tdsls041.cprj)<br />
+{<br />
+	select	sppcs005.*<br />
+	from	sppcs005 for update<br />
+	where	sppcs005._index1 = {:tdsls041.cprj}<br />
+	selectdo<br />
+		sppcs005.cpla = confirmed<br />
+		db.update(tsppcs005, db.retry)<br />
+		commit.transaction()<br />
+	endselect	<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">malutz</div><div class="date">21st January 2005, 13:22</div></div><div class="posttext">the source would help to analyze your problem.  ;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">greasedman</div><div class="date">21st January 2005, 15:48</div></div><div class="posttext">I've skipped this error using skip.io in before.rewrite section, (i don't need at this step to let the process do an update), but after, i've a message wich appears : &quot;Record not modified&quot; and i've to press the OK button.<br />
+How can I avoid this message, because the user has the possibility of<br />
+modifying several lines and several pages, so the message will appear a lot<br />
+Reading from BaaN Help, skip.io:<br />
+[...]<br />
+This specifies a message that is defined in the data dictionary. This message is displayed on screen when you call skip.io(). If you specify an empty string, the standard program displays a default message.<br />
+[...]<br />
+<br />
+Isn't there a function like skip.io() with a possibility to display no message anyway?!?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">22nd January 2005, 14:03</div></div><div class="posttext">Reading from BaaN Help, skip.io:<br />
+Isn't there a function like skip.io() with a possibility to display no message anyway?!?<br />
+<br />
+Use the skip.io(&quot;&quot;) . It will not give any message.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">greasedman</div><div class="date">24th January 2005, 13:51</div></div><div class="posttext">Use the skip.io(&quot;&quot;) . It will not give any message.<br />
+It will in some circumstances, I think when a default message from standard program is available, in other cases it won't...  :confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mquinio</div><div class="date">26th January 2005, 12:39</div></div><div class="posttext">Use the skip.io(&quot;&quot;) . It will not give any message.<br />
+<br />
+Hello , <br />
+I tried this (skip.io(&quot;&quot;)) and, as said Greasedman, it will in some circumstances, but in my case the msg continue to appear.<br />
+thank's</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">27th January 2005, 16:03</div></div><div class="posttext">In before.rewrite , try the abort.io instead of skip.io .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mquinio</div><div class="date">27th January 2005, 16:29</div></div><div class="posttext">Hello,<br />
+The result is worth with the abort.io function, because i've always the msg &quot;Record not modified&quot; and after i've another message witch ask me if i want to retry another time the transaction.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">greasedman</div><div class="date">28th January 2005, 12:14</div></div><div class="posttext">In before.rewrite , try the abort.io instead of skip.io .<br />
+I tried already, but the behavior is the same... I can't belive it's impossible to skip ANY message!!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">28th January 2005, 16:48</div></div><div class="posttext">There are certain message which are given by standard program (like the one on delete on any main table session) which can not be avoided. <br />
+<br />
+Abort.io however will reduce the message to lesser number in case of multi-occ session. Help also is clear about message coming sometimes.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mquinio</div><div class="date">1st February 2005, 11:37</div></div><div class="posttext">Hello,<br />
+I'm sorry that nobody can help me on this way. So i've perhaps another idea to inhibit this problem. I noticed that when I pressed on escape key before clicking on a button, the posting of the msg was not done.<br />
+So, does somebody know how to simulate the esc key into the pgr ??</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">greasedman</div><div class="date">1st February 2005, 12:47</div></div><div class="posttext">execute(recover.set), it should be the same as esc</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mquinio</div><div class="date">3rd February 2005, 12:27</div></div><div class="posttext">Yes, it was the solution, executing this function in the &quot;choice.modify.set&quot; section and the after.choice subsection, the before.rewrite subsection of the main.io section is not executed, so everything which was executed before is skipped and the msg doesn't appear.<br />
+<br />
+Thank's a lot.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,158 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="zoom to subset, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] zoom to subset Tools Development" />
+	
+	<title>zoom to subset [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; zoom to subset</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">19th August 2002, 23:46</div></div><div class="posttext">Hopefully a simple question:<br />
+<br />
+From a custom form, I want to zoom to general item data, but _only_ allow the user to select a generic item.<br />
+Preferably, all the user would see in the zoom list is a subset of generic items only.<br />
+<br />
+Now how do I do that.?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">20th August 2002, 00:38</div></div><div class="posttext">Francesco,<br />
+<br />
+You might try to use the coding with the function -<br />
+<br />
+http://www.baanboard.com/programmers_manual_baanerp_help_functions_sql_query_extensions_query_extend_where <br />
+<br />
+Hope it helps you out.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">20th August 2002, 00:39</div></div><div class="posttext">I got it.<br />
+<br />
+With a little help from my collegue....<br />
+<br />
+query.extend.where.in.zoom(&quot; tcibd001._index6 = {tckitm.generic} &quot;)<br />
+<br />
+in before.zoom does the trick.<br />
+<br />
+However, because I was using a field that had the standard item domain (tcitem), and as such was segmented, it was not getting to the before.zoom session (don't ask me why, apparently segmented fields have their own set of zoom rules).<br />
+Once I changed the domain on the form fields, it worked like a charm.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">20th August 2002, 00:40</div></div><div class="posttext">NOW he tells me ;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">20th August 2002, 00:45</div></div><div class="posttext">well your impatient... and... and I posted it before you did.. :p <br />
+<br />
+BTW, I dont know there is an option in this forum, that I can subscribe to any threads/topic, that if anyone makes a posting there, I would get a notifier :confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">20th August 2002, 00:51</div></div><div class="posttext">...it's those &quot;customers&quot; that want everything...NOW.<br />
+<br />
+yawl 'now that song.<br />
+<br />
+Anyway, there is an option just below the 'new thread' button at the top of each forum to subscribe to it.<br />
+<br />
+and btw, thanks Prashanth.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">20th August 2002, 00:55</div></div><div class="posttext">NPRao,<br />
+<br />
+Right underneath this post is a link called Subscribe to this thread :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">20th August 2002, 00:57</div></div><div class="posttext">Francesco,<br />
+<br />
+Good thread to open up... this was at the back of my mind... and I found my notes now, it will help you with more info -<br />
+<br />
+<br />
+query.extend.where.in.zoom() - Within this function the query can be defined in a main session, and should be parsed and executed in the sub- session.<br />
+A behavior of the usage of this function is, that program variables cannot be bind into the query string, because the program variables are often not known in the sub-session. Therefore, the query string has been build up by concatenating the program variables into that query string.<br />
+Program variables of all data types are used in this concatenation.<br />
+<br />
+Problem<br />
+The problem is the concatenation of program variables of data type string. Normally this works fine, but if the concatenated variable in runtime contents a single quote char (') or double quote char (&quot;), a runtime query error will occur in the sub-process.<br />
+<br />
+Example:<br />
+query.extend.where.in.zoom(&quot;whwmd210.cwar = &quot;&quot;&quot; &amp; cwar.t &amp; &quot;&quot;&quot;&quot;)<br />
+If the value of cwar.t (length=3) is A&quot;B, the resulting where condition will become:<br />
+	whwmd210.cwar = &quot;A&quot;B&quot;<br />
+As can be seen, the double quote's are not matching, so a runtime query errors will occur.<br />
+<br />
+The same problems will occur on the next definition:<br />
+query.extend.where.in.zoom(&quot;whwmd210.cwar = '&quot; &amp; cwar.t &amp; &quot;'&quot;)<br />
+If the value of cwar.t is A'B, also a runtime error occurs.<br />
+<br />
+So, concatenation of strings in function query.extend.where.in.zoom() will give runtime errors when users have single- or double quotes in their codes.<br />
+The same is true for the function query.extend.where(). But in this construction concatenation it is almost never implemented, because there is no need to do concatenation.<br />
+<br />
+The concatenation in query.extend.where.in.zoom(), and SET.BROWSE.FILTER.UI() has been implemented in BaaN-5 about 1100 times.<br />
+<br />
+Solution<br />
+quoted.string() - This function will handle quotes in string variables in that way that concatenation will be according to the syntax rules.<br />
+Implementation of quoted.string(): <br />
+query.extend.where.in.zoom(&quot;whwmd210.cwar = &quot; &amp; quoted.string(cwar.t))<br />
+This function will analyze the contents of the variable and will put quotes around it. <br />
+So, when cwar contains: ROB'S , the query string will become: whwmd210.cwar = &quot;ROB''s&quot;<br />
+And when cwar contains: ROB&quot;S , the query string will become: whwmd210.cwar = 'ROB&quot;s'</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">20th August 2002, 02:51</div></div><div class="posttext">Francesco,<br />
+<br />
+I found more interesting info today -<br />
+<br />
+<br />
+<br />
+iBaan ERP Tools<br />
+<br />
+Auto complete<br />
+In iBaan ERP 5.2a, string fields, and multibyte string fields that have a directreference to another iBaan ERP table, can support Auto Complete functionality.<br />
+<br />
+In fields with Auto Complete functionality implemented, when you enter an incomplete value, and press the TAB key:<br />
+If your incomplete data matches only one record in the fields table, iBaan ERP completes the record in the field, and the cursor moves to the next field. If your incomplete data matches more than one record in the fields table:<br />
+&#8722;&#8722;&#8722;&#8722;iBaan ERP underlines and turns the data in the field red.<br />
+&#8722;&#8722;&#8722;&#8722;If you right-click on the field, iBaan ERP displays the best seven matches to your incomplete data, and a More option . You can select a record from the list, or More to view all the matching records from which you can make a selection.<br />
+&#8722;&#8722;&#8722;&#8722;iBaan ERP completes the entry in the field with your selected record, and the cursor moves on to the next field.<br />
+For a field to support Auto Complete functionality:<br />
+The field must have a zoom session.<br />
+If the zoom sessions return field is a table field, the return field must be part of the zoom sessions reference table.<br />
+Auto Complete functionality is not supported for:<br />
+Segmented fields.<br />
+Fields with centered or right-aligned data.<br />
+Fields with a field button.<br />
+<br />
+<br />
+Isnt that cool ? seems, BaaN is going in line with Microsoft style of development/user interfaces and we might be looking out for some new suprises... :p</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">20th August 2002, 21:42</div></div><div class="posttext">But I just heard this morning that we are NOT going to upgrade  for a while (despite earlier statements that we were going to upgrade ASAP....lalala - what a wonderfull world - lala la).<br />
+<br />
+This means I am stuck in my little 5b world and I don't want to hear about goodies that I can't get my hands on. :(</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">~Vamsi</div><div class="date">20th August 2002, 23:12</div></div><div class="posttext">Francesco,<br />
+<br />
+Preferably use the correct domain. Here is how you make your zoom work with a segmented field:<br />
+<br />
+field.myfieldname.segment.1:<br />
+before.zoom:<br />
+           myfunction1()<br />
+<br />
+field.myfieldname.segment.2:<br />
+before.zoom:<br />
+           myfunction2()</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">20th August 2002, 23:54</div></div><div class="posttext">Very usefull information. Didn't know you could do that.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,524 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Convert a nominal to words, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Convert a nominal to words Tools Development" />
+	
+	<title>Convert a nominal to words [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Convert a nominal to words</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">11th September 2012, 15:59</div></div><div class="posttext">I see (in other postings) that there is an available function tcmcsdll0006 which will convert numbers (99) to words (ninety-nine).  <br />
+<br />
+We have a situation where are going to implement a Baan IVc4 environment in a Spanish-speaking country.  The installation is not going to use the Spanish language pack (we do not have it installed), but according to the banks, any checks written out of the Cash Management module need to be in Spanish.<br />
+<br />
+Anybody have ideas on how this could be accomplished (hopefully without installing the language pack)?  I didn't see any argument for tcmcsdll0006 for language selection (even if it Spanish was not an available language).  I am assuming that the report's language would set a global variable that would be picked up by the function...<br />
+<br />
+I could (and might have to) write my own function... <br />
+<br />
+Just curious if anyone else has run into this and how they addressed it.<br />
+<br />
+Great thanks to anyone with information.  Thank you!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">11th September 2012, 19:33</div></div><div class="posttext">I have only the english language installed (and so not much experience with multiple language set ups), so hard to verify what I am writing below. But I am hoping it will lead you to some sort of solution.<br />
+<br />
+In any case, the check routines are in a FUNCTION file called tfcmg0005 (Decode Amounts). (I could not find tcmcsdll0006 in my installation - maybe it is not available in BAAN IV c3 A&amp;D). From what I can see, this function script has decodes which rely on messages, which of course are by language. For example, the following gets the word 'hundred':<br />
+<br />
+<br />
+decode.hundred = form.text$(&quot;tfcmgs0186&quot;)<br />
+<br />
+<br />
+Similar code exists for decoding the numbers: 1 to 'one' and so on, using form.text$() command. <br />
+<br />
+SO, if it is possible for you to test this somehow, you could get away with just copying the required messages from english to spanish and translating the words in Maintain Messages. Not sure how you can 'force' the check report to pick the language you need, though. Also, not sure how exactly the number in words will look like in the other language, because the 'assembly' of the words is basically in english. Will need lot of testing, if the concept works.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">24th September 2012, 18:47</div></div><div class="posttext">Hello again.<br />
+<br />
+Just curious about how you decide to solve the issue for converting numbers to words.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">25th September 2012, 14:40</div></div><div class="posttext">I was able to find some VB code which converts a number to text (in Spanish).  I am in the process of converting the VB code to Baan's SQL dialect.  I'm about 95% there.  I will post the code once I finish and test it out.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">30th October 2012, 20:58</div></div><div class="posttext">I (finally) completed the code and will pass it to our Controller in Costa Rica for testing.  If everything works, I will clean up the code a bit and post it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">3rd December 2012, 21:45</div></div><div class="posttext">Here is the finished code... there is probably some room for optimization, but I don't have the time to optimize it now.  The code below is from the test session.  The user enters the number and then the written Spanish text is displayed as a message.  <br />
+<br />
+This is a Costa Rican dialect of Spanish as defined by our controller at that facility.<br />
+<br />
+<br />
+|****************************** DECLARATION SECTION ***************************<br />
+declaration:<br />
+		<br />
+   | Selection Criteria<br />
+<br />
+	extern	domain	tfgld.amnt		ws.amnt		| Amount<br />
+   <br />
+   | Working Storage<br />
+<br />
+	domain	tcmcs.long		length			| Length of string<br />
+	domain	tcmcs.str215	temp.dollars	<br />
+	domain	tcmcs.str215	ws.amnt.text	| Amount in text (Spanish)<br />
+	domain	tcmcs.str215	ws.cents		| Represents text portion of dollars<br />
+	domain	tcmcs.long		ws.counter		| Represents actions taken on each three-digit group within the number to convert<br />
+	domain	tcmcs.str215	ws.dollars		| Represents text portion of dollars<br />
+<br />
+	<br />
+|****************************** PROGRAM     SECTION ***************************<br />
+<br />
+|****************************** ZOOM FROM   SECTION ***************************<br />
+<br />
+|****************************** FORM	    SECTION ***************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+	<br />
+|****************************** CHOICE      SECTION ***************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	| Reset variables if session is run a second time<br />
+	length = 0<br />
+	temp.dollars = &quot;&quot;<br />
+	ws.amnt.text = &quot;&quot;<br />
+	ws.cents = &quot;&quot;<br />
+	ws.dollars = &quot;&quot;<br />
+	<br />
+	ws.amnt.text = convert.number(ws.amnt)<br />
+	message(ws.amnt.text)<br />
+<br />
+|****************************** FIELD       SECTION ***************************<br />
+<br />
+|****************************** MAIN TABLE  SECTION ***************************<br />
+<br />
+|****************************** FUNCTION    SECTION ***************************<br />
+functions:<br />
+<br />
+|******************************************************************************<br />
+| This function translates any 'cents' and then sets up a counter to deal with <br />
+| each three digit group within the number.<br />
+|******************************************************************************<br />
+function extern string convert.number(domain tfgld.amnt f.amnt)<br />
+{<br />
+	domain	tcmcs.long		decimal.position<br />
+	domain	tcmcs.str215	f.amnt.str<br />
+	domain	tcmcs.str215 	result<br />
+	domain	tcmcs.long		ws.million<br />
+	<br />
+	| Flag used to determine if number is an 'even' millions of dollars.<br />
+	ws.million = 0<br />
+	<br />
+	| Convert ws.amnt to string<br />
+	f.amnt.str = trim$(str$(ws.amnt))<br />
+<br />
+	| Find the position of the decimal point within the string<br />
+	decimal.position = rpos(f.amnt.str, &quot;.&quot;) <br />
+<br />
+	if decimal.position = 0 then<br />
+		| No decimal position exists <br />
+		ws.cents = &quot;00/100&quot;<br />
+	else<br />
+		length = len(f.amnt.str)<br />
+		if length - decimal.position = 1 then<br />
+			ws.cents = f.amnt.str(decimal.position + 1; 1) &amp; &quot;0/100&quot;<br />
+		else<br />
+			ws.cents = f.amnt.str(decimal.position + 1; 2) &amp; &quot;/100&quot;<br />
+		endif<br />
+		| Strips the decimal and mantissa (fractional-part) <br />
+		| from the string, leaving the characteristic (integer-part)<br />
+		f.amnt.str = f.amnt.str(1;decimal.position-1)<br />
+	endif<br />
+	<br />
+	on case f.amnt.str<br />
+		case(&quot;1000000&quot;):<br />
+		case(&quot;2000000&quot;):<br />
+		case(&quot;3000000&quot;):<br />
+		case(&quot;4000000&quot;):<br />
+		case(&quot;5000000&quot;):<br />
+		case(&quot;6000000&quot;):<br />
+		case(&quot;7000000&quot;):<br />
+		case(&quot;8000000&quot;):<br />
+		case(&quot;9000000&quot;):<br />
+			| Number is an 'even' millions of dollars<br />
+			ws.million = 1<br />
+			break<br />
+		default:<br />
+			ws.million = 0<br />
+			break<br />
+	endcase<br />
+	<br />
+	ws.counter = 1<br />
+	<br />
+	while f.amnt.str &lt;&gt; &quot;&quot;<br />
+		temp.dollars = &quot; &quot;<br />
+		length = len(f.amnt.str)<br />
+		<br />
+		if length &gt;= 3 then<br />
+			temp.dollars = ConvertHundreds(f.amnt.str(length-2;3))<br />
+		else<br />
+			if length = 2 then<br />
+				f.amnt.str = &quot; &quot; &amp; f.amnt.str<br />
+				temp.dollars = ConvertHundreds(f.amnt.str)<br />
+			else<br />
+				if length = 1 then<br />
+					f.amnt.str = &quot;  &quot; &amp; f.amnt.str<br />
+					temp.dollars = ConvertHundreds(f.amnt.str)<br />
+				endif<br />
+			endif<br />
+		endif<br />
+	<br />
+		if f.amnt.str(1;2) = &quot;  &quot; then<br />
+			length = 1<br />
+		else<br />
+			if f.amnt.str(1;1) = &quot; &quot; then<br />
+				length = 2<br />
+			else<br />
+				length = len(f.amnt.str)<br />
+			endif<br />
+		endif <br />
+		<br />
+		if f.amnt.str(length;2) = &quot; 1&quot; then<br />
+			on case ws.counter<br />
+				case(1):<br />
+					ws.dollars = &quot;un &quot; &amp; ws.dollars <br />
+					break<br />
+				case(2):<br />
+					ws.dollars = &quot;mil &quot; &amp; ws.dollars <br />
+					break<br />
+				case(3):<br />
+					ws.dollars = &quot;un million &quot; &amp; ws.dollars <br />
+					break<br />
+				case(4):<br />
+					ws.dollars  = &quot;un billion &quot; &amp; ws.dollars <br />
+					break<br />
+				case(5):<br />
+					ws.dollars  = &quot;un trillion &quot; &amp; ws.dollars <br />
+					break<br />
+				default:<br />
+					break<br />
+			endcase<br />
+		else<br />
+			if temp.dollars &lt;&gt; &quot;&quot; then<br />
+				on case ws.counter<br />
+					case(2):<br />
+						if ws.amnt &gt;= 1001 and ws.amnt &lt;= 1999 then<br />
+							| Do Not use 'un mil' if there is only 1 'thousands'<br />
+							ws.dollars = &quot; mil &quot; &amp; ws.dollars<br />
+						else<br />
+							ws.dollars = temp.dollars &amp; &quot; mil &quot; &amp; ws.dollars<br />
+						endif<br />
+						break<br />
+					case(3):<br />
+						| Handle plural of 'million' if necessary<br />
+						if temp.dollars = &quot;un&quot; then<br />
+							ws.dollars = temp.dollars &amp; &quot; millon &quot; &amp; ws.dollars<br />
+						else<br />
+							ws.dollars = temp.dollars &amp; &quot; millones &quot; &amp; ws.dollars<br />
+						endif<br />
+						break<br />
+					case(4):<br />
+						ws.dollars = temp.dollars &amp; &quot; billones &quot; &amp; ws.dollars<br />
+						break<br />
+					case(5):<br />
+						ws.dollars = temp.dollars &amp; &quot; trillones &quot; &amp; ws.dollars<br />
+						break<br />
+					default:<br />
+						ws.dollars = temp.dollars &amp; ws.dollars<br />
+						break<br />
+				endcase<br />
+			else<br />
+<br />
+			endif<br />
+		endif 	<br />
+	<br />
+		length = len(f.amnt.str)<br />
+		<br />
+		if  length &gt; 3 then<br />
+			f.amnt.str = f.amnt.str(1;length-3)<br />
+		else<br />
+			f.amnt.str = &quot;&quot;<br />
+		endif		<br />
+<br />
+		length = len(f.amnt.str)<br />
+		<br />
+		| Reset variable<br />
+		temp.dollars = &quot; &quot;<br />
+		<br />
+		ws.counter = ws.counter + 1<br />
+		<br />
+	endwhile<br />
+<br />
+	if ws.dollars = &quot;&quot; then<br />
+		ws.dollars = &quot;cero&quot;<br />
+	endif<br />
+<br />
+<br />
+	if ws.million = 1 then<br />
+		ws.dollars = trim$(ws.dollars) &amp; &quot; de colones con &quot; &amp; ws.cents<br />
+	else<br />
+		ws.dollars = trim$(ws.dollars) &amp; &quot; colones con &quot; &amp; ws.cents<br />
+	endif<br />
+	<br />
+	result = ws.dollars <br />
+	<br />
+	return(result)<br />
+}<br />
+<br />
+<br />
+|******************************************************************************<br />
+| This function converts the 'hundreds' column.<br />
+|******************************************************************************<br />
+function extern string ConvertHundreds(domain tcmcs.str3 f.hundreds)<br />
+{<br />
+	domain	tcmcs.str215 	result<br />
+	domain	tcmcs.str2 		digit<br />
+<br />
+	result = &quot;&quot;<br />
+<br />
+	if val(f.hundreds) = 0 then<br />
+		return(result)<br />
+	endif<br />
+<br />
+	digit = f.hundreds(1;1)<br />
+	<br />
+	| Do we have a 'hundreds' place digit to convert?<br />
+	if digit &lt;&gt; &quot; &quot; then<br />
+		on case lval(digit)<br />
+			case(1):<br />
+				result = &quot;ciento &quot;<br />
+				break<br />
+			case(2):<br />
+				result = &quot; doscientos &quot;<br />
+				break<br />
+			case(3):<br />
+				result = &quot; trescientos &quot;<br />
+				break<br />
+			case(4):<br />
+				result = &quot; cuatrocientos &quot;<br />
+				break<br />
+			case(5):<br />
+				result = &quot; quinientos &quot;<br />
+				break	<br />
+			case(6):<br />
+				result = &quot; seiscientos &quot;<br />
+				break<br />
+			case(7):<br />
+				result = &quot; setecientos &quot;<br />
+				break<br />
+			case(8):<br />
+				result = &quot; ochocientos &quot;<br />
+				break<br />
+			case(9):<br />
+				result = &quot; novecientos &quot;<br />
+				break<br />
+			default:<br />
+				break<br />
+		endcase<br />
+	endif<br />
+	<br />
+	digit = f.hundreds(2;1)<br />
+	<br />
+	| Do we have a 'tens' place digit to convert?<br />
+	if digit &lt;&gt; &quot; &quot; then<br />
+		result = result &amp; ConvertTens(f.hundreds(2;2))<br />
+	else<br />
+		| If not, then convert the ones place digit<br />
+		result = result &amp; ConvertOnes(f.hundreds(3;1))<br />
+	endif<br />
+	<br />
+	| Is the number exactly 100? If so - overwrite<br />
+	if f.hundreds = &quot;100&quot; then<br />
+		result = &quot;cien &quot;<br />
+	endif<br />
+	<br />
+	result = trim$(result)<br />
+<br />
+	return(result)<br />
+}<br />
+<br />
+<br />
+|******************************************************************************<br />
+| This function converts the 'tens' column.<br />
+|******************************************************************************<br />
+function extern string ConvertTens(domain tcmcs.str2 f.tens)<br />
+{<br />
+	domain	tcmcs.str215 	result<br />
+	domain	tcmcs.str2 		digit<br />
+<br />
+	result = &quot;&quot;<br />
+	<br />
+	digit = f.tens(1;1)<br />
+	<br />
+	| Is value between 10 and 19?<br />
+	if digit = &quot;1&quot; or<br />
+           digit = &quot;2&quot; then<br />
+		on case lval(f.tens)<br />
+			case(10):<br />
+				result = &quot;diez&quot;<br />
+				break<br />
+			case(11):<br />
+				result = &quot;once&quot;<br />
+				break<br />
+			case(12):<br />
+				result = &quot;doce&quot;<br />
+				break<br />
+			case(13):<br />
+				result = &quot;trece&quot;<br />
+				break<br />
+			case(14):<br />
+				result = &quot;catorce&quot;<br />
+				break<br />
+			case(15):<br />
+				result = &quot;quince&quot;<br />
+				break<br />
+			case(16):<br />
+				result = &quot;dieciseis&quot;<br />
+				break<br />
+			case(17):<br />
+				result = &quot;diecisiete&quot;<br />
+				break<br />
+			case(18):<br />
+				result = &quot;dieciocho&quot;<br />
+				break<br />
+			case(19):<br />
+				result = &quot;diecinueve&quot;<br />
+				break<br />
+			case(20):<br />
+				result = &quot;veinte&quot;<br />
+				break<br />
+			case(21):<br />
+				result = &quot;veinteuno&quot;<br />
+				break<br />
+			case(22):<br />
+				result = &quot;veintedos&quot;<br />
+				break<br />
+			case(23):<br />
+				result = &quot;veintetres&quot;<br />
+				break<br />
+			case(24):<br />
+				result = &quot;veintecuatro&quot;<br />
+				break<br />
+			case(25):<br />
+				result = &quot;veintecinco&quot;<br />
+				break<br />
+			case(26):<br />
+				result = &quot;veinteseis&quot;<br />
+				break<br />
+			case(27):<br />
+				result = &quot;veintesiete&quot;<br />
+				break<br />
+			case(28):<br />
+				result = &quot;veinteocho&quot;<br />
+				break<br />
+			case(29):<br />
+				result = &quot;veintenueve&quot;<br />
+				break<br />
+			default:<br />
+				break<br />
+		endcase<br />
+	else<br />
+		| The value is between 20 and 99<br />
+		on case lval(f.tens(1;1))<br />
+			case(3):<br />
+				result = &quot;treinta &quot;<br />
+				break<br />
+			case(4):<br />
+				result = &quot;cuarenta &quot;<br />
+				break<br />
+			case(5):<br />
+				result = &quot;cincuenta &quot;<br />
+				break<br />
+			case(6):<br />
+				result = &quot;sesenta &quot; <br />
+				break			<br />
+			case(7):<br />
+				result = &quot;setenta &quot;<br />
+				break			<br />
+			case(8):<br />
+				result = &quot;ochenta &quot;<br />
+				break<br />
+			case(9):<br />
+				result = &quot;noventa &quot;<br />
+				break<br />
+			default:<br />
+				break<br />
+		endcase<br />
+		<br />
+		| Convert ones place digits<br />
+		length = len(f.tens)<br />
+		if ConvertOnes(f.tens(length;1)) = &quot;&quot; then<br />
+			result = result &amp; ConvertOnes(f.tens(length;1))<br />
+		else<br />
+			result = result &amp; ConvertOnes(f.tens(length;1))<br />
+		endif<br />
+	endif<br />
+	<br />
+	return(result)<br />
+}<br />
+<br />
+<br />
+|******************************************************************************<br />
+| This function converts the 'ones' column.<br />
+|******************************************************************************<br />
+function extern string ConvertOnes(domain tcmcs.str1 f.ones)<br />
+{<br />
+	domain	tcmcs.str215 	result<br />
+<br />
+	result = &quot;&quot;<br />
+	<br />
+	on case lval(f.ones)<br />
+		case(1):<br />
+			result = &quot;un&quot;<br />
+			break<br />
+		case(2):<br />
+			result = &quot;dos&quot;<br />
+			break<br />
+		case(3):<br />
+			result = &quot;tres&quot;<br />
+			break		<br />
+		case(4):<br />
+			result = &quot;cuatro&quot;<br />
+			break<br />
+		case(5):<br />
+			result = &quot;cinco&quot;<br />
+			break<br />
+		case(6):<br />
+			result = &quot;seis&quot;<br />
+			break<br />
+		case(7):<br />
+			result = &quot;siete&quot;<br />
+			break<br />
+		case(8):<br />
+			result = &quot;ocho&quot;<br />
+			break<br />
+		case(9):<br />
+			result = &quot;nueve&quot;<br />
+			break<br />
+		default:<br />
+			result = &quot;&quot;<br />
+			break<br />
+	endcase<br />
+	<br />
+	return(result)<br />
+}<br />
+<br />
+<br />
+|****************************** END    OF    SCRIPT ***************************</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

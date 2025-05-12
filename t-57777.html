@@ -1,0 +1,379 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Update with AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Update with AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>Update with AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Update with AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mjpedreira1</div><div class="date">8th February 2010, 11:23</div></div><div class="posttext">Hello,<br />
+<br />
+I have an AFS program that read a table and execute UPADTES or INSERT in a maintain session of Project module.<br />
+<br />
+If I run the session manually, then the updates are correct. But If I run the session with a task, and there are several records, the updates don´t work.<br />
+I think that problem is that the execution is very fast. In have this problem few weeks ago and I solve it with suspend() function.<br />
+Now I try to use this function but I can´t solve the problem. Perhaps I dont use the suspend function in the correct place.<br />
+<br />
+Does anybody have this problem? <br />
+<br />
+Thanks,<br />
+<br />
+María</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">george7a</div><div class="date">8th February 2010, 13:29</div></div><div class="posttext">Hi,<br />
+<br />
+Can you post you code?<br />
+<br />
+- George</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mjpedreira1</div><div class="date">9th February 2010, 14:14</div></div><div class="posttext">Hello George, here is my complete code<br />
+<br />
+<br />
+|******************************************************************************<br />
+|* Mantener plazos de proyectos desde la intranet (AFS) <br />
+|* 15-10-09 <br />
+|******************************************************************************<br />
+|* Script Type: 0<br />
+|******************************************************************************<br />
+<br />
+declaration:<br />
+<br />
+	#pragma used dll ottstpapihand<br />
+	#include &lt;bic_text&gt; <br />
+<br />
+	table	ttpcmn010	| Tabla de datos temporales de os - Exportación desde la intranet<br />
+	table	ttpcmn011	| Log de errores en plazos de proyectos<br />
+	table	ttppin020<br />
+	table	ttppdm740	<br />
+	table	ttcmcs036<br />
+<br />
+|******************************	forms *****************************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+<br />
+	select	*<br />
+	from	tpcmn010<br />
+	selectdo<br />
+		cargar.plazo.proyecto(tpcmn010.cprj,tpcmn010.cuno, tpcmn010.nins, <br />
+					tpcmn010.cact,tpcmn010.cpro,tpcmn010.insa,<br />
+					tpcmn010.sidt,tpcmn010.desc)<br />
+		<br />
+	selectempty<br />
+	endselect	<br />
+<br />
+	crear.textos()<br />
+<br />
+	borrar.total.tpcmn010()<br />
+<br />
+|****************************** function section ******************************<br />
+functions:<br />
+<br />
+function crear.textos()<br />
+{<br />
+	string	temp.file1(500)	|Fichero creado temporalmente<br />
+	long	File.pointer	|Puntero al fichero txt<br />
+	string	kw1(17),kw2(17),kw3(17),kw4(17),tgrp(8),eopt(15)<br />
+	long	write.return, ret.code<br />
+<br />
+<br />
+	select	tpcmn010.*<br />
+	from	tpcmn010<br />
+	where	( tpcmn010.txt1 &lt;&gt; &quot;&quot;<br />
+	or	tpcmn010.txt2 &lt;&gt; &quot;&quot;<br />
+	or	tpcmn010.txt3 &lt;&gt; &quot;&quot;<br />
+	or	tpcmn010.txt4 &lt;&gt; &quot;&quot;<br />
+	or	tpcmn010.txt5 &lt;&gt; &quot;&quot; )<br />
+	selectdo<br />
+		|Crear fichero<br />
+		temp.file1 = creat.tmp.file$(bse.tmp.dir$())<br />
+		file.chmod(temp.file1,S_IRWXU)<br />
+		File.pointer = seq.open( temp.file1 , &quot;wt&quot;)<br />
+<br />
+		if File.pointer &lt; 1 then	|Error al crear fichero <br />
+			insertar.error.tpcmn011(&quot;Error al crear textos del plazo &quot; &amp; tpcmn010.cprj &amp; &quot;-&quot; &amp; tpcmn010.cuno &amp; &quot;-&quot; &amp; str$(tpcmn010.nins))	<br />
+		endif<br />
+	<br />
+		seq.puts( shiftl$(strip$(tpcmn010.txt1 &amp; tpcmn010.txt2 &amp; tpcmn010.txt3 &amp; tpcmn010.txt4)), File.pointer )<br />
+		seq.close( File.pointer )<br />
+		tppin020.cprj=tpcmn010.cprj<br />
+		tppin020.cuno=tpcmn010.cuno<br />
+		tppin020.nins=tpcmn010.nins<br />
+		db.retry.point()<br />
+		db.eq(ttppin020,db.delayed.lock)<br />
+		write.return = text.delete(&quot;tppin020.txta&quot;,&quot;5&quot;)<br />
+		write.return = text.write(&quot;tppin020.txta&quot;, &quot;5&quot;, kw1, kw2, kw3, kw4, &quot;&quot;, &quot;&quot;, temp.file1)<br />
+		db.update(ttppin020,db.retry)<br />
+		commit.transaction()<br />
+		ret.code = seq.unlink(temp.file1)<br />
+	selectempty<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+<br />
+function domain tcbool cargar.plazo.proyecto(domain tppdm.cprj proyecto, domain tccuno cliente, <br />
+				domain tppdm.nins numplazo, domain tppdm.cact actividad, <br />
+				domain tppdm.cpro codingreso, domain tppdm.aalc importe, <br />
+				domain tppdm.date fechafactura, domain tppdm.desc descripcion)<br />
+{<br />
+	extern	string	err.msg(60), recover.msg(60), sesion(13),tabla(8)<br />
+	extern	domain	tcbool	errores, insertar<br />
+	domain tcmcs.int ret<br />
+<br />
+	errores=false<br />
+<br />
+	|Comprobaciones sobre el proyecto<br />
+	select	tppdm600<br />
+	from	tppdm600<br />
+	where	tppdm600._index1 = {:proyecto}<br />
+	selectdo<br />
+	selectempty<br />
+		insertar.error.tpcmn011(&quot;No existe el proyecto &quot; &amp; proyecto)	<br />
+		errores = true<br />
+		return(false)<br />
+	endselect<br />
+<br />
+	|Actividad<br />
+	select	tppss200<br />
+	from	tppss200	<br />
+	where	tppss200._index1 = {:proyecto, &quot;001&quot;, :actividad}<br />
+	selectdo<br />
+	selectempty<br />
+		insertar.error.tpcmn011(&quot;Para el proyecto y plan &quot; &amp; proyecto &amp; &quot;/001 no existe la actividad &quot; &amp; actividad)	<br />
+		errores = true<br />
+		return(false)<br />
+	endselect<br />
+<br />
+	|Código de Ingresos Proyecto<br />
+	select	tppdm043<br />
+	from	tppdm043<br />
+	where	tppdm043._index1 = {:codingreso}<br />
+	selectdo<br />
+	selectempty<br />
+		insertar.error.tpcmn011(&quot;No existe el código de ingreso &quot; &amp; codingreso)	<br />
+		errores = true<br />
+		return(false)<br />
+	endselect<br />
+<br />
+	|Comprobar cliente e IVA del proyecto<br />
+	select	tppdm740.cvat,tppdm740.ccty<br />
+	from	tppdm740<br />
+	where	tppdm740._index1 = {:proyecto, :cliente}<br />
+	selectdo<br />
+		select	tcmcs036.cvat<br />
+		from	tcmcs036<br />
+		where	tcmcs036._index1 = { :tppdm740.ccty, :tppdm740.cvat }<br />
+		selectdo<br />
+		selectempty<br />
+			insertar.error.tpcmn011(&quot;El IVA &quot; &amp; tcmcs036.cvat &amp; &quot; del proyecto &quot; &amp; proyecto &amp; &quot; no existe&quot;)	<br />
+			errores = true<br />
+		return(false)<br />
+		endselect<br />
+	selectempty<br />
+		insertar.error.tpcmn011(&quot;El cliente &quot; &amp; cliente &amp; &quot; no es cliente del proyecto &quot; &amp; proyecto)	<br />
+		errores = true<br />
+		return(false)<br />
+	endselect<br />
+<br />
+	|Estatus del plazo<br />
+	select	tppin020<br />
+	from	tppin020<br />
+	where	tppin020._index1 = {:proyecto, :cliente, :numplazo}<br />
+	and 	tppin020.ninv &gt; 0<br />
+	and 	tppin020.stin = 3<br />
+	selectdo<br />
+		|insertar.error.tpcmn011(&quot;No se puede modificar un plazo facturado&quot;)	<br />
+		errores = true<br />
+		return(false)<br />
+	endselect<br />
+<br />
+	if not errores then<br />
+<br />
+	       	stpapi.put.field(&quot;tppin4151m000&quot;,&quot;tppin020.cprj&quot;,str$(proyecto))	| Proyecto: tppin020.cprj<br />
+	        stpapi.put.field(&quot;tppin4151m000&quot;,&quot;tppin020.cuno&quot;,str$(cliente))		| Cliente: tppin020.cuno<br />
+	        stpapi.put.field(&quot;tppin4151m000&quot;,&quot;tppin020.nins&quot;,str$(numplazo))	| Plazo: tppin020.nins<br />
+<br />
+		if stpapi.find(&quot;tppin4151m000&quot;, err.msg) = 1 then<br />
+      			stpapi.put.field( &quot;tppin4151m000&quot;,&quot;tppin020.desc&quot;,str$(descripcion))	| Descripción: tppin020.desc<br />
+			stpapi.put.field( &quot;tppin4151m000&quot;,&quot;tppin020.insa&quot;,str$(importe))	| Importe: tppin020.insa<br />
+			stpapi.put.field( &quot;tppin4151m000&quot;,&quot;tppin020.cact&quot;,str$(actividad))	| Actividad: tppin020.cact<br />
+			stpapi.put.field( &quot;tppin4151m000&quot;,&quot;tppin020.sidt&quot;,str$(fechafactura))	| Fecha factura: tppin020.sidt<br />
+			stpapi.put.field( &quot;tppin4151m000&quot;,&quot;tppin020.cpro&quot;,str$(codingreso))	| Código de ingreso: tppin020.cpro<br />
+<br />
+			if not stpapi.update(&quot;tppin4151m000&quot;, true, err.msg) then<br />
+				stpapi.recover(&quot;tppin4151m000&quot;, recover.msg)<br />
+				insertar.error.tpcmn011(&quot;Error en un plazo del proyecto &quot; &amp;  tpcmn010.cprj &amp; &quot;. &quot; &amp; err.msg)<br />
+			endif	<br />
+		else<br />
+			insertar = true<br />
+		endif<br />
+	        stpapi.end.session(&quot;tppin4151m000&quot;)<br />
+<br />
+<br />
+		if insertar=true then<br />
+<br />
+			select	tppin020.cprj<br />
+			from	tppin020 for update<br />
+			where	tppin020._index1 = {:proyecto,:cliente,:numplazo}<br />
+			selectdo<br />
+				insertar.error.tpcmn011(&quot;No se puede duplicar el plazo del proyecto &quot; &amp;  tpcmn010.cprj &amp; &quot;y cliente &quot; &amp; cliente )	<br />
+			selectempty<br />
+				tppin020.cprj=proyecto<br />
+				tppin020.cuno=cliente<br />
+				tppin020.nins=numplazo<br />
+				tppin020.cspa=&quot;&quot;<br />
+				tppin020.cpla=&quot;001&quot;<br />
+				tppin020.cact=actividad<br />
+				tppin020.cpro=codingreso<br />
+				tppin020.cpra=&quot;&quot;<br />
+				tppin020.desc=descripcion<br />
+				tppin020.dsca=&quot;&quot;<br />
+				tppin020.npoi=0<br />
+				tppin020.nper=0.00<br />
+				tppin020.insa=importe<br />
+				tppin020.inaa=0.0<br />
+				tppin020.cuni=&quot;&quot;<br />
+				tppin020.sidt=fechafactura<br />
+				tppin020.invo=tppdm.yeno.no<br />
+				tppin020.inpo=0<br />
+				tppin020.inpr=0.00<br />
+				tppin020.inia=0.00<br />
+				tppin020.iiaa=0.00<br />
+				tppin020.tipo=0<br />
+				tppin020.tipr=0.00<br />
+				tppin020.tiia=0.00<br />
+				tppin020.tiaa=0.00<br />
+				tppin020.cvyn=tppdm.yeno.yes<br />
+				tppin020.cvat=tcmcs036.cvat<br />
+|				tppin020.peru=&quot;&quot;<br />
+				tppin020.fins=tppdm.yeno.no<br />
+|				tppin020.stin=tppdm.yeno.yes<br />
+				tppin020.ninv=0<br />
+				tppin020.seri=0<br />
+|				tppin020.stna=0<br />
+				tppin020.nina=0<br />
+				tppin020.sera=0<br />
+				tppin020.clos=tppdm.yeno.no<br />
+				tppin020.sern=0<br />
+				tppin020.txta=0<br />
+				tppin020.toin=tppdm.yeno.yes<br />
+				db.insert(ttppin020, db.retry)	<br />
+				commit.transaction()<br />
+			endselect<br />
+		endif<br />
+	endif<br />
+	return(true)<br />
+<br />
+}<br />
+<br />
+function insertar.error.tpcmn011(domain tcstr.300 mensaje)<br />
+{<br />
+	stpapi.put.field(&quot;tpcmncm011m00&quot;, &quot;tpcmn011.date&quot;, str$(date.num()))<br />
+	stpapi.put.field(&quot;tpcmncm011m00&quot;, &quot;tpcmn011.erro&quot;, mensaje)<br />
+	stpapi.put.field(&quot;tpcmncm011m00&quot;, &quot;tpcmn011.time&quot;, calcular.hora())<br />
+<br />
+	stpapi.put.field(&quot;tpcmncm011m00&quot;, &quot;tpcmn011.cprj&quot;, str$(tpcmn010.cprj))<br />
+	stpapi.put.field(&quot;tpcmncm011m00&quot;, &quot;tpcmn011.cuno&quot;, str$(tpcmn010.cuno))<br />
+	stpapi.put.field(&quot;tpcmncm011m00&quot;, &quot;tpcmn011.nins&quot;, str$(tpcmn010.nins))<br />
+	stpapi.put.field(&quot;tpcmncm011m00&quot;, &quot;tpcmn011.cact&quot;, str$(tpcmn010.cact))<br />
+	stpapi.put.field(&quot;tpcmncm011m00&quot;, &quot;tpcmn011.cpro&quot;, str$(tpcmn010.cpro))<br />
+	stpapi.put.field(&quot;tpcmncm011m00&quot;, &quot;tpcmn011.insa&quot;, str$(tpcmn010.insa))<br />
+	stpapi.put.field(&quot;tpcmncm011m00&quot;, &quot;tpcmn011.sidt&quot;, str$(tpcmn010.sidt))<br />
+	stpapi.put.field(&quot;tpcmncm011m00&quot;, &quot;tpcmn011.desc&quot;, str$(tpcmn010.desc))<br />
+	stpapi.put.field(&quot;tpcmncm011m00&quot;, &quot;tpcmn011.txt1&quot;, str$(tpcmn010.txt1))<br />
+	stpapi.put.field(&quot;tpcmncm011m00&quot;, &quot;tpcmn011.txt2&quot;, str$(tpcmn010.txt2))<br />
+	stpapi.put.field(&quot;tpcmncm011m00&quot;, &quot;tpcmn011.txt3&quot;, str$(tpcmn010.txt3))<br />
+	stpapi.put.field(&quot;tpcmncm011m00&quot;, &quot;tpcmn011.txt4&quot;, str$(tpcmn010.txt4))<br />
+	stpapi.put.field(&quot;tpcmncm011m00&quot;, &quot;tpcmn011.txt5&quot;, str$(tpcmn010.txt5))<br />
+<br />
+	if not stpapi.insert(&quot;tpcmncm011m00&quot;,1,err.msg) = 1 then<br />
+		stpapi.recover(&quot;tpcmncm011m00&quot;,recover.msg)<br />
+	endif<br />
+	stpapi.end.session(&quot;tpcmncm011m00&quot;)<br />
+	suspend(2000)<br />
+	borrar.tpcmn010(tpcmn010.cprj,tpcmn010.cuno,tpcmn010.nins)<br />
+}<br />
+<br />
+function borrar.tpcmn010(domain tppdm.cprj cprj_b, domain tccuno cl_b, domain tppdm.nins nins_b)<br />
+{<br />
+	db.retry.point()	<br />
+	select	tpcmn010<br />
+	from	tpcmn010 for update<br />
+	where	tpcmn010._index1 = {:cprj_b,:cl_b,:nins_b}<br />
+	selectdo<br />
+		db.delete(ttpcmn010, db.retry)	<br />
+		commit.transaction()<br />
+	endselect<br />
+}<br />
+<br />
+function borrar.total.tpcmn010()<br />
+{<br />
+	db.retry.point()	<br />
+	select	tpcmn010.*<br />
+	from	tpcmn010 for update<br />
+	selectdo<br />
+		db.delete(ttpcmn010, db.retry)	<br />
+		commit.transaction()<br />
+	endselect<br />
+}<br />
+<br />
+function domain tcmcs.str8 calcular.hora()<br />
+{<br />
+	domain	tcmcs.str2 hora<br />
+	domain	tcmcs.str2 minutos<br />
+	domain	tcmcs.str2 segundos<br />
+	domain	tcmcs.int resto_hora<br />
+	domain	tcmcs.int resto_minutos<br />
+	domain	tcmcs.int resto_segundos<br />
+<br />
+	hora =  STR$( time.num() / 3600 )<br />
+	if len( hora ) = 1 then<br />
+		hora = &quot;0&quot; &amp; hora<br />
+	endif<br />
+	<br />
+	resto_hora = time.num() \ 3600<br />
+<br />
+	minutos =  STR$( resto_hora /  60 )<br />
+	if len( minutos ) = 1 then<br />
+		minutos = &quot;0&quot; &amp; minutos<br />
+	endif<br />
+		<br />
+	resto_minutos = resto_hora \  60<br />
+<br />
+	segundos = STR$(resto_minutos)<br />
+	if len( segundos ) = 1 then<br />
+		segundos = &quot;0&quot; &amp; segundos<br />
+	endif<br />
+<br />
+	return( STR$(hora) &amp; &quot;:&quot; &amp; STR$(minutos) &amp; &quot;:&quot; &amp; STR$(segundos))<br />
+}<br />
+<br />
+|***  end.source</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">9th February 2010, 15:19</div></div><div class="posttext">If single tasks work correctly there are a couple of things you can try - one put the suspend after the insert and before the end.  And yes you might have to lengthen the time - also make sure that tpcmncm011m00 session has ended. But the first thing I would try - remove the stpapi.end.session and do not close the session until all records have be processed.  I have had situation where opening and closing a session repeatedly caused errors eventually - I would then have to reprocess those records.  What I did was open the session - process all the records and then end the session right before I ended the program.  This might work for you.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

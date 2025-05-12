@@ -1,0 +1,170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS in 4c2. Missing functions., baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS in 4c2. Missing functions. AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS in 4c2. Missing functions. [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS in 4c2. Missing functions.</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">pellus</div><div class="date">25th February 2009, 14:13</div></div><div class="posttext">Hi there, I have a problem regarding AFS in a 4c2 environment:<br />
+Portingset: 6.1c.07.08. Service Pack: Unknown<br />
+<br />
+A customization from a 4c4 environment is copied to <br />
+this 4c2. (The whole thing is an emulation of  finance maintain transactions.)<br />
+<br />
+The program doesn't even compile. The functions for marking a line and <br />
+for starting a subsession are unknown when compiling <br />
+- stpapi.mark, <br />
+- stpapi.handle.subproc<br />
+<br />
+1) Is there a way with using alternative commands?<br />
+<br />
+2) Since this would be the only AFS-application in this 4c2-environment, one <br />
+can think of just copying some include or binary or something, from a 4c4 where this program works. What would that be? To copy I mean.<br />
+<br />
+3) Any help is appreciated<br />
+<br />
+Here is the program code:<br />
+<br />
+	#define	SESSION_MAINTAIN_TRANSACTIONS 	&quot;tfgld1101m000&quot;<br />
+	#define	SESSION_MAINTAIN_BANK_TRANSACTIONS &quot;tfcmg2100s000&quot;<br />
+<br />
+	#pragma used dll &quot;ottstpapihand&quot;<br />
+<br />
+function start.afs.for.main.screen()<br />
+{<br />
+	domain	tcmcs.long	conv.date<br />
+	domain	tfgld.ttyp	ttyp<br />
+	string	main.file.tedt(8)<br />
+	domain	tfgld.desc	bref	<br />
+<br />
+	main.file.tedt = tczlt110.zbudat<br />
+<br />
+	conv.date = date.to.num(lval(main.file.tedt(1;4)), <br />
+				lval(main.file.tedt(5;2)), <br />
+				lval(main.file.tedt(7;2)))<br />
+<br />
+	bref = tczltdll603.get.bref()<br />
+	ttyp = tczltdll603.get.ttyp()<br />
+<br />
+	|* Form 1<br />
+	stpapi.put.field(SESSION_MAINTAIN_TRANSACTIONS, &quot;tedt.f&quot;, str$(conv.date))| Transaction Entry Date<br />
+	stpapi.put.field(SESSION_MAINTAIN_TRANSACTIONS, &quot;bref.f&quot;, bref)		| Batch Reference<br />
+<br />
+<br />
+	l.result = stpapi.change.view(SESSION_MAINTAIN_TRANSACTIONS)	<br />
+<br />
+	| ignore error 2<br />
+	if l.result = 2 then<br />
+		l.result = 0<br />
+	endif<br />
+	| check and report error<br />
+	if l.result &lt;&gt; 0 then<br />
+		make.error(1)<br />
+		stpapi.recover(SESSION_MAINTAIN_TRANSACTIONS, error.mess)	|zlt4c2001.n<br />
+		stpapi.end.session(SESSION_MAINTAIN_TRANSACTIONS)		|zlt4c2001.n<br />
+		return<br />
+	endif<br />
+<br />
+	| fill batch reference again, to be sure<br />
+<br />
+	stpapi.put.field(SESSION_MAINTAIN_TRANSACTIONS, &quot;bref.f&quot;, bref)			| Batch Reference<br />
+	stpapi.put.field(SESSION_MAINTAIN_TRANSACTIONS, &quot;tfgld101.ttyp&quot;,ttyp)		| Transaction type<br />
+<br />
+	| Set Control Amount to 0<br />
+	stpapi.put.field(SESSION_MAINTAIN_TRANSACTIONS, &quot;tfgld101.amnt&quot;, str$(0))<br />
+<br />
+	stpapi.insert(SESSION_MAINTAIN_TRANSACTIONS, error.mess)		|zlt4c2001.n<br />
+<br />
+	if not isspace(error.mess) then						|zlt4c2001.n<br />
+		make.error(2)<br />
+		stpapi.recover(SESSION_MAINTAIN_TRANSACTIONS, error.mess)	|zlt4c2001.n<br />
+		stpapi.end.session(SESSION_MAINTAIN_TRANSACTIONS)		|zlt4c2001.n<br />
+		return<br />
+	endif<br />
+<br />
+	| Mark the line with the transtype (the same as clicking on it...)<br />
+<br />
+	l.result = stpapi.mark[/B](SESSION_MAINTAIN_TRANSACTIONS, error.mess)<br />
+	| check and report error<br />
+	if l.result = 0 then<br />
+		make.error(3)<br />
+		stpapi.end.session(SESSION_MAINTAIN_TRANSACTIONS)		|zlt4c2001.n<br />
+		return<br />
+	endif<br />
+	<br />
+}<br />
+<br />
+function insert.bank.transaction()<br />
+{<br />
+	domain	tcmcs.long	conv.date<br />
+		string		main.file.tedt(8)<br />
+	domain	tczlt.zxblnr	zxblnr<br />
+	domain	tfgld.ttyp	tinv<br />
+		string		ninv(8)<br />
+	<br />
+<br />
+	main.file.tedt = tczlt110.zbldat<br />
+	zxblnr = tczlt110.zxblnr<br />
+	tinv = zxblnr(1;3)<br />
+	ninv = zxblnr(4;8)<br />
+<br />
+	conv.date = date.to.num(lval(main.file.tedt(1;4)), <br />
+				lval(main.file.tedt(5;2)), <br />
+				lval(main.file.tedt(7;2)))<br />
+<br />
+	stpapi.handle.subproc(SESSION_MAINTAIN_TRANSACTIONS,<br />
+		SESSION_MAINTAIN_BANK_TRANSACTIONS, &quot;add&quot;)<br />
+<br />
+	stpapi.continue.process(SESSION_MAINTAIN_TRANSACTIONS, error.mess)<br />
+<br />
+	stpapi.put.field(SESSION_MAINTAIN_BANK_TRANSACTIONS, &quot;tfcmg204.docd&quot;, str$(conv.date))<br />
+<br />
+	stpapi.put.field(SESSION_MAINTAIN_BANK_TRANSACTIONS, &quot;tfcmg204.tran&quot;, &quot;1&quot;)<br />
+	stpapi.put.field(SESSION_MAINTAIN_BANK_TRANSACTIONS, &quot;tfcmg204.ccur&quot;, tczlt110.zwaers)<br />
+	stpapi.put.field(SESSION_MAINTAIN_BANK_TRANSACTIONS, &quot;tfcmg204.tinv&quot;, tinv)<br />
+	stpapi.put.field(SESSION_MAINTAIN_BANK_TRANSACTIONS, &quot;tfcmg204.ninv&quot;, ninv)<br />
+	if tczlt110.zshkzg = &quot;H&quot; then<br />
+		stpapi.put.field(SESSION_MAINTAIN_BANK_TRANSACTIONS, &quot;tfcmg204.amnt&quot;, str$(-tczlt110.zwrbtr))<br />
+	else<br />
+		stpapi.put.field(SESSION_MAINTAIN_BANK_TRANSACTIONS, &quot;tfcmg204.amnt&quot;, str$(tczlt110.zwrbtr))<br />
+	endif<br />
+	stpapi.put.field(SESSION_MAINTAIN_BANK_TRANSACTIONS, &quot;tfcmg204.refr&quot;, tczlt110.zbelnr)<br />
+<br />
+	stpapi.insert(SESSION_MAINTAIN_BANK_TRANSACTIONS, error.mess)	|zlt4c2001.n<br />
+<br />
+<br />
+	if not isspace(error.mess) then			|zlt4c2001.n<br />
+		|Recover is necessary to stop the update mode of the session if an error<br />
+		|occurred<br />
+<br />
+		make.error(4)<br />
+		<br />
+		stpapi.recover(SESSION_MAINTAIN_BANK_TRANSACTIONS, error.mess)		|zlt4c2001.n<br />
+<br />
+	endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th February 2009, 21:25</div></div><div class="posttext">It is my understanding that stpapi commands should work in the 4c environments.  Have you updated the tools and stpapi libraries?  I can see where the session might react differently, but the commands should compile.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pellus</div><div class="date">3rd March 2009, 20:46</div></div><div class="posttext">Thanks so far Mark. To update tools is a bigger thing but I suspect (hope) that updating stpapi-libraries is smaller and has less overall impact. Can you pls enlighten me: Exactly what is the stpapi-libraries, in terms of directories and files.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th March 2009, 16:08</div></div><div class="posttext">If you look under your tools directory ottstp you see some libraries like ostpapidaemon, otstpapihand, etc.  These are the libraries I know about, I do not know if there are other components.  Usually Infor just provides us a solution for the current libraries, but I do not know what all is included.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

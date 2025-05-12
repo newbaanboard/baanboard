@@ -1,0 +1,176 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Writing to DDC Message Queue with DDC Driver, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Writing to DDC Message Queue with DDC Driver AFS/DDC/OLE: Function servers" />
+	
+	<title>Writing to DDC Message Queue with DDC Driver [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Writing to DDC Message Queue with DDC Driver</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Ruskin</div><div class="date">31st May 2002, 01:13</div></div><div class="posttext">When the DDC Driver is activated, from Baan, it runs the driver, passing the in, out and download queues. Thus, the driver then responds with a DDC_ACK to let Baan know, that the driver is activated. To do this, the driver must write to the 'In Queue', using a &quot;sender key&quot; functionality. The issue, is how do you read and write to these queues in NT. The files themselves do NOT contain anything. IE: suppose we have the following script;<br />
+<br />
+	long	m.id<br />
+	long	i<br />
+	string	r.m(255)<br />
+<br />
+	m.id = open.message(1,&quot;d:\baan\lib\queue.out&quot;,0)<br />
+	if m.id = -1 then<br />
+		message(&quot;Error opening file&quot;)<br />
+	else<br />
+		i = send.message(m.id, 0, &quot;0,DDC_ACK&quot;)<br />
+		if i = 0 then<br />
+			i = recv.message(m.id, 0, 1000, r.m)<br />
+			if i = -1 then<br />
+				message(&quot;Failed&quot;)<br />
+			else<br />
+				message(r.m)<br />
+			endif<br />
+		else<br />
+			message(&quot;Failed&quot;)<br />
+		endif<br />
+		close.message(m.id)<br />
+	endif<br />
+<br />
+If we put this into debug, and step through the script, the D:\BAAN\LIB\QUEUE.OUT file is NEVER changed (ie: it remains at 0 bytes). Therefore, if an external application sent a message to this file, how does it write to the file. For example, using VB to write to the file, like;<br />
+<br />
+	Open &quot;d:\baan\lib\queue.out&quot; For Append As #1<br />
+		Print #1, &quot;0,DDC_ACK&quot;<br />
+	Close #1<br />
+<br />
+Does not work.... (It does write to the file, but the recv.message function, in Baan, will not read it). What is the correct method to read/write to the DDC message queue files in NT?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rupertb</div><div class="date">5th August 2002, 15:05</div></div><div class="posttext">Hi there, I've just started dabbling with DDC - of course I've printed all posts with respect to this to try and help myself along. I think I have an answer to your question: Baan uses the IPC (interprocess communication) functionality to connect DDC with other applications running on the same machine. Under the topic 'mail' in the baan tools help the following statements lept out at me:<br />
+<br />
+long  OPEN.MESSAGE         ( long project,<br />
+                                 string name(132),<br />
+                                 long action )<br />
+DESCRIPTION<br />
+    <br />
+    long OPEN.MESSAGE( long project, string name(132),<br />
+                  long action )<br />
+    This function opens a mailbox in which messages can be placed<br />
+    and from which messages can be read.<br />
+<br />
+    The project variable is a number (1-255) indicating the project  <br />
+    to which the mailbox belongs.<br />
+<br />
+    The name variable identifies an unique mailbox within the <br />
+    specified project. This variable should contain the name of a <br />
+    file which is readable for all users that want to use the <br />
+    mailbox. To generate an unique key identifying the mailbox, <br />
+    the project number and inode number of the specified file are <br />
+    taken. Within a project the name should be clearly associated <br />
+    with a particular mailbox. <br />
+    The contents of the specified file is not used or changed. <br />
+<br />
+    The action argument may have the following values:<br />
+<br />
+     0:  If the mailbox does not exists, a new one is created.<br />
+     1:  Same as 0, except that a &quot;unique&quot; filename is created by <br />
+          the system (&quot;$BSE/TMP/PostB&lt;pid&gt;&quot; is created), so the<br />
+         name argument should be given as the empty string (&quot;&quot;).<br />
+     2:  No new mailbox is created if it does not exist.<br />
+<br />
+    This function returns the identification of the opened mailbox. If <br />
+    an error occurred, -1 is returned and the variable e contains <br />
+    the error number.<br />
+<br />
+A bit late, but I hope it helps regardless,<br />
+Rupert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">5th August 2002, 15:18</div></div><div class="posttext">Please use our own on-line Programmer's Guide http://www.baanboard.com/programmers_manual_baanerp for referencing function syntax. You can find the latest syntax information on this function here: http://www.baanboard.com/programmers_manual_baanerp_help_functions_interprocess_communication_os_level_open_message</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ruskin</div><div class="date">5th August 2002, 23:26</div></div><div class="posttext">sorry, I must have not been to specified. I have no problem with the;<br />
+open.message()<br />
+send.message()<br />
+recv.message()<br />
+close.message()<br />
+functions from within Baan. The issue I have, is using a third party product to read and write to the same message queues. For example, if I used VB, how do I read/write to the same message queues....<br />
+I think it has something to do with MSMQ (Message Queue) objects.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rupertb</div><div class="date">6th August 2002, 11:00</div></div><div class="posttext">Hi Ruskin - I see your problem in your VB code example you are using file access commands, however the message queue should be accessed using MSMQ type commands - sorry I don't do Visual Basic at all: <br />
+<br />
+-------------------- Writing to Queue ---------------------------<br />
+<br />
+using System;<br />
+using System.Messaging;<br />
+   <br />
+public class MQSend <br />
+{<br />
+   public static void Main(String[] args) <br />
+   {<br />
+      string mqPath = &quot;.\\private$\\MyQueue2&quot;;<br />
+      if (!MessageQueue.Exists(mqPath))<br />
+      {<br />
+         MessageQueue.Create(mqPath);<br />
+      }<br />
+      <br />
+      MessageQueue mq = new MessageQueue(mqPath);<br />
+      mq.Send(&quot;whateverdata&quot;);<br />
+   }<br />
+}<br />
+<br />
+-------------------- Reading from Queue ---------------------------<br />
+<br />
+using System;<br />
+using System.Messaging;<br />
+using System.IO;<br />
+using System.Runtime.Serialization;<br />
+<br />
+public class MQReceive<br />
+{<br />
+    public static void Main()<br />
+    {<br />
+        string mqPath = &quot;.\\private$\\MyQueue2&quot;;<br />
+<br />
+        if ( !MessageQueue.Exists(mqPath) ) <br />
+        {<br />
+            Console.WriteLine(&quot;The queue '&quot; + mqPath + &quot;' does not exist!&quot;);<br />
+            return;<br />
+        }<br />
+<br />
+        MessageQueue mq = new MessageQueue(mqPath);<br />
+        ((XmlMessageFormatter)mq.Formatter).TargetTypeNames = new string[]{&quot;System.String&quot;};<br />
+<br />
+        try <br />
+        {<br />
+            Message m = mq.Receive(new TimeSpan(0,0,3));<br />
+            Console.WriteLine(&quot;Message: &quot; + (string)m.Body);<br />
+        }<br />
+        catch ( MessageQueueException ) <br />
+        {<br />
+            Console.WriteLine(&quot;There are no messages in the queue&quot;);<br />
+            return;<br />
+        }<br />
+        catch ( InvalidOperationException ) <br />
+        {<br />
+            Console.WriteLine(&quot;The message removed from the queue is not a string&quot;);<br />
+            return;<br />
+        }<br />
+    }<br />
+}<br />
+<br />
+Also check your Message Queue Services setup on your server.<br />
+Be carefull in making any changes to these settings on your live server as other systems may use the MQS - the setting provided here are for 'workgroup mode'.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rupertb</div><div class="date">6th August 2002, 11:21</div></div><div class="posttext">Sorry forgot to attach the screenshots!</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

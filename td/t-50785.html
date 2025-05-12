@@ -1,0 +1,106 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Problem in Date Conversion, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Problem in Date Conversion Tools Development" />
+	
+	<title>Problem in Date Conversion [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Problem in Date Conversion</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">gget79</div><div class="date">17th April 2008, 18:52</div></div><div class="posttext">Hi friends,  <br />
+  <br />
+I am working with Baan IV C4.  <br />
+  <br />
+I have a problem, I need to convert a date in date format to utc format, but I need something similar to this:  <br />
+  <br />
+my.date = 01-01-2008  <br />
+  <br />
+I need,  <br />
+  <br />
+my.utc.1 = 01-01-2008 00:00:00 and,  <br />
+my.utc.2 = 01-01-2008 23:59:59  <br />
+  <br />
+I know that in Baan V, I do it with date.to.utc() function, but I have found in BaaNBoard and they suggest me to use *.num functions, but this doesn't resolve my problem, because I with *.num cannot put the time.  <br />
+  <br />
+Any ideas?????</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">17th April 2008, 23:29</div></div><div class="posttext">The 'utc' call in IV and V/LN have different arguments.  The trick to making it work in IV is breaking the UTC (date+time field) unto two separate numbers = one containing the UTC date without time and the other with only the time.  When set up this way, the utc to baan julian date conversion and time conversion from GMT to current time zone is done.  Reversing this from date to UTC is probably similar.  I haven't had to do it yet, but would guess that it would be similar to the example below:<br />
+<br />
+utc.to.local(local.days, local.time, utc.days, utc.time)<br />
+<br />
+All long variables.  'local.days', and 'local.time' are set by the function.  The other two 'utc' fields must be filled before calling, containing the UTC number of days and time.  The call in V/LN is a bit more straightforward and doesn't require this additional manipulation.<br />
+<br />
+In the example below, I get a file's modification time from the OS, provided in UTC.  This is converted to Baan julian date and time for display on a form:<br />
+<br />
+<br />
+<br />
+declaration: <br />
+    long    local.time, f.size, f.mode, f.imode, f.dev, f.uid, <br />
+             f.gid, f.nlink, f.ctime, f.mtime, f.atime, file.id <br />
+    long    local.days, utc.days, utc.time <br />
+<br />
+<br />
+                        | Get information about the file (already opened <br />
+                        | with 'seq.open', pointer = &quot;file.id&quot;).  We <br />
+                        | only care about the create date, which is <br />
+                        | stated in a UTC format, seconds past <br />
+                        | 1/1/1900 00:00 GMT. <br />
+        ret = fstat.info(file.id, f.size, f.mode, f.imode, f.dev, f.uid, f.gid, <br />
+                         f.nlink, f.ctime, f.mtime, f.atime) <br />
+<br />
+                        | File modify time (f.mtime) is stated in <br />
+                        | number of seconds since 1/1/1970 00:00 UTC. <br />
+                        | Therefore, it must be converted to a number <br />
+                        | of days since 01/01/0001 (absolute UTC date) <br />
+                        | and seconds since midnight. <br />
+        utc.days = f.mtime/86400 <br />
+        utc.time = f.mtime - (utc.days*86400) <br />
+        utc.days = utc.days + date.to.num(1970,1,1) <br />
+<br />
+                        | This call converts the separate UTC days<br />
+                        | and time fields to Baan julian date and <br />
+                        | time (seconds past midnight) fields.<br />
+        ret = utc.to.local(local.days, local.time, utc.days, utc.time)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">18th April 2008, 10:28</div></div><div class="posttext">Hi gget79,<br />
+<br />
+here a simple function that I just put together to convert from local date and time to UTC:<br />
+<br />
+<br />
+function long local.to.utc(long i.date, long i.time, long gmt.diff.mins) <br />
+{ <br />
+|	gmt.diff.mins = Time Zone difference to GMT in minutes<br />
+<br />
+	domain tcdate	utc.start<br />
+	long		days.since.utc.start<br />
+	long		utc.date<br />
+	<br />
+	utc.start = date.to.num(1970, 1, 1)<br />
+	<br />
+	days.since.utc.start = i.date - utc.start<br />
+	<br />
+	if days.since.utc.start &gt; 0 then<br />
+		utc.date = (days.since.utc.start * 24 * 60 * 60) <br />
+				+ (i.time - gmt.diff.mins * 60)<br />
+	else<br />
+		utc.date = -1<br />
+	endif<br />
+	return(utc.date)<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

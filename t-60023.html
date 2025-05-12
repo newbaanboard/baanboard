@@ -1,0 +1,171 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="'wait.for.switch' prevents API function, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] 'wait.for.switch' prevents API function AFS/DDC/OLE: Function servers" />
+	
+	<title>'wait.for.switch' prevents API function [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; 'wait.for.switch' prevents API function</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">10th February 2011, 15:18</div></div><div class="posttext">Hi all<br />
+<br />
+I am writing a UI script and from this I want to call a sub-session which has the function 'wait.for.switch(SWITCH.SAME.SIZE)' as the first command in its 'init.form' section.<br />
+<br />
+When my new script calls the target session, it hangs (no doubt due to this function) and will not run the process - hence not allowing any interaction.  I have to kill the process manually to return control to the calling script.<br />
+<br />
+Does anyone know a way around this, perhaps by skipping execution of the 'init.form' section or forcing focus back to the called process?<br />
+<br />
+(The target source code exists, but cannot be modified and would not compile anyway, due to missing source for associated functions.)<br />
+<br />
+Any thoughts would be welcomed.<br />
+<br />
+Andy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th February 2011, 15:50</div></div><div class="posttext">No expert on these but the wait.for.switch is interacting with your session, so it looks like the parent session needs to switch(switch.to.process) the the child session. In this case your API session is the parent session and the subsession is the child session.  I think instead of calling the subsession directly you need to call the main session. The only time I have used it is in a combined session.  I would look up the help on it, but since they upgraded my desktop it no longer works.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">george7a</div><div class="date">10th February 2011, 15:58</div></div><div class="posttext">Here is link with some information:<br />
+http://www.baanboard.com/baanboard/showthread.php?t=36550&amp;page=5</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">10th February 2011, 18:07</div></div><div class="posttext">Thanks for the input guys.  I think you could be right, Mark, about calling the parent session, rather than the child directly.  I'm going to look at this - thanks again for the response.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">10th February 2011, 19:22</div></div><div class="posttext">Hmmm, this hasn't solved my problem<br />
+<br />
+I have tried calling the main session instead and, although the parent and the child processes are appear in the process list, the process still hangs.  Having set AFSLOG to debug the API process, the generated logfile's last lines are:<br />
+15-&gt;get.fields<br />
+15&lt;-Process is gone<br />
+<br />
+The latter of these will have been when I killed the processes manually.  Any ideas as to how I can get control of the child process?<br />
+<br />
+Andy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th February 2011, 20:00</div></div><div class="posttext">Notice I moved the thread to the AFS/DDC/OLE Forum since this is getting more into the code.  You can try searching this forum for the sessions in question.  There is a lot of code for examples.  If you don't find your sessions you will need to post at least the afs code and maybe someone will see something is wrong.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">11th February 2011, 19:12</div></div><div class="posttext">It seems that it's not going to be possible to call the sub-session with an API call in this case.  Its immediate calling script is an intermediary which imports the original parent session's ID [using 'import(&quot;prog.name$&quot;, parent.prog)'] and then launches the relevant child session, dependant on this and a few other variables, using 'switch.to.process(child.pid, SWITCH.SAME.SIZE)'.  Since there is no way of the script containing the API call purporting to be the actual parent, the relevant child will never be called.<br />
+<br />
+I would conclude that I would need access to compile and authority to change the source code in order to make tis work with APIs.  Has anyone else had similar experience in encountering sessions that are just not suitable to be run with AFS?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th February 2011, 20:11</div></div><div class="posttext">In one case(I can't remember the parent session name) did something like this.  The parent session determined which child session to run.  Because of this I was never able to get that to work with the parent and session.  So I kind of cheated - I created a new main session to specifically launch the session I wanted.  Below is the code that worked for me and the stpapi code.  This code is just a piece of the code to load our simulation company - basically they give the session a file and it does all the work from building subitem, ccn links, etc. to loading and generating the orders. What it took them days/weeks to do manually, now takes them hours.  This has been working for 10 years or so.<br />
+<br />
+Other things I have done is to launch sessions interactively like Generate PRP Orders, use qkey(source extendor you can search on it) to get sessions to function properly. Or to even go so far as to write code to update what I need to updated - for some reasons a couple of session just would not update a field on a form, so I just do direct sql updates.<br />
+<br />
+<br />
+declaration:<br />
+	long	child.id<br />
+	extern	domain	tcmcs.str1	x<br />
+|****************************** PROGRAM     SECTION ***************************<br />
+before.program:<br />
+	child.id = 0<br />
+<br />
+|****************************** ZOOM FROM   SECTION ***************************<br />
+|****************************** FORM	     SECTION ***************************<br />
+|****************************** CHOICE      SECTION ***************************<br />
+choice.cont.process:<br />
+on.choice:<br />
+	if(child.id&lt;&gt;0) then<br />
+		kill(child.id)<br />
+	endif<br />
+	child.id=activate(&quot;tpptc9110m00c&quot;)<br />
+	switch.to.process(child.id)<br />
+| Cannot use zoom because tpptc9110m00c is waiting for a<br />
+| switch.to.process<br />
+	execute(end.program)<br />
+<br />
+choice.interrupt:<br />
+before.choice:<br />
+	execute(end.program)<br />
+	<br />
+choice.abort.program:<br />
+before.choice:<br />
+	execute(end.program)<br />
+<br />
+choice.end.program:<br />
+before.choice:<br />
+	kill(child.id)<br />
+<br />
+<br />
+The calling stpapi function:<br />
+<br />
+function add.contract.requirement()<br />
+{<br />
+	if(first) then<br />
+		stpapi.put.field(&quot;tpptc9831m00c&quot;,&quot;x&quot;,&quot;A&quot;)<br />
+		stpapi.handle.subproc(&quot;tpptc9831m00c&quot;,&quot;tpptc9110m00c&quot;,&quot;add&quot;)<br />
+		stpapi.handle.subproc(&quot;tpptc9831m00c&quot;,&quot;tipgc8120m00b&quot;,&quot;add&quot;)<br />
+		stpapi.continue.process( &quot;tpptc9831m00c&quot;, errmsg)<br />
+		first = false<br />
+	endif<br />
+<br />
+| Set the first view.<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.cprj&quot;, project )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.cspa&quot;, &quot;1000&quot; )<br />
+	e = stpapi.change.view( &quot;tpptc9110m00c&quot; )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.cprj&quot;, project )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.cspa&quot;, &quot;1000&quot; )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.sern&quot;, str$(msnumber*10) )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.cpla&quot;, &quot;001&quot; )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.cact&quot;, milestone )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.item&quot;, item )	<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.prog.a&quot;, program )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.eser.a&quot;, unit )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.ese1.a&quot;, str$(series) )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.ese2.a&quot;, str$(series) )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.quan&quot;, str$(msqty) )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.cuni&quot;, &quot;EA&quot; )<br />
+	if current.compnr &lt;&gt; 101 and current.compnr&lt;&gt; 555 then<br />
+		stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.clin.c&quot;, &quot;&quot; )<br />
+		stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.stat&quot;, str$(tpptc.stat.free) )<br />
+	else<br />
+		stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.clin.c&quot;, clin )<br />
+		stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.stat&quot;, str$(tpptc.stat.actual) )<br />
+	endif<br />
+	if current.compnr &lt;&gt; 101 and current.compnr&lt;&gt; 555 then<br />
+		stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.simu.a&quot;, str$(tcyesno.yes))<br />
+	else<br />
+		stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.simu.a&quot;, str$(tcyesno.no))<br />
+	endif<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.ccco&quot;, &quot;200&quot; )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.dfpc&quot;, str$(tppdm.yeno.no) )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.butm.a&quot;, builditem )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.sbtm.a&quot;, subitem )<br />
+	stpapi.put.field( &quot;tpptc9110m00c&quot;, &quot;tpptc120.dtyp.a&quot;, str$(tppss.dtyp.a.customer) )<br />
+	stpapi.insert( &quot;tpptc9110m00c&quot;, 1, errmsg )<br />
+	if(strip$(errmsg)&lt;&gt;&quot;&quot;) then<br />
+		mess.5= &quot;5. &quot;&amp;errmsg<br />
+		write.error(mess.5)<br />
+		stpapi.recover(&quot;tpptc9110m00c&quot;,errmsg)<br />
+		if(strip$(errmsg)&lt;&gt;&quot;&quot;) then<br />
+			message(errmsg)<br />
+		endif<br />
+	else<br />
+		mess.5=&quot;5. MDO Added.&quot;<br />
+	endif<br />
+	display(&quot;mess.5&quot;)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">14th February 2011, 11:36</div></div><div class="posttext">Thanks again for the information Mark - good of you to take the time to reply in this detail.  Yes, I too am coming to the conclusion that I will have to devise a workaround here, rather than being able to use AFS, due to its limitations.  I am trying to deduce what updates are being done by the relevant sessions (not so easy when there is missing source).  I have taken a quick look at Qkey in this forum - this looks interesting and I haven't come across it - though it looks as though it has been around for a while.  Do you have any details of cost for the product?  Presumably, it has to be installed on the same platform as Baan and doesn't require much maintenance?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">15th February 2011, 02:38</div></div><div class="posttext">I can't give a price on qkey, because I am not sure it is available anymore. I also can't seem to remember who redclay sold it too, but I don't think they offer support anymore.  But yes it was easy to maintain. I would probably check with Crossroads RMCis about their product.  That would at least be supported.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

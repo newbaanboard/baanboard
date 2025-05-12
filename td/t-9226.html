@@ -1,0 +1,116 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Script query from a novice...again!, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Script query from a novice...again! Tools Development" />
+	
+	<title>Script query from a novice...again! [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Script query from a novice...again!</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">pjohns</div><div class="date">12th March 2003, 19:42</div></div><div class="posttext">I want to update a status field against each record where I have the same reference number.<br />
+<br />
+e.g. I have five records each one has a ref number of AWB1. The first record in this subset has data populated in a status field. I am trying to create a session that will select all records which have the same ref number and makes sure that the status field in each record is the same.<br />
+<br />
+Records:-<br />
+<br />
+1. Ref = AWB1      Status = OK<br />
+2. Ref = AWB1      Status = &lt;blank&gt;<br />
+3. Ref = AWB1      Status = &lt;blank&gt;<br />
+4. Ref = AWB1      Status = &lt;blank&gt;<br />
+5. Ref = AWB1      Status = &lt;blank&gt;<br />
+<br />
+So I want my script to select all records in the table and where the ref is the same make sure all status fields are the same.<br />
+<br />
+Below is my verson 1 script. The session runs but nothing gets updated. <br />
+<br />
+<br />
+function l.status()<br />
+{<br />
+	select tdsls946.* <br />
+	from tdsls946<br />
+	selectdo<br />
+		status = tdsls946.status<br />
+		awb = tdsls946.awb<br />
+		select tdsls946.status<br />
+		from tdsls946 for update<br />
+		where tdsls946.awb = :awb<br />
+		selectdo<br />
+			tdsls946.status = status<br />
+		endselect<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+I'm sure there is a simple solution to this, simple to you guys anyway!<br />
+<br />
+Any help you can offer will be appreciated.<br />
+<br />
+Regards<br />
+<br />
+PJ</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">12th March 2003, 19:52</div></div><div class="posttext">Two things jump out:<br />
+<br />
+ There is no db.update(ttdsls946, db.retry) to actually do the update<br />
+ Your outer select loop is suspicious.  I'm guessing a group by clause is probably appropriate.  However, how are you deciding which status to use if rows have different status values?<br />
+<br />
+<br />
+Depending on where in your program this exists, you may also need db.retry.point() and commit.transaction().</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">12th March 2003, 20:00</div></div><div class="posttext">I think that the question lacks a bit of information...<br />
+which is the &quot;right&quot; status? <br />
+I suppose, in your case, &quot;OK&quot; and not &lt;blank&gt; - but suppose I have the records with those values:<br />
+<br />
+&quot;OK&quot;<br />
+&quot;&quot;<br />
+&quot;NOT OK&quot;<br />
+&quot;PERHAPS OK&quot;<br />
+&quot;ALMOST OK&quot;<br />
+&quot;MAYBE NOT OK&quot;<br />
+<br />
+Which value you have to assign?<br />
+if the value to assign is the maximum status, you can use something like this:<br />
+<br />
+domain   .....    maxstatus<br />
+db.retry.point()<br />
+select tdsls946.awb, max(tdsls946.status):maxstatus<br />
+from   tdsls946<br />
+group by tdsls946.awb<br />
+selectdo<br />
+     select tdsls946.*<br />
+     from   tdsls946 for update<br />
+     where tdsls946.awb = :tdsls946.awb<br />
+     selectdo<br />
+            tdsls946.status = maxstatus<br />
+            db.update(ttdsls946, db.retry)<br />
+     endselect<br />
+endselect<br />
+commit.transaction()</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pjohns</div><div class="date">13th March 2003, 10:53</div></div><div class="posttext">You've both mentioned something that I too realised after I posted the thread. Which status to use!!<br />
+<br />
+The table is holding delivery tracking iformation from our couriers. So the status of records with the same AWB number could go through many status updates. Our system is used to ref Baan pack slips against courier airway bills. The problem  is that many pack slips can be shipped against one airway bill number. Something that the system was not designed for!!<br />
+<br />
+I'll need to put some more thought to this.<br />
+<br />
+Regards<br />
+<br />
+PJ</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

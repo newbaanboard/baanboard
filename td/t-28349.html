@@ -1,0 +1,189 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Bar code script , reads from the file but do not update, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Bar code script , reads from the file but do not update Tools Development" />
+	
+	<title>Bar code script , reads from the file but do not update [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Bar code script , reads from the file but do not update</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">9th October 2006, 13:51</div></div><div class="posttext">Hi ,<br />
+<br />
+  I am trying to read a barcode file in ascii format and upload it in the table <br />
+for that m using the script i have attached , the program runs gives a message file updated successfully but the data is not getting updated in the table .<br />
+<br />
+Please go through the script and guide me .<br />
+<br />
+Regards,<br />
+Niraj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">9th October 2006, 15:39</div></div><div class="posttext">Well you do not need the select statement in the get.update.tisfc021() funtion.  I would run it in debug mode(check variables) and make sure that there are not duplicate values on the index for tisfc021.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">9th October 2006, 22:57</div></div><div class="posttext">Right, Like Mark said - it's that Select statement.  You will not get to the selectdo part unless there is a record to select, and you will then get a duplicate if you try the db.insert, and you skip dups, so you would never get an error.<br />
+<br />
+Did you mean to put a db.update instead?  The correct format to Insert OR Update is:<br />
+<br />
+<br />
+select for update (as usual)<br />
+selectdo<br />
+         assign changed variables<br />
+         db.update<br />
+selectempty<br />
+         assign all table fields<br />
+         db.insert<br />
+endselect<br />
+<br />
+Committing after each record is OK (or if you have a lot of updates you could use a count and commit every 50 records is the standard)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">10th October 2006, 07:47</div></div><div class="posttext">Hi ibencis , hi mark_h ,<br />
+<br />
+Thanx for ur replies , i forgot to mention that i tried to debug the script but it was not giving ne error cause its not calling the function get.update.tisfc021()<br />
+as its not entering the while loop at all , as the file.ptr value is not meeting the condition <br />
+<br />
+Please guide me<br />
+<br />
+Regards,<br />
+Niraj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th October 2006, 15:21</div></div><div class="posttext">Does it even get inside the while statement?  I am thinking it is the seq.eof. I usually do something like this:<br />
+<br />
+while seq.gets(sss,250,file.ptr) = 0<br />
+	err=string.scan(sss,&quot;%s,%s,%s,%s,%s,%s,%s&quot;,slno,grwt,pano,doscan,prtno,slvwt,timscan)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">11th October 2006, 15:21</div></div><div class="posttext">hi ,<br />
+<br />
+thanx mark , i tried ur suggestions , it worked fine , but the problem now is if i use seq.open() , it works fine , reads the file from the server , but since i want it to read the file from client , i used seq.open.local() , but here its not reading the file atall , its opening but not reading <br />
+<br />
+please comment<br />
+<br />
+Regards,<br />
+Niraj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th October 2006, 15:51</div></div><div class="posttext">I usually do not use seq.open.local - I never could get it to read correctly and I probably did not spend enough time on it.  You might be able to try a search using seq.open.local - it seems to me my problem was eol characters between the client and unix servers.  It was just easier to use the below method - the file_err routine basically says &quot;Problem opening file&quot;.<br />
+<br />
+<br />
+function domain tcbool open_file()<br />
+{<br />
+	long rc<br />
+| Create temporary file to copy the PC file to<br />
+	temp.file = creat.tmp.file$(bse.tmp.dir$())<br />
+        temp.file = strip$(temp.file)<br />
+<br />
+| Open PC file to make sure it exists.<br />
+        inputfile = seq.open.local(input.file,&quot;r&quot;,0)<br />
+        if(inputfile&lt;0) then<br />
+		file_err(inputfile)<br />
+		return(true)<br />
+        endif<br />
+	seq.close.local(inputfile)<br />
+	rc = client2server(input.file,temp.file,0)<br />
+<br />
+| Open Server file for processing.<br />
+        inputfile = seq.open(temp.file,&quot;r&quot;)<br />
+        if(inputfile&lt;0) then<br />
+		file_err(inputfile)<br />
+		return(true)<br />
+        endif<br />
+	return(false)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">12th October 2006, 09:43</div></div><div class="posttext">Hi mark ,<br />
+<br />
+Now i used client2server function and copy the file from client to server and read the file from server using seq.open and not opening the local file directly <br />
+<br />
+This works fine , but it is like an extra overhead , extra traffic on the network <br />
+<br />
+so i tried to research a lil more on seq.open.local <br />
+<br />
+  <br />
+  fp = seq.open.local(fname, &quot;r&quot;,0)<br />
+  if fp &lt; 1 then <br />
+	mess(&quot;zmadms0036&quot;, 1, fname)		|* File Opening Error: %1$s<br />
+	return(-1)<br />
+  endif<br />
+  if fp &gt;= 1 then<br />
+	 |while  not seq.gets(buffer, 250, fp)<br />
+         while seq.read.local(buffer , fpl , fp) &gt;= 0 <br />
+	db.retry.point()<br />
+err=string.scan(buffer,&quot;%s,%s,%s,%s,%s,%s,%s&quot;,slno,grwt,pano,doscan,prtno,slvwt,timscan)<br />
+<br />
+ here i found that earlier in seq.open when we use seq.gets it reads line by line of the file but here in case of seq.read.local , the entire content of the file is stored in buffer , and in next iteration buffer gets blank and only one record could be updated in the table<br />
+<br />
+Could you suggest something<br />
+<br />
+Regards,<br />
+Niraj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th October 2006, 15:47</div></div><div class="posttext">There are several threads about seq.read.local - this is just onethread (http://www.baanboard.com/baanboard/showthread.php?t=27650&amp;highlight=seq.read.local) of many.  The only thing I can suggest is that you read 1 character at a time (building your buffer) until you hit CR/LF character.  Then process that record, and do the same for the next record.  Personally I think that unless your file is MB's in size there is not enough overhead to cause a problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">13th October 2006, 07:05</div></div><div class="posttext">hi ,<br />
+I forgot to mention that i tried<br />
+ using while seq.read.local and then using a condition<br />
+if (buffer&lt;&gt;&quot;\0&quot;) to check for next line but then it stores entire content in the buffer and \r \0 is ignored i  guess<br />
+<br />
+can we use something like seq.gets with seq.read.local , i tried using seq.gets but didnt worked<br />
+<br />
+Ne suggestion<br />
+<br />
+Regards,<br />
+Niraj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th October 2006, 17:34</div></div><div class="posttext">But did you set your buffer length to one?  From the example you still have 250 in the record.<br />
+<br />
+string buffer(1)     | 1 Character buffer<br />
+string record(250) | Hold 1 complete record<br />
+fp = seq.open.local(fname, &quot;r&quot;,0)<br />
+if fp &lt; 1 then <br />
+	mess(&quot;zmadms0036&quot;, 1, fname) |* File Opening Error: %1$s<br />
+	return(-1)<br />
+endif<br />
+if fp &gt;= 1 then<br />
+while seq.read.local(buffer , 1 , fp) &gt;= 0 <br />
+	if buffer = cr or lf then<br />
+		process.record()<br />
+		record = &quot;&quot;<br />
+	else<br />
+		record = record &amp; buffer<br />
+	endif<br />
+endwhile<br />
+<br />
+function process record()<br />
+{<br />
+	err=string.scan(buffer,&quot;%s,%s,%s,%s,%s,%s,%s&quot;,slno,grwt,pano,doscan,prtno,slvwt,timscan)<br />
+	.....<br />
+}<br />
+<br />
+Above is something like I was talking about. I am not sure exactly what buffer would look like when you hit the CR/LF, but this was what I was talking about</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">14th October 2006, 06:53</div></div><div class="posttext">hi mark,<br />
+<br />
+Thanks mark , this should solve my problem . I didnot set buffer to 1 <br />
+<br />
+Regards,<br />
+Niraj</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

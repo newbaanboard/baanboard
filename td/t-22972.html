@@ -1,0 +1,609 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="solving recursion problems, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] solving recursion problems Tools Development" />
+	
+	<title>solving recursion problems [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; solving recursion problems</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">25th January 2005, 19:15</div></div><div class="posttext">Hello.<br />
+<br />
+Running Triton 3.1. Any help with the below code is greatly appreciated.<br />
+<br />
+Trying to write a session to explode custom boms and the standard boms contained within (including phantom boms)<br />
+<br />
+Obviously since &quot;Recursion not yet implemented&quot;, I need to come up with another way of doing this.<br />
+<br />
+I found one post that suggested using stacks, so I rewrote my code to do so.<br />
+<br />
+I have the session working without getting the dreaded &quot;Recursion&quot; message, but when it explodes a standard BOM, I get a message &quot;Error:       Query should be in Exec Status or Eval Status&quot;.  <br />
+<br />
+It explodes the first component of the standard bom, dumps the error and returns back one level.  <br />
+<br />
+The below &quot;report&quot; is a sample output.<br />
+<br />
+Part 123456-L2-4 at position 40 should actually have three BOM lines below it, and it only shows 1.Date   : 01-25-05 [11:27]                                     CUSTOMIZED BOMS                                       Page      :    1<br />
+                                                                                                                    Company   :  100<br />
+                                                                                                          tipcsc944m000/pcsc94411000<br />
+------------------------------------------------------------------------------------------------------------------------------------<br />
+Project          : 123456                                              Status    : Active<br />
+                                                                       Start Date:<br />
+Customer         :                                                     Compl.Dte : 01-07-05<br />
+Manufactured Item: 1234567890123456                                    Variant   :                                       Unit:<br />
+Revision         :<br />
+------------------------------------------------------------------------------------------------------------------------------------<br />
+Level   |Pos.|Item            |Description       | Revi-|IC|   Length|    Width|No.o|  Net Quantity|Un.|Scp|Wrh|Opr|Ph.|No.|Buyer/<br />
+        |    |                |                  |  sion|  |    [   ]|    [   ]| Un.|              |   |[ ]|   |   |tom|Nts|Planner<br />
+--------+----+----------------+------------------+------+--+---------+---------+----+--------------+---+---+---+---+---+---+--------<br />
+1       |  10|123456-L1-1     |                  |   n/a|Cu|     0.00|     0.00|   0|        1.0000|   |  0|001|  0|Yes|  0|     0<br />
+.2      |  10|123456-L2-1     |                  |   n/a|St|     0.00|     0.00|   0|        1.0000|   |  0|001|  0|No |  0|     0<br />
+.2      |  20|123456-L2-2     |                  |   n/a|St|     0.00|     0.00|   0|        2.0000|   |  0|001|  0|No |  0|     0<br />
+.2      |  30|123456-L2-3     |                  |   n/a|St|     0.00|     0.00|   0|        1.0000|   |  0|001|  0|No |  0|     0<br />
+.2      |  40|123456-L2-4     |                  |   n/a|St|     0.00|     0.00|   0|        1.0000|   |  0|001|  0|Yes|  0|     0<br />
+..3     |  10|123456-L3-1     |                  |   n/a|St|     0.00|     0.00|   0|        1.0000|   |  0|001|  0|No |  0|     0<br />
+.2      |  50|123456-L2-5     |                  |   n/a|St|     0.00|     0.00|   0|        1.0000|   |  0|001|  0|Yes|  0|     0<br />
+..3     |  10|123456-L3-1     |                  |   n/a|St|     0.00|     0.00|   0|        1.0000|   |  0|001|  0|No |  0|     0<br />
+.2      |  60|123456-L2-6     |                  |   n/a|St|     0.00|     0.00|   0|        1.0000|   |  0|001|  0|Yes|  0|     0<br />
+<br />
+Anyways, here's the code, minus some things such as revision/effectivity checking, etc.  I was concentrating more on the basics (getting the BOM to explode all the levels).function read.main.table()<br />
+{<br />
+	l.count = 1<br />
+	select	tipcs021.*, tipcs020.*, tccom010.*<br />
+	from	tipcs021, tipcs020, tccom010<br />
+	where	tipcs021._index1 =<br />
+		{:cprj.f, :item.f}<br />
+	and	tipcs021.cprj refers to tipcs020<br />
+	and	tipcs020.cuno refers to tccom010<br />
+	as prepared set<br />
+	selectdo<br />
+		mitm.cprj = tipcs020.cprj<br />
+		mitm.cprj.dsca = tipcs020.dsca<br />
+		mitm.item = tipcs021.item<br />
+		mitm.dsca = tipcs021.dsca<br />
+		mitm.cuno = tipcs020.cuno<br />
+		mitm.cuno.nama = tccom010.nama<br />
+		mitm.start = tipcs020.sdat<br />
+		mitm.close = tipcs020.ddat<br />
+		mitm.psts = tipcs020.psts<br />
+		<br />
+		stack.cprj(1,l.count) = tipcs021.cprj<br />
+		stack.item(1,l.count) = tipcs021.item<br />
+		read.custom.bom()<br />
+		<br />
+	endselect<br />
+}<br />
+<br />
+function print.line()<br />
+{<br />
+	b.level = string.set$(&quot;.&quot;,l.count-2)&amp;str$(l.count-1)<br />
+	rprt_send()<br />
+}<br />
+<br />
+function read.custom.item()<br />
+{<br />
+	in.item = stack.item(1,l.count)<br />
+	in.cprj = stack.cprj(1,l.count)<br />
+	<br />
+	select	tipcs021.*<br />
+	from	tipcs021<br />
+	where	tipcs021._index1 =<br />
+		{:in.cprj, :in.item}<br />
+	as prepared set<br />
+	selectdo<br />
+		sitm.dsca = tipcs021.dsca<br />
+		sitm.revi = &quot;n/a&quot;<br />
+		print.line()<br />
+		read.custom.bom()<br />
+	endselect<br />
+}<br />
+<br />
+function read.standard.item()<br />
+{<br />
+	in.item = stack.item(1,l.count)<br />
+	in.cprj = stack.cprj(1,l.count)<br />
+	<br />
+	select	tiitm001.*<br />
+	from	tiitm001<br />
+	where	tiitm001._index1 =<br />
+		{:in.item}<br />
+	as prepared set<br />
+	selectdo<br />
+		sitm.dsca = tiitm001.dsca<br />
+		sitm.revi = &quot;n/a&quot;<br />
+		print.line()<br />
+		read.standard.bom()<br />
+	endselect<br />
+}<br />
+<br />
+function read.custom.bom()<br />
+{	<br />
+	<br />
+	in.item = stack.item(1,l.count)<br />
+	in.cprj = stack.cprj(1,l.count)<br />
+	<br />
+	l.count = l.count + 1<br />
+	select	tipcs022.*<br />
+	from	tipcs022<br />
+	where	tipcs022._index1 =<br />
+		{:in.cprj, :in.item}<br />
+	as prepared set<br />
+	selectdo<br />
+		sitm.item = tipcs022.sitm<br />
+		sitm.pono = tipcs022.pono<br />
+		sitm.opol = tipcs022.opol<br />
+		sitm.leng = tipcs022.leng<br />
+		sitm.widt = tipcs022.widt<br />
+		sitm.noun = tipcs022.noun<br />
+		sitm.qana = tipcs022.qana<br />
+		sitm.scpf = tipcs022.scpf<br />
+		sitm.cwar = tipcs022.cwar<br />
+		sitm.opno = tipcs022.opno<br />
+		sitm.cpha = tipcs022.cpha<br />
+		sitm.nnts = tipcs022.nnts<br />
+		<br />
+		stack.cprj(1,l.count) = tipcs022.cprj<br />
+		stack.item(1,l.count) = tipcs022.sitm<br />
+		<br />
+		if tipcs022.opol = tcittb.standard then<br />
+			sitm.opol = &quot;St&quot;<br />
+			read.standard.item()<br />
+		else<br />
+			sitm.opol = &quot;Cu&quot;<br />
+			read.custom.item()<br />
+		endif<br />
+	endselect<br />
+	l.count = l.count - 1<br />
+}<br />
+<br />
+function read.standard.bom()<br />
+{<br />
+	in.item = stack.item(1,l.count)<br />
+	in.cprj = stack.cprj(1,l.count)<br />
+	<br />
+	l.count = l.count + 1<br />
+	select	tibom010.*<br />
+	from	tibom010<br />
+	where	tibom010._index1 =<br />
+		{:in.item}<br />
+	as prepared set<br />
+	selectdo<br />
+		sitm.item = tibom010.sitm<br />
+		sitm.pono = tibom010.pono<br />
+		sitm.opol = &quot;St&quot;<br />
+		sitm.leng = tibom010.leng<br />
+		sitm.widt = tibom010.widt<br />
+		sitm.noun = tibom010.noun<br />
+		sitm.qana = tibom010.qana<br />
+		sitm.scpf = tibom010.scpf<br />
+		sitm.cwar = tibom010.cwar<br />
+		sitm.opno = tibom010.opno<br />
+		sitm.cpha = tibom010.cpha<br />
+		sitm.nnts = tibom010.nnts<br />
+		<br />
+		stack.cprj(1,l.count) = &quot;&quot;<br />
+		stack.item(1,l.count) = tibom010.sitm<br />
+				<br />
+		read.standard.item()<br />
+	endselect<br />
+	l.count = l.count - 1<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">25th January 2005, 19:40</div></div><div class="posttext">Try a search on recursion, there are several posts on this.  Here's a recent one with BOM example. <br />
+<br />
+Link to Recursion post (http://www.baanboard.com/baanboard/showthread.php?t=22850&amp;highlight=recursion)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">25th January 2005, 22:23</div></div><div class="posttext">Well<br />
+I think I have it working.  The session explodes the custom boms and the standard boms within.<br />
+<br />
+Thanks to chjagge and his post (http://www.baanboard.com/baanboard/showpost.php?p=81285&amp;postcount=7).<br />
+<br />
+I was able to disect part of what he'd done and apply it here.<br />
+<br />
+I'm working on things like revision control &amp; effectivity now.  <br />
+<br />
+Here's the code.  Note that effectivity isn't working 100% yet.  If you need help deciphering, please send me a message.|******************************************************************************<br />
+|* tipcsc944  0  VRC 3.1C b  tro1<br />
+|* Print Customized Multilevel BOMs<br />
+|* ROB MARLES                    <br />
+|* 2005-01-24<br />
+|* Thanks to chjagge's post on BaanBoard<br />
+|* http://www.baanboard.com/baanboard/showpost.php?p=81285&amp;postcount=7<br />
+|******************************************************************************<br />
+|* Main table tipcs021 Customized Items, Form Type 4<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+<br />
+	table	ttipcs021	| Customized Items<br />
+	table	ttipcs020	| Projects<br />
+	table	ttiitm001	| Item Data<br />
+	table	ttiedm100	| Revision Data<br />
+	table	ttccom010	| Customers<br />
+	table	ttibom010	| Production BOMs<br />
+	table	ttipcs022	| Custom BOMs<br />
+<br />
+	extern	domain	tccprj        	cprj.f	fixed	| form<br />
+	extern	domain	tccprj        	cprj.t	fixed	| form<br />
+	extern	domain	tcitem        	item.f	fixed	| form<br />
+	extern	domain	tcitem        	item.t	fixed	| form<br />
+	extern	domain	tidate		eff.date	| form<br />
+	extern	domain	tcyesno		exp.non.phan.boms	| form<br />
+<br />
+	extern	domain	tcmcs.str8	b.level		| report <br />
+	extern	domain	tidate    	mitm.close	| report<br />
+	extern	domain	tccprj    	mitm.cprj	| report<br />
+	extern	domain	tcdsca    	mitm.cprj.dsca	| report<br />
+	extern	domain	tccpva    	mitm.cpva	| report<br />
+	extern	domain	tccuni    	mitm.cuni	| report<br />
+	extern	domain	tccuno    	mitm.cuno	| report<br />
+	extern	domain	tcnama    	mitm.cuno.nama	| report<br />
+	extern	domain	tcdsca    	mitm.dsca	| report<br />
+	extern	domain	tcitem    	mitm.item	| report<br />
+	extern	domain	tcpsts    	mitm.psts	| report<br />
+	extern	domain	tiedm.revi	mitm.revi	| report<br />
+	extern	domain	tidate    	mitm.start	| report<br />
+	extern	domain	tcyesno   	sitm.cpha	| report<br />
+	extern	domain	tcemno    	sitm.cplb	| report<br />
+	extern	domain	tccuni    	sitm.cuni	| report<br />
+	extern	domain	tccwar    	sitm.cwar	| report<br />
+	extern	domain	tcdsca    	sitm.dsca	| report<br />
+	extern	domain	tcitem    	sitm.item	| report<br />
+	extern	domain	tcleng    	sitm.leng	| report<br />
+	extern	domain	tisfc.nnts	sitm.nnts	| report<br />
+	extern	domain	tcnoun    	sitm.noun	| report<br />
+	extern	domain	tcopno    	sitm.opno	| report<br />
+	extern	domain	tcpono    	sitm.pono	| report<br />
+	extern	domain	tcqana    	sitm.qana	| report<br />
+	extern	domain	tiedm.revi	sitm.revi	| report<br />
+	extern	domain	tcscpf    	sitm.scpf	| report<br />
+	extern	domain	tcwidt    	sitm.widt	| report<br />
+	extern	domain	tcmcs.str2	sitm.type	| report<br />
+	extern	domain	tcittb		sitm.opol	| report<br />
+	extern	domain	tccprj		sitm.cprj	| report<br />
+<br />
+		domain	tccprj		stack.cprj(99)	| internal<br />
+		domain	tcitem		stack.item(99)	| internal<br />
+		domain	tcitem		in.item		| internal<br />
+		domain	tccprj		in.cprj		| internal<br />
+			long		sql.x		| internal<br />
+			long		sql.by.level(99)| internal<br />
+			long		l.count		| internal<br />
+			<br />
+	#DEFINE MAX.BOM.LEVEL 99<br />
+			<br />
+<br />
+|****************************** form section **********************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+	if rprt_open() then<br />
+		read.main.table()<br />
+		rprt_close()<br />
+	else<br />
+		choice.again()<br />
+	endif<br />
+<br />
+<br />
+|****************************** field section *********************************<br />
+<br />
+field.cprj.f:<br />
+when.field.changes:<br />
+	cprj.t = cprj.f<br />
+<br />
+field.item.f:<br />
+when.field.changes:<br />
+	item.t = item.f<br />
+<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{	<br />
+	<br />
+	<br />
+	select	tipcs021.*, tipcs020.*, tccom010.*<br />
+	from	tipcs021, tipcs020, tccom010<br />
+	where	tipcs021._index1 inrange<br />
+		{:cprj.f, :item.f}<br />
+	and	{:cprj.t, :item.t}<br />
+	and	tipcs021.cprj refers to tipcs020<br />
+	and	tipcs020.cuno refers to tccom010<br />
+	as prepared set<br />
+	selectdo<br />
+		reset.variables()<br />
+		l.count = 1<br />
+		mitm.cprj = tipcs020.cprj<br />
+		mitm.cprj.dsca = tipcs020.dsca<br />
+		mitm.item = tipcs021.item<br />
+		mitm.dsca = tipcs021.dsca<br />
+		mitm.cuno = tipcs020.cuno<br />
+		mitm.cuno.nama = tccom010.nama<br />
+		mitm.start = tipcs020.sdat<br />
+		mitm.close = tipcs020.ddat<br />
+		mitm.psts = tipcs020.psts<br />
+		mitm.cpva = tipcs021.cpvr<br />
+		mitm.cuni = tipcs021.cuni<br />
+		if tipcs021.eitm = tcyesno.yes then<br />
+			mitm.revi = get.item.revision(tipcs021.item)<br />
+		else<br />
+			mitm.revi = &quot;&quot;<br />
+		endif<br />
+		<br />
+		stack.cprj(1,l.count) = tipcs021.cprj<br />
+		stack.item(1,l.count) = tipcs021.item<br />
+		read.custom.bom()<br />
+		<br />
+	endselect<br />
+}<br />
+<br />
+function print.line()<br />
+|Expands the BOM Level with a decimal leader for the report.<br />
+{<br />
+	b.level = string.set$(&quot;.&quot;,l.count-2)&amp;str$(l.count-1)<br />
+	rprt_send()<br />
+}<br />
+<br />
+function read.custom.item()<br />
+|Reads the Custom Item Description for the report.<br />
+|This also invokes the next BOM level if there is one.<br />
+{<br />
+	in.item = stack.item(1,l.count)<br />
+	in.cprj = stack.cprj(1,l.count)<br />
+	<br />
+	select	tipcs021.*<br />
+	from	tipcs021<br />
+	where	tipcs021._index1 =<br />
+		{:in.cprj, :in.item}<br />
+	as prepared set<br />
+	selectdo<br />
+		sitm.dsca = tipcs021.dsca<br />
+		sitm.cplb = tipcs021.cplb<br />
+		sitm.cuni = tipcs021.cuni<br />
+		if tipcs021.eitm = tcyesno.yes then<br />
+			sitm.revi = get.item.revision(in.item)<br />
+		else<br />
+			sitm.revi = &quot;&quot;<br />
+		endif<br />
+		print.line()<br />
+	endselect<br />
+	if tipcs021.cpha = tcyesno.no then<br />
+		if exp.non.phan.boms = tcyesno.yes then<br />
+			read.custom.bom()<br />
+		endif<br />
+	else<br />
+		read.custom.bom()<br />
+	endif<br />
+}<br />
+<br />
+function read.standard.item()<br />
+|Reads the Standard Item Description for the report.<br />
+|This also invokes the next BOM level if there is one.<br />
+{<br />
+	in.item = stack.item(1,l.count)<br />
+	in.cprj = stack.cprj(1,l.count)<br />
+	<br />
+	select	tiitm001.*<br />
+	from	tiitm001<br />
+	where	tiitm001._index1 =<br />
+		{:in.item}<br />
+	as prepared set<br />
+	selectdo<br />
+		sitm.dsca = tiitm001.dsca<br />
+		sitm.cplb = tiitm001.cplb<br />
+		sitm.cuni = tiitm001.cuni<br />
+		if tiitm001.eitm = tcyesno.yes then<br />
+			on case tiitm001.kitm<br />
+				case tckitm.purchase:<br />
+					sitm.revi = <br />
+						get.item.revision(tiitm001.seab)<br />
+					break<br />
+				case tckitm.manufacture:<br />
+					sitm.revi =<br />
+						get.item.revision(tiitm001.item)<br />
+					break<br />
+			endcase<br />
+		else<br />
+			sitm.revi = &quot;&quot;<br />
+		endif<br />
+		print.line()<br />
+	endselect<br />
+	if tipcs021.cpha = tcyesno.no then<br />
+		if exp.non.phan.boms = tcyesno.yes then<br />
+			read.standard.bom()<br />
+		endif<br />
+	else<br />
+		read.standard.bom()<br />
+	endif	<br />
+}<br />
+<br />
+function domain tiedm.revi get.item.revision(domain tcitem item.l)<br />
+{<br />
+	select	tiedm100.*<br />
+	from	tiedm100<br />
+	where	tiedm100._index1 =<br />
+		{:item.l}<br />
+	and	tiedm100.indt &lt;= :eff.date<br />
+	and 	((tiedm100.exdt &gt; :eff.date)<br />
+	or	(tiedm100.exdt = 0))<br />
+	order by tiedm100._index1 desc as set with 1 rows<br />
+	selectdo<br />
+	endselect<br />
+	return(tiedm100.revi)<br />
+}<br />
+<br />
+function read.custom.bom()<br />
+|Reads the Custom Bill and invokes the appropriate &quot;item&quot; function.<br />
+{	<br />
+	<br />
+	in.item = stack.item(1,l.count)<br />
+	in.cprj = stack.cprj(1,l.count)<br />
+	<br />
+	l.count = l.count + 1<br />
+	<br />
+	sql.x=sql.parse(&quot;select tipcs022.cprj, &quot; &amp;<br />
+			&quot;tipcs022.sitm, &quot; &amp;<br />
+			&quot;tipcs022.pono, &quot; &amp;<br />
+			&quot;tipcs022.leng, &quot; &amp;<br />
+			&quot;tipcs022.widt, &quot; &amp;<br />
+			&quot;tipcs022.noun, &quot; &amp;<br />
+			&quot;tipcs022.qana, &quot; &amp;<br />
+			&quot;tipcs022.scpf, &quot; &amp;<br />
+			&quot;tipcs022.cwar, &quot; &amp;<br />
+			&quot;tipcs022.opno, &quot; &amp;<br />
+			&quot;tipcs022.cpha, &quot; &amp;<br />
+			&quot;tipcs022.opol, &quot; &amp;<br />
+			&quot;tipcs022.nnts &quot; &amp;<br />
+			&quot;from	tipcs022 &quot; &amp;<br />
+			&quot;where	tipcs022._index1 = {:1, :2} &quot; &amp;<br />
+			&quot;as prepared set&quot;)<br />
+			<br />
+	sql.where.bind(sql.x,1,in.cprj)<br />
+	sql.where.bind(sql.x,2,in.item)<br />
+	sql.by.level(l.count) = sql.x<br />
+	sql.exec(sql.x)<br />
+	while	(sql.fetch(sql.x) = 0)<br />
+		sitm.cprj = tipcs022.cprj<br />
+		sitm.item = tipcs022.sitm<br />
+		sitm.pono = tipcs022.pono<br />
+		sitm.leng = tipcs022.leng<br />
+		sitm.widt = tipcs022.widt<br />
+		sitm.noun = tipcs022.noun<br />
+		sitm.qana = tipcs022.qana<br />
+		sitm.scpf = tipcs022.scpf<br />
+		sitm.cwar = tipcs022.cwar<br />
+		sitm.opno = tipcs022.opno<br />
+		sitm.cpha = tipcs022.cpha<br />
+		sitm.opol = tipcs022.opol<br />
+		sitm.nnts = tipcs022.nnts<br />
+	<br />
+		stack.cprj(1,l.count) = sitm.cprj<br />
+		stack.item(1,l.count) = sitm.item<br />
+		<br />
+		if sitm.opol = tcittb.standard then<br />
+			sitm.type = &quot;St&quot;<br />
+			read.standard.item()<br />
+		else<br />
+			sitm.type = &quot;Cu&quot;<br />
+			read.custom.item()<br />
+		endif<br />
+	endwhile<br />
+	<br />
+	sql.close(sql.x)<br />
+<br />
+	l.count = l.count - 1<br />
+	<br />
+	sql.x = sql.by.level(l.count)<br />
+}<br />
+<br />
+function read.standard.bom()<br />
+|Reads the Standard Bill and invokes the appropriate &quot;item&quot; function.<br />
+{<br />
+	in.item = stack.item(1,l.count)<br />
+	in.cprj = stack.cprj(1,l.count)<br />
+	<br />
+	l.count = l.count + 1<br />
+<br />
+	sql.x=sql.parse(&quot;select tibom010.sitm, &quot; &amp;<br />
+			&quot;tibom010.pono, &quot; &amp;<br />
+			&quot;tibom010.leng, &quot; &amp;<br />
+			&quot;tibom010.widt, &quot; &amp;<br />
+			&quot;tibom010.noun, &quot; &amp;<br />
+			&quot;tibom010.qana, &quot; &amp;<br />
+			&quot;tibom010.scpf, &quot; &amp;<br />
+			&quot;tibom010.cwar, &quot; &amp;<br />
+			&quot;tibom010.opno, &quot; &amp;<br />
+			&quot;tibom010.cpha, &quot; &amp;<br />
+			&quot;tibom010.nnts, &quot; &amp;<br />
+			&quot;tibom010.indt, &quot; &amp;<br />
+			&quot;tibom010.exdt &quot; &amp;<br />
+			&quot;from	tibom010 &quot; &amp;<br />
+			&quot;where	tibom010._index1 = {:1} &quot; &amp;<br />
+			&quot;as prepared set&quot;)<br />
+	sql.where.bind(sql.x,1,in.item)<br />
+	sql.by.level(l.count) = sql.x<br />
+	sql.exec(sql.x)<br />
+	while	(sql.fetch(sql.x) = 0)<br />
+		if not is.expired(tibom010.indt, tibom010.exdt) then	<br />
+			sitm.item = tibom010.sitm<br />
+			sitm.pono = tibom010.pono<br />
+			sitm.type = &quot;St&quot;<br />
+			sitm.leng = tibom010.leng<br />
+			sitm.widt = tibom010.widt<br />
+			sitm.noun = tibom010.noun<br />
+			sitm.qana = tibom010.qana<br />
+			sitm.scpf = tibom010.scpf<br />
+			sitm.cwar = tibom010.cwar<br />
+			sitm.opno = tibom010.opno<br />
+			sitm.cpha = tibom010.cpha<br />
+			sitm.nnts = tibom010.nnts<br />
+			<br />
+			stack.cprj(1,l.count) = &quot;&quot;<br />
+			stack.item(1,l.count) = tibom010.sitm<br />
+					<br />
+			read.standard.item()<br />
+		endif<br />
+	endwhile<br />
+	<br />
+	sql.close(sql.x)<br />
+	<br />
+	l.count = l.count - 1<br />
+	<br />
+	sql.x = sql.by.level(l.count)<br />
+}<br />
+<br />
+function domain tcbool is.expired(domain tcdate indt.x, domain tcdate exdt.x)<br />
+|&quot;Stolen&quot; from chjagge's post on BaanBoard<br />
+|http://www.baanboard.com/baanboard/showpost.php?p=81285&amp;postcount=7<br />
+{<br />
+	if ((indt.x &lt;= eff.date) and (eff.date &lt; exdt.x or exdt.x = 0)) then<br />
+		return(false)<br />
+	else<br />
+		return(true)<br />
+	endif<br />
+}<br />
+<br />
+function reset.variables()<br />
+|Incase Choice Again...<br />
+{<br />
+long	cur.rec<br />
+<br />
+	for cur.rec = 1 to MAX.BOM.LEVEL<br />
+		stack.cprj(1,cur.rec) = &quot;&quot;<br />
+		stack.item(1,cur.rec) = &quot;&quot;<br />
+		sql.by.level(cur.rec) = 0<br />
+	endfor<br />
+	<br />
+	sql.x = 0<br />
+	l.count = 0<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

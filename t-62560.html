@@ -1,0 +1,94 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Using Application Global in tdsls4120m000, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Using Application Global in tdsls4120m000 AFS/DDC/OLE: Function servers" />
+	
+	<title>Using Application Global in tdsls4120m000 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Using Application Global in tdsls4120m000</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">tnzabo</div><div class="date">26th June 2012, 23:39</div></div><div class="posttext">I'm trying to use the stpapi.application.option cmd to call the Application Global option from the Maintain Deliveries session(tdsls4120m000).  I first find the order I want to update then call this cmd.  It only sets the confirm field to yes for the first record, not all.  Any idea what I might be doing wrong?  Here is the syntax for my code:<br />
+<br />
+stpapi.application.option(afs.session,1,1,error.msg)<br />
+form 1 option 1<br />
+<br />
+Thanks,<br />
+NikkiZ</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th June 2012, 17:33</div></div><div class="posttext">I wonder if the find only finds the first record and marks it as the current record.  So then the application option only works on the first record.  Is it possible the next.set and move thru the records doing this one at a time? <br />
+<br />
+Or maybe try a change view to get the set of records and then the stpapi.application.option command? <br />
+<br />
+We do not use the sls module so won't be much help on those.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tnzabo</div><div class="date">27th June 2012, 20:11</div></div><div class="posttext">Thanks Mark for your response as always!  So far neither the next.set,first.set or change.view didn't work.  I'm going to try looping through the occurances...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th June 2012, 20:57</div></div><div class="posttext">Well I did have one session that next.set would not work.  I had to loop through the records with a find for each occurance.  I can't remember which session that was. I think it had to do with changing the MAUC, but that was a long time ago.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th June 2012, 23:57</div></div><div class="posttext">Do not know if this helps or not, but this is what I had to do for one program.<br />
+<br />
+	stpapi.put.field(&quot;ticpr9152m00b&quot;, &quot;ticpr952.item&quot;, adj.item)<br />
+	stpapi.put.field(&quot;ticpr9152m00b&quot;, &quot;ticpr952.cprj&quot;, adj.proj)<br />
+	stpapi.put.field(&quot;ticpr9152m00b&quot;, &quot;ticpr952.mbcs&quot;, str$(adj.mbcs))<br />
+	rc = stpapi.change.view( &quot;ticpr9152m00b&quot; )<br />
+	if(rc=1) then<br />
+		rc = stpapi.browse.set( &quot;ticpr9152m00b&quot;, &quot;first.set&quot; )<br />
+		if(rc&lt;&gt;1) then<br />
+			errmsg = &quot;No CPC's found for part.&quot;<br />
+		else<br />
+			stpapi.get.field( &quot;ticpr9152m00b&quot;, &quot;mauc.qty&quot;, strqty )<br />
+			rpt.qty		= val(strqty)<br />
+			if rpt.qty &gt; 0 then<br />
+				while rc = 1<br />
+					stpapi.get.field( &quot;ticpr9152m00b&quot;, &quot;ticpr952.cpcp&quot;, cpc )<br />
+					stpapi.get.field( &quot;ticpr9152m00b&quot;, &quot;ticpr952.ptyp&quot;, ptyp )<br />
+					stpapi.put.field( &quot;ticpr9152m00b&quot;, &quot;ticpr952.amnt&quot;, str$(0) )<br />
+					stpapi.put.field( &quot;ticpr9152m00b&quot;, &quot;ticpr952.hour.c&quot;, str$(0) )<br />
+					stpapi.update( &quot;ticpr9152m00b&quot;, 1, errmsg )<br />
+					if isspace(errmsg) then<br />
+						rpt.cpc  = cpc<br />
+						rpt.ptyp = ltoe(lval(ptyp))<br />
+						rprt_send()<br />
+					endif<br />
+<br />
+					rc =  stpapi.browse.set( &quot;ticpr9152m00b&quot;, &quot;next.set&quot; )<br />
+					| Do this because the next set is not making the record available<br />
+					| for update<br />
+					if rc = 1 then<br />
+						stpapi.get.field( &quot;ticpr9152m00b&quot;, &quot;ticpr952.cpcp&quot;, cpc )<br />
+						stpapi.get.field( &quot;ticpr9152m00b&quot;, &quot;ticpr952.ptyp&quot;, ptyp )<br />
+						stpapi.put.field(&quot;ticpr9152m00b&quot;, &quot;ticpr952.item&quot;, adj.item)<br />
+						stpapi.put.field(&quot;ticpr9152m00b&quot;, &quot;ticpr952.cprj&quot;, adj.proj)<br />
+						stpapi.put.field(&quot;ticpr9152m00b&quot;, &quot;ticpr952.mbcs&quot;, str$(adj.mbcs))<br />
+						stpapi.put.field( &quot;ticpr9152m00b&quot;, &quot;ticpr952.ptyp&quot;, ptyp )<br />
+						stpapi.put.field( &quot;ticpr9152m00b&quot;, &quot;ticpr952.cpcp&quot;, cpc )<br />
+						rc1 = stpapi.find( &quot;ticpr9152m00b&quot; )<br />
+					endif<br />
+				endwhile<br />
+<br />
+<br />
+These sessions can get kind of quirky at times.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tnzabo</div><div class="date">28th June 2012, 23:04</div></div><div class="posttext">The first.set, next.set thing was working pretty well for me - i did a while loop like you have above and it worked well but was sometimes skipping an order and I just couldn't figure out why.  as I was debugging the order number was the one it was searching and found but then it updated the next order number.  I looked in the afs.log and it returned 'found an other record' for that order instead of 'record found'.<br />
+<br />
+I didn't know how to fix but found another post about entire keys being need to search sometimes.  So - instead of doing the first, next.set thing I just put in a prev/curr orno field and I'm setting the position number to increments of 5 and reading through all the delivery lines to confirm deliveries.  It seems to work fine and there wasn't much code to it.  Thanks for all your help.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Example of db_resource / lock_retry?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Example of db_resource / lock_retry? Operating Systems &amp; Databases" />
+	
+	<title>Example of db_resource / lock_retry? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Example of db_resource / lock_retry?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">26th December 2002, 23:49</div></div><div class="posttext">Hi All -<br />
+I read the very helpful posts on record lock 107, and they reference changing the db_resources file / lock_retry setting.  Our systems currently have 2 versions.  One db_resources has no lock_retry, which should indicate the default (10?)  The other has lock_retry:0, does that also mean the default?  <br />
+Does anyone have an example of what we might change this to if we were trying to increase the retry wait?  Or a Baan document number to review?   During the holiday, our db_resource resource is out.<br />
+<br />
+Lisa</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">27th December 2002, 00:54</div></div><div class="posttext">Hi Lisa,<br />
+<br />
+the BaaN standard/default value is 10.<br />
+<br />
+And its not mandatory to modify the $BSE/lib/defaults/db_resource file. Here is our system settings and we dont have it and it still works fine.<br />
+<br />
+$ cat db_resource<br />
+dbsinit:01<br />
+ora_max_array_fetch:5<br />
+ora_max_array_insert:5<br />
+nls_lang:american_america.we8iso8859p1<br />
+nls_sort:binary<br />
+oracle_home:/app/common/oracle/product/8.1.7.2<br />
+ora_temporary_tablespace:TEMP<br />
+<br />
+ During the holiday, our db_resource resource is out. <br />
+I am guessing you mean your baan administrator ?<br />
+<br />
+You can also use the Bshell command options and increase/decrease its values -<br />
+<br />
+TEST_RETRY=X --&gt; This variable indicates how often the system must go back to a retry point at the moment of committing. This cannot be used when testing different sessions with retry points parallel. <br />
+MAX_RETRY=X --&gt; This variable indicates how often the system may return to a retry point as a result of an abort in an update action. Default: 10 <br />
+<br />
+<br />
+I also found that many developers dont use this option - order by with retry which might also help in these kinds of cases.<br />
+<br />
+Please refer to - ORDER BY --- with retry (http://www.baanboard.com/programmers_manual_baanerp_help_functions_database_handling_order_by)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">27th December 2002, 01:26</div></div><div class="posttext">Thanks NP<br />
+Yes, I would not modify it just for the heck of it!  A client is having table locks (Error 107) during large processes.  I know we need to monitor the process, and see what else is running, etc.   Our db_resource resource is a fellow consultant out on vacation.   Our humble test boxes here do not have the load on them that our client's machines do.<br />
+Just hoping for an example, as listed in the attached thread, of what the syntax would be for the lock_retry parameter in the db_resources file.  It's not a development thing that I can change the script for.<br />
+<br />
+http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=119&amp;highlight=107<br />
+<br />
+The client is using MSSQL, not Oracle, so the ora_* examples don't help us.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">27th December 2002, 02:27</div></div><div class="posttext">Hi Lisa,<br />
+<br />
+Sorry I dont have access to MS-SQL servers we are on Oracle here. But I believe <br />
+those 2 BW options might still work for you.<br />
+<br />
+I found only this 1 line from the tracing document I have -<br />
+<br />
+Because the lock-retry mechanism is disable by &quot;lock_retry:0&quot;, the number of <br />
+retries equals 1.<br />
+<br />
+The syntax must be the same as other settings.<br />
+<br />
+A client is having table locks (Error 107) during large processes. I know we <br />
+need to monitor the process, and see what else is running, etc. Our db_resource <br />
+resource is a fellow consultant out on vacation. <br />
+<br />
+1. I guess you might have some performance monitors, tracing tools/options <br />
+similar to Oracle, Spotlight, top etc.<br />
+<br />
+2. You might try to use the &quot;as prepared set&quot; for your selects.<br />
+<br />
+Prepared set. <br />
+With this option, the entire set is retrieved before the first record is returned. <br />
+The set is temporarily stored. This option is useful when a process simultaneously <br />
+selects and maintains (or deletes or adds) records. In this case, changes must not <br />
+be visible in the selected records. The prepared set option forces a consistent read. <br />
+The syntax is as follows:<br />
+SELECT ... [from][where] AS PREPARED SET<br />
+<br />
+Maximum set size and prepared set. <br />
+<br />
+and tweak the BW command parameter <br />
+n	-set RDS_FULL=value to define max. nr. rows transfered between client and <br />
+server as one block (good for imports/exports)<br />
+<br />
+to get the maximum performance.<br />
+<br />
+<br />
+I would not modify it just for the heck of it! <br />
+<br />
+<br />
+Instead of changing the original file you can create a user specific file and test it out. Francesco, gave a new tip recently at - Environment Variables (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=446) <br />
+<br />
+I think thats the best I can suggest others might have some more ideas.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">30th December 2002, 20:01</div></div><div class="posttext">For Oracle folks you can take a look at solution 159170 on<br />
+the Baan KB for help with error 107.<br />
+<br />
+lock_retry:0 effectivly disables the lock_retry interface<br />
+and for Oracle defaults back to ora_timeout. I believe that there is a similar sql_timeout value as well.<br />
+<br />
+The default values for lock_retry:5*100, 5*500<br />
+I belive, which is try 5 time waiting 100 ms, then trying 5 more<br />
+times waiting 500 ms, etc.<br />
+<br />
+The default values for ora_timeout are {0,5,10,15,0}<br />
+<br />
+The first value is for &quot;select for updates&quot; which is where most of your 107 errors will come from. With a 0 it will try once and immedatly error (with 107) if no lock is available.<br />
+<br />
+So ideally you want something like<br />
+lock_retry:0<br />
+ora_timeout:{300,120,120,120,120}<br />
+<br />
+You can't / do not want do lock_retry and ora_timeout at the same time..<br />
+<br />
+I hope this helps!<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">2nd January 2003, 19:36</div></div><div class="posttext">Actually, come to think of it. Baan will try 11 times when ora_timeout is set. <br />
+<br />
+But still 10 times with 0 wait isn't going to be that long.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

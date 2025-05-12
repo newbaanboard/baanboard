@@ -1,0 +1,167 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Zoom to Form with multiple entries, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Zoom to Form with multiple entries Tools Development" />
+	
+	<title>Zoom to Form with multiple entries [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Zoom to Form with multiple entries</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jholdrid</div><div class="date">13th November 2002, 19:47</div></div><div class="posttext">I have a form with a Rework Source Code XX.  I would like to zoom to a list of Main Cause Codes and only see a simple list of those codes related to the Source.<br />
+<br />
+When I zoom to the Display of Main Cause Codes, I see multiples of the allowable valid main cause code selections because there are multiple allowable detail cause code selections associated with each.  I see the following:<br />
+<br />
+            Main Cause 1                          Detail 1<br />
+            Main Cause 1                          Detail 2<br />
+            Main Cause 1                          Detail 3<br />
+            Main Cause 1                          Detail 4<br />
+            Main Cause 2                          Detail 1<br />
+<br />
+I would like to see  only<br />
+             Main Cause 1<br />
+             Main Cause 2<br />
+             Main Cause 3<br />
+<br />
+Is there any way that I can see only the simple list of related main cause codes.<br />
+<br />
+Thank you for your help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jholdrid</div><div class="date">14th November 2002, 18:03</div></div><div class="posttext">Thanks for any coding help !<br />
+<br />
+I have a Main table tcqms905, QMS Code Structure, in my zoomed to display session:<br />
+Tcqms905.srce - source<br />
+Tcqms905.dept - Department<br />
+Tcqms905.sdept  Sub-Department<br />
+Tcqms905.mcsc  Main Cause Code<br />
+Tcqms905.dcsc  Detail Cause Code<br />
+<br />
+My script is:  <br />
+| ****Variables<br />
+extern 	domain 	tcstr.12   	zoom.srce<br />
+extern	domain		tcstr.12		zoom.dept<br />
+extern	domain		tcstr.12		zoom.sdept<br />
+extern	domain		tcstr.12		zoom.mcsc<br />
+|*****Script<br />
+zoom.from.all:<br />
+on.entry:<br />
+import(zoom.srce, tcqms905.srce)<br />
+import(zoom.dept,tcqms905.dept)<br />
+import(zoom.sdept,tcqms905.sdept)<br />
+<br />
+after.program:<br />
+zoom.mcsc = tcqms905,mcsc<br />
+export(zoom.mcsc, tcqms905.mcsc)<br />
+------------------------------------------------------------------------------<br />
+I display a heading with the imported variables from the main session:<br />
+Source 0010  Department 0030  Sub-department  0040<br />
+<br />
+                0010 Part Number<br />
+                0010 Part Number<br />
+                0010 Part Number<br />
+                0040 Hardware<br />
+                0040 Hardware<br />
+                0040 Hardware<br />
+                0060 Finish<br />
+<br />
+The list is correct for the &quot;Source&quot;, &quot;Department&quot;, and &quot;Sub-department&quot; combination (there is an entry for each cross referenced &quot;Detail Cause Code&quot;) but<br />
+I would like to only see:<br />
+	0010 Part Number<br />
+	0020 Hardware<br />
+	0030 Finish<br />
+<br />
+I would like the user to individually select the &quot;detail Cause code&quot;<br />
+from another display.<br />
+<br />
+What do I need to change in my script to accomplish this?<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th November 2002, 19:25</div></div><div class="posttext">What I did in one of my zoom sub-sessions was to use skip.io in the maintable section.<br />
+<br />
+<br />
+|****************************** MAIN TABLE  SECTION ***************************<br />
+main.table.io:<br />
+after.read:<br />
+        if(tdilc501.orno = old.orno) then<br />
+                skip.io(&quot;&quot;)<br />
+        else<br />
+                old.orno = tdilc501.orno<br />
+        endif<br />
+<br />
+<br />
+So in your case you could check both of your fields.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanprog</div><div class="date">14th November 2002, 19:35</div></div><div class="posttext">Obviously in BaanIVc4  query.extend functions will NOT work,we can use the pre-defined variable query.extension or skip records in main.table.io sections.<br />
+<br />
+I dont have access to Baan, so i suggest you can try the following:<br />
+<br />
+<br />
+I dont know the index of your table, so from what you have written I have to assume that you want to display only one Detail cause code for one Main cause code.(if both Main and Detail cause codes are part of the index, then we have a unique record identifier)<br />
+<br />
+You should import all variables required in the before.program section.<br />
+<br />
+Also declare a variable in the Main session(Zoom From) and import it into <br />
+Sub session(Zoom To) to allow these actions only when zoomed to this session from the main session.<br />
+<br />
+Say extern domain tcbool  special.zoom and based on that you have to fire these actions below .<br />
+<br />
+<br />
+<br />
+In the main.table.io section and function section do the following:<br />
+<br />
+main.table.io:<br />
+after.read:<br />
+if special.zoom then<br />
+    on.main.table(filter.records.based.on.detail.cause.code())<br />
+    if tcqms905.dcsc = hold.dcsc then  |declare hold.dcsc in declaration section<br />
+        skip.io(&quot;&quot;)<br />
+    endif<br />
+endif<br />
+<br />
+functions:<br />
+<br />
+function filter.records.based.on.detail.cause.code()<br />
+{<br />
+     select   tcqms905.*<br />
+     from     tcqms905<br />
+     where  tcqms905.mcsc = : tcqms905.mcsc<br />
+     order by tcqms905.mcsc<br />
+     as set with 1 rows<br />
+     selectdo<br />
+           hold.dcsc = tcqms905.dcsc<br />
+     endselect<br />
+}<br />
+<br />
+<br />
+By doing this, for one Main cause code , you will display only one Detail cause code and ignore others, assuming that is want you want to do.<br />
+<br />
+if you need anymore help, start a conversation here, we can post and repost.<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jholdrid</div><div class="date">15th November 2002, 18:38</div></div><div class="posttext">The &quot; skip.io(&quot;&quot;)  &quot; functionality worked.<br />
+<br />
+Thank you for your help !!<br />
+   <br />
+:)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,426 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="ticst0101s000 / tisfc0207m000 issue material Baan5, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] ticst0101s000 / tisfc0207m000 issue material Baan5 AFS/DDC/OLE: Function servers" />
+	
+	<title>ticst0101s000 / tisfc0207m000 issue material Baan5 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; ticst0101s000 / tisfc0207m000 issue material Baan5</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Andy..</div><div class="date">13th May 2008, 16:41</div></div><div class="posttext">I found a few posts on this general topic, but nothing with a solution for my problem.  I'm trying to issue specific lot material to a production order using 'direct process outbound' then press 'initial inventory' button but its not working.  I noticed the report the std session (ticst0101s000) is calling is actually coming from tisfc0207m000 (yes, its m000, no s000).  So I've made the following code to handle this - but it doesnt work!<br />
+<br />
+Having filled the form correctly, the first part of code shows getting values back to check that session is trying to do the right thing...<br />
+<br />
+	stpapi.get.field( &quot;ticst0101s000&quot;, &quot;ticst001.lsel&quot;, value )<br />
+	stpapi.get.field( &quot;ticst0101s000&quot;, &quot;ticst001.clot&quot;, value )<br />
+	|get qty<br />
+	stpapi.get.field( &quot;ticst0101s000&quot;, &quot;ticst001.issu&quot;, value )<br />
+<br />
+<br />
+that seems to check out fine - next, i'm trying to use this sfc0207 hidden session that would print shortages if there were any - but always asks for a device.  I think the code is correct, but not sure as it doesnt work!<br />
+<br />
+	|sfc0207 print session<br />
+	stpapi.handle.subproc(&quot;ticst0101s000&quot;, &quot;tisfc0207m000&quot;, &quot;add&quot;)<br />
+<br />
+<br />
+	|set device, set report<br />
+	spool.device = &quot;ASCIT&quot;<br />
+	spool.fileout=&quot;tisfc0207tmp.txt&quot;<br />
+	stpapi.put.field(&quot;tisfc0207m000&quot;, &quot;spool.fileout&quot;, &quot;tisfc0207tmp.txt&quot;)<br />
+	stpapi.set.report(&quot;tisfc0207m000&quot;, &quot;rtisfc020701000&quot;, spool.device, error)<br />
+<br />
+<br />
+	|handle yesno prompt ticst01011=yes<br />
+	stpapi.enum.answer(&quot;ticst0101s000&quot;, &quot;ticst01011&quot;, tcyesno.yes)<br />
+<br />
+	|init inv<br />
+	stpapi.form.command( &quot;ticst0101s000&quot;, 5, &quot;exec.cont.process&quot;, error )<br />
+<br />
+The result when you next go into the session is the entire form is filled correctly and if you hit 'initiate inventory' it works fine<br />
+<br />
+Someone else must have done this - help!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th May 2008, 17:57</div></div><div class="posttext">Since I am not a baan 5 expert I can only make guesses on how I would expect it to work - at least in baan 4.  First you put fields on ticst0101s000, then you do something to activate tisfc0207m000 - the question is what?  I do not see anything for that.  Here is what I would expect to happen.<br />
+<br />
+stpapi.handle.subproc(&quot;ticst0101s000&quot;, &quot;tisfc0207m000&quot;, &quot;add&quot;)<br />
+<br />
+| something happens here on ticst0101s000 to activate tisfc0207m00<br />
+<br />
+	|set device, set report<br />
+	spool.device = &quot;ASCIT&quot;<br />
+	spool.fileout=&quot;tisfc0207tmp.txt&quot;<br />
+	stpapi.put.field(&quot;tisfc0207m000&quot;, &quot;spool.fileout&quot;, &quot;tisfc0207tmp.txt&quot;)<br />
+	stpapi.set.report(&quot;tisfc0207m000&quot;, &quot;rtisfc020701000&quot;, spool.device, error<br />
+| Now I would expect something to happen here to generate the report -<br />
+| maybe a continue on tisfc0207m000 and then return to ticst0101s00<br />
+| for final processing.<br />
+<br />
+I know baan 5 is not like 4, but this is my best guess.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Andy..</div><div class="date">13th May 2008, 18:07</div></div><div class="posttext">Hi Mark, thanks for swift response - if I look in the source for session ticst0101s000 that is called when I hit the 'Continue' button (labelled Init. Inv) i see it calls tisfc0207m000 in the background without a window:<br />
+<br />
+function extern exec.cont.process()<br />
+{<br />
+	if item.is.replaced(ticst001.sitm) then			|#131495.n<br />
+		if ask.issue.inventory.immediately() then<br />
+			execute(find.data)<br />
+			|* to display new values<br />
+		endif<br />
+	endif							|#131495.n	<br />
+} <br />
+<br />
+function domain tcbool ask.issue.inventory.immediately()<br />
+{<br />
+	domain	tcmcs.st12	question			|#118885.n<br />
+<br />
+	if ticst001.issu &gt;= 0  then				|#118885.sn<br />
+		question = &quot;ticst01011&quot;<br />
+		|* Issue inventory immediately?<br />
+	else<br />
+		question = &quot;ticst010110&quot;<br />
+		|* Receive inventory immediately?<br />
+	endif<br />
+	if ask.enum(question, empty) = tcyesno.yes then		|#118885.en<br />
+|	if ask.enum(&quot;ticst01011&quot;, empty) = tcyesno.yes then	|#118885.so<br />
+|	|* Issue inventory immediately?				|#118885.eo<br />
+		check.all.input()<br />
+		tisfc010.pdno = ticst001.pdno<br />
+		tisfc010.opno = ticst001.opno<br />
+		zoom.position = ticst001.pono<br />
+		start.session(MODELESS, &quot;tisfc0207m000&quot;, &quot;ticst001.pdno&quot;,&quot;&quot;)<br />
+		|* Initiate Inventory Issue<br />
+		if api.mode then				|#ADC.sn<br />
+			if boi.call = <br />
+				&quot;tiboidll100003.initiateinventoryforitem&quot; then<br />
+			   |* This applies to initiateinventoryforitem method<br />
+			   |* in tiboidll100003.<br />
+				boi.structmatissuereport1 = <br />
+					xmlDuplicateToProcess(<br />
+						processno.boi,	|#162780.n<br />
+|						parent ,	|#162780.o<br />
+						boi.structmatissuereport2, <br />
+						0)<br />
+				export(&quot;structmatissuereport2&quot;,<br />
+						boi.structmatissuereport1)<br />
+								|#162780.sn<br />
+				put.var(processno.boi, &quot;structmatissuereport2&quot;,<br />
+						boi.structmatissuereport1)<br />
+								|#162780.en<br />
+			endif<br />
+		endif						|#ADC.en <br />
+		return(true)<br />
+	endif<br />
+	<br />
+	return(false)<br />
+}<br />
+ <br />
+the only clue the session user gets is that it pops up the shortage report device selection with report tisfc020701000</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th May 2008, 20:23</div></div><div class="posttext">I notice it does some checking for api.mode - have you tried setting that boi.call variable(to tiboidll100003.initiateinventoryforitem)?  Not sure if you need to export this from the AFS program or not.  <br />
+<br />
+Sorry, but since this baan 5 I am not sure what to expect or how to code things.  The only other suggestion I have is to put tisfc0207m000 in debug mode and see what happens when you execute the continue process on ticst0101s000.  If you do this you should be able to see what happens in the tisfc session - what is set, what is execute, etc.  That might help you code it or figure a work around.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Andy..</div><div class="date">14th May 2008, 11:08</div></div><div class="posttext">Hi Mark, that's a good suggestion - I just ran it with sfc0207 in debug and notice the following...<br />
+<br />
+1. the put.field for spool device starts 1 instance of sfc0207 with the variable 'background' set to 0<br />
+2. the cont.process of cst0101s000 calls a 2nd instance of sfc0207 (background=1), when you look in option dialog there are 2 copies running - so spool device setting method is not working in this case<br />
+3. the api.mode settings in sfc0207 deliberately stop you running this via api from cst0101s000 as can be seen here in the sfc0207 code:<br />
+<br />
+function extern continue.process()<br />
+{<br />
+	DllUsage<br />
+	Expl:	This function sets the output device and then the function<br />
+		initiate.wh.orders is called to activate warehouse order lines.<br />
+	Pre :	-<br />
+	Post :	-<br />
+	Input : -<br />
+	EndDllUsage<br />
+<br />
+	long			ret.val		|* return value<br />
+<br />
+	domain tcmcs.s132m 	error.mess	|* error message<br />
+	domain tisfc.devi	outp.devi	|* output device<br />
+<br />
+	check.all.input()	|* Necessary?<br />
+<br />
+	if api.mode then					|#ADC1.0.sn<br />
+		if boi.call = &quot;tiboidll200001.initiateinventory&quot; then<br />
+		   |* This applies to initiateinventory	method in<br />
+		   |* tiboidll200001<br />
+			import(&quot;boi.ctr1&quot;, boi.ctr)<br />
+			import(&quot;boi.error.ctr1&quot;, boi.error.ctr)<br />
+			import(&quot;structinventoryissuerpt1&quot;,<br />
+					boi.fillstructinventoryissuerpt)<br />
+			import(&quot;errorstruct1&quot;, boi.fillerrorstruct)<br />
+			import(&quot;set.error&quot;, boi.set.error)<br />
+			import(&quot;set.updatestatus&quot;, boi.set.updatestatus)<br />
+			boi.node.ctr = 0<br />
+		endif<br />
+	endif							|#ADC1.0.en<br />
+						|#ADC.sn	|#ADC1.0.so<br />
+|	if boi.call &lt;&gt; &quot;tiboidll100003.initiateinventoryforitem&quot; then<br />
+|	   |* This applies to initiateinventoryforitem method in <br />
+|	   |* tiboidll100003			|#ADC.en	|#ADC1.0.eo<br />
+								|#ADC1.0.sn<br />
+	if boi.call &lt;&gt; &quot;tiboidll100003.initiateinventoryforitem&quot; and<br />
+	   boi.call &lt;&gt; &quot;tiboidll200001.initiateinventory&quot; then	<br />
+	   |* This applies to initiateinventoryforitem method in <br />
+	   |* tiboidll100003<br />
+	   |* and initiateinventory method in tiboidll200001	|#ADC1.0.en<br />
+		if not job.process and<br />
+		   not tisfc.dll0225.get.interactive.device(outp.devi) then<br />
+			return<br />
+		endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th May 2008, 13:52</div></div><div class="posttext">I have literally had to code around some things.  So in this case I do not think you need the put field for tisfc0207 since it starts an instance that is not controlled by the baan sessions or you code.<br />
+<br />
+(1) You can try this to see what happens<br />
+<br />
+spool.device = &quot;ASCIT&quot;<br />
+spool.fileout=&quot;tisfc0207tmp.txt&quot;<br />
+boi.call = &quot;tiboidll200001.initiateinventory&quot;<br />
+stpapi.form.command( &quot;ticst0101s000&quot;, 5, &quot;exec.cont.process&quot;, error )<br />
+<br />
+Just to see if the sub-session generates the report.  I am not sure if boi.call has to be imported.  Don't do any put fields on tisfc0207m000.<br />
+<br />
+(2) The other method I have used is to import variables into the subsession and code around what baan does.  We don't own source so I am limited at times, but in this case you could fix the tisfc0207 code to work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lakoon</div><div class="date">15th May 2008, 14:56</div></div><div class="posttext">Hi,<br />
+<br />
+This code is working fine...<br />
+<br />
+<br />
+<br />
+	#define		P.MAIN		&quot;ticst1501m000&quot;<br />
+	#define		P.SUB		&quot;ticst0101s000&quot;<br />
+	#define		P.PRINT		&quot;tisfc0207m000&quot;<br />
+<br />
+function create.prodissue()<br />
+{<br />
+	string	get.pono(10)<br />
+	string	get.disp.offen(20)<br />
+	domain	tcitem	get.item<br />
+	stpapi.put.field(P.MAIN, &quot;ticst001.pdno&quot;, str$(pdno))<br />
+	stpapi.put.field(P.MAIN, &quot;ticst001.pono&quot;, str$(pono))<br />
+	ret.find = stpapi.find(P.MAIN, err.msg)<br />
+	if ret.find = 1 then<br />
+		stpapi.get.field(P.MAIN, &quot;ticst001.pono&quot;, get.pono)<br />
+		stpapi.get.field(P.MAIN, &quot;disp.offen&quot;, get.disp.offen)<br />
+		stpapi.get.field(P.MAIN, &quot;ticst001.sitm&quot;, get.item)<br />
+		ret.sync = stpapi.synchronize.dialog(P.MAIN, &quot;modify&quot;, err.msg)<br />
+		if ret.sync then<br />
+			modify.lines.asf()	<br />
+		else<br />
+			get.api.messages(P.MAIN, sprintf$(<br />
+			&quot;Auftragsposition '%d-%d' kann nicht verwaltet werden&quot;,<br />
+			pdno, pono))				<br />
+		endif<br />
+	else<br />
+		get.api.messages(P.MAIN, &quot;Auftrag nicht vorhanden&quot;)		<br />
+		ret.reco = stpapi.recover(P.MAIN, err.msg)<br />
+	endif<br />
+	stpapi.end.session(P.MAIN, err.msg)<br />
+}<br />
+<br />
+function modify.lines.asf()<br />
+{<br />
+	string	get.subd(20)<br />
+	string	get.ques(20)<br />
+	string	get.issu(20)<br />
+	domain	tcqst1	ques<br />
+	domain	tcqst1	subd<br />
+	domain	tcitem	get.item<br />
+	<br />
+	stpapi.get.field(P.SUB, &quot;ticst001.ques&quot;, get.ques)<br />
+	ques = val(get.ques)<br />
+	stpapi.get.field(P.SUB, &quot;ticst001.issu&quot;, get.issu)<br />
+	stpapi.get.field(P.SUB, &quot;ticst001.subd&quot;, get.subd)<br />
+	subd = val(get.subd)<br />
+	stpapi.get.field(P.SUB, &quot;ticst001.sitm&quot;, get.item)<br />
+	if not issue.end then<br />
+		| Lothandling<br />
+		if item.lot.needed() then<br />
+			stpapi.put.field(P.SUB, &quot;ticst001.lsel&quot;, str$(etol(tclsel.specific)))<br />
+			stpapi.put.field(P.SUB, &quot;ticst001.clot&quot;, clot)<br />
+		endif<br />
+		| Issue<br />
+		stpapi.put.field(P.SUB, &quot;ticst001.issu&quot;, str$(quan))	<br />
+	else<br />
+ 		|Letzte Buchung, Nachentnahmen löschen.<br />
+		| Chargenhandling<br />
+		if item.lot.needed() then<br />
+			stpapi.put.field(P.SUB, &quot;ticst001.lsel&quot;, str$(etol(tclsel.specific)))<br />
+			stpapi.put.field(P.SUB, &quot;ticst001.clot&quot;, clot)<br />
+		endif		<br />
+		stpapi.put.field(P.SUB, &quot;ticst001.issu&quot;, str$(quan))<br />
+ 		stpapi.put.field(P.SUB, &quot;ticst001.subd&quot;, &quot;0.0&quot;)<br />
+ 	endif<br />
+<br />
+	ret.updt = stpapi.update(P.MAIN, true, err.msg)<br />
+	if not ret.updt then<br />
+		get.api.messages(P.MAIN, <br />
+			sprintf$(&quot;Auftragsposition '%d-%d' nicht gespeichert&quot;,<br />
+				pdno, pono))<br />
+		ret.reco = stpapi.recover(P.SUB, err.msg)<br />
+	else<br />
+		stpapi.get.field(P.SUB, &quot;ticst001.ques&quot;, get.ques)<br />
+		stpapi.get.field(P.SUB, &quot;ticst001.issu&quot;, get.issu)<br />
+		stpapi.get.field(P.SUB, &quot;ticst001.subd&quot;, get.subd)<br />
+		if quan &gt;= 0 then<br />
+			stpapi.enum.answer(P.SUB,&quot;ticst01011&quot;, tcyesno.yes)<br />
+		else<br />
+			stpapi.enum.answer(P.SUB,&quot;ticst010110&quot;, tcyesno.yes)<br />
+		endif<br />
+		stpapi.handle.subproc(P.SUB, P.PRINT, &quot;add&quot;)<br />
+ 		stpapi.set.report(P.PRINT, &quot;tisfc020701000&quot;, printer, err.msg)<br />
+		if not isspace(err.msg) then<br />
+			get.api.messages(P.SUB, &quot;Drucker konnten nicht gesetzt werden&quot;)<br />
+		else<br />
+			stpapi.form.command(P.SUB, 5, &quot;exec.cont.process&quot;, err.msg)<br />
+			if not isspace(err.msg) then<br />
+				get.api.messages(P.SUB, <br />
+					sprintf$(&quot;Bestand für Auftragsposition '%d-%d' nicht gespeichert&quot;,<br />
+						pdno, pono))<br />
+				ret.reco = stpapi.recover(P.MAIN, err.msg)<br />
+			else<br />
+				trans.result(1) = str$(pdno) &amp; &quot;|&quot; &amp; str$(pono)<br />
+				send.data.to.client(0,1)<br />
+			endif<br />
+		endif		<br />
+	endif<br />
+	stpapi.end.session(P.PRINT, err.msg)<br />
+	stpapi.end.session(P.SUB, err.msg)<br />
+}<br />
+<br />
+<br />
+/lakoon</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Andy..</div><div class="date">20th May 2008, 18:47</div></div><div class="posttext">Hi lakoon - unfortunately I didnt get the email telling me you had posted a response.  I had to rewrite to run the two sessions seperately - not as elegant but at least its working!  Thanks for posting your code, I'll take a look at it and see if I can spot the difference</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lakoon</div><div class="date">19th November 2008, 22:55</div></div><div class="posttext">Hi Andy<br />
+<br />
+I just had to solve the same problem as you did. I think the reason of our problem is sp23. Before sp23 my solution was working fine.<br />
+<br />
+source:<br />
+<br />
+<br />
+function create.prodissue()<br />
+{<br />
+	string	get.pono(10)<br />
+	string	get.opno(10)			<br />
+	string	get.disp.offen(20)<br />
+	domain	tcopno	opno<br />
+	domain	tcitem	get.item<br />
+	stpapi.put.field(P.MAIN, &quot;ticst001.pdno&quot;, str$(pdno))<br />
+	stpapi.put.field(P.MAIN, &quot;ticst001.pono&quot;, str$(pono))<br />
+	ret.find = stpapi.find(P.MAIN, err.msg)<br />
+	if ret.find = 1 then<br />
+		stpapi.get.field(P.MAIN, &quot;ticst001.pono&quot;, get.pono)<br />
+		stpapi.get.field(P.MAIN, &quot;disp.offen&quot;, get.disp.offen)<br />
+		stpapi.get.field(P.MAIN, &quot;ticst001.sitm&quot;, get.item)<br />
+		stpapi.get.field(P.MAIN, &quot;ticst001.opno&quot;, get.opno)<br />
+		opno = lval(get.opno)<br />
+		ret.sync = stpapi.synchronize.dialog(P.MAIN, &quot;modify&quot;, err.msg)<br />
+		if ret.sync then<br />
+			modify.lines.asf()<br />
+		else<br />
+			get.api.messages(P.MAIN, sprintf$(<br />
+			&quot;Auftragsposition '%d-%d' kann nicht verwaltet werden&quot;,<br />
+			pdno, pono))				<br />
+		endif<br />
+	else<br />
+		get.api.messages(P.MAIN, &quot;Auftrag nicht vorhanden&quot;)		<br />
+		ret.reco = stpapi.recover(P.MAIN, err.msg)<br />
+	endif<br />
+	stpapi.end.session(P.MAIN, err.msg)<br />
+	book.material.definitive(opno)	<br />
+}<br />
+<br />
+<br />
+function modify.lines.asf()<br />
+{<br />
+	if not issue.end then<br />
+		| Chargenhandling<br />
+		if item.lot.needed() then<br />
+			stpapi.put.field(P.SUB, &quot;ticst001.lsel&quot;, str$(etol(tclsel.specific)))<br />
+			stpapi.put.field(P.SUB, &quot;ticst001.clot&quot;, clot)<br />
+		endif<br />
+		| Entnahme<br />
+		stpapi.put.field(P.SUB, &quot;ticst001.issu&quot;, str$(quan))	<br />
+	else<br />
+ 		|Letzte Buchung, Nachentnahmen löschen.<br />
+		| Chargenhandling<br />
+		if item.lot.needed() then<br />
+			stpapi.put.field(P.SUB, &quot;ticst001.lsel&quot;, str$(etol(tclsel.specific)))<br />
+			stpapi.put.field(P.SUB, &quot;ticst001.clot&quot;, clot)<br />
+		endif		<br />
+		stpapi.put.field(P.SUB, &quot;ticst001.issu&quot;, str$(quan))<br />
+ 		stpapi.put.field(P.SUB, &quot;ticst001.subd&quot;, &quot;0.0&quot;)<br />
+ 	endif<br />
+	ret.updt = stpapi.update(P.MAIN, true, err.msg)<br />
+	if not ret.updt then<br />
+		get.api.messages(P.MAIN, <br />
+			sprintf$(&quot;Auftragsposition '%d-%d' nicht gespeichert&quot;,<br />
+				pdno, pono))<br />
+		ret.reco = stpapi.recover(P.SUB, err.msg)<br />
+	else<br />
+	endif<br />
+	stpapi.end.session(P.SUB, err.msg)<br />
+}<br />
+<br />
+<br />
+function book.material.definitive(<br />
+		domain	tcopno	i.opno)<br />
+{<br />
+			long	ret<br />
+	stpapi.put.field(P.PRINT, &quot;pdno.f&quot;, str$(pdno))<br />
+	stpapi.put.field(P.PRINT, &quot;pdno.t&quot;, str$(pdno))<br />
+	stpapi.put.field(P.PRINT, &quot;way.of.selection&quot;, str$(etol(tisfc.wybf.one)))<br />
+	stpapi.put.field(P.PRINT, &quot;operation&quot;, str$(i.opno))<br />
+	stpapi.set.report(P.PRINT, &quot;tisfc020701000&quot;, printer, err.msg)<br />
+	stpapi.form.command(P.PRINT, 5, &quot;continue.process&quot;, err.msg)<br />
+	if not isspace(err.msg) then<br />
+		get.api.messages(P.SUB, <br />
+			sprintf$(&quot;Bestand für Auftrag und AG '%d-%d' nicht verbucht&quot;,<br />
+				pdno, i.opno))<br />
+		ret.reco = stpapi.recover(P.MAIN, err.msg)<br />
+	else<br />
+		trans.result(1) = str$(pdno) &amp; &quot;|&quot; &amp; str$(i.opno)<br />
+		send.data.to.client(0,1)<br />
+	endif<br />
+	stpapi.end.session(P.PRINT)<br />
+}<br />
+<br />
+<br />
+/lakoon</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lakoon</div><div class="date">23rd November 2008, 20:06</div></div><div class="posttext">Hello<br />
+<br />
+I solved also the &quot;old&quot; way. (Running tisfc0207m000 from the Button in Session ticst0101s000&quot;).<br />
+I had to customize the script of Session tisfc1501m000 to pass the variable boi.call. I you do so, the session tisfc0207m000 behaves as expected.<br />
+<br />
+/Lakoon</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

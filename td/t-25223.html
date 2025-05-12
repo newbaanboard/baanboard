@@ -1,0 +1,309 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="copying a record, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] copying a record Tools Development" />
+	
+	<title>copying a record [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; copying a record</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">29th September 2005, 21:38</div></div><div class="posttext">Hello everyone,<br />
+<br />
+I remember seeing this once. When you read a record in a table, you can define a variable of type of that record where afterwards you can store the values of the entire record in that variable, without having to move field by field in different variables.<br />
+<br />
+Does anyone knows about it?<br />
+<br />
+Thanks in advance,<br />
+<br />
+Carlos<br />
+<br />
+ :confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">29th September 2005, 21:55</div></div><div class="posttext">I believe you are referring to the - rcd (record buffer for table) option.<br />
+<br />
+Refer to the links in programmer's manual -<br />
+<br />
+db.bind() (http://www.baanboard.com/programmers_manual_baanerp_help_functions_db_operations_db_bind) <br />
+<br />
+NULL characters in strings (http://www.baanboard.com/programmers_manual_baanerp_help_3gl_features_null_characters_in_strings) <br />
+<br />
+Refer to the library - tccomdll0201 -  Handle Cache Memory is a very good example for this usage.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">3rd October 2005, 15:39</div></div><div class="posttext">Thanks NPRao,<br />
+this is exactly what I need. But I do not know why, when I do the db.record.to.columns() and check for the values in tiitm001.dsca or any onther field still having the values of the item I read (&quot;B&quot;) on my last read. I want to move all values from record &quot;A&quot; to Record &quot;B&quot; and change just the Item code.<br />
+<br />
+<br />
+function copy.entire.record()<br />
+{<br />
+        domain  tcmcs.long      pointer1<br />
+        domain  tcmcs.long      t.error<br />
+        domain  tcitem           t.item<br />
+<br />
+        tt.align.according.domain(&quot;A&quot;,t.item,&quot;tcitem&quot;)<br />
+        select tiitm001.*<br />
+        from   tiitm001<br />
+        where  tiitm001._index1 = {:t.item}<br />
+        selectdo<br />
+                pointer1 = db.bind(&quot;ttiitm001&quot;)<br />
+        endselect<br />
+        tt.align.according.domain(&quot;B&quot;,t.item,&quot;tcitem&quot;)<br />
+        select tiitm001.*<br />
+        from  tiitm001<br />
+        where tiitm001._index1 = {:t.item}<br />
+        selectdo<br />
+        endselect<br />
+        t.error = db.record.to.columns(pointer1)<br />
+        tt.align.according.domain(&quot;B&quot;,t.item,&quot;tcitem&quot;)<br />
+        tiitm001.item = t.item<br />
+     ...... ....<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">3rd October 2005, 16:23</div></div><div class="posttext">Thanks again,<br />
+<br />
+I managed. Now I understand how it works.<br />
+<br />
+Thanks,<br />
+<br />
+Carlos<br />
+<br />
+ :rolleyes:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">3rd October 2005, 18:57</div></div><div class="posttext">I am faceing a new problem. When I want to update the data on my second record I got a DB error (record not locked). I can't see why?.<br />
+<br />
+Thanks in advance<br />
+<br />
+<br />
+               db.row.length(ttiitm001,buff.size)<br />
+                alloc.mem(rec.buff,buff.size)<br />
+                select tiitm001.*<br />
+                from   tiitm001<br />
+                where  tiitm001._index1 = {:i.item}<br />
+                selectdo<br />
+                        table.id = db.bind(&quot;ttiitm001&quot;,rec.buff)<br />
+                        db.columns.to.record(table.id)<br />
+                endselect<br />
+                db.retry.point()<br />
+                select tiitm001.*<br />
+                from   tiitm001 for update<br />
+                where  tiitm001._index1 = {:copy.item}<br />
+                selectdo<br />
+                        db.record.to.columns(table.id)<br />
+                        tiitm001.item = copy.item<br />
+                        db.update(ttiitm001,db.retry)   |crashes right here<br />
+                        commit.transaction()<br />
+                endselect<br />
+                free.mem(rec.buff)<br />
+<br />
+<br />
+ :confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">3rd October 2005, 19:53</div></div><div class="posttext">Try not selecting the record for update.  Instead, after you change the item value, choose db.insert..</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">3rd October 2005, 20:29</div></div><div class="posttext">Thanks Ibencic,<br />
+<br />
+Thing is that the item already exists, I just want to change all values from other item code.<br />
+<br />
+Carlos.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">3rd October 2005, 20:39</div></div><div class="posttext">O.<br />
+<br />
+You will have to lock the old record, not the one you are trying to copy.   <br />
+<br />
+- Read the record you want to copy from, not for update.  Store the record value into a variable using the rcd.tablename - use that bind from above<br />
+<br />
+- Read target record for update<br />
+<br />
+-- Within select do, assign your held record variable to the record buffer - use the bind from above.<br />
+-- Put the Item back to what you are trying to update (tiitm001.item = myitem, tiitm001.dsca = myitemdescription)<br />
+-- db.update</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">4th October 2005, 14:13</div></div><div class="posttext">Hi Ibencic,<br />
+<br />
+I think what you are describing, it is what my code does, isn't?<br />
+<br />
+First I read my source item (not for update).<br />
+Store the entire record in rec.buff variable. <br />
+Then I read my target(copy.item) for update.<br />
+After that(in selectdo), call back the values stored in the rec.buff(from my source).<br />
+Then replace the item code with my target &quot;copy.item&quot; (which I do not want it to be changed) <br />
+Then do the update.<br />
+<br />
+I do not know if this is different from what you described to me.<br />
+<br />
+Thanks,<br />
+<br />
+Carlos<br />
+<br />
+ :confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">4th October 2005, 16:00</div></div><div class="posttext">Yes, that's as described, I mixed up what 'copy.item' was.  I wonder if the record to column stuff is messing up the lock, I have not used those.  NP, has this worked for you in the past?  <br />
+<br />
+I have worked with that rcd.ttiitm001 variable before.  It's just a long string variable, it stores the entire record.  Can you try storing that instead and then restore it?  Instead of those binds?  <br />
+<br />
+Sorry, would need more time to play to be sure.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th October 2005, 16:15</div></div><div class="posttext">I do this in a program and it does work:<br />
+<br />
+<br />
+| Material Commitments<br />
+	record.len = 0<br />
+	free.mem(record.buf)<br />
+	select	tpppc210.*<br />
+	from	tpppc210 <br />
+	where	tpppc210._index6 inrange {:cprj.f, :cspa.f} and {:cprj.t, :cspa.t}<br />
+	and	tpppc210.ltdt inrange :date.f and :date.t<br />
+	and	tpppc210.cfpo = tppdm.yeno.no<br />
+	selectdo<br />
+		if checklogin(tpppc210.loco) then<br />
+			continue<br />
+		endif<br />
+		store.tpppc210.record.buffer()<br />
+		if determine.prorate(tpppc210.cprj,<br />
+					tpppc210.cspa,<br />
+					tpppc210.sern,<br />
+					tpppc210.item,<br />
+					tpppc210.quan,<br />
+					tpppc210.pric,<br />
+					tpppc210.amoc,<br />
+					0.0,<br />
+					0.0,<br />
+					tpppc210.loco,<br />
+					&quot;Mat. Comm.&quot;,<br />
+					5,<br />
+					tpppc210.ltdt) then<br />
+| Store the record and updated it as prorated.					<br />
+			rcd.ttpppc210 = record.buf<br />
+			db.eq(ttpppc210,db.lock)<br />
+			tpppc210.loco = &quot;Prorate&quot;<br />
+			db.update(ttpppc210)<br />
+			commit.transaction()<br />
+		endif<br />
+	endselect<br />
+<br />
+The above code updates a current record.  The determine prorate will execute the below code to insert a new record.<br />
+<br />
+<br />
+		case 5:			| Material commitments<br />
+			db.set.to.default(ttpppc210)<br />
+			rcd.ttpppc210 = record.buf<br />
+			tpppc210.cprj = tppro603.nprj<br />
+			tpppc210.sern = get.next.tpppc210.sern(tppro603.nprj)<br />
+			tpppc210.cspa = tppro603.csp1<br />
+			tpppc210.quan = total.quan * somemultiplier	| Quantity<br />
+			tpppc210.amoc = total.amoc * somemultiplier	| Total Amount<br />
+			tpppc210.loco = somelogin<br />
+			db.insert(ttpppc210,db.retry)<br />
+			commit.transaction()<br />
+			break<br />
+<br />
+<br />
+I think something like this is what Lisa is referring to.  Not sure if this helps.<br />
+<br />
+Ooops forgot to add the store buffer routine:<br />
+<br />
+function store.tpppc210.record.buffer()<br />
+{<br />
+	if not record.len then<br />
+		db.row.length(ttpppc210, record.len)<br />
+		alloc.mem(record.buf, record.len)<br />
+	endif<br />
+	record.buf = rcd.ttpppc210<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">4th October 2005, 16:18</div></div><div class="posttext">Thanks Mark, that's exactly it.  Hopefully this will not mess up the lock when you try the update instead of insert.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">4th October 2005, 16:33</div></div><div class="posttext">Lisa,<br />
+<br />
+I think is a problem when using and db.xxxx functions, within the selectdo... as soon I put any of these functions the record is unlock.<br />
+<br />
+I will try to figure out how to make it work. If you have any idea, please let me know.<br />
+<br />
+ <br />
+                db.row.length(ttiitm001,buff.size)<br />
+                alloc.mem(rec.buff,buff.size)<br />
+                select tiitm001.*<br />
+                from   tiitm001<br />
+                where  tiitm001._index1 = {:i.item}<br />
+                selectdo<br />
+                        table.id = db.bind(&quot;ttiitm001&quot;,rec.buff)<br />
+                        db.columns.to.record(table.id)<br />
+                endselect<br />
+                db.unbind(table.id)<br />
+                db.unbind(ttiitm001)                <br />
+                rec.buff(1;16) = copy.item<br />
+                db.retry.point()<br />
+                select tiitm001.*<br />
+                from   tiitm001 for update<br />
+                where  tiitm001._index1 = {:copy.item}<br />
+                selectdo<br />
+                        copy.mem(rcd.ttiitm001,rec.buff)<br />
+                        free.mem(rec.buff)<br />
+                        db.record.to.columns(ttiitm001)<br />
+                        db.update(ttiitm001,db.retry) |Still crashing here                       <br />
+                        commit.transaction()<br />
+<br />
+<br />
+Thanks,<br />
+<br />
+Carlos</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">4th October 2005, 16:37</div></div><div class="posttext">It's possible that changing the main key will flat out remove the lock, no matter which method, but try as Mark has shown, without the db.record.to.column there.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">4th October 2005, 16:41</div></div><div class="posttext">PS.. you could manually issue the db.lock.table command.  It's not pretty, but I've seen Baan do it still.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">14th October 2005, 14:23</div></div><div class="posttext">Thanks,<br />
+<br />
+I relized that by copying the record this way with db.bind and changing only the item code before I insert it, some how relation to other tables are kept from the old item to the new Item.<br />
+<br />
+After inserting the new record with new Item code and then the very next step I do is to try to delete this new record. BaaN gives me a message &quot; Item Can not be deleted, present in Purchase order 1233....&quot;... I don't want to go there...<br />
+<br />
+I just will play safe and copy the record with the Item Default data and replece the values values from my source item manually.<br />
+<br />
+Thanks,<br />
+<br />
+Carlos</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">18th October 2005, 04:09</div></div><div class="posttext">The locking problems occur since a copy of the 'rcd.' buffer contains a few hidden fields that you must handle manually.  If you run a script in debug and look at all fields that are stored at the record level, you will see a few that contain company, reference, and locking info.  Most folks are familiar with the '_compnr' and '_index' fields, but there is also a field for the locking status, which normally causes the errors after maniplating a record at the buffer (rcd) level.  I often use this type of logic when writing custom archiving sessions, where the archive may be an insert or overwrite (update). In this case, the lock level is saved before the buffer is overwriten, then restored to ensure that the db.update or db.insert will work as expected.<br />
+<br />
+long tmp.lock<br />
+<br />
+	                             | Save the lock status since the record<br />
+	                             | copied from the 'source' company will<br />
+	                             | have different values.<br />
+tmp.lock = ticpr050._dlock<br />
+rcd.tticpr050 = saved.buf<br />
+<br />
+	                             | Restore lock and company fields.<br />
+ticpr050._compnr = ncmp.t<br />
+ticpr050._dlock = tmp.lock</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

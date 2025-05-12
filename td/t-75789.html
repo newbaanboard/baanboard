@@ -1,0 +1,209 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="session slowness, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] session slowness Tools Development" />
+	
+	<title>session slowness [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; session slowness</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">suhas-mahajan</div><div class="date">11th May 2023, 05:50</div></div><div class="posttext">Hi<br />
+<br />
+We have a customized session that takes 6 hrs to complete but the same session gets completed in 1.5 hrs on another server that has similar data-DB-hardware.<br />
+<br />
+When I spooled CGP, noticed that runtime is well over two times the CPU time for a query. What could be the reason for the higher CPU time for the query?<br />
+<br />
+I have already dropped/recreated / re-orged the table.<br />
+<br />
+Please help.<br />
+<br />
+thanks and regards<br />
+<br />
+-Suhas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th May 2023, 14:54</div></div><div class="posttext">I can think of several questions - same versions of all the components exactly the same on both systems?  No extra patching on one or the other.  Same exact version of Oracle on both servers?  Can you get the oracle dba's to get a trace on the back end on both servers to see what is running?  Years ago we had a situation where one server oracle was smart enough to use an index, but on the other server it was using a no index was being called - so somewhere between oracle and the baan drivers something was happening on one session.  Once we went in and called the index - both servers worked the same.  That one was solved - I never could figure out why our test systems would work just comparing 2 doubles, but in production you had to use double.cmp.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">11th May 2023, 17:18</div></div><div class="posttext">You can run the session in profile mode and then show the &quot;most expensive&quot; query here.<br />
+<br />
+I use these BW settings for creating a profile:-set NO_WORKTOP=1 -keeplog -logfile MyProfileLog.txt -set PROFILE_ALL=1 -set PROF_RTIME=1 -set BDB_ALWAYS_FLUSH=1 -set PROF_DIR=Profiler -nodebug -set PROF_CLIENT=save &lt;sessioncode_to_run&gt;</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">suhas-mahajan</div><div class="date">12th May 2023, 20:35</div></div><div class="posttext">I can think of several questions - same versions of all the components exactly the same on both systems?  No extra patching on one or the other.  Same exact version of Oracle on both servers?  Can you get the oracle dba's to get a trace on the back end on both servers to see what is running?  Years ago we had a situation where one server oracle was smart enough to use an index, but on the other server it was using a no index was being called - so somewhere between oracle and the baan drivers something was happening on one session.  Once we went in and called the index - both servers worked the same.  That one was solved - I never could figure out why our test systems would work just comparing 2 doubles, but in production you had to use double.cmp.<br />
+<br />
+Thanks, Mark, you are always first to help :)<br />
+<br />
+Both servers are not exactly identical but data perspective yes. There is a porting set difference as I noticed today but that shouldn't triple the issue. Here we use MS-SQL. You are right there is something not working at DB level. Here is the SQL for your reference -<br />
+<br />
+        select   trcnh040._index1, trcnh040.cmid, trcnh040.item, trcnh040.dpsr,<br />
+                trcnh040.cpsr, trcnh040.duom, trcnh040.prcd, trcnh040.dsrs,<br />
+                trcnh040.dnpr, trcnh040.pcls, trcnh040.apsr, trcnh040.aprc,<br />
+                trcnh040.apsc, trcnh040.dbnl, trcnh040.dsrs, trcnh040.dpad,<br />
+                trcnh040.apqn, trcnh040.ohqn, trcnh040.orqn, trcnh040.ooqn,<br />
+                trcnh040.ocqn, trcnh040.dpqn<br />
+        from    trcnh040<br />
+        where   trcnh040._index2 = {    :g.item,<br />
+                                        :g.cmnf,<br />
+                                        :l.cpsr,<br />
+                                        :g.cpcl,<br />
+                                        :l.cmid,<br />
+                                        :g.cuni,<br />
+<br />
+                                        :g.prcd,                                <br />
+<br />
+                                        :g.pcls,                                <br />
+                                        :l.dbnl,<br />
+                                        :g.cdat,<br />
+                                        :g.apsr,<br />
+                                        :g.aprc,<br />
+                                        :g.apsc,<br />
+                                        :g.ifid,<br />
+                                        :g.msid,<br />
+                                        :g.exwr}<br />
+        order by trcnh040.rpid desc<br />
+        as set with 1 rows</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">suhas-mahajan</div><div class="date">12th May 2023, 20:37</div></div><div class="posttext">You can run the session in profile mode and then show the &quot;most expensive&quot; query here.<br />
+<br />
+I use these BW settings for creating a profile:-set NO_WORKTOP=1 -keeplog -logfile MyProfileLog.txt -set PROFILE_ALL=1 -set PROF_RTIME=1 -set BDB_ALWAYS_FLUSH=1 -set PROF_DIR=Profiler -nodebug -set PROF_CLIENT=save &lt;sessioncode_to_run&gt;<br />
+<br />
+thanks OmeLuuk.<br />
+<br />
+We could already generate CGP using a profiler. Do you have any other clue?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th May 2023, 01:11</div></div><div class="posttext">Thanks, Mark, you are always first to help :)<br />
+<br />
+Both servers are not exactly identical but data perspective yes. There is a porting set difference as I noticed today but that shouldn't triple the issue. Here we use MS-SQL. You are right there is something not working at DB level. <br />
+Well I can't say for sure since I no longer have access to the systems(I retired), but I think it was a porting set upgrade that caused our Billable cost report session to break.  It would just run for hours.  And eventually the session would crash with out of memory or something like that.  So what infor has us try was another portingset update - the session would run to completion and work.  But the issue was there were now sessions like maintain item data that would core dump.  So to fix that baan had us install a new bshell object that worked - but it was not for 4c4 and not supported.  So in production we have 2 logins for now - one runs all the normal sessions for normal users(BUT billable cost reports will fail, there could be other things also - but this is one that is still needed), then we have a second BSE environment that runs new portingset and bshell to run billable cost reports.  If I have access I would confirm that second bshell versions (portingset). I just know that environment is not supported by infor.  Test is no longer running for compliance.<br />
+<br />
+Have you got an SR with Infor?  For MS SQL can anyone get execution runs(see execution) and times on the backend?  Something that might help.  I just know with oracle they can see SQL executions and run times. I know at times they created hints and or indexes in the background to help execution times.  Not sure what is possible with MS SQL.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">suhas-mahajan</div><div class="date">13th May 2023, 12:35</div></div><div class="posttext">sad to see you retired but happy to see you are enjoying your retired life and still want to continue in support.<br />
+<br />
+With the newer version, VGP will tell you SQL execution and run times. The one I have pasted is the culprit but surprisingly it's working fine on another environment.<br />
+<br />
+Do you have any clue?<br />
+<br />
+thanks an regards<br />
+<br />
+-Suhas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th May 2023, 17:47</div></div><div class="posttext">Not really - that sucker is returning one row so I would remove the order by, but I don't think that is the issue. You dropped and re-created the table, which should refresh the indexes. I have never included an index in the select like that - trcnh040._index1, but again I see nothing wrong with that.  So not sure what to try or where to look - I do not know about MS SQL.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">15th May 2023, 18:30</div></div><div class="posttext">thanks OmeLuuk.<br />
+<br />
+We could already generate CGP using a profiler. Do you have any other clue?<br />
+Compare. The logging between both systems should be the same from ERPLN perspective but different from Database perspective. The most expensive queryselect   trcnh040._index1, trcnh040.cmid, trcnh040.item, trcnh040.dpsr,<br />
+         trcnh040.cpsr, trcnh040.duom, trcnh040.prcd, trcnh040.dsrs,<br />
+         trcnh040.dnpr, trcnh040.pcls, trcnh040.apsr, trcnh040.aprc,<br />
+         trcnh040.apsc, trcnh040.dbnl, trcnh040.dsrs, trcnh040.dpad,<br />
+         trcnh040.apqn, trcnh040.ohqn, trcnh040.orqn, trcnh040.ooqn,<br />
+         trcnh040.ocqn, trcnh040.dpqn<br />
+from     trcnh040<br />
+where trcnh040._index2 = {:g.item, :g.cmnf, :l.cpsr, :g.cpcl,<br />
+                          :l.cmid, :g.cuni, :g.prcd, :g.pcls,<br />
+                          :l.dbnl, :g.cdat, :g.apsr, :g.aprc,<br />
+                          :g.apsc, :g.ifid, :g.msid, :g.exwr}<br />
+order by trcnh040.rpid desc<br />
+as set with 1 rows<br />
+I have no access to the table definition (please upload the dtrchn040 file), to further see the validity of these questions:  Is there a difference in mentioning these fields and use of *? (When * is used all fields will be listed in the way they are stored, without reordering in between)<br />
+ Is any of the fields in the select also included in _index1? (mentioning a field twice will not change the data content, but changes the handling)<br />
+ Is it true that _index2 does have 16 fields in total (as Mark states only one record should be returned)? (if one record is returnd there is no use to order it)<br />
+ Is field trcnh040.rpid not mentioned in any index as first field? (in case it is in index x next step would be: use index hint like below)<br />
+ Does adding an index hint (as in hint use index x, 2 on table trchn040)<br />
+ The order of fields in the select (contribute to an index hint) differs from the fields in the (first) where clause, what will happen when both fields are in the same sequence (like in index x, 2)?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">suhas-mahajan</div><div class="date">20th June 2023, 19:58</div></div><div class="posttext">thanks for the responses.<br />
+<br />
+Sorry for the delayed response. I was busy building a clone server which is 2-tier  and production is on 3-tier.<br />
+<br />
+I noticed that on close the session is just taking 1 hr and production takes 6 hrs.<br />
+<br />
+Is it because the 3-tier runs slower for longer reports/sessions?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">suhas-mahajan</div><div class="date">20th June 2023, 19:59</div></div><div class="posttext">Compare. The logging between both systems should be the same from ERPLN perspective but different from Database perspective. The most expensive queryselect   trcnh040._index1, trcnh040.cmid, trcnh040.item, trcnh040.dpsr,<br />
+         trcnh040.cpsr, trcnh040.duom, trcnh040.prcd, trcnh040.dsrs,<br />
+         trcnh040.dnpr, trcnh040.pcls, trcnh040.apsr, trcnh040.aprc,<br />
+         trcnh040.apsc, trcnh040.dbnl, trcnh040.dsrs, trcnh040.dpad,<br />
+         trcnh040.apqn, trcnh040.ohqn, trcnh040.orqn, trcnh040.ooqn,<br />
+         trcnh040.ocqn, trcnh040.dpqn<br />
+from     trcnh040<br />
+where trcnh040._index2 = {:g.item, :g.cmnf, :l.cpsr, :g.cpcl,<br />
+                          :l.cmid, :g.cuni, :g.prcd, :g.pcls,<br />
+                          :l.dbnl, :g.cdat, :g.apsr, :g.aprc,<br />
+                          :g.apsc, :g.ifid, :g.msid, :g.exwr}<br />
+order by trcnh040.rpid desc<br />
+as set with 1 rows<br />
+I have no access to the table definition (please upload the dtrchn040 file), to further see the validity of these questions:  Is there a difference in mentioning these fields and use of *? (When * is used all fields will be listed in the way they are stored, without reordering in between)<br />
+ Is any of the fields in the select also included in _index1? (mentioning a field twice will not change the data content, but changes the handling)<br />
+ Is it true that _index2 does have 16 fields in total (as Mark states only one record should be returned)? (if one record is returnd there is no use to order it)<br />
+ Is field trcnh040.rpid not mentioned in any index as first field? (in case it is in index x next step would be: use index hint like below)<br />
+ Does adding an index hint (as in hint use index x, 2 on table trchn040)<br />
+ The order of fields in the select (contribute to an index hint) differs from the fields in the (first) where clause, what will happen when both fields are in the same sequence (like in index x, 2)?<br />
+<br />
+<br />
+No, that's not the cases.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">21st June 2023, 10:18</div></div><div class="posttext">1) Tabledef? (upload RDD file dtrcnh/dtrcnh040)<br />
+2) Did you try * instead of field list as in &quot;select trcnh040.*&quot;?<br />
+3) There are even more than 16 fields in index2? What is the row count (and record length) on this table (use ttaad4100, select table, press 0 (zero))<br />
+4) If one of the other indices has trcnh040.rpid (say index y) add &quot;hint use index y,2 on table trcnh040&quot; if not then only add &quot;hint use index 2 on table trcnh040&quot;<br />
+5) What if when you use select trcnh040.item, trcnh040.cmnf, trcnh040.cpsr, trcnh040.cpcl, trcnh040.cmid, trcnh040.cuni, trcnh040.prcd, trcnh040.pcls, trcnh040.dbnl, trcnh040.cdat, trcnh040.apsr, trcnh040.aprc, trcnh040.apsc, trcnh040.ifid, trcnh040.msid, trcnh040.exwr, (add missing extra fields needed in the select), so field order equal to index2 variables mentioned?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">suhas-mahajan</div><div class="date">21st June 2023, 17:38</div></div><div class="posttext">Thanks OmeLuuk<br />
+<br />
+Ultimately same session/query is working on the clone which is on 2-tier and is working perfectly.<br />
+<br />
+So do you think tabledef / hint / column and row count matters?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd June 2023, 00:29</div></div><div class="posttext">Here is what is going thru my mind from an oracle perspective - keep in mind I do not know ms-sql and I do think porting set could matter.  In oracle I can get the dba's to show me exactly what would execute on the oracle database server - so it would not look like the baan sql in post #4.  It would be something like select t$trcnh040101.fieldname and no I do not remember the exact format, but the tables where the complete full name with company number included.  They see what the baan oracle driver converted it to execute against the database - so things they can do is add stuff to oracle like hints, etc.  And like I mentioned one system included the index with out calling it out - the other system did not call out the specific index and it became a sequential read.  So once I went in and said specifically that _index1 = {:ordr.f, pono.f} both systems converted it to the same.  I kind of expect a ms sql driver to do the same thing, but I don't know for sure.  I figure you have to have table names with company number in them like oracle because some info is in company 000.  I just don't know enough about MS sql to make recommendations.<br />
+<br />
+I can't say for sure that the 3 tier vs 2 tier is the issue.  If there were network problems between the app and database server I would expect more issues to show up other than one slow query.<br />
+<br />
+I think omeluuk wants you to try:<br />
+<br />
+<br />
+select trcnh040.*<br />
+from     trcnh040<br />
+where trcnh040._index2 = {:g.item, :g.cmnf, :l.cpsr, :g.cpcl,<br />
+                          :l.cmid, :g.cuni, :g.prcd, :g.pcls,<br />
+                          :l.dbnl, :g.cdat, :g.apsr, :g.aprc,<br />
+                          :g.apsc, :g.ifid, :g.msid, :g.exwr}<br />
+as set with 1 rows<br />
+<br />
+I took out the order by - not really needed if you are returning just 1 row.  Just something to try to see if it helps the performance.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">suhas-mahajan</div><div class="date">2nd July 2023, 20:31</div></div><div class="posttext">Thanks Mark.<br />
+<br />
+But the same query is being worked for 2-tier.<br />
+<br />
+thanks and regards<br />
+<br />
+-Suhas</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

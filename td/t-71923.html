@@ -1,0 +1,79 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Exchange using global variables, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Exchange using global variables Tools Development" />
+	
+	<title>Exchange using global variables [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Exchange using global variables</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">SandraDiehl</div><div class="date">9th May 2019, 21:15</div></div><div class="posttext">System Details First:<br />
+running on tools service pack 12<br />
+Linux environment: RedHat Enterprise Linux 7<br />
+Porting Set: 6.1c.19<br />
+<br />
+Mystery issues arise with some exchange schemas that seems to have worked but not sure when it broke.  I'm familiar with exchange but am not the one who created them.  In this schema it is updating the contracts tdssc001 and tdssc065 a global variable was defined in the first condition that is used to determine if the exchange schema should stop.<br />
+<br />
+All Execute conditions on the import relations has the condition EXEC which all it has:<br />
+if fatal_err2 = 1 then<br />
+  return(false)<br />
+endif<br />
+return(true)<br />
+<br />
+Other conditions that are set in the Add have logic to set fatal_err2 in the first condition fatal_err and fatal_err2 are introduced as extern long and initialized with 0.  They are set when reading the file and validating the input which should stop the schema.  While in debug I watched it set it but when it came to the EXEC condition it saw fatal_err2 set to 0.<br />
+<br />
+I tried to &quot;compile&quot; the conditions and I get error that they are not defined.  I even tried to recreate the schema just to see if there was some strange character that I was not noticing and still same thing fatal_err although should be global it is not getting recognized.<br />
+<br />
+Is this a flaw with linux/porting set or am I missing something completely...after all these exchange schemes were created back in 2000 and have been working with the last change happening 2018 prior to moving to Linux.<br />
+<br />
+No way are we going to be able to update the porting set and service packs code is too heavily customized and not enough developers and functional group to do the changes and testing.  Is there a way I can &quot;trick&quot; by pass to have a variable to determine if the schema encounters and error and stops?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th May 2019, 15:02</div></div><div class="posttext">I am not sure this is related or not - but last year on 4c4 we upgraded to new licensing.  Once we did that things like ${BSE} stopped working in exchange schemes - so we basically stopped using those type variables (we were converting to oracle).  For example the path to exchange objects went from like ${BSE}/data/${SITE}/obj to /apps/baan/.../obj.  I am thinking there is flaw in there - we should have logged a case with infor, but did not since we only had a few exchange schemes to run for the conversion.<br />
+<br />
+Have you tried declaring it in each spot used?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">SandraDiehl</div><div class="date">10th May 2019, 18:01</div></div><div class="posttext">Thanks Mark I had thought if I declare the variable in each script then it treats it as a &quot;new&quot; version of that variable...didn't realize it would retain the value.  I put the scheme in debug and it seems to have kept the value.<br />
+<br />
+Learn something new after programming BaaN for almost 20 years WOW.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">12th May 2019, 08:53</div></div><div class="posttext">As i understand there are two conditions, in the first condition, the parameters fatal_err and fatal_err2 are initialized and in the second condition,this particular code is written<br />
+<br />
+if fatal_err2 = 1 then<br />
+return(false)<br />
+endif<br />
+return(true)<br />
+<br />
+<br />
+Are these two variables fatal_err and fatal_err2 defined as Parameters in the condition? There is a parameter session, right? in Maintain Condiitions Specific</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">SandraDiehl</div><div class="date">13th May 2019, 14:55</div></div><div class="posttext">Ajesh,<br />
+Yes there is a parameter and is used for the data coming from the csv file to pass along but exchange you should be able to declare external variables that is known in all conditions without using the parameters...My understanding is the parameters are constant and do not change where as my external variables can change.<br />
+These exchange scheme had been written back in 2000 and have NOT had any issues with use of the external variables being declared in the first condition.  This is first time having issues due to a change in the server environment and having to make a change to the exchange scheme.  I have other schemes that are working as is but if I were to &quot;regenerate&quot; it will have issues.<br />
+I have tried what Mark suggested and through debug I see it is retaining the value in each condition with it being declared as external in each condition that it is used.  <br />
+<br />
+I have a new issue now with my lack of understanding on how exchange processes.  For example I have two lines in my csv file:<br />
+<br />
+cont,cuno,cuni,cdel,cono,coli,dsca,eono,item,pric,sprc,qprc,qdat,venc.c,cwar,itm2,cqty,itm3,cqt2,aitm,aqty,ait3,acq2<br />
+861,5507,ZZ,18,,,76250THR A120M6   NH830M,,3000521AA,39.9506,,,,4091008,WFG,R785168,30,,,E785169,5,E5304,30<br />
+861,35507,ZZ,18,TEST,,76200T3LXA700M6   NH830M,,88943618-86,123.744200,,,,004091008,OFG,EBOX,30,,,,,,<br />
+<br />
+Watching in debug it's like it processes one column at a time for each line....meaning in this situation I have an existing contract 861 and I need to add a new position and packaging...I see it create the new positions two of them and then it goes to do the packaging...not sure if it's due how the exchange has been created but I would have thought it process one row at a time completely before moving onto the next row...due to this issue I have lost pointer on the new contract position to determine which position is to get specific packaging.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

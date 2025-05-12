@@ -1,0 +1,119 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="UE - Add multiple record in same time, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] UE - Add multiple record in same time Tools Development" />
+	
+	<title>UE - Add multiple record in same time [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; UE - Add multiple record in same time</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">DDPatel</div><div class="date">22nd December 2020, 15:06</div></div><div class="posttext">Hii Experts,<br />
+<br />
+I want to Insert record in tdpur206 by using tdpur206ue (User Exit : Purchase Requisition Approval Process)<br />
+<br />
+Scenario<br />
+- When first record will be successfully inserted in tdpur206, based on that record new record will be inserting...<br />
+- First record manually created and the second record automatically created based on first record.<br />
+<br />
+<br />
+So what i did is,<br />
+I wrote below code in ue.before.before.save.object()<br />
+   long ret<br />
+   domain tcrqno t.rqno<br />
+   domain tcemno t.aemn<br />
+   domain tccwoc t.adep<br />
+<br />
+   t.rqno = tdpur206.rqno<br />
+   t.aemn = &quot;EMP010068&quot;<br />
+   t.adep = &quot;DEP1  &quot;<br />
+   select tdpur206.*<br />
+   from tdpur206 for update<br />
+   as set with 1 rows<br />
+   selectdo<br />
+      tdpur206.rqno = fn.rqno<br />
+      tdpur206.srno = 2<br />
+      tdpur206.aemn = t.aemn<br />
+      tdpur206.adep = t.adep<br />
+      tdpur206.asta = tdpur.asta.for.approval<br />
+      ret = db.insert(ttdpur206, db.retry, db.skip.dupl)<br />
+   endselect<br />
+<br />
+But it show me an bellow error..<br />
+Process 10 - Fatal Error : Function 'ue.before.before.save.object': recursion not possible; refcount=2.<br />
+<br />
+Process 10 - Fatal Error : Can not continue in tdpur2506m000 in DLL: otdpur206ue (ue.before.before.save.object)[last function:exec_function]<br />
+<br />
+I know what the error means. But is there any solution for this? <br />
+<br />
+Thank you in advance for your valuable reply..<br />
+<br />
+Regards,<br />
+DDPatel</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">23rd December 2020, 13:10</div></div><div class="posttext">I think Infor changed some behavour in one of the later LN-Versions. Prior to this change db.insert/update wouldn't trigger a UE DLL Skript, After the change UE DLL were also triggered by db.insert/update.<br />
+<br />
+Had some recursion error in the extensions of LN 10.7. I think it's comparable.<br />
+<br />
+There are some new functions available on our LN 10.7:<br />
+<br />
+before.program:<br />
+  disable.dal()<br />
+  disable.table.extension()<br />
+  disable.ue.dll() <br />
+<br />
+Maybe you can use one of these. There are enable.xxx variants also.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">DDPatel</div><div class="date">23rd December 2020, 13:39</div></div><div class="posttext">I got the workaround...<br />
+<br />
+I wrote same code in tdpur200ue on submit condition.<br />
+<br />
+- First record auto appear in tdpur206 based on default setup.<br />
+- Second record inserted by below script in ue.after.after.save.object()<br />
+<br />
+|Function call : approver.add(tdpur200.rqno, 2,&quot;DEP1&quot;, &quot;EMP010068&quot;)<br />
+function approver.add(domain tcrqno fn.rqno, domain tcsern fn.srno, domain tccwoc fn.adep, domain tcemno fn.aemn)<br />
+{<br />
+   long ret<br />
+   select tdpur206.*<br />
+   from tdpur206 for update<br />
+   where tdpur206.rqno = :fn.rqno<br />
+   as set with 1 rows<br />
+   selectdo<br />
+      tdpur206.rqno = fn.rqno<br />
+      tdpur206.srno = fn.srno<br />
+      tdpur206.adep = fn.adep<br />
+      tdpur206.aemn = fn.aemn<br />
+      tdpur206.asta = tdpur.asta.for.approval<br />
+<br />
+      ret = db.insert(ttdpur206, db.retry, db.skip.dupl)<br />
+   endselect<br />
+}<br />
+<br />
+its working same as i want...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">DDPatel</div><div class="date">23rd December 2020, 13:46</div></div><div class="posttext">Thanks for your valuable reply @andreas.toepper.<br />
+<br />
+But we are still on 10.3 version.<br />
+and i got the workaround on same thread which i have mentioned in my previous post.<br />
+<br />
+ <br />
+Regards,<br />
+DDPatel</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

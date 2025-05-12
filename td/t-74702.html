@@ -1,0 +1,174 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Batch finalization DLL required., baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Batch finalization DLL required. Tools Development" />
+	
+	<title>Batch finalization DLL required. [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Batch finalization DLL required.</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">KiranKrishna</div><div class="date">4th November 2022, 19:46</div></div><div class="posttext">Hi,<br />
+<br />
+Required DLL for Batch finalization in transactions session (tfgld1101m000) to automated the process. <br />
+<br />
+Thanks &amp; Regards,<br />
+Kiran Krishna.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th November 2022, 21:16</div></div><div class="posttext">Not sure I get the questions - but going to move it to tools.  Are you looking for a name of a DLL? You can get some information just running bic_info6.2 (your version could be different) on the object.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">KiranKrishna</div><div class="date">5th November 2022, 05:47</div></div><div class="posttext">Hi,<br />
+<br />
+Thanks Mark.<br />
+I didn't know the batch finalization dll. Either update the dll or process to know the dll for the batch finalization.<br />
+<br />
+Regards,<br />
+Kiran Krishna.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">16th November 2022, 02:29</div></div><div class="posttext">Hi Kiran,<br />
+<br />
+as far as I know there is no DLL for for batch finalization. A long long time ago I had to find a way to do the same and I did this by calling the finalizing session in my program! Here is the relevant code. I hope this can work for you!<br />
+<br />
+	table	ttfgld100	| Batches<br />
+<br />
+function extern domain tcbool txglddll0001.finalize.batch(<br />
+	domain	tfgld.year	i.year,	|Fin. Year<br />
+	domain	tfgld.btno	i.btno,|Batch<br />
+ref	domain	tctext		o.emsg)	|Error message<br />
+{<br />
+	string	dummy.str(10)<br />
+		domain	tcmcs.str13	save.prog.name$<br />
+	extern	domain	tfgld.date	tedt.f<br />
+	extern	domain	tfgld.prod	fprd.f<br />
+	extern	domain	tfgld.prod	rprd.f<br />
+<br />
+	g.emsg = &quot;&quot;<br />
+	|check and finalize batch	<br />
+<br />
+	select	tfgld100.*<br />
+	from	tfgld100<br />
+	where	tfgld100._index1 = {:i.year, :i.btno}<br />
+	selectdo<br />
+	        if not((tfgld100.tstt = tfgld.tstt.free or<br />
+		    tfgld100.tstt = tfgld.tstt.errors) and<br />
+		    tfgld100.stat = tfgld.bstt.ready) then<br />
+			g.emsg = &quot;Batch-Status is not correct!&quot;<br />
+		endif<br />
+	selectempty<br />
+		g.emsg = &quot;Batch does not exist!&quot;<br />
+	endselect<br />
+<br />
+	if isspace(g.emsg) then<br />
+		if not all.batch.lines.ready() then<br />
+			g.emsg = &quot;Not all batch lines are ready!&quot;<br />
+		endif<br />
+	endif<br />
+<br />
+	if isspace(g.emsg) then<br />
+		if errors.exist() then<br />
+			g.emsg = &quot;Batch is not error free!&quot;<br />
+		endif<br />
+	endif<br />
+<br />
+	if isspace(g.emsg) then<br />
+		if get.session.permission(&quot;tfcmg1210m000&quot;) = 0 then<br />
+			g.emsg = &quot;No allowance for journalization!&quot;<br />
+			g.emsg = &quot;&quot;<br />
+		endif<br />
+	endif<br />
+<br />
+	if tfgld100.itbc &lt;&gt; tcyesno.yes then<br />
+		|make batch modifiable in order to finalize!<br />
+		db.retry.point()<br />
+		select	*<br />
+		from	tfgld100 for update<br />
+		where	year = :tfgld100.year<br />
+		and	btno = :tfgld100.btno<br />
+		selectdo<br />
+			tfgld100.itbc = tcyesno.yes<br />
+			db.update(ttfgld100, db.retry)<br />
+		endselect<br />
+		commit.transaction()<br />
+	endif<br />
+<br />
+	if isspace(g.emsg) then<br />
+		|Pretend we are tfgld1101m000!!!<br />
+		save.prog.name$ = prog.name$<br />
+		prog.name$ = &quot;tfgld1101m000&quot;<br />
+		tedt.f = tfgld100.tedt<br />
+		fprd.f = tfgld100.fprd<br />
+		rprd.f = tfgld100.rprd<br />
+		tfgld101.year = tfgld100.year<br />
+		tfgld101.btno = tfgld100.btno<br />
+<br />
+		dummy.str = start.session(MODAL,&quot;tfgld1210m000&quot;,&quot;tfgld1101m000&quot;,&quot;&quot;)<br />
+		|* Global Selection of Batches for Finalization<br />
+		prog.name$ = save.prog.name$<br />
+		|now check result!!<br />
+		select	tfgld100.*<br />
+		from	tfgld100<br />
+		where	tfgld100._index1 = {:i.year, :i.btno}<br />
+		selectdo<br />
+		        if tfgld100.tstt &lt;&gt; tfgld.tstt.terminated then<br />
+		        	g.emsg = &quot;Batch could not be journalized!&quot;<br />
+		        endif<br />
+		endselect<br />
+	endif<br />
+<br />
+	o.emsg = g.emsg<br />
+	return(isspace(o.emsg))<br />
+}<br />
+<br />
+function domain tcbool errors.exist()<br />
+{<br />
+	domain	tcbool	rec.found<br />
+<br />
+	rec.found = false<br />
+<br />
+	select	tfgld105.mesn<br />
+	from	tfgld105<br />
+	where	tfgld105._index1 = { :tfgld101.year, :tfgld101.btno }<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		rec.found = true<br />
+	endselect<br />
+<br />
+	return(rec.found)<br />
+}<br />
+<br />
+function domain tcbool all.batch.lines.ready()<br />
+{<br />
+	domain tcbool all.ready<br />
+<br />
+	all.ready = true<br />
+<br />
+	select	tfgld101.ttyp, tfgld101.stat<br />
+	from	tfgld101<br />
+	where	tfgld101._index1 = { :tfgld100.year, :tfgld100.btno }<br />
+	and not (tfgld101.stat = tfgld.bstt.ready<br />
+	 	or tfgld101.stat = tfgld.bstt.errors<br />
+	  	or tfgld101.stat = tfgld.bstt.open.free)<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		all.ready = false<br />
+	endselect<br />
+<br />
+	return(all.ready)<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

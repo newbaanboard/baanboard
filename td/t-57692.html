@@ -1,0 +1,234 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="SQL Query, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] SQL Query Tools Development" />
+	
+	<title>SQL Query [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; SQL Query</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">abaninas</div><div class="date">26th January 2010, 10:46</div></div><div class="posttext">Dear All,<br />
+<br />
+I want to make a new ERPLN SQL query which reads all sales data from tdsls400 and tdsls401. I want to sum the amount according to Sales Rep and Area and Invoice date and Item. All the amounts will group by Item.<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{<br />
+<br />
+select<br />
+tdsls401.item, | Item<br />
+sum(tdsls401.oamt):float01<br />
+<br />
+from<br />
+tdsls401, | Sales Order Lines<br />
+tdsls400<br />
+where<br />
+tdsls400.crep INRANGE :crep.f and :crep.t and<br />
+tdsls400.creg INRANGE :creg.f and :creg.t and<br />
+tdsls401.invd INRANGE :invd.f and :invd.t and<br />
+tdsls401.item INRANGE :item.f and :item.t and<br />
+tdsls401.orno = tdsls400.orno and<br />
+tdsls401.invn &lt;&gt; 0<br />
+<br />
+group by<br />
+<br />
+tdsls401.item | Item<br />
+selectdo<br />
+rprt_send()<br />
+endselect<br />
+<br />
+}<br />
+<br />
+<br />
+The problem is, I want to sum all the amount where item price = 0 and also where item price &lt;&gt; 0<br />
+<br />
+How I can get the two amounts with the same SQL query.<br />
+<br />
+Please advice</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th January 2010, 17:01</div></div><div class="posttext">Not sure there is a way to do this.  What I would probably do is break up the query and use nested queries. In this case the outside query would get the items - then the inside query would run the sums to get for item price not 0 and item price = 0.  It would really depend on how you would want the data in the report.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">abaninas</div><div class="date">27th January 2010, 09:36</div></div><div class="posttext">Hi,<br />
+<br />
+You can find how the data must be reported in attached file.<br />
+<br />
+Regards,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th January 2010, 19:34</div></div><div class="posttext">Sorry, but the report does not help since I am not familiar with the sales or any related tables.  What I recommend is breaking the query apart to simplify the problem so first get all the items.  Second do the sum for the sales and then a sum for the returns. The queries would be identical except one would have item price &gt;0 and one would have item price=0.  Then do the rprt_send.  This gives you each detail record for the report, assuming that the net sales is subtracting the two.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">abaninas</div><div class="date">28th January 2010, 14:42</div></div><div class="posttext">Thanks a lot for your reply.<br />
+<br />
+But where I will put rprt_send, in which select statment. Can you please give me a example.<br />
+<br />
+Thanks in advance</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">28th January 2010, 15:20</div></div><div class="posttext">Below is a little report we used to use to compare some inventory balances between some parts.  Basically - get item, get inventory data, send to report.  You end up with a detail line for each item with a number for each calculated qty. Basically same thing you are asking.<br />
+<br />
+| Init sums to zero<br />
+	pgc001.inv = 0<br />
+	pgc010.inv = 0<br />
+	pgc040.inv = 0<br />
+	inv001.inv = 0<br />
+	ilc101.inv = 0<br />
+| Get item master total<br />
+	select	tiitm001.item, tiitm001.stoc, tiitm001.copr<br />
+	from	tiitm001<br />
+	where	tiitm001.item inrange :item.f and :item.t<br />
+	selectdo<br />
+		sum1 = 0.0<br />
+		sum2 = 0.0<br />
+		sum3 = 0.0<br />
+		sum4 = 0.0<br />
+		get.group.item()<br />
+		if(chk.pgc = tcyesno.yes) then<br />
+			get.pegged.inventory()<br />
+			get.project.inventory()<br />
+			sum1 = pgc010.inv - pgc040.inv<br />
+		endif<br />
+		get.warehouse.inventory()<br />
+		if(chk.ilc = tcyesno.yes) then<br />
+			get.location.inventory()<br />
+			sum2 = tiitm001.stoc - ilc101.inv<br />
+		endif<br />
+		| Subtract EXC data from part - Eliminate tpes parts<br />
+		get.exc.inventory()<br />
+		tiitm001.stoc = tiitm001.stoc - exc101.inv<br />
+		inv001.inv = inv001.inv - exc101.inv<br />
+		ilc101.inv = ilc101.inv - exc101.inv<br />
+		<br />
+		| Compare pegged data vs Inventory data<br />
+		sum3 = inv001.inv - pgc010.inv<br />
+		sum4 = ilc101.inv - pgc040.inv<br />
+<br />
+| Eliminate parts where all are equal except item master<br />
+		balance1 = sum1<br />
+			+ sum2<br />
+			+ sum3<br />
+			+ sum4<br />
+		if( double.cmp(balance1,0.0000,.00001) =0 )then<br />
+			continue<br />
+		endif<br />
+<br />
+| Are the parts balanced<br />
+		balance = (tiitm001.stoc - pgc001.inv)<br />
+			+ (tiitm001.stoc - inv001.inv)<br />
+			+ sum1<br />
+			+ sum2<br />
+			+ sum3<br />
+			+ sum4<br />
+		if(balance &gt;0 or balance&lt;0) then<br />
+			rprt_send()<br />
+		endif<br />
+		pgc001.inv = 0<br />
+		pgc010.inv = 0<br />
+		pgc040.inv = 0<br />
+		inv001.inv = 0<br />
+		ilc101.inv = 0<br />
+	endselect<br />
+		<br />
+}<br />
+function get.group.item()<br />
+{<br />
+	pgc001.inv = 0<br />
+	select	sum(tipgc001.stoc):pgc001.inv<br />
+	from	tipgc001<br />
+	where	tipgc001.item = :tiitm001.item<br />
+	selectdo<br />
+	endselect<br />
+}<br />
+function get.pegged.inventory()<br />
+{<br />
+	pgc010.inv = 0<br />
+	select	sum(tipgc010.stoc):pgc010.inv<br />
+	from	tipgc010<br />
+	where	tipgc010.item = :tiitm001.item<br />
+	selectdo<br />
+	endselect<br />
+}<br />
+function get.project.inventory()<br />
+{<br />
+	domain	tcqiv2	sum.loan<br />
+	sum.loan = 0<br />
+	pgc040.inv = 0<br />
+	select	sum(tipgc040.quan):pgc040.inv,sum(tipgc040.loan):sum.loan<br />
+	from	tipgc040<br />
+	where	tipgc040.item = :tiitm001.item<br />
+	selectdo<br />
+	endselect<br />
+	pgc040.inv = pgc040.inv - sum.loan<br />
+}<br />
+function get.warehouse.inventory()<br />
+{<br />
+	inv001.inv = 0<br />
+	select	sum(tdinv001.stoc):inv001.inv<br />
+	from	tdinv001<br />
+	where	tdinv001.item = :tiitm001.item<br />
+	selectdo<br />
+	endselect<br />
+}<br />
+function get.location.inventory()<br />
+{<br />
+	ilc101.inv = 0<br />
+	select	sum(tdilc101.stks):ilc101.inv<br />
+	from	tdilc101<br />
+	where	tdilc101.item = :tiitm001.item<br />
+	selectdo<br />
+	endselect<br />
+}<br />
+function get.exc.inventory()<br />
+{<br />
+	exc101.inv = 0<br />
+	select	sum(tdilc101.stks):exc101.inv<br />
+	from	tdilc101<br />
+	where	tdilc101.item = :tiitm001.item<br />
+	and	tdilc101.cwar = &quot;EXC&quot;<br />
+	selectdo<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">abaninas</div><div class="date">31st January 2010, 15:14</div></div><div class="posttext">Thanks a lot for your reply.<br />
+<br />
+My main concern that I want all the sums to be calculated in one SQL query...<br />
+<br />
+Please advice</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">31st January 2010, 19:04</div></div><div class="posttext">Is there any particular reason why u want the same in 1 sql query. Baan sql queries dont support much calculations functions in sql query . U can do such things  in  SQL query in ms sql server.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">abaninas</div><div class="date">1st February 2010, 11:25</div></div><div class="posttext">I just want all the data to be calculated from the session then to be send to the report. How I can get the results?<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">1st February 2010, 11:44</div></div><div class="posttext">There can be multiple ways u can do the calculation in baan program but outside SQL  query and outside baan report . In-memory data transformationdll (http://www.baanboard.com/baanboard/showthread.php?t=28569) is one such efficient most method  available in all baan version .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Arthas</div><div class="date">7th February 2010, 13:21</div></div><div class="posttext">write it in raw SQL that is native to your database - it will run thousands of time quicker - I'll write it for you if you want (no fee) - just beware of the fact that Baan sometimes stores floats incorrectly - zero is not always zero, it might be 0.0000000000000001 or somesuch.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">abaninas</div><div class="date">8th February 2010, 11:01</div></div><div class="posttext">Hi Arthas,<br />
+<br />
+I will grateful</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

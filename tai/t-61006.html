@@ -1,0 +1,140 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="using DAL functionality to insert dates, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] using DAL functionality to insert dates Tools Administration &amp; Installation" />
+	
+	<title>using DAL functionality to insert dates [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; using DAL functionality to insert dates</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Sandy Blondino</div><div class="date">16th August 2011, 21:48</div></div><div class="posttext">Good afternoon,<br />
+I have a specific question about DAL's.  I wrote a session to insert a record into the bptmm120 table using DAL functionality.  I don't get any compile errors but I do get the following error &quot;bptmm120.stdt not valid&quot; when trying to insert the record.<br />
+I'm assuming the error is because I don't have the correct date format. I've tried using different formats, but I always get the same message and error code -12.<br />
+<br />
+The domain for the date is tcutcm (utc format). <br />
+The session I wrote reads data from another table then tries the insert. All of the data types in the temp table match the data types in the target table. <br />
+<br />
+I don't know what I'm doing wrong.<br />
+If anyone can help, I would appreciate it.<br />
+<br />
+Thanks,<br />
+Sandy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ARijke</div><div class="date">17th August 2011, 09:58</div></div><div class="posttext">What happens when you do not set the stdt field? Or when you set it with utc.num()?<br />
+<br />
+The functional checks done, are: date must be within the selected period and within employment period of the employee.<br />
+<br />
+regards, Adriaan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Pieter van de L</div><div class="date">17th August 2011, 10:25</div></div><div class="posttext">Hi Sandy,<br />
+<br />
+I use the following script to import hours<br />
+<br />
+per.van = date.to.utc( year, month, day, 0, 0, 0 )<br />
+select tcccp070.*<br />
+from tcccp070<br />
+where tcccp070._index1 = {&quot;HOUR&quot;} and<br />
+tcccp070.stdt &lt;= :per.van and<br />
+tcccp070.endt &gt; :per.van<br />
+selectdo<br />
+endselect<br />
+<br />
+select  max(bptmm120.seqn):o.max.seqn<br />
+from    bptmm120<br />
+where   bptmm120._index1 = {:employee, :year,:tcccp070.peri}                                       <br />
+as set with 1 rows<br />
+selectdo<br />
+            seqn = o.max.seqn + 1<br />
+selectempty<br />
+	seqn = 1<br />
+endselect<br />
+<br />
+import.bptmm120()<br />
+if not isspace(mes.dal) then<br />
+	mes1 = mes.dal<br />
+	r.1.s.detail()<br />
+else<br />
+	mes1 = &quot;Imported &quot; &amp;ord_pro                                                     <br />
+	r.1.s.detail()<br />
+endif<br />
+<br />
+<br />
+<br />
+function import.bptmm120()<br />
+{<br />
+	mes.dal = &quot;&quot;<br />
+	if tijd = 0 then<br />
+		tijd = 0.01<br />
+	endif<br />
+		dal.new.object(&quot;bptmm120&quot;)<br />
+		dal.set.field(&quot;bptmm120.emno&quot;, medewerker)<br />
+		dal.set.field(&quot;bptmm120.year&quot;, jaar)<br />
+		dal.set.field(&quot;bptmm120.seqn&quot;, seqn)<br />
+		dal.set.field(&quot;bptmm120.peri&quot;, tcccp070.peri)<br />
+		dal.set.field(&quot;bptmm120.cuni&quot;, &quot;UUR&quot;)<br />
+		dal.set.field(&quot;bptmm120.hrea&quot;, tijd)<br />
+		dal.set.field(&quot;bptmm120.chlt&quot;, loonsoort)<br />
+		dal.set.field(&quot;bptmm120.orno&quot;, ord_pro)<br />
+		dal.set.field(&quot;bptmm120.opno&quot;, bew_act)<br />
+		dal.set.field(&quot;bptmm120.stdt&quot;, per.van)<br />
+		if ready = &quot;n&quot; then<br />
+			dal.set.field(&quot;bptmm120.perc&quot;, 0)<br />
+		else<br />
+			dal.set.field(&quot;bptmm120.perc&quot;, 100)<br />
+		endif<br />
+		<br />
+		ret = dal.save.object(&quot;bptmm120&quot;)<br />
+<br />
+		if ret&lt; 0 then<br />
+			ret=dal.get.error.message(mes.dal)<br />
+		        mes.dal = str$(ord_pro) &amp;&quot;_&quot; &amp;str$(bew_act)&amp; &quot; :&quot; &amp; mes.dal<br />
+	        	dum = seq.puts(mes.dal, fp2)<br />
+                  	open.error.file(&quot;hours&quot;,&quot;hours_erpln&quot;)<br />
+	                dum = seq.puts(regel,fp4)<br />
+	                dum = seq.close(fp4)<br />
+		endif<br />
+<br />
+	commit.transaction()<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Sandy Blondino</div><div class="date">17th August 2011, 18:18</div></div><div class="posttext">Hello,<br />
+Thanks for the responses, but unfortunately I'm still not successful.<br />
+<br />
+When I don't set the stdt field or when I set it with utc.num(), I'm still getting the same error message. <br />
+I checked the date value and it is within range of the employment period of the employee. <br />
+I checked my code against the code posted by Pieter and it's comparable.<br />
+The DAL is active for the bptmm120 table. <br />
+<br />
+I'm running out of options to check.<br />
+Is there something else in tools, like a parameter setting that might be set wrong? <br />
+<br />
+Thanks for help,<br />
+Sandy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ARijke</div><div class="date">17th August 2011, 20:33</div></div><div class="posttext">Sandy, there can be multiple error messages. You can read in a loop the next error message or use show.error.message to get all message on the error message stack.<br />
+regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">24th August 2011, 11:28</div></div><div class="posttext">Hi Sandy,<br />
+<br />
+is the problem solved? If not it would help if you could post your code.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

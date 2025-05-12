@@ -1,0 +1,406 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="performance dll, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] performance dll Code &amp; Utilities" />
+	
+	<title>performance dll [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Code &amp; Utilities</a> &gt; performance dll</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">2nd November 2006, 15:58</div></div><div class="posttext">Certain programs typically process or print sessions sometimes take inexplicably long time . In order to improve such program a genric performance dll code is written.The performance improvement can be as high as 90% .<br />
+<br />
+How does one identify such programs where the performance dll can be used .<br />
+<br />
+1. When such programs are run , other users too experience slow system.<br />
+2. In the process / task manager on server , CPU and memory utilization shoots for the user running the program.<br />
+3. Data base drivers eats up substantial portion of the program . This happens due to repeated read / update on the certain transaction tables in the program , causing lot heavy but slow IO  algorithms .<br />
+4. Such program runs for very long hours.<br />
+<br />
+Typical characteristic of such program is that these programs require mainly sorting , grouping and aggregation operation . <br />
+<br />
+And for that purpose it  relies heavily on repeated IO operation by lot of selects on  transaction tables and lot of rprt_send(), report sorting and printing . It does not uses very fast memory operations by using dyanamic arrays . Using dynamic arrays in such a program , performance can improve drastically.<br />
+<br />
+What contributes most  to the performance improvement through the use of this dll .<br />
+<br />
+1. There should be clear knowledge of the business requirement &amp; of the data structures involved .<br />
+<br />
+2. The possible option for  grouping using various sort fields should be explored to use dynamic array . The possible array <br />
+length and length of the group variable (along with possible numeric index included therein) must be known . This will give <br />
+rough idea of maximum array size in runtime . Though system allows an array size of 5 MB  , goal should be to minimize the <br />
+max array size in bytes to lower value say 1 MB to allow for future expansions and to gain maximum out of the performance <br />
+improvement.<br />
+<br />
+3. Substantial performance gains comes from shifting disk io operations to memory io . Disk IO can be mainly <br />
+   heavy repeated database driver selects on big transaction table,  heavy , expensive &amp; repeated database driver updates on <br />
+big transaction table , lot of rprt_sends, sorting and reading of tmp report file and actual generation of report file .<br />
+<br />
+4. Reducing the select / update jobs on big transaction table .e.g. 1000 select jobs on indexed table returning 1 row at a <br />
+time is costlier than 1 select job returning the same 1000 rows .<br />
+<br />
+<br />
+As an example if a program is doing grouping on <br />
+1. division (enum), converted 3 chr  string<br />
+2. date (date) converted  to 6 chr l string<br />
+3. workcenter (3 character string )<br />
+4. Year/Month  (year*100 + Month - long converted to 6 chr  string )<br />
+Integers , enums and date fields also can be used in the grouping strings.<br />
+<br />
+Say a program running the same can have maximum 11 division * 31 days *  20 Work Center * 1 Year month at a time= 6820 combination . <br />
+So maximum size of a dynmic string array with an index for accumulators can be  division 3 + date 6 + workcenter 3 + <br />
+yearmonth 6 + index 5 character long  = 23 * 6820  = 156860 bytes = 0.15 MB . So this can be technically viable case for <br />
+performance improvement in circumstances described above . In runtime the array size could be lower depending on the runtime <br />
+data. <br />
+<br />
+There may be 2 quanity to aggregate<br />
+1. Loss		<br />
+2. Weight<br />
+<br />
+So 2  separate based double variable array required to keep track of double values .<br />
+<br />
+An example  how the dll functions are to be called and the actual dll code is attached .<br />
+<br />
+This dll can be used from Baan IV  to ERP LN - all version . Earlier versions need to create an include for this dll and they can use the same in earlier versions also .<br />
+<br />
+Do post the the results with array memory size , accumulators , data statistics (like distinct groups / total records ), database driver , and kind of disk IO  shifted to the memory grouping so that others too can benefit from such information .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">12th November 2006, 18:33</div></div><div class="posttext">The dll has been uploaded with minor correction , enhancements  and proper disclaimers .<br />
+<br />
+Also  the summaries through this dll are speedier than the summaries through disk based Baan report . It's elaborated with an example in the word  doc attached .<br />
+<br />
+Also  user need to do proper memory calculation before using this dll . So an easy to use excel calculator is uploaded with illustrations and certain requisite editable cells .<br />
+<br />
+I  have certain ideas to make this dll more general  . But will take some time to put forward . In the meantime , wish some other developers  make some contributions to  make it more general , it can be great .<br />
+<br />
+Happy speeding .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">19th December 2006, 16:22</div></div><div class="posttext">Another extra function to do top down grouping in the dll for memory based operations at the speed of light .<br />
+<br />
+<br />
+function extern long top.down.grouping(ref domain tcmcs.s256 grpstr(),ref double accumulator(),<br />
+domain tcbool ascend , long numofelmt ,long search_len , long grplen)<br />
+{<br />
+	|PURPOSE <br />
+	|After the summary values are calculated to find  number of top / down distinct elements with<br />
+	|value of accumulator based on a particular accumulator<br />
+	<br />
+	|WHEN TO CALL THIS FUNCTION<br />
+	|After the group string is sorted and accumulated values come in accumulators and there is no data<br />
+	|remaining to be grouped , this function should be called to sort double qty in ascending or descending order .<br />
+	|Then for-endfor loop should be run for 1 to top.down number <br />
+	|After the execution of the function accumulator values will be sorted and grpstr elements too will <br />
+	|change in accordance with accumulator element value .<br />
+	<br />
+	|VARIABLE ARGUMENTS<br />
+	|grpstr - sorted string array containing finite number (numofelmt) of  unique distict strings upto first<br />
+	|search_len characters and after that index value pointing do double index. In summary , this function can be used <br />
+	|easily in conjuction with other functions in this dll .<br />
+	|accumulator - double array containing accumulated values corrsponding index values in grpstr array <br />
+	|		for which top down is required<br />
+	|ascend - Whether to sort the double in ascending (true)  or descending  (false)<br />
+	|numofelmt - Number of elements  in the string / double array <br />
+	|search_len --&gt; length of  string to search excluding characters for index fixed through out <br />
+	|	the program . Index value in grpstr starts after search_len <br />
+	|grplen --&gt; length of  grpstr single element  to search including  characters for index - fixed through out <br />
+	|	the program <br />
+	<br />
+	|RETURN VALUE <br />
+	| return -1 for unsuccessful operation and 0 for succsessful top down grouping <br />
+	|accumulator -- will contain numerically sorted values<br />
+	|grpstr - this array will be in accordance with accumulator order (ie it may  become unsorted <br />
+	|alphanumerically )<br />
+	<br />
+	long dblstrlen , arrctr ,dblindex , srcpos,tmpnum<br />
+<br />
+	if  alloc.mem(topdown,2,numofelmt) &lt; 0 then<br />
+		message(&quot;Insufficient memory, Can not go ahead&quot;)<br />
+		free.mem(topdown)<br />
+		stop()      <br />
+	endif<br />
+	if set.mem(topdown,0) &lt; 0 then<br />
+		message(&quot;Error initializnig memory&quot;)<br />
+		return(-1)<br />
+	endif<br />
+	copy.mem(topdown,accumulator)<br />
+	for arrctr = 1 to numofelmt<br />
+		dblindex = lval(grpstr(search_len +1,arrctr))<br />
+		| dblstr(1,dblindex) = edit$(  accumulator(dblindex),dblformat ) &amp; <br />
+				| edit$(arrctr,idxformat )<br />
+		topdown(2,dblindex) = arrctr		<br />
+	endfor<br />
+	qss.start(search_criteria,1,1)<br />
+	qss.type(search_criteria,1,db.double)<br />
+	if ascend = true then<br />
+		qss.way(search_criteria,1,qss.up)<br />
+	else<br />
+		qss.way(search_criteria,1,qss.down)<br />
+	endif<br />
+ <br />
+	e = qss.sort(accumulator,search_criteria)<br />
+	if e &lt; 0 then<br />
+		on case e<br />
+		case -1:<br />
+		case -11:<br />
+			message(&quot;Definition not of type long or table not array&quot;)<br />
+			break<br />
+		case -13:<br />
+			message(&quot;Depth must be positive&quot;)<br />
+			break<br />
+		case -14:<br />
+			message(&quot;Def argnot declared correctly&quot;)<br />
+			break<br />
+		case -15:<br />
+			message(&quot;Search argument does not fit &quot;)<br />
+			break<br />
+		case -16:<br />
+			message(&quot;QSS.Type not correct&quot;)<br />
+			break<br />
+		case -17:<br />
+			message(&quot;Table arg not correct  &quot;)<br />
+			break<br />
+		case -18:<br />
+			message(&quot;No definition found in def &quot;)<br />
+			break<br />
+		endcase<br />
+		return(-1)<br />
+	endif<br />
+	if  alloc.mem(tmpstr ,  grplen) &lt; 0 then<br />
+		message(&quot;Insufficient memory, Can not go ahead&quot;)<br />
+		free.mem(tmpstr)<br />
+		stop()      <br />
+	endif	<br />
+	for arrctr = 1 to numofelmt<br />
+		dblindex = topdown(2,arrctr)<br />
+		| dblstr(1,dblindex) = edit$(  accumulator(dblindex),dblformat ) &amp; <br />
+				| edit$(arrctr,idxformat )<br />
+		srcpos = qss.search(qss.equal + qss.src.is.sorted+qss.src.dupl.allowed ,topdown(1,arrctr) , accumulator,search_criteria)<br />
+		on case srcpos <br />
+		case -1:<br />
+			message(&quot;Data error !  Can not go ahead&quot;)<br />
+			return(-1)<br />
+			break<br />
+		case -11:<br />
+		case -12:<br />
+		case -13:<br />
+		case -14:<br />
+		case -15:<br />
+		case -16:<br />
+		case -17:<br />
+		case -18:<br />
+		case -21:<br />
+		case -22:<br />
+		case -23:<br />
+			message(&quot;QSS.SEARCH error %d&quot; , srcpos)<br />
+			return(-1)<br />
+			break<br />
+		default:<br />
+			tmpstr = grpstr(1,srcpos)<br />
+			grpstr(1,srcpos) = grpstr(1,dblindex)<br />
+			grpstr(1,dblindex) = tmpstr<br />
+			topdown(2, lval(grpstr(search_len +1,dblindex) ))=dblindex<br />
+			topdown(2,lval(grpstr(search_len +1,srcpos) )) = srcpos<br />
+			break<br />
+		endcase		<br />
+	endfor	<br />
+	free.mem(topdown)<br />
+	free.mem(tmpstr)	<br />
+	return(0)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mbdave</div><div class="date">17th January 2007, 07:25</div></div><div class="posttext">Great work Sir</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">17th January 2007, 16:52</div></div><div class="posttext">Thanks Mahesh for the feedback . <br />
+<br />
+There is still something more needed in this dll so that it's usability and adaptability increases substantially. Developer still has to spend some effort to use memory based grouping as against disk based grouping . It must be capable of being done easily , quickly and accurately .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">30th October 2007, 17:26</div></div><div class="posttext">Speed is very important in data transformation . And in-memory data analysis is a major criteria in evaluation criteria of BI Vendors (http://mediaproducts.gartner.com/reprints/microsoft/vol7/article3/article3.html)  . In Baan QSS  functions  are the vehicle for enabling one to do in-memory data transformations very fast. The performance dll written through this thread brings a higher level generalization in data transformation hiding the complexities of qss functions . <br />
+<br />
+Still the developer has to take care off lot off things like calculating array length , encoding and decoding of string for array , error handling , taking care off data specific issues etc . Even these complexities have been taken care off through  a code generator  (http://www.erpjewels.com/Code%20Generator%20for%20data%20%20transformation.htm) which one can download . There is a good report which can tell user which all reports can be imporved with use of this code generator.<br />
+<br />
+Documented memory limit for an array is 5 MB . Though  array variables of  higher size can work in many OS  and later porting sets , this is a very high limit and good error handling to take care of it . In fact one can also say if the array is higher than 5 MB, it's  not a good  case for summary reporting .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">steventay</div><div class="date">31st October 2007, 17:23</div></div><div class="posttext">Another extra function to do top down grouping in the dll for memory based operations at the speed of light .<br />
+<br />
+<br />
+function extern long top.down.grouping(ref domain tcmcs.s256 grpstr(),ref double accumulator(),<br />
+domain tcbool ascend , long numofelmt ,long search_len , long grplen)<br />
+{<br />
+	|PURPOSE <br />
+	|After the summary values are calculated to find  number of top / down distinct elements with<br />
+	|value of accumulator based on a particular accumulator<br />
+	<br />
+	|WHEN TO CALL THIS FUNCTION<br />
+	|After the group string is sorted and accumulated values come in accumulators and there is no data<br />
+	|remaining to be grouped , this function should be called to sort double qty in ascending or descending order .<br />
+	|Then for-endfor loop should be run for 1 to top.down number <br />
+	|After the execution of the function accumulator values will be sorted and grpstr elements too will <br />
+	|change in accordance with accumulator element value .<br />
+	<br />
+	|VARIABLE ARGUMENTS<br />
+	|grpstr - sorted string array containing finite number (numofelmt) of  unique distict strings upto first<br />
+	|search_len characters and after that index value pointing do double index. In summary , this function can be used <br />
+	|easily in conjuction with other functions in this dll .<br />
+	|accumulator - double array containing accumulated values corrsponding index values in grpstr array <br />
+	|		for which top down is required<br />
+	|ascend - Whether to sort the double in ascending (true)  or descending  (false)<br />
+	|numofelmt - Number of elements  in the string / double array <br />
+	|search_len --&gt; length of  string to search excluding characters for index fixed through out <br />
+	|	the program . Index value in grpstr starts after search_len <br />
+	|grplen --&gt; length of  grpstr single element  to search including  characters for index - fixed through out <br />
+	|	the program <br />
+	<br />
+	|RETURN VALUE <br />
+	| return -1 for unsuccessful operation and 0 for succsessful top down grouping <br />
+	|accumulator -- will contain numerically sorted values<br />
+	|grpstr - this array will be in accordance with accumulator order (ie it may  become unsorted <br />
+	|alphanumerically )<br />
+	<br />
+	long dblstrlen , arrctr ,dblindex , srcpos,tmpnum<br />
+<br />
+	if  alloc.mem(topdown,2,numofelmt) &lt; 0 then<br />
+		message(&quot;Insufficient memory, Can not go ahead&quot;)<br />
+		free.mem(topdown)<br />
+		stop()      <br />
+	endif<br />
+	if set.mem(topdown,0) &lt; 0 then<br />
+		message(&quot;Error initializnig memory&quot;)<br />
+		return(-1)<br />
+	endif<br />
+	copy.mem(topdown,accumulator)<br />
+	for arrctr = 1 to numofelmt<br />
+		dblindex = lval(grpstr(search_len +1,arrctr))<br />
+		| dblstr(1,dblindex) = edit$(  accumulator(dblindex),dblformat ) &amp; <br />
+				| edit$(arrctr,idxformat )<br />
+		topdown(2,dblindex) = arrctr		<br />
+	endfor<br />
+	qss.start(search_criteria,1,1)<br />
+	qss.type(search_criteria,1,db.double)<br />
+	if ascend = true then<br />
+		qss.way(search_criteria,1,qss.up)<br />
+	else<br />
+		qss.way(search_criteria,1,qss.down)<br />
+	endif<br />
+ <br />
+	e = qss.sort(accumulator,search_criteria)<br />
+	if e &lt; 0 then<br />
+		on case e<br />
+		case -1:<br />
+		case -11:<br />
+			message(&quot;Definition not of type long or table not array&quot;)<br />
+			break<br />
+		case -13:<br />
+			message(&quot;Depth must be positive&quot;)<br />
+			break<br />
+		case -14:<br />
+			message(&quot;Def argnot declared correctly&quot;)<br />
+			break<br />
+		case -15:<br />
+			message(&quot;Search argument does not fit &quot;)<br />
+			break<br />
+		case -16:<br />
+			message(&quot;QSS.Type not correct&quot;)<br />
+			break<br />
+		case -17:<br />
+			message(&quot;Table arg not correct  &quot;)<br />
+			break<br />
+		case -18:<br />
+			message(&quot;No definition found in def &quot;)<br />
+			break<br />
+		endcase<br />
+		return(-1)<br />
+	endif<br />
+	if  alloc.mem(tmpstr ,  grplen) &lt; 0 then<br />
+		message(&quot;Insufficient memory, Can not go ahead&quot;)<br />
+		free.mem(tmpstr)<br />
+		stop()      <br />
+	endif	<br />
+	for arrctr = 1 to numofelmt<br />
+		dblindex = topdown(2,arrctr)<br />
+		| dblstr(1,dblindex) = edit$(  accumulator(dblindex),dblformat ) &amp; <br />
+				| edit$(arrctr,idxformat )<br />
+		srcpos = qss.search(qss.equal + qss.src.is.sorted+qss.src.dupl.allowed ,topdown(1,arrctr) , accumulator,search_criteria)<br />
+		on case srcpos <br />
+		case -1:<br />
+			message(&quot;Data error !  Can not go ahead&quot;)<br />
+			return(-1)<br />
+			break<br />
+		case -11:<br />
+		case -12:<br />
+		case -13:<br />
+		case -14:<br />
+		case -15:<br />
+		case -16:<br />
+		case -17:<br />
+		case -18:<br />
+		case -21:<br />
+		case -22:<br />
+		case -23:<br />
+			message(&quot;QSS.SEARCH error %d&quot; , srcpos)<br />
+			return(-1)<br />
+			break<br />
+		default:<br />
+			tmpstr = grpstr(1,srcpos)<br />
+			grpstr(1,srcpos) = grpstr(1,dblindex)<br />
+			grpstr(1,dblindex) = tmpstr<br />
+			topdown(2, lval(grpstr(search_len +1,dblindex) ))=dblindex<br />
+			topdown(2,lval(grpstr(search_len +1,srcpos) )) = srcpos<br />
+			break<br />
+		endcase		<br />
+	endfor	<br />
+	free.mem(topdown)<br />
+	free.mem(tmpstr)	<br />
+	return(0)<br />
+}<br />
+<br />
+<br />
+<br />
+do i add the &quot;function extern long top.down.grouping(ref domain tcmcs....&quot; inside the performance dll.txt at the bottom?<br />
+<br />
+i am new in Baan, how do i add this function to my baan server?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">1st November 2007, 14:41</div></div><div class="posttext">U  need to create a dll in ttadv2131m000 with performance dll.txt  and append the function text in the dll . The dll should be compiled and used in used in the program with statement #pragma used dll dll_name&quot; .<br />
+<br />
+If u r new to baan programming , I  would recommend u to get familiar with Baan arrays , data types conversions in Baan ,qss functions,  reporting structure and the circumstances in which this dll can help improve speed(<br />
+This dll is not grand panacea for all kinds of performance issues ) .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">klixy23</div><div class="date">5th November 2007, 11:44</div></div><div class="posttext">I try to compile the dll and missing the declaration of topdown and tmpstr. Where should declared these variables ?<br />
+<br />
+Have a nice day!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">5th November 2007, 11:58</div></div><div class="posttext">string		tmpstr(1)  based<br />
+double 	topdown(1,1)  based |2 dimensional array for top down grouping</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">2nd March 2009, 08:08</div></div><div class="posttext">Really great work , I think I am really late to check out this post .<br />
+I will try out the dll .<br />
+<br />
+Regards,<br />
+Niraj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">2nd March 2009, 14:29</div></div><div class="posttext">Thanks. U got some time to touch to this thread finally . <br />
+<br />
+Do post ur feedback after testing (for the benefit of others on this ) with enhancements if any.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

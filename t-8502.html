@@ -1,0 +1,127 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="ERP /AFS / field sections, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] ERP /AFS / field sections AFS/DDC/OLE: Function servers" />
+	
+	<title>ERP /AFS / field sections [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; ERP /AFS / field sections</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">20th January 2003, 18:13</div></div><div class="posttext">We are trying control a session with AFS.<br />
+<br />
+In this session is a lot of logic in field sections, esp. &quot;when.field.changes&quot;. Now we fear, that the program, if controled from AFS passes none of the field sections. We also tried &quot;seq.puts()&quot; to be sure, that the field sections will be not passed. <br />
+<br />
+The problem is, that this sections provide a lot of important logic for the program.<br />
+<br />
+Does sombody have similar experiences?<br />
+<br />
+Thanks<br />
+Spartacus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">20th January 2003, 20:02</div></div><div class="posttext">The AFS should call all field sections for any field passed, in the same order as the session would.   You can see this in the debugger.  For Baan V, it also automatically calls the DAL's, as the session would.<br />
+<br />
+The problem can come in the order of calling, it is in the natural data entry order, not the order you may send it in.  So, some fields may be overwritten that you may not be expecting, because some entry into another field will overwrite.   This does not eliminate the calling of sections however.<br />
+<br />
+If you find it is not passing the proper values to the AFS, you may need a patch update to the AFS library, I had that problem once with a fairly recent version of the AFS, but on Baan IV.<br />
+<br />
+What makes you think it's not calling the when.field.changes section?  Have you debugged?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">21st January 2003, 09:47</div></div><div class="posttext">Hi Ibencic,<br />
+<br />
+thanks u give us something to check. <br />
+We found that the field sections/subsections are not passed, because we filled in a little &quot;seq.puts()&quot; to write debugging infos. <br />
+On the other hand we found, that the debugger stops in the called session only the first time, we send something to the called sesssion. Then the debugger stops in &quot;before.programm&quot;, and returns after the &quot;before.program&quot; section. Then the debugger stops never more in the called process (if we put data, or send an update). But we can see with our seq.puts, that certain program sections are passed, but none of the field sections.<br />
+<br />
+<br />
+Greetings<br />
+Spartacus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">21st January 2003, 17:10</div></div><div class="posttext">Well, in debug you would see the Before program section (and init forms / other startup sections) happen on the very first field puts.   At that time, you would not see the field sections, and that may seem odd.  The actual field put is not done yet, just the session activated.   Each following puts that you do get's held and not send to the called object until the update (insert/update/delete) command is issued.  At that time, you should see all of the field sections, then the related insert/update/delete sections.<br />
+<br />
+If this is not happening as above then your afs library is not working right.  You put breaks in the field sections and they are never hit?    I'm not sure, maybe post your code, but if this is true you would need to check with Baan about your object.  As mentioned, in Baan IV I had an issue with a new version of the api library (somewhere in the middle of SP9), and had to go back to an older version of the library.<br />
+<br />
+If you are getting nowhere, post the script (and/or dump of the session would be convienent) and I will try to debug and see if the same is happening here..what version of ERP / Service Pack / Porting set are you on...and can you check the idents of your ttstpapihandle library and post as well?  Seems like a problem with the library.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dawohuhu</div><div class="date">21st January 2003, 17:49</div></div><div class="posttext">I Ibencic,<br />
+<br />
+thanks for your offer. <br />
+<br />
+During this day we went a little futher, but also back again.<br />
+Looks a though, that we have had a syntax error with:<br />
+f2500m000.synchronize.dialog(&quot;Add&quot;, error). We are still not sure if we should write &quot;Add&quot;, or &quot;add&quot;.<br />
+We did a lot of things today, but now we reached a state again, that we can say, that the fields in the called  session are not filled properly. Impossible to write the whole story of the day.<br />
+<br />
+What we do, is trying to add a record in whinh2100s000 via whinh2500m000 (ERP).<br />
+<br />
+For the first I can attach our dll-script, the afs.log fileand the ID's of our &quot;otstpapihand&quot;.<br />
+<br />
+Perhaps u will have any idea. Hope informaton is enough.<br />
+<br />
+<br />
+Spartacus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">21st January 2003, 18:01</div></div><div class="posttext">Not getting filled properly and not calling the field sections are 2 separate issues.  As mentioned, the afs's will sometimes overwrite your values when you do not expect, or your field is not available for input when the session tries.   They are not always easy to work with.<br />
+Do you know, is it still a problem with not calling the field sections at all, or is it a logic problem that it is overwriting or not placing the values in specific fields....<br />
+<br />
+It does seem like there is a conceptual problem - the put fields are not acted upon until the insert command is issued.  If you use the get commands right after the put commands (anytime before the insert), you will not get the expected result, and may not think the fields are not being passed.  <br />
+<br />
+What does the error message show?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">22nd January 2003, 11:56</div></div><div class="posttext">Hi Ibencic,<br />
+<br />
+forgett the problem, with the fieldsections. That seems to work. In fact we have such a strange behavior, that it's hardly to describe, what the problem is.<br />
+<br />
+At the moment we are discussing the correct syntax of:<br />
+&quot;f2500m000.synchronize.dialog(&quot;add&quot;, error)&quot;<br />
+We are not sure, do we have to write &quot;Add&quot; or &quot;add&quot;. At the moment we prefer &quot;add&quot;. <br />
+<br />
+Both versions run with differnent error messages. That is, that we are missing always some other values in our target, to successfully run this session. We have no error on system level, we have the problem, that SOME variables are not correctly filled in the target.<br />
+<br />
+At the moment (with &quot;add&quot; version) we found (with our seq.puts()&quot; that at the very beginning of the program in &quot;before.display.object&quot; section the right values are present. At that moment the update.status is &quot;0&quot;. <br />
+Interessting: with our seq.puts(...) we found that at this time (when the right values are present), we havn't had sent any &quot;..put..&quot; of a value to the target session.<br />
+<br />
+Later , this values disapear, an never come up again. Some other field values we fill seem to be right.<br />
+<br />
+Perhaps the attachment is able to explain the situation little better. This is the file we wrote with our &quot;seq.puts()&quot;<br />
+<br />
+Spartacus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">22nd January 2003, 15:11</div></div><div class="posttext">IT WORKS !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!<br />
+<br />
+Our poblem was, that we have two segemented item fields in the form. We found also here in the baanboard, that it is not possible to put segemented item fields at once.<br />
+<br />
+Due to the fact, that Baan, with the start of the session shows the last values filled in, we thougt, that we have had success with our put. But at least, we found out, that our values never reached their destination. <br />
+<br />
+<br />
+Thanks for your support<br />
+Spartacus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">23rd January 2003, 03:32</div></div><div class="posttext">Dear spartacus,<br />
+<br />
+I sympathise with you, dude. I had to go to such a tiring problem before with stpapi.synchronize.dialog() (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=7361). We wouldn't have to go through both of our problem if the 2 aspects we were going through are mentioned in the manual. The item segmentation problem will be taken care of if you use the API DLL created by latest STP by the way.<br />
+<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS - tdilc1120m000 - session restarts for every put, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS - tdilc1120m000 - session restarts for every put AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS - tdilc1120m000 - session restarts for every put [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS - tdilc1120m000 - session restarts for every put</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">fosterjr</div><div class="date">31st October 2003, 19:05</div></div><div class="posttext">I am just starting with AFS and I have a situation that doesn't make sense.<br />
+<br />
+I am writing against tdilc1120m000 (Enter Inventory Transactions).  The first part of my script is as follows:<br />
+<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.item&quot;, p.item)<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.cwar&quot;, p.cwar)<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.idat&quot;, str$(date.num()))<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.sern&quot;, str$(p.sern))<br />
+<br />
+When I debug with AFSLOG=1 and also with both my script and tdilc1120 in debug, my AFSLOG has the entries:<br />
+<br />
+LOGGING STARTED<br />
+10-31-2003<br />
+9-&gt;get.fields<br />
+9&lt;-exit.child<br />
+9&lt;-^AProcess is gone<br />
+11-&gt;get.fields<br />
+11&lt;-exit.child<br />
+11&lt;-^AProcess is gone<br />
+<br />
+<br />
+As I step through, it appears that after the first stpapi.put.field, Baan starts tdilc1120m000 and steps through init.field.  It appears that ptdilc1120 never gets to field.tdinv100.item. (This corresponds to the log entries tagged with &quot;9&quot;).  Control is then passed back to my script.  For the next stpapi.put.field, Baan once again starts tdilc1120m000 and steps through init.field and then drops back to my script.<br />
+<br />
+<br />
+Any help is greatly appreciated.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">31st October 2003, 19:27</div></div><div class="posttext">In the init portion of this program, there are a couple of things that can cause it to end program, and loose api control.<br />
+<br />
+1.  Location control not turned on<br />
+2.  User not authorized (there's an api fix for that, but you may not have it loaded).<br />
+<br />
+Can you check that the same user can execute the session normally?<br />
+<br />
+Also, try the stpapi.get.mess.code to see if any errors were generated in the process for the put commands.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fosterjr</div><div class="date">31st October 2003, 20:36</div></div><div class="posttext">Thanks for your quick response, Lisa.  Location control is on.  I am authorized to do inventory adjustments and am also authorized for tdilc1120m000 and for ttstpapihand.<br />
+<br />
+I can execute the session normally with the information that i am attempting to pass through AFS.<br />
+<br />
+I added a check for stpapi.get.mess.code and returned no results.  <br />
+<br />
+I am at a loss.<br />
+<br />
+Originally posted by lbencic <br />
+In the init portion of this program, there are a couple of things that can cause it to end program, and loose api control.<br />
+<br />
+1.  Location control not turned on<br />
+2.  User not authorized (there's an api fix for that, but you may not have it loaded).<br />
+<br />
+Can you check that the same user can execute the session normally?<br />
+<br />
+Also, try the stpapi.get.mess.code to see if any errors were generated in the process for the put commands.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nneilitz</div><div class="date">31st October 2003, 21:58</div></div><div class="posttext">I have had a lot of the same fun trying to use AFS to do an insert.  My guess with your code is to add in a put to the project field as well as the other fields in the sort key and then call the stapi.find...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">31st October 2003, 23:24</div></div><div class="posttext">First make sure you put that fix in that Lisa mentioned - or that it was already installed.  You should also update your stpapi objects - this alone may be the problem.<br />
+<br />
+Next here is my code - just remember that I used ttstpcreatdll to get each of the functions.  You will notice that I do not put ther sequence number.  I do a get on it and then use it in the tdilc1121s000 session.  Hope you are not on the A&amp;D extension.  I also did not include the clean-up process.  If I get an error I go back in tdilc1121s000 then I go back to tdilc1120m000 and delete the active transaction.<br />
+<br />
+Mark<br />
+<br />
+<br />
+	today = date.num()<br />
+	kind.of.tran = tckowt.stc.correction<br />
+| Put data on main form<br />
+	f1120m000.put.item(adj.item)           		| Item to adjust<br />
+        f1120m000.put.Input_Date(today)			| Date of Adjustment<br />
+        f1120m000.put.warehouse(adj.cwar)      		| Warehouse of adjustment<br />
+	f1120m000.put.transaction_type(kind.of.tran)	| Trans. Type<br />
+	f1120m000.put.reason_code(adj.inac)		| Reason code <br />
+	f1120m000.put.financial_liability(adj.finc)	| Financial Liability<br />
+	f1120m000.put.Order_date(today)   		| Date of Order<br />
+	f1120m000.put.Planned_Quantity(adj.qty)		| Transaction qty<br />
+	f1120m000.put.Planned_Date(today) 		| Planned Date<br />
+	f1120m000.put.transaction_date(today)		| Transaction date<br />
+<br />
+| Handle sub session<br />
+	f1120m000.handle.sub.process(&quot;tdilc1121s000&quot;,&quot;add&quot;)<br />
+| Now add the above record.<br />
+	f1120m000.insert(1,err)<br />
+	if(strip$(err)&lt;&gt;&quot;&quot;) then<br />
+		msg = f1120m000.get.last.message.code()<br />
+		msg = &quot;tdilc1120m000 insert: &quot;&amp; strip$(err)&amp;&quot; &quot;&amp;strip$(msg)<br />
+		cleanup.processes(0)<br />
+		return(0)<br />
+	endif<br />
+<br />
+| Continue and init sub-session(tdilc1121s000).<br />
+	f1120m000.continue(err)<br />
+	if(strip$(err)&lt;&gt;&quot;&quot;) then<br />
+		msg = f1120m000.get.last.message.code()<br />
+		msg = &quot;tdilc1120m000 Continue: &quot;&amp; strip$(err)&amp;&quot; &quot;&amp;strip$(msg)<br />
+		cleanup.processes(0)<br />
+		return(0)<br />
+	endif<br />
+<br />
+| Get serial number of the adjustment from tdilc1121s000.<br />
+	serial.number = f1120m000.get.Sequence_Number()<br />
+	f1121s000.put.Item(adj.item)<br />
+	f1121s000.put.Warehouse(adj.cwar)<br />
+	f1121s000.put.Input_Date(today)<br />
+	f1121s000.put.Sequence_no.sera(serial.number)<br />
+<br />
+| Find the correct record in tdilc1121s000.<br />
+	rc = stpapi.find(&quot;tdilc1121s000&quot;)<br />
+	if(rc =1 ) then<br />
+		msg = f1121s000.get.last.message.code()<br />
+		msg = &quot;tdilc1121s000 find: &quot;&amp; strip$(err)&amp;&quot; &quot;&amp;strip$(msg)<br />
+		cleanup.processes(1)<br />
+		return(0)<br />
+	endif<br />
+<br />
+| Now add the data.<br />
+	f1121s000.put.lot(adj.lot)<br />
+	f1121s000.put.date(adj.date)<br />
+	f1121s000.put.location(adj.loca)<br />
+	f1121s000.put.storage_unit(adj.stun)<br />
+	f1121s000.put.Quantity_on_Hand(adj.qty)<br />
+	f1121s000.put.inventory_on_hand(adj.qty)<br />
+	f1121s000.insert(1,err)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fosterjr</div><div class="date">2nd November 2003, 04:09</div></div><div class="posttext">I just did a debug on on my script and on tdilc1120m000.  The issue is with get.compnr in function itfgld001.read.com000.1eq().  It appears that get.compnr() is only retrieving &quot;0&quot; so tdilc1120m000 stops based on no company data.  I have my script setup as a 3GL script.  Is there anything I have to do to set the company number prior to running an AFS 3GL script?<br />
+<br />
+<br />
+Originally posted by mark_h <br />
+First make sure you put that fix in that Lisa mentioned - or that it was already installed.  You should also update your stpapi objects - this alone may be the problem.<br />
+<br />
+Next here is my code - just remember that I used ttstpcreatdll to get each of the functions.  You will notice that I do not put ther sequence number.  I do a get on it and then use it in the tdilc1121s000 session.  Hope you are not on the A&amp;D extension.  I also did not include the clean-up process.  If I get an error I go back in tdilc1121s000 then I go back to tdilc1120m000 and delete the active transaction.<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

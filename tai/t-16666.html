@@ -1,0 +1,115 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Error 205, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Error 205 Tools Administration &amp; Installation" />
+	
+	<title>Error 205 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Error 205</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">kamaljit</div><div class="date">29th September 2004, 12:53</div></div><div class="posttext">Recently I loaded some localisation patches and followed the normal procedure. We have BaaN 4c4 (in3) on Windows NT and SQL server 7.0<br />
+<br />
+On reconfiguring tables I found 2 tables not loaded properly and the requisite R.dump was created for them.<br />
+<br />
+When I tried the command bdbreconfig -N tdput901100+ -nm I got error 520 ie error during buffered updates.<br />
+<br />
+On checking the event viewer I got the following message<br />
+&quot;Event Type:	Error<br />
+Event Source:	Baan<br />
+Event Category:	Msql7_srv <br />
+Event ID:	1000<br />
+Date:		29/09/2004<br />
+Time:		2:02:00 PM<br />
+User:		VMLGROUP\baan<br />
+Computer:	VMPL<br />
+Description:<br />
+Env	 Bse (c:\Baan)<br />
+Prog	 msql7_srv file \db\servers\MSQL\msql_lev1.c # 945<br />
+Keyword	 Date out of range<br />
+Username	 baan	type S	language 2<br />
+Process	 0x28f<br />
+Lasterror	 203 (The system could not find the environmentoption that was entered.)<br />
+Errno	 0<br />
+bdberrno	 0<br />
+Message	 <br />
+dbs_errno = 205 Error 205 occurred:  <br />
+bshell date 11371136/11369161/0001 (538976288 days) is not supported. The valid supported range of dates are from 02/01/1753 (639907 days) to 31/12/9999 (3652059 days) [dd/mm/yyyy].<br />
+DBMS Input: Data out of range for R_INS on dbo.ttdpur901100. <br />
+Flushed at \db\servers\MSQL\msql_row.c : #264.&quot;<br />
+<br />
+IF in the R.dump the date is out of range - Can I do something to restore this table from this dump?<br />
+<br />
+Yeah I know what you are thinking but unfortunately I do not have the current backup of the table ...<br />
+<br />
+Thanks in advance</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">29th September 2004, 15:02</div></div><div class="posttext">That sort of thing happens when your DD/Domain doesn't match with<br />
+the dump..  [i.e., random out of range errors... ]<br />
+<br />
+You need the original table def and domainfiles used when you created<br />
+the R file.. since you were doing a convert/create to runtime, it moved the .new files in palce..<br />
+<br />
+You're on windows / sql so that's a little bit more complicated ( have to make sure A) stored procedure is dropped and B) table DD/domain aren't in shared memory).<br />
+<br />
+One thing you could try first though would be to send the -Z or -R options to bdbreconfig<br />
+bdbreconfig -Z -N&lt;table&gt;+ -C&lt;company&gt;<br />
+bdbreconfig -R -N&lt;table&gt;+ -C&lt;company&gt;<br />
+<br />
+-Z is supposed to roll back and -R is supposed to roll forward<br />
+but it seems these change a lot.. <br />
+<br />
+Anyway, this is a difficult one to walk through in a forum, if you've got a support contract give 'em a call.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">30th September 2004, 16:27</div></div><div class="posttext">Hi Dave,<br />
+<br />
+just out of curiosity: In SQL Server there is a stored procedure involved, when you do CRDD?<br />
+<br />
+What is it doing?<br />
+<br />
+Regards<br />
+<br />
+markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">30th September 2004, 18:40</div></div><div class="posttext">Hi Markus,<br />
+<br />
+the stored procedures handle inserts and updates in tables, so when a table is created, a stored procedure gets created with it.. I think its for performance or something..<br />
+<br />
+But the problem is that the stored procedures don't always get dropped properly after/during a reconfig, so they end up having the wrong/old picture of the table in them..<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kamaljit</div><div class="date">2nd October 2004, 12:38</div></div><div class="posttext">What happens with the bdbreconfig + - option is, that instead the dd.old was used the normal dd was used, then matched against the R.-file (and then afterwards reconfigured due to a dd.new-file). The 205 error occur during the matching-stage. So the dd.old points us all to a wrong thinking. <br />
+<br />
+How to solve it is easy now. Example is table tcmcs003100(means comp. 100 - belongs to Packagecombiantion b40ocdev).<br />
+<br />
+Under /baanerp/dict/ddb50ocdev and then in directory dtcmcs you have the original situation for the dd´s:<br />
+<br />
+dtcmcs003 x bytes<br />
+dtcmcs003.old y bytes<br />
+<br />
+I have copied:<br />
+cp dtcmcs003 dtcmcs003.new<br />
+cp dtcmcs003.old dtcmcs003<br />
+<br />
+and then works in $BSE/tmp the bdbreconfig6.2 -Ntcmcs003100+ perfect</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Loading data via AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Loading data via AFS Tools Development" />
+	
+	<title>Loading data via AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Loading data via AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">pjohns</div><div class="date">20th April 2012, 18:31</div></div><div class="posttext">Hello,<br />
+<br />
+I looking at AFS for the first time and I'm after some help on a couple of points. Below is the code I'm working with, which has been given to me by another party.<br />
+<br />
+<br />
+function main()<br />
+{<br />
+	file.id = seq.open(&quot;${BSE}\exchange\seq\tffbs101.S&quot;, &quot;r&quot;)<br />
+        while not seq.eof(file.id) and not seq.gets(v_rows, 256, file.id) <br />
+                year.i = shiftl$(strip$(v_rows(1;4)))<br />
+                budg.i = shiftl$(strip$(v_rows(5;3)))<br />
+                leac.i = shiftl$(strip$(v_rows(8;12)))<br />
+                dim1.i   = shiftl$(strip$(v_rows(20;6)))<br />
+                dim2.i   = shiftl$(strip$(v_rows(26;6)))<br />
+                dim3.i   = shiftl$(strip$(v_rows(32;6)))<br />
+                dim4.i   = shiftl$(strip$(v_rows(38;6)))<br />
+                dim5.i   = shiftl$(strip$(v_rows(44;6)))<br />
+                dbcr.i   = shiftl$(strip$(v_rows(50;3)))<br />
+                disb.i   = shiftl$(strip$(v_rows(115;3)))<br />
+                year.budg.amnt.i  = shiftl$(strip$(v_rows(61;1)))<br />
+                Create.tffbs101()<br />
+        endwhile<br />
+        seq.close(file.id)<br />
+}<br />
+<br />
+<br />
+<br />
+My questions are:-<br />
+<br />
+1. How would I specify the process to use a delimited file?<br />
+2. What does the second line of this function do? The one that starts &quot;while not&quot;<br />
+<br />
+Thanks in advance.<br />
+<br />
+PJ</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th April 2012, 22:19</div></div><div class="posttext">Basically what the while not is doing is checking for end of file and also getting the next record.  So seq.gets checks for a record and returns 0 if success and -1 for error or end of file.  The seq.eof returns 0 if not set and &gt;0 for end of file or -1 for error.  That is why both have not in front of them.<br />
+<br />
+Here is a routine we use to load a table for processing through an AFS session - granted you do not need a lot of the code below just easier to cut and paste.  In your case you would just need to use string.scan and maybe a little error checking.  Hope this helps.<br />
+<br />
+	seq.gets(buff,1024,inputfile)	| Read header row.<br />
+	nrscan.err = 0								|20090109<br />
+	nrread = 0								|20090109<br />
+	tdudi020.logn = baan.user<br />
+	tdudi020.seqn = get.next.tdudi020.seqn()<br />
+	tdudi020.line = 0<br />
+        while seq.gets(buff,1024,inputfile)=0<br />
+		read.cref = &quot;&quot;							|20090109.st<br />
+		read.ival = &quot;&quot;							<br />
+		nrread = nrread + 1						|20090109.end<br />
+                scan.ret = string.scan(buff,<br />
+                                        &quot;%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s&quot;,<br />
+		read.item,<br />
+                read.qty,<br />
+		read.cwar,<br />
+		read.loca,<br />
+		read.date,<br />
+		read.clot,<br />
+		read.cprj,<br />
+		read.cspa,<br />
+		read.butm,<br />
+		read.sbtm,<br />
+		read.prog,<br />
+		read.eser,<br />
+		read.eseq,<br />
+                read.irea,<br />
+		read.frea,<br />
+		read.prea,<br />
+		read.cref,							|20070817<br />
+		read.ival)							|20070817<br />
+| read.cref and read.ival are optional		<br />
+                if(scan.ret &lt; 16) then						|20090109	<br />
+ |                       title(&quot;string scan error&quot;)<br />
+			nrscan.err = nrscan.err + 1<br />
+			continue<br />
+                endif<br />
+| Check Item.<br />
+		tdudi020.line = tdudi020.line + 1<br />
+		rc = tt.align.according.domain(shiftl$(shiftr$(toupper$(read.cprj))),tdudi020.cprj,&quot;tppdm.cprj&quot;)<br />
+		rc = tt.align.according.domain(shiftl$(shiftr$(toupper$(read.cspa))),tdudi020.cspa,&quot;tppdm.cspa&quot;)<br />
+		rc = tt.align.according.domain(shiftl$(shiftr$(toupper$(read.butm))),tdudi020.butm,&quot;tipgc.butm&quot;)<br />
+		rc = tt.align.according.domain(shiftl$(shiftr$(toupper$(read.sbtm))),tdudi020.sbtm,&quot;tipgc.butm&quot;)<br />
+		rc = tt.align.according.domain(shiftl$(shiftr$(toupper$(read.prog))),tdudi020.prog,&quot;tiprog.a&quot;)<br />
+		rc = tt.align.according.domain(shiftl$(shiftr$(toupper$(read.eser))),tdudi020.eser,&quot;tieser.a&quot;)<br />
+		rc = tt.align.according.domain(shiftl$(shiftr$(toupper$(read.item))),tdudi020.item,&quot;tcitem&quot;)<br />
+		tdudi020.eseq = val(read.eseq)<br />
+		tdudi020.quan = val(read.qty)<br />
+		rc = tt.align.according.domain(shiftl$(shiftr$(toupper$(read.cwar))),tdudi020.cwar,&quot;tccwar&quot;)<br />
+		rc = tt.align.according.domain(shiftl$(shiftr$(toupper$(read.loca))),tdudi020.loca,&quot;tdilc.loca&quot;)<br />
+		if isspace(read.clot) then<br />
+			tdudi020.clot = &quot;&quot;<br />
+			tdudi020.date = 0<br />
+		else<br />
+			rc = tt.align.according.domain(shiftl$(shiftr$(toupper$(read.clot))),tdudi020.clot,&quot;tdltc.clot&quot;)<br />
+			if isspace(read.date) then<br />
+				tdudi020.date = 0<br />
+			else<br />
+				num.day   = val(read.date(4;2))<br />
+				num.month = val(read.date(1;2))<br />
+				num.year  = val(read.date(7;4))<br />
+				tdudi020.date  = date.to.num(num.year, num.month, num.day)<br />
+			endif<br />
+		endif<br />
+		rc = tt.align.according.domain(shiftl$(shiftr$(toupper$(read.irea))),tdudi020.irea,&quot;tdinv.recd&quot;)<br />
+		rc = tt.align.according.domain(shiftl$(shiftr$(toupper$(read.frea))),tdudi020.frea,&quot;tdinv.recd&quot;)<br />
+		rc = tt.align.according.domain(shiftl$(shiftr$(toupper$(read.prea))),tdudi020.prea,&quot;tdinv.recd&quot;)<br />
+| 20090109.st - Making read.cref and read.ival optional for the load file<br />
+		if isspace(read.cref) then									<br />
+			tdudi020.cref = &quot;&quot;<br />
+		else<br />
+			rc = tt.align.according.domain(shiftl$(shiftr$(toupper$(read.cref))),tdudi020.cref,&quot;tppdm.gcid.a&quot;)<br />
+		endif<br />
+		if isspace(read.ival) then<br />
+			tdudi020.ival = 0<br />
+		else<br />
+			tdudi020.ival = val(read.ival)<br />
+		endif<br />
+| 20090109.end<br />
+		db.insert(ttdudi020)<br />
+		commit.transaction()<br />
+	endwhile</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">binoy000</div><div class="date">22nd April 2012, 14:57</div></div><div class="posttext">Suggest to use<br />
+ return( stpapi.insert( &quot;session code&quot;, do.update, error ) ) for AFS instead of db.insert.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

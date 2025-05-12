@@ -1,0 +1,128 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Visual Basic and STPAPI, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Visual Basic and STPAPI AFS/DDC/OLE: Function servers" />
+	
+	<title>Visual Basic and STPAPI [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Visual Basic and STPAPI</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">lehighwiz</div><div class="date">17th June 2003, 16:05</div></div><div class="posttext">I am doing a bit of automation from a VB program and i don't remember how to bring the data into VB from the stpapi.get.field command.  I am so used to doing all my automation from within baan itself, that i forget how to do it with vb.  I can actually open the session, set the fields that i want, and continue, but when i attempt to bring a value from the session into vb, i am a little fuzzy. If anyone has any suggestions, i would really appreciate it.<br />
+<br />
+<br />
+thanks<br />
+<br />
+matt</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">17th June 2003, 16:27</div></div><div class="posttext">You have to reserve in a variable enough spaces to contain the return value:<br />
+<br />
+dim value as string(128)<br />
+value = &quot;---- insert 128 blanks in some way&quot;<br />
+<br />
+fun= &quot;stpapi.get.field(&quot;&quot;ppmmmnnnnx000&quot;&quot;, &quot;&quot;ppmmmXXX.field&quot;&quot;, value)&quot;<br />
+<br />
+<br />
+calling the dll you have to extract the value from the N-th position of the fun string for 128 bytes, where the N-TH is the second position after the second comma:<br />
+<br />
+after the dll call, fun contains:<br />
+stpapi.get.field(&quot;ppmmmnnnnx000&quot;, &quot;ppmmmXXX.field&quot;,&quot;returned value.... and spaces filled to 128 chars&quot;)<br />
+<br />
+Little tricky, but the only way to get the value...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lehighwiz</div><div class="date">17th June 2003, 16:44</div></div><div class="posttext">thanks for the quick reply, but i am a little confused with that syntax.  here is a snippet of my original code and a screenshot of the session that i am playing with.  let me add that this is a Gordon Fasbender session and that without his help my company would still be in the dark ages of APIs.<br />
+<br />
+ http://www.mras.com/images/baan.jpg<br />
+<br />
+i need to get the values of the fields circled above after the continue button has been pressed.<br />
+<br />
+<br />
+''''''''''<br />
+Set BaanObj = CreateObject(&quot;Baan4.Application&quot;)<br />
+SessionName = &quot;tuddc5220m000&quot;<br />
+FieldName = &quot;fserv&quot;<br />
+fieldvalue = FunctionServer<br />
+BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; SessionName &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; FieldName &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; fieldvalue &amp; Chr(34) &amp; &quot;)&quot;<br />
+FieldName = &quot;fserv.fnam&quot;<br />
+fieldvalue = FunctionName<br />
+BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; SessionName &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; FieldName &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; fieldvalue &amp; Chr(34) &amp; &quot;)&quot;<br />
+errmessage1 = Space(30)<br />
+BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.continue.process(&quot; &amp; Chr(34) &amp; SessionName &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; errmessage1 &amp; Chr(34) &amp; &quot;)&quot;<br />
+<br />
+--&gt; So i need to insert the get.field here<br />
+<br />
+BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.end.session(&quot; &amp; Chr(34) &amp; SessionName &amp; Chr(34) &amp; &quot;)&quot;<br />
+BaanObj.Quit<br />
+''''''''''<br />
+<br />
+<br />
+am i using the correct library call from my parseexecfunction?<br />
+<br />
+would it look like this?<br />
+<br />
+<br />
+dim value, fun<br />
+value = space(128)<br />
+fun = BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.get.field(&quot; &amp; Chr(34) &amp; SessionName &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; FieldName &amp; Chr(34) &amp; &quot;,&quot; &amp; value &amp; &quot;)&quot;</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">17th June 2003, 17:50</div></div><div class="posttext">I guess with a plug like that, I should provide a solution...<br />
+<br />
+In the stpapi.get.field() call, you kind of alloc enough space for the return value. You then have to interrogate the string returned in BaanObj.FunctionCall to get the value Baan returns to you in that alloc space. See below for an example:<br />
+<br />
+<br />
+FieldName = &quot;num.inrecs&quot;<br />
+GetField = String(80, &quot; &quot;)<br />
+BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.get.field(&quot; &amp; Chr(34) &amp; SessionName &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; FieldName &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; GetField &amp; Chr(34) &amp; &quot;)&quot;<br />
+<br />
+FieldValue = Space(30)<br />
+Call GetField(SessionName, FieldName, FieldValue)<br />
+tempstr = BaanObj.FunctionCall<br />
+'tempstr = &quot;stpapi.get.field(&quot;tuddc5220m000&quot;,&quot;num.inrecs&quot;,&quot;tuddcap01d000&quot;)&quot;<br />
+tempstr = Mid(tempstr, 25 + Len(Trim(SessionName)) + Len(Trim(FieldName)), 13)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th June 2003, 18:05</div></div><div class="posttext">What does the Call GetField(SessionName, FieldName, FieldValue) do ?  <br />
+<br />
+I posted this just in case others had the same questions.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">17th June 2003, 18:18</div></div><div class="posttext">Sorry, how about:<br />
+<br />
+<br />
+FieldName = &quot;num.inrecs&quot;<br />
+GetField = String(30, &quot; &quot;)<br />
+BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.get.field(&quot; &amp; Chr(34) &amp; SessionName &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; FieldName &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; GetField &amp; Chr(34) &amp; &quot;)&quot;<br />
+<br />
+tempstr = BaanObj.FunctionCall<br />
+'tempstr = &quot;stpapi.get.field(&quot;tuddc5220m000&quot;,&quot;num.inrecs&quot;,&quot;tuddcap01d000&quot;)&quot;<br />
+tempstr = Mid(tempstr, 25 + Len(Trim(SessionName)) + Len(Trim(FieldName)), 13)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lehighwiz</div><div class="date">17th June 2003, 18:42</div></div><div class="posttext">thanks for all your help.<br />
+<br />
+gordon,<br />
+<br />
+i was missing the 'functioncall' property from my code, i added it and now it is just a matter of parsing out the data from the returned string.<br />
+<br />
+again, i appreciate everyone having helped me so quickly.<br />
+<br />
+Matt</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="QA lead time report, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] QA lead time report Distribution, Transportation &amp; Warehousing" />
+	
+	<title>QA lead time report [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Distribution, Transportation &amp; Warehousing</a> &gt; QA lead time report</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">khyou99</div><div class="date">20th January 2004, 05:03</div></div><div class="posttext">I wish to build a report to measure the lead time between the receipt date and the QA maintain approval date. In table tdpur045, I know the receipt date is recorded. However, I have some difficulty looking for the QA maintain approval date. This date is not found in table tdpur045.<br />
+<br />
+I then turn my attention to other table, tipcs700. This table record the inventory transaction date. Unfortunately, the transaction date for those transaction created as a result of QA maintain approval does not capture the system date when the transaction occurred, with the exception that the receipt date is on the same date as maintain approval date.<br />
+<br />
+Anybody out there successfully built this report ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shrikantc</div><div class="date">20th January 2004, 06:41</div></div><div class="posttext">We are not sure this is the right way but as urgency of this report from our  logistic department we had done the following things<br />
+<br />
+One maintain session is created in which follwing fields are entered<br />
+<br />
+Employee id<br />
+QC Receipt date (in your case this can be  tdpur045 date)<br />
+Mrir number :      zoom to tdpur045<br />
+QC. Cleared date :  <br />
+<br />
+<br />
+with the help of above info we are generating the QC Mrir Register.<br />
+<br />
+This is not the solution we had created some work around to generate the  report<br />
+<br />
+Shrikant</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">suhas-mahajan</div><div class="date">20th January 2004, 07:11</div></div><div class="posttext">Hi,<br />
+<br />
+We also faced similar problem, but just keep in mind every receipt transaction there is entry in the finance module called tfgld410.<br />
+Taking this clue we linked tfgld410 and tdpur045 in following way but also there are some limitations. Use transaction date your solution.<br />
+<br />
+declaration:<br />
+	table		ttfgld008	| Ledger Accounts<br />
+	table		ttdpur045	| receipts<br />
+<br />
+	domain	tcqiv1	temp.qty<br />
+	#define		REF_SIGN	string.set$(noref_char(),100)<br />
+<br />
+	#include	&quot;itfgld0006&quot;	| Dimension descriptions<br />
+<br />
+before.program:<br />
+	itfgld0006.fill.dimension.description()<br />
+<br />
+before.tfgld410.leac.1:<br />
+before.layout:<br />
+	if isspace(tfgld410.leac) then<br />
+		tfgld008.desc = &quot;&quot;<br />
+	else<br />
+		if tfgld008.leac &lt;&gt; tfgld410.leac or<br />
+	   	tfgld008._compnr &lt;&gt; tfgld410.fcom then<br />
+			select tfgld008.desc<br />
+			from   tfgld008<br />
+			where  tfgld008._compnr = :tfgld410.fcom and<br />
+			       tfgld008.leac    = :tfgld410.leac<br />
+			selectdo<br />
+			selectempty<br />
+			       tfgld008.desc    = REF_SIGN<br />
+			endselect<br />
+		endif<br />
+	endif<br />
+<br />
+detail.1:<br />
+before.layout:<br />
+	if tfgld410.tror = tctror.pur<br />
+	then<br />
+		select tdpur045.*<br />
+		where	tdpur045._index1 = {:tfgld410.orno, :tfgld410.pono, :tfgld410.srno}<br />
+		selectdo<br />
+		endselect<br />
+	else<br />
+		if tfgld410.tror = tctror.prd and tfgld410.fitr = tcfitr.subcontract<br />
+		then<br />
+			temp.qty = tfgld410.nuni<br />
+<br />
+			if tfgld410.nuni &lt; 0<br />
+			then<br />
+				tfgld410.nuni = -1*tfgld410.nuni<br />
+			endif<br />
+<br />
+			select tdpur045.*<br />
+			where	tdpur045._index4 = {:tfgld410.orno}<br />
+			and	(tdpur045.dqua = :tfgld410.nuni<br />
+			or	tdpur045.quap = :tfgld410.nuni)<br />
+			selectdo<br />
+			endselect<br />
+<br />
+			tfgld410.nuni = temp.qty<br />
+			temp.qty = 0<br />
+		endif<br />
+	endif<br />
+after.layout:<br />
+	tdpur045.reno = 0<br />
+<br />
+<br />
+================<br />
+<br />
+-Suhas</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

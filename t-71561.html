@@ -1,0 +1,308 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="[AFS] Change Output File path when printing in a device in type &quot;Rewrite File&quot;, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] [AFS] Change Output File path when printing in a device in type &quot;Rewrite File&quot; AFS/DDC/OLE: Function servers" />
+	
+	<title>[AFS] Change Output File path when printing in a device in type &quot;Rewrite File&quot; [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; [AFS] Change Output File path when printing in a device in type &quot;Rewrite File&quot;</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">24th December 2018, 06:13</div></div><div class="posttext">Hi,<br />
+<br />
+I currently have a device named &quot;PDF&quot; configured to device type &quot;Rewrite File&quot; to print out a file in PDF format at the destination that is set in the Output File.<br />
+<br />
+The question is how can I use AFS to change the file name in the Output File and then print out to PDF device? Right now I already have a way to select the desired device but I cannot change the file name. How can I do that?<br />
+<br />
+Regards,<br />
+Thana</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th December 2018, 16:47</div></div><div class="posttext">Not sure I get what you are saying - can't you just set the device and output file like below.  Does the device let you change the output file?<br />
+<br />
+                spool.device = &quot;ASCIF&quot;<br />
+                spool.fileout = creat.tmp.file$(bse.tmp.dir$())</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">3rd January 2019, 10:01</div></div><div class="posttext">Can I have a whole example code on how to properly use the spool thing to print please?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd January 2019, 14:27</div></div><div class="posttext">I can get an example - but are you trying to do multiple reports to multiple files?  On 4c4 that requires I use qkey to pass variables around to make sure it gets a new file name.  In some cases (when reports are not needed) I just let them all run to the same file to delete it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd January 2019, 14:48</div></div><div class="posttext">Example 1:<br />
+<br />
+Library routine to print goods received notes.<br />
+<br />
+<br />
+|******************************************************************************<br />
+|* API Code for printing Goods Received Notes<br />
+|******************************************************************************<br />
+function extern print_goods_received(domain  tcorno	print.order,<br />
+				domain	tdpur.kofl	print.line.type,<br />
+				ref     string          msg())<br />
+{<br />
+	msg = &quot;&quot;<br />
+<br />
+	stpapi.put.field(&quot;tdpur4410m000&quot;,&quot;orno.f&quot;,str$(print.order))<br />
+	stpapi.put.field(&quot;tdpur4410m000&quot;,&quot;orno.t&quot;,str$(print.order))<br />
+	stpapi.put.field(&quot;tdpur4410m000&quot;,&quot;date.t&quot;,str$(date.num()+5000))<br />
+	stpapi.put.field(&quot;tdpur4410m000&quot;,&quot;printed&quot;,str$(print.line.type))<br />
+|012304 - addition default fields to reset.<br />
+	stpapi.put.field(&quot;tdpur4410m000&quot;,&quot;selection&quot;,str$(tcyesno.no))<br />
+	stpapi.put.field(&quot;tdpur4410m000&quot;,&quot;suno.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdpur4410m000&quot;,&quot;suno.t&quot;,&quot;ZZZZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdpur4410m000&quot;,&quot;comp.f&quot;,str$(0))<br />
+	stpapi.put.field(&quot;tdpur4410m000&quot;,&quot;comp.t&quot;,str$(999))<br />
+	stpapi.put.field(&quot;tdpur4410m000&quot;,&quot;tdpur999.dpas&quot;,str$(tcyesno.yes))<br />
+	stpapi.put.field(&quot;tdpur4410m000&quot;,&quot;prnt.clan&quot;,str$(tcyesno.yes))<br />
+	stpapi.put.field(&quot;tdpur4410m000&quot;,&quot;prnt.options&quot;,str$(tcyesno.no))<br />
+|012304	<br />
+	stpapi.set.report(&quot;tdpur4410m000&quot;,&quot;rtdpur441001000&quot;,spool.device,msg)<br />
+	if isspace(msg) then<br />
+		stpapi.continue.process(&quot;tdpur4410m000&quot;,msg)<br />
+		stpapi.get.mess.code(&quot;tdpur4410m000&quot;,msg)<br />
+	endif<br />
+	stpapi.end.session(&quot;tdpur4410m000&quot;)<br />
+}<br />
+<br />
+<br />
+Code that calls the library - this is a mash up since I did not want to post the whole script.<br />
+<br />
+	check_print_goods_received()<br />
+	if print.good.rec then<br />
+		rpt = spool.open(&quot;rtdpur441001000&quot;,spool.device,1)<br />
+		if not rpt then<br />
+			choice.again()<br />
+		endif<br />
+		spool.close()<br />
+		print_goods_received(purchase.order,tdpur.kofl.inc.printed,errmsg)<br />
+		if not isspace(errmsg) then<br />
+			errmsg = &quot;&quot;<br />
+			print_goods_received(purchase.order,tdpur.kofl.inc.backorders,errmsg)<br />
+			if not isspace(errmsg) then<br />
+				message(&quot;Print Goods Received Notes&quot; &amp; errmsg)<br />
+				choice.again()<br />
+			endif<br />
+		endif<br />
+	endif<br />
+<br />
+<br />
+                get_defa_printer(prog.name$,tdpur040.cwar)<br />
+| 20041104.end<br />
+		if isspace(tdapi100.key2) then<br />
+		| Warehouse not found<br />
+			spool.device = &quot;ASCIF&quot;<br />
+			spool.fileout = creat.tmp.file$(bse.tmp.dir$())<br />
+		else<br />
+			spool.device = strip$(tdapi100.key2)<br />
+			if strip$(spool.device) = &quot;ASCIF&quot; then<br />
+				spool.fileout = creat.tmp.file$(bse.tmp.dir$())<br />
+			endif<br />
+		endif<br />
+<br />
+|||******Part of the check_print_goods_received subroutine.<br />
+	if print.good.rec then<br />
+| 20041104.st<br />
+                if isspace(tdpur040.cwar) then<br />
+                        select	tdpur041.cwar<br />
+                        from	tdpur041<br />
+                        where	tdpur041._index1 = {:purchase.order}<br />
+                        as set with 1 rows<br />
+                        selectdo<br />
+                        endselect<br />
+                        tdpur040.cwar = tdpur041.cwar<br />
+                endif<br />
+                get_defa_printer(prog.name$,tdpur040.cwar)<br />
+| 20041104.end<br />
+		if isspace(tdapi100.key2) then<br />
+		| Warehouse not found<br />
+			spool.device = &quot;ASCIF&quot;<br />
+			spool.fileout = creat.tmp.file$(bse.tmp.dir$())<br />
+		else<br />
+			spool.device = strip$(tdapi100.key2)<br />
+			if strip$(spool.device) = &quot;ASCIF&quot; then<br />
+				spool.fileout = creat.tmp.file$(bse.tmp.dir$())<br />
+			endif<br />
+		endif<br />
+	endif<br />
+<br />
+<br />
+That get get_defa_printer(prog.name$,tdpur040.cwar) - what we have is a table that stores printers to be used for different sessions.  So each warehouse they are receiving in has its own printer.  Some warehouses or sites do not want the print good received notes so the table would basically return ASCIF and create a temp file to run the report into.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd January 2019, 15:12</div></div><div class="posttext">Here is one that I have to do in 2 phases because of limitations we have run into with spool.device and spool.fileout.  What we found was even changing spool.device and spool.fileout the sessions you called would keep using the original spool.device and spool.fileout.  So in a few places we have to do the import to get the changed device.  You might not have this issue, but we do in our 4c4.  We use old zebra printers and rmcis label maker. <br />
+<br />
+This is in my print pick tag session:<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+|20070529.st For phased run of the session in api.mode<br />
+	import(&quot;tag.run.mode&quot;,tag.run.mode)<br />
+	if api.mode and tag.run.mode = 1 then<br />
+		import(&quot;spool.device&quot;,spool.device)<br />
+		import(&quot;spool.fileout&quot;,spool.fileout)<br />
+		import(&quot;tag.temp.file&quot;,tag.temp.file)<br />
+		temp.file = tag.temp.file<br />
+		rprt_open()<br />
+		set.reprint.flag()<br />
+		get.pick.tags()<br />
+		rprt_close()<br />
+		spool.close()<br />
+		return<br />
+	endif<br />
+| Have to run in two phases to print the tags because of spool.device<br />
+| Phase 2 runs and reads the temp file from phase 2<br />
+	if api.mode and tag.run.mode = 2 then<br />
+		import(&quot;spool.device&quot;,spool.device)<br />
+		import(&quot;spool.fileout&quot;,spool.fileout)<br />
+		import(&quot;tag.temp.file&quot;,tag.temp.file)<br />
+		tag.copies = spool.pr.copies<br />
+		temp.file = tag.temp.file<br />
+		real.tag.printer = spool.device<br />
+		print.the.tags()<br />
+		return<br />
+	endif			| 20070529.end<br />
+<br />
+<br />
+<br />
+And here is the api code that calls it.<br />
+<br />
+function extern print_pick_tags(	domain	tcmcs.str12	runnumber,<br />
+					domain  tcorno		run.order.f,<br />
+					domain  tcorno		run.order.t,<br />
+					domain	tcpono		run.opno.f,<br />
+					domain	tcpono		run.opno.t,<br />
+					domain	tcitem		run.item.f,<br />
+					domain	tcitem		run.item.t,<br />
+					domain	tccwar		run.cwar.f,<br />
+					domain	tccwar		run.cwar.t,<br />
+					domain	tcmcs.str15	run.report,<br />
+					ref     string          msg())<br />
+{<br />
+	long	hold.copies<br />
+| Create temp files for phase 1 to create the data.	<br />
+	tag.temp.file = creat.tmp.file$(bse.tmp.dir$())<br />
+	tag.temp.file = strip$(tag.temp.file)<br />
+	msg = &quot;&quot;<br />
+	real.tag.printer = spool.device<br />
+	hold.copies = spool.pr.copies<br />
+	spool.device = &quot;INTERFACE&quot;<br />
+	spool.fileout = tag.temp.file<br />
+	export(&quot;spool.device&quot;,spool.device)<br />
+	export(&quot;spool.fileout&quot;,spool.fileout)<br />
+	export(&quot;tag.temp.file&quot;,tag.temp.file)<br />
+	export(&quot;real.tag.printer&quot;,real.tag.printer)<br />
+	tag.run.mode = 1<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;orno.f&quot;,str$(run.order.f))<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;orno.t&quot;,str$(run.order.t))<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;pono.f&quot;,&quot;0&quot;)<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;pono.t&quot;,&quot;9999&quot;)<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;opno.f&quot;,str$(run.opno.f))<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;opno.t&quot;,str$(run.opno.t))<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;prdt.f&quot;,str$(date.num()-5000))<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;prdt.t&quot;,str$(date.num()+5000))<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;run.f&quot;,runnumber)<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;run.t&quot;,runnumber)<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;gendate.f&quot;,str$(date.num()))<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;gendate.t&quot;,str$(date.num()))<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;item.f&quot;,run.item.f)<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;item.t&quot;,run.item.t)<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;cwar.f&quot;,run.cwar.f)<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;cwar.t&quot;,run.cwar.t)<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;reprint.tags&quot;, str$(tcyesno.no) )<br />
+|	stpapi.set.report(&quot;tdilc9401m000&quot;,&quot;rtdilc940115000&quot;,spool.device, msg )<br />
+	stpapi.set.report(&quot;tdilc9401m000&quot;,run.report,spool.device, msg )<br />
+	stpapi.continue.process(&quot;tdilc9401m000&quot;,msg)<br />
+	stpapi.end.session(&quot;tdilc9401m000&quot;)<br />
+<br />
+| Phase 2 will print the data in the temp file from phase 1<br />
+	tag.run.mode = 2<br />
+	spool.pr.copies = hold.copies<br />
+	spool.device = real.tag.printer<br />
+	spool.fileout = &quot;&quot;<br />
+	export(&quot;spool.device&quot;,spool.device)<br />
+	export(&quot;spool.fileout&quot;,spool.fileout)<br />
+	export(&quot;tag.temp.file&quot;,tag.temp.file)<br />
+	export(&quot;real.tag.printer&quot;,real.tag.printer)<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;orno.f&quot;,str$(run.order.f))<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;orno.t&quot;,str$(run.order.t))<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;pono.f&quot;,&quot;0&quot;)<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;pono.t&quot;,&quot;9999&quot;)<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;opno.f&quot;,str$(run.opno.f))<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;opno.t&quot;,str$(run.opno.t))<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;prdt.f&quot;,str$(date.num()-5000))<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;prdt.t&quot;,str$(date.num()+5000))<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;run.f&quot;,runnumber)<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;run.t&quot;,runnumber)<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;gendate.f&quot;,str$(date.num()))<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;gendate.t&quot;,str$(date.num()))<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;item.f&quot;,run.item.f)<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;item.t&quot;,run.item.t)<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;cwar.f&quot;,run.cwar.f)<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;cwar.t&quot;,run.cwar.t)<br />
+	stpapi.put.field(&quot;tdilc9401m000&quot;,&quot;reprint.tags&quot;, str$(tcyesno.no) )<br />
+	stpapi.set.report(&quot;tdilc9401m000&quot;,run.report,spool.device, msg )<br />
+	stpapi.continue.process(&quot;tdilc9401m000&quot;,msg)<br />
+	stpapi.end.session(&quot;tdilc9401m000&quot;)<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">4th January 2019, 03:33</div></div><div class="posttext">Thank you very much mark_h.<br />
+I will try your code and will give you feedback soon.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">4th January 2019, 06:50</div></div><div class="posttext">Here is what I got so far.<br />
+<br />
+spool.device = &quot;PDF&quot;<br />
+spool.fileout = creat.tmp.file$(bse.tmp.dir$() &amp; &quot;\PDF&quot;)<br />
+stpapi.set.report(session.code, report.code, spool.device, error.msg)<br />
+stpapi.form.command(session.code, 5, &quot;exec.cont.process&quot;, error.msg)<br />
+<br />
+stpapi.form.command is used to execute the print because it is a print session.<br />
+It does generate a temp file into the folder PDF I created for this but the file has 0KB and does not have any extension with it. So it is not usable.<br />
+I don't know what I did wrong.<br />
+I tried using <br />
+<br />
+spool.open(report.code, spool.device, 1)<br />
+spool.close()<br />
+<br />
+but it gives the same result as above.<br />
+What I want is to have the result PDF file with specific file name (I will use variable for the file name).<br />
+<br />
+Please kindly guide me on how to achieve this.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th January 2019, 14:56</div></div><div class="posttext">Try whichever session you are running with the display.  This way you can make sure you are getting a report.  I know on some of my stuff a 0 byte file means no data found when running a report.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">7th January 2019, 06:46</div></div><div class="posttext">I printed to device D to test your concern about the order having to data to print. It actually has data to print and the report is correctly displayed in device display by printing it manually. It works for both device display and device PDF that I want to print it out to.<br />
+<br />
+Now that the program still gives me the temp file that has 0 byte in it so I don't know what is wrong here.<br />
+Moreover, another issue that I need to resolve is that how can I change the file name?<br />
+It is now &quot;tmp&quot; with some number such as &quot;tmp614619481&quot; without any file extension.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">7th January 2019, 11:06</div></div><div class="posttext">I got a way to solve this problem now.<br />
+Since the PDF device of mine specifies the file name to print out with a static file name.<br />
+I just use file.cp() command to copy the file to another file and I can decide what the destination file will be named, which is my variables.<br />
+It is now working as expected.<br />
+Anyways, I want to thank you, mark_h, for helping me with the suggested solutions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th January 2019, 15:34</div></div><div class="posttext">Never even thought about the device having a static file name.  We never use that feature for some reason.   I am glad you found the solution.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

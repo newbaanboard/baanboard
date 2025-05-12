@@ -1,0 +1,500 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Variable amount of lines in after.report layout, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Variable amount of lines in after.report layout Tools Development" />
+	
+	<title>Variable amount of lines in after.report layout [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Variable amount of lines in after.report layout</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">11th October 2004, 12:54</div></div><div class="posttext">Hello friends,<br />
+<br />
+I need some advice URGENTLY:<br />
+<br />
+For a certain (fully-customized) report I have to add a list with data for records not mentioned on the report detail lines. These lines are variable - depending on the data printed - and thus, the amount of lines is variable too.<br />
+ <br />
+The required list has to be printed at the bottom of the report, so I have to add it as an after.report layout. In the report script I will make the query to determine which records &quot;are missing&quot;, i.e. which records I have to add there. How do I handle this? How do I keep the amount of lines for this layout variable? Do I do this best by using the need() fundtion? If yes, please give an example of how to use it (I am not so familiar with those functions). Any other suggestions are most welcome!!<br />
+<br />
+Many thanks in advance!!<br />
+<br />
+En.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">11th October 2004, 14:10</div></div><div class="posttext">Hello Andreas,<br />
+<br />
+Thanks very much for your response! Let me try to explain a bit better what my situation is:<br />
+<br />
+At our company, for most 'areas' there is a warehouse with the same name. I.e. if you find in tcmcs045 an area &quot;abc&quot; you will find in tcmcs003 a warehouse &quot;abc&quot;. <br />
+<br />
+The report has to print warehouse data based on a selection of areas. So if the user selects areas &quot;AAA&quot; to &quot;ABC&quot; the report will print data (in teh detail lines) of warehouses &quot;AAA&quot; to &quot;ABC&quot;. Now at the bottom of the report I want to print a list of the data of all warehouses that are not yet mentioned on the report, i.e. those who do not have an area with the same name. <br />
+<br />
+I retrieve them very simply, with the following code:<br />
+	select	tcmcs003._index1<br />
+	from	tcmcs003<br />
+	order by tcmcs003._index1<br />
+	selectdo<br />
+		creg.cwar = shiftl$(strip$(tcmcs003.cwar))<br />
+		select	tcmcs045._index1<br />
+		from	tcmcs045<br />
+		where	tcmcs045._index1 = {:creg.cwar}<br />
+		order by tcmcs045._index1<br />
+		selectdo<br />
+		selectempty<br />
+			|// Selecting my data, and sending to report				<br />
+		endselect<br />
+	endselect<br />
+<br />
+<br />
+I hope my intention is clear. So now, if I adopt your solution, how will it work? My code to select the required records goes through the whole tcmcs003 (warehouses) table and then checks for each warehouse if a tcmcs045 (area) exist; if not, a record has to be printed in the after.report. Can this be achieved also with layout.again?? If not, would you, or anyone else have another suggestion??<br />
+<br />
+Many thanks in advance!!<br />
+<br />
+Kind regards,<br />
+<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">13th October 2004, 16:19</div></div><div class="posttext">Andreas,<br />
+<br />
+Thanks very much for your response, and sorry for my late reply; I just now found time to continue working on this...<br />
+<br />
+Your solution still has one big problem: <br />
+I only want a record printed in case of 'selectempty' on the tcmcs045-query, i.e. if for that warehouse there is no area linked with same name; but what for all those who land in the 'selectdo' section, i.e. there is an area found with same name as warehouse; those will all be printed as well now...<br />
+<br />
+I cannot use lattr.print = false, because then it will stop the cycle, and not check the remaining warehouses anymore; i.e. it will never hit the layout.again() anymore....<br />
+<br />
+As you were so nicely on your way to helping me, I'm sure you will find a nice solution to this as well.... ;) <br />
+<br />
+Thanks again!!<br />
+<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">13th October 2004, 16:43</div></div><div class="posttext">I would use an array to track the information (but the code is just hacked i.e. untested):<br />
+<br />
+<br />
+declaration:<br />
+	long	cnt<br />
+	domain	tccreg	arr.creg(1000)	| or make it dynamically<br />
+	domain	tcbool	arr.used(1000)<br />
+<br />
+	long	final.i<br />
+<br />
+	table	ttcmcs045<br />
+<br />
+before.program:<br />
+	cnt = 0<br />
+	select	tcmcs045.*<br />
+	from	tcmcs045<br />
+	order by tcmcs045._index1<br />
+	selectdo<br />
+		cnt = cnt + 1<br />
+		arr.creg(1,cnt) = tcmcs045.creg<br />
+		arr.used(cnt) = false<br />
+	endselect<br />
+<br />
+	final.i = 0<br />
+<br />
+detail.i:<br />
+after.layout:<br />
+	long	i<br />
+	for i = 1 to cnt<br />
+		if  arr.creg(1,i) = creg.just.printed then<br />
+			arr.used(i) = true<br />
+			break<br />
+		endif<br />
+	endfor<br />
+<br />
+| scheme from andreas<br />
+after.report.5:<br />
+before.layout: <br />
+	if final.i &lt; cnt then<br />
+		repeat<br />
+			final.i = final.i + 1<br />
+			if final.i &gt; cnt then<br />
+				lattr.print = false<br />
+				break<br />
+			endif<br />
+			if arr.used(i) = false then<br />
+				warehouse.to.print = arr.creg(1,final.i)<br />
+				break<br />
+			endif<br />
+		until false<br />
+	else<br />
+		lattr.print = false<br />
+	endif <br />
+after.layout:<br />
+	layout.again()</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">14th October 2004, 13:20</div></div><div class="posttext">Andreas, thanks for this idea; sounds good. I have a problem while compiling the code with the not exist statement: I get compiler warnings for the after.report.5: after.layout: and for the after.report.10 layouts saying &quot;label 'after.layout' declared but never used&quot;, &quot;label 'after.report.10' declared but never used&quot; and &quot;label 'before.layout' declared buit not used&quot;. If I put the not exist lines in comment, I do not get the warnings. Af I run the report in debug mode, the report will hit the after.layout section where it says layout.again(); however the layout will not be printed again....<br />
+<br />
+Does anyone know what this means?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">15th October 2004, 10:43</div></div><div class="posttext">Andreas,<br />
+<br />
+What did you revise? I do not see many changes between your latest code, and the code from before. I don't know why this is, but I keep getting those warnings.<br />
+<br />
+If I delete the 'not exist (select ...)' part, I don't have the warnings. <br />
+<br />
+Anyone can help me out here...?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">15th October 2004, 10:53</div></div><div class="posttext">Yes, I created them via the Baan report editor (is there any other way of creating layouts??????? - well, except for via de session generator then...). I am on BaaN 5.0B. The funny thing is that it seems like somehow it has to do with this piece of nested subquery... but I don't understand how and what...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">15th October 2004, 10:55</div></div><div class="posttext">P.s. the after.layout.2 complies with the after.report.5 from your example, and after.report.3 is an additional after.report layout, for the final totals.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">15th October 2004, 11:04</div></div><div class="posttext">Sure, here it goes:<br />
+<br />
+<br />
+after.report.1:<br />
+after.layout:<br />
+	creg.cwar = &quot;&quot;<br />
+	<br />
+<br />
+after.report.2:<br />
+before.layout:<br />
+	utc.date.f = date.to.utc(year, period, 01, 00, 00, 00)<br />
+	if period &lt; 12 then<br />
+		num.date.t= date.to.num(year, period + 1, 1) - 1	<br />
+	else<br />
+		num.date.t= date.to.num(year + 1, period - 11, 1) - 1	<br />
+	endif<br />
+	dummy2 = num.to.date(num.date.t, fnc.year, fnc.period, day)<br />
+	utc.date.t = date.to.utc(fnc.year, fnc.period, day, 23, 59, 59)<br />
+<br />
+	utc.all.f = date.to.utc(year - 1, period, 01, 00, 00, 00)<br />
+	num.date.t= date.to.num(year, period, 1) - 1	<br />
+	dummy2 = num.to.date(num.date.t, fnc.year, fnc.period, day)<br />
+	utc.all.t = date.to.utc(fnc.year, fnc.period, day, 23, 59, 59)<br />
+<br />
+	select	tcmcs003._index1<br />
+	from	tcmcs003<br />
+	where	tcmcs003._index1 &gt; {:creg.cwar}<br />
+	and	not exists<br />
+		(select	tcmcs045<br />
+		from	tcmcs045<br />
+		where	tcmcs045.creg = :tcmcs003.cwar)<br />
+	order by tcmcs003._index1<br />
+	as set with 1 rows	<br />
+	selectdo<br />
+		creg.cwar = shiftl$(strip$(tcmcs003.cwar))<br />
+		num.date.f = date.to.num(year - 1, period, 01)<br />
+		num.date.t= date.to.num(year, period, 1) - 1	<br />
+<br />
+		stock = 0<br />
+		ucop = 0<br />
+<br />
+		select	whinh961.*<br />
+		from	whinh961<br />
+		where 	whinh961._index1 = {:creg.cwar, :item} <br />
+		and	whinh961.date inrange :num.date.f and :num.date.t<br />
+		order by whinh961.date desc<br />
+		selectdo<br />
+			change2 = false<br />
+			num.to.date(whinh961.date, fnc.year, new.perd, day)<br />
+|			if hold.perd &lt;&gt; new.perd then<br />
+				change2 = true<br />
+				stock = stock + whinh961.stoc<br />
+				ucop = whinh961.ucop<br />
+|			endif<br />
+			hold.perd = new.perd<br />
+		selecteos<br />
+			if not change2 then<br />
+|				stock = stock + whinh961.stoc<br />
+|				ucop = whinh961.ucop<br />
+			endif<br />
+		endselect<br />
+<br />
+		quan.amnt = tot.quan * ucop<br />
+		ave.stock = stock / 12<br />
+		stoc.amnt = stock * ucop<br />
+		ave.stoc.amnt = stoc.amnt / 12<br />
+<br />
+<br />
+		select	sum(whinr110.qstk):miss.sqpe<br />
+		from	whinr110<br />
+		where	whinr110._index5 inrange {:utc.all.f, :tcmcs003.cwar, :item} <br />
+			and {:utc.all.t, :tcmcs003.cwar, :item}<br />
+		and	(whinr110.koor = 34 or whinr110.koor = 35)<br />
+|		order by whinr110._index5<br />
+		selectdo<br />
+			tot.quan.amnt = tot.quan.amnt + cwar.quan.amnt<br />
+		selectempty<br />
+			miss.sqpe = 0<br />
+		endselect<br />
+			<br />
+	selectempty<br />
+		select	tcmcs003._index1<br />
+		from	tcmcs003<br />
+		where	tcmcs003._index1 &gt; {:creg.cwar}<br />
+		order by tcmcs003._index1<br />
+		as set with 1 rows	<br />
+		selectdo<br />
+		selectempty	<br />
+			lattr.print = false<br />
+		endselect<br />
+	endselect<br />
+<br />
+<br />
+<br />
+after.layout:<br />
+	layout.again()<br />
+<br />
+<br />
+<br />
+after.report.3:<br />
+before.layout:<br />
+	ave.tot.stoc.amnt = tot.stoc.amnt / 12<br />
+	if ave.tot.stoc.amnt &lt;&gt; 0 then<br />
+		tot.rot.year = tot.quan.amnt / ave.tot.stoc.amnt<br />
+	else<br />
+		tot.rot.year = 0<br />
+	endif<br />
+<br />
+	if tot.rot.year &lt;&gt; 0 then<br />
+		tot.rot.day = 365 / tot.rot.year<br />
+		tot.rot.week = 52 / tot.rot.year<br />
+	else<br />
+		tot.rot.day = 0<br />
+		tot.rot.week = 0<br />
+	endif<br />
+<br />
+	label.csig = &quot;&quot;<br />
+	for i = 1 to 3<br />
+		if not isspace(csig(1, i)) then<br />
+			tmp.csig = csig(1, i)<br />
+			select	tcmcs018.dsca<br />
+			from	tcmcs018<br />
+			where	tcmcs018._index1 = {:tmp.csig}<br />
+			as set with 1 rows<br />
+			selectdo<br />
+				csig.dsca(1, i) = tcmcs018.dsca<br />
+			selectempty<br />
+				csig.dsca(1, i) = &quot;&quot;<br />
+			endselect<br />
+			label.csig = &quot;Omschrijving vermeldde signalerigscodes:&quot;			<br />
+		endif<br />
+	endfor</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">15th October 2004, 17:24</div></div><div class="posttext">Andreas, no more inspiration???<br />
+Anybody else??? Need to solve this riddle....!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">15th October 2004, 17:55</div></div><div class="posttext">En -<br />
+Just from looking, I think you need to take out the &quot;:&quot; in your where not exists / :tcmcs003.cwar statement:<br />
+<br />
+<br />
+and	not exists<br />
+		(select	tcmcs045<br />
+		from	tcmcs045<br />
+|		where	tcmcs045.creg = :tcmcs003.cwar)   |old<br />
+		where	tcmcs045.creg = tcmcs003.cwar)   |new</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">18th October 2004, 07:50</div></div><div class="posttext">In addition to extra colon as aforesaid , triming the value creg.cwar can also create problem if there are leading  spaces .  Just check the code after removing the code to trim the value of creg.cwar.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">18th October 2004, 10:10</div></div><div class="posttext">Andreas, thanks for your response. Looking forward to your &quot;solving the riddle&quot; today...<br />
+Lisa, thanks for your correct remark. This did however, unfortunately not solve my issue; still have the same warnings!<br />
+Hitesh, You might be right (maybe), but yet this again does not solve my problem...<br />
+<br />
+Frustrating....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">18th October 2004, 16:41</div></div><div class="posttext">If the report hangs , may be 'lattr.print = false' does not reach in after.report.2 before.layout section.<br />
+<br />
+Can u elaborate what the problem is now.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">18th October 2004, 16:56</div></div><div class="posttext">The report does not hang, the report just never reaches the r.s.after.report.2.aft.lay and r.s.after.report.3.bef.lay sections (verified through debugging). Those sections in the report script, are not recognized for some reason, since using the 'not exist' subquery. When putting the lines of the subquery in comment, there is no problem, and no warning by compiling. Now, when compiling I get errors indicating that the report script sections, are seen to the system as labels....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">19th October 2004, 07:33</div></div><div class="posttext">I have seen this in Baan IV in following situations.<br />
+<br />
+1. After layout is executed only when layout is printed .If layout is not printed no after layout is executed.(may be lattr.print set to false either in print condition or in report script for after.report.2).<br />
+<br />
+2. If the print condition for layout evaluates to false , before layout too is not executed. Though u seem to have checked everything , just check whether there is after.report.3 layout in the report layout.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">19th October 2004, 09:55</div></div><div class="posttext">Hitesh,<br />
+<br />
+Lattr.print is set to true on all those layouts.<br />
+<br />
+During runtime in r.s.after.report.2.bef.lay, the report goes through all the code of section r.s.after.report.2.bef.lay, r.s.after.report.2.aft.lay, and r.s.after.report.3.bef.lay (which is basically till the end of the report script). During runtime Baan does not recognize the last 2 sections, they do not exist at runtime, for they are seen as part of after.report.2.bef.lay, as labels (as quoted on the warnings)....<br />
+<br />
+Furthermore, if I take section after.report.3.bef.lay, and put it up in the report script, for instance before after.report.1, then I receive only one warning, on the after.report.2.aft.lay, but no warning regarding after.report.3.<br />
+<br />
+<br />
+Thus, it is very clear, that like I said, the problem is that those sections in the program script are not recognized as seperate sections, but rather seen as kind of labels (???), within the after.report.2.bef.lay section. <br />
+<br />
+When removing the nested subquery 'where not exist', the problem does not occur.<br />
+<br />
+I am getting more and more curious...!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lakoon</div><div class="date">20th October 2004, 23:32</div></div><div class="posttext">hello en@frrom<br />
+<br />
+I was digging a little bit in my documentation to solve your described problem.<br />
+Acutually I would try the following way.<br />
+<br />
+I have adapted parts of your query statement<br />
+<br />
+May you have a try, if you haven't solved the problem yet<br />
+<br />
+<br />
+declaration:<br />
+	long	sqlid<br />
+	long	ret<br />
+	string	query(500)<br />
+	<br />
+before.program:<br />
+	query = 	&quot;select	tcmcs003._index1 &quot; &amp;<br />
+			&quot;from	tcmcs003 &quot; &amp;<br />
+			&quot;where	tcmcs003._index1 &gt; {:1} &quot; &amp;<br />
+			&quot;and	not exists &quot; &amp;<br />
+			&quot;(select	tcmcs045 &quot; &amp;<br />
+			&quot;from	tcmcs045 &quot; &amp;<br />
+			&quot;where	tcmcs045.creg = tcmcs003.cwar &quot; &amp;<br />
+			&quot;order by tcmcs003._index1)&quot;<br />
+	sqlid = sql.parse(query)<br />
+<br />
+after.report.1:<br />
+after.layout<br />
+	sql.where.bind(sqlid,1,creg.cwar)<br />
+	sql.exec(sqlid)<br />
+after.report.2:<br />
+before.layout:<br />
+	if sql.fetch(sqlid) &lt;&gt; 0 then<br />
+		lattr.print = false<br />
+		sql.break(sqlid)<br />
+	else<br />
+		| Insert your additional select statements to get the<br />
+		| Data from the wh* Tables<br />
+	endif<br />
+	<br />
+after.layout<br />
+	layout.again()<br />
+<br />
+ <br />
+<br />
+/Lakoon</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">21st October 2004, 08:41</div></div><div class="posttext">Hi  En ,<br />
+<br />
+So when u use 'not exist' sub query, the report does not recognize the <br />
+sections. Those are treated as part of before layout for after.report.2. <br />
+<br />
+Very strange.Just try putting all those lines above the  after.report.2.bef.lay<br />
+in the report script . Alternatively re-organize the logic so as not to<br />
+use the 'not exists' clause.<br />
+<br />
+U may report this 'not exists' issue to support. <br />
+<br />
+Good luck.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">21st October 2004, 09:38</div></div><div class="posttext">Hi Hitesh,<br />
+<br />
+Putting the other layout sections above the after.report.2 section in the script itself, indeed solves the issue, yet not the whol eissue, because I need to still have the after.report.2.aft.lay section where I call layout.again(). This I cannot move up, for then I will receive an error saying after.report.2 section already declared....<br />
+<br />
+To use an alternative method, I couldn't yet think of anything. I unfortunately have never yet worked with dynamic sql. As a matter of fact I always avoided it, for I do not have enough knowledge of it. Maybe now will be a good time to play around with dynamic sql a little. Thanks Lakoon to your suggestions, I will look into it.<br />
+<br />
+As for reporting the issue to Baan: I have already logged a case by Baan Support a couple of days ago; still haven't received any response from their side...<br />
+<br />
+Wishing all a wonderful day!!!<br />
+<br />
+En.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">21st October 2004, 11:41</div></div><div class="posttext">Hitesh,<br />
+<br />
+as I see there are two things to do: 1) determine the data you like to see on your report and 2) how to get them onto the report.<br />
+<br />
+part 2) has been discussed by the &quot;loop&quot; consisting of after.report.x and layout.again() combinations.<br />
+<br />
+part 1) has been tried by different approaches with more ore less tricky ssql statements -- why don't you try my quite simple approach that I posted recently?<br />
+<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">21st October 2004, 16:02</div></div><div class="posttext">En,<br />
+<br />
+By shifting the code before after.report.2.bef.lay , I did not mean<br />
+change in logic . Just change in script arrangement like <br />
+<br />
+<br />
+after.report.3:<br />
+before.layout:<br />
+	|actual code<br />
+after.report.2:<br />
+after.layout:<br />
+	layout.again()<br />
+before.layout:<br />
+	|complete code with 'not exists'<br />
+<br />
+<br />
+Not sure it helps or not . Suggested this because label error indicates<br />
+system does not recognize it as valid layout . This means it's either <br />
+treated as continuation of earlier code or the layout does not really exist.<br />
+<br />
+Gunther,<br />
+Indeed the code suggested by u will accomplish the results. We just persisted<br />
+in the Andreas' approach becasue En had worked lot with that code and I wished<br />
+the results to come with that code itself. En should try this code too.<br />
+<br />
+En,<br />
+<br />
+The code suggested by Gunther &amp; Lakoon are the alternative and <br />
+I add more to it with basic structure derived from the code pasted by u.<br />
+<br />
+<br />
+domain tcbool crgexst<br />
+select	tcmcs003.*<br />
+from	tcmcs003 <br />
+where	tcmcs003._index1 &gt; {:creg.cwar}<br />
+order by tcmcs003._index1<br />
+selectdo<br />
+	crgexst = false<br />
+	select tcmcs045.*<br />
+	from tcmcs045<br />
+	where tcmcs045._index1 = {:tcmcs003.cwar}<br />
+	selectdo<br />
+		crgexst = true<br />
+	endselect<br />
+	if crgexst then<br />
+		continue<br />
+	endif<br />
+	creg.cwar = tcmcs003.cwar<br />
+	| all code to print the correct record in after.report.2.bef.lay<br />
+	break<br />
+selecteos<br />
+          if crgexst then<br />
+                 lattr.print = false<br />
+          endif<br />
+selectempty<br />
+	lattr.print = false<br />
+endselect<br />
+<br />
+<br />
+I know some SQL overhead in it but it's not high considering size of tcmcs tables.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

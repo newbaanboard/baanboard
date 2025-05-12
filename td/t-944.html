@@ -1,0 +1,119 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="functionserver.find() is not working, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] functionserver.find() is not working Tools Development" />
+	
+	<title>functionserver.find() is not working [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; functionserver.find() is not working</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">popeye</div><div class="date">4th February 2002, 23:26</div></div><div class="posttext">Hi,<br />
+	I am using Function Server for deleting Purchase Order lines.<br />
+<br />
+	When I do a find(), I get a return value of 1.<br />
+	1 = Record found.<br />
+	But when I do a get() for the order and position, I get <br />
+	different values. Basically it goes to the first Purchase Order/Line.<br />
+<br />
+	Why is this happening?	<br />
+	I have attached a snapshot of my debug screen for your<br />
+	perusal. Check the value of hold.orno, hold.pono, tmp.orno and 	tmp.pono.<br />
+<br />
+	Here is the script.<br />
+	Check the |.new and |.old lines.<br />
+<br />
+	Thanks.<br />
++++++++++++++++++++++++++++++++++++<br />
+<br />
+function extern domain tcbool tdpurodll00001.delete.po.line(domain tcorno hold.orno,<br />
+		  			                    domain tcpono hold.pono,<br />
+			    		                ref domain tcmcs.str100 hold.error)<br />
+{<br />
+	<br />
+	long ret<br />
+	domain	tcorno	tmp.orno<br />
+	domain	tcpono	tmp.pono<br />
+		<br />
+	hold.error = &quot;&quot;<br />
+	<br />
+	stpapi.enum.answer(&quot;tdpur4105s000&quot;, &quot;ttstpq0100&quot;, ttyeno.yes)<br />
+	stpapi.handle.subproc(&quot;tdpur4105s000&quot;,&quot;tdpur5106s000&quot;,&quot;kill&quot;)<br />
+	<br />
+	f4105s000.put.Purchase_Order(hold.orno)<br />
+	f4105s000.put.Position_Number(hold.pono)<br />
+	ret = f4105s000.find()<br />
+	|if ret = 1 then					| .old<br />
+	tmp.orno = f4105s000.get.Purchase_Order()		| .new<br />
+	tmp.pono = f4105s000.get.Position_Number()		| .new<br />
+	if tmp.orno = hold.orno and tmp.pono = hold.pono then   | .new<br />
+		f4105s000.delete(0, hold.error)<br />
+		if not isspace(hold.error) then<br />
+			f4105s000.end()<br />
+			return(FALSE)<br />
+		endif<br />
+	else<br />
+		hold.error = &quot;Purchase Order not found&quot;<br />
+		f4105s000.end()<br />
+		return(FALSE)<br />
+	endif<br />
+	f4105s000.end()<br />
+	return(TRUE)<br />
+}Code tags (http://www.baanboard.com/baanboard/misc.php?s=&amp;action=bbcode) added.<br />
+~Vamsi</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">popeye</div><div class="date">4th February 2002, 23:31</div></div><div class="posttext">forgot to attach the pic :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th February 2002, 15:51</div></div><div class="posttext">Is there a session controlling the tdpur4105s000 or are you starting the subsession by itself.  I was just wondering what would happen if you did the find twice in a row?<br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">popeye</div><div class="date">5th February 2002, 20:24</div></div><div class="posttext">Mark,<br />
+      I tried calling the put()s and the find() twice.<br />
+      It worked. Why is that? Weird, eh? <br />
+      &quot;Baansense&quot; ...  I guess :)<br />
+<br />
+                f4105s000.put.Purchase_Order(hold.orno)<br />
+	f4105s000.put.Position_Number(hold.pono)<br />
+	ret = f4105s000.find()<br />
+<br />
+	f4105s000.put.Purchase_Order(hold.orno)<br />
+	f4105s000.put.Position_Number(hold.pono)<br />
+	ret = f4105s000.find()<br />
+<br />
+       Thanks !</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th February 2002, 22:16</div></div><div class="posttext">From the code you posted I did not see anything that initiated the sub-session. Usually a subsession is called from a main session (Maybe you did that somewhere else). Anyway, that may do an initial find or first.set to get things running.  It maybe that you need to do a change view before doing the find.  I am sorry but we do not use the sessions you are talking about and I do not know how they run. Just from glancing at the session you may need to do a stpapi.change.view first. I think you can use in the library f4105s000.set.view().  This should get you the first set.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">popeye</div><div class="date">5th February 2002, 22:44</div></div><div class="posttext">Mark,<br />
+      Thanks for the posts.<br />
+<br />
+      The subsession is being activcated from PO header.<br />
+      But I'm directly using the subsession without invoking the<br />
+      main session. <br />
+<br />
+      when i call the puts and find twice it works.<br />
+<br />
+     :)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

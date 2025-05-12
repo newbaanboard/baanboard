@@ -1,0 +1,259 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="zero credit and zero debit, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] zero credit and zero debit Tools Development" />
+	
+	<title>zero credit and zero debit [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; zero credit and zero debit</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">2nd April 2012, 11:09</div></div><div class="posttext">Dear Gurus,<br />
+<br />
+I have a script which gives me the Supplier movement detail but if &quot;DEBIT AND CREDIT&quot; are both zero then it doesnot print the report. Kindly verify my script for the same.<br />
+<br />
+<br />
+functions:<br />
+<br />
+<br />
+function read.main.table()<br />
+{<br />
+cbal = 0.0<br />
+dbal = 0.0<br />
+|clbal = 0.0<br />
+select tccom020.* from tccom020<br />
+where  tccom020._index1 inrange {:cuno.f} and {:cuno.t}<br />
+|where tccom020._index1 = {:cuno.f}<br />
+order by tccom020._index1<br />
+selectdo<br />
+	|op.bal()<br />
+	op.bal = opbal(tccom020.suno)<br />
+	balance = 0<br />
+	debit = 0<br />
+	credit = 0<br />
+	<br />
+	clbal = op.bal<br />
+	if op.bal &gt;= 0.0 then<br />
+	   dbal = op.bal<br />
+	   cbal = 0.0	<br />
+	else<br />
+	   cbal = op.bal*-1<br />
+	   dbal = 0.0 	<br />
+	endif<br />
+	select	tfacp200.*<br />
+	from	tfacp200<br />
+	where 	tfacp200._index2 = {:tccom020.suno}<br />
+	and	(tfacp200.tdoc = &quot;&quot;)<br />
+	|or	tfacp200.tpay = tfacp.tpay.normal<br />
+	|or	tfacp200.cdam &lt;&gt; 0)<br />
+	|and     tfacp200.year = :year<br />
+	|and     tfacp200.prod between :prod.f and :prod.t<br />
+	and 	tfacp200.docd between :indt.f and :indt.t<br />
+ 	order by tfacp200.suno,tfacp200.docd<br />
+	selectdo<br />
+	balance = 0.0<br />
+	debit = 0.0<br />
+	credit = 0.0<br />
+<br />
+	balance = 0<br />
+	select	sum(tfacp200.amth):balance<br />
+	from	tfacp200<br />
+	where 	tfacp200._index1 = {:tfacp200.ttyp, :tfacp200.ninv, :tfacp200.line}<br />
+	and	tfacp200.tdoc &lt;&gt; &quot;&quot;<br />
+	and 	tfacp200.docd between :indt.f and :indt.t<br />
+	selectdo<br />
+	endselect<br />
+	if tfacp200.amth + balance = 0 then<br />
+	continue<br />
+	endif<br />
+<br />
+	tfacp200.amth = tfacp200.amth + balance<br />
+	tfacp200.amth = tfacp200.amth * -1<br />
+	if tfacp200.amth &lt; 0 then<br />
+		credit = tfacp200.amth * -1 + tfacp200.cdam<br />
+	else<br />
+		debit = tfacp200.amth + tfacp200.cdam<br />
+	endif<br />
+	balance = debit - credit<br />
+	clbal = clbal+balance<br />
+<br />
+	rprt_Send()<br />
+	continue<br />
+<br />
+	<br />
+	if tfacp200.tpay = tfacp.tpay.assignment and tfacp200.docn &gt; 0 then		<br />
+	else<br />
+		if tfacp200.tpay = tfacp.tpay.invoice then<br />
+			credit = tfacp200.amth	<br />
+			debit = 0<br />
+			balance = debit - credit<br />
+			clbal = clbal+balance<br />
+		endif<br />
+		if tfacp200.tpay = tfacp.tpay.credit then<br />
+		if  tfacp200.docn  &gt; 0 and not isspace(tfacp200.tdoc) then<br />
+		else	<br />
+				if tfacp200.amth &gt; 0 then	<br />
+				credit = tfacp200.amth	<br />
+				debit = 0<br />
+				balance = debit - credit<br />
+			        clbal = clbal+balance<br />
+			else<br />
+			debit = tfacp200.amth*-1	<br />
+			credit = 0<br />
+			balance = debit - credit<br />
+			clbal = clbal+balance<br />
+		endif	<br />
+		endif<br />
+		endif<br />
+		if (tfacp200.tpay = tfacp.tpay.normal <br />
+		       or tfacp200.tpay = tfacp.tpay.advance<br />
+		       or tfacp200.tpay = tfacp.tpay.unallocated) then<br />
+			debit = tfacp200.amth*-1	<br />
+			credit = 0<br />
+			balance = debit - credit<br />
+			clbal = clbal+balance<br />
+		endif<br />
+		<br />
+		<br />
+			if credit = 0.0 and debit = 0.0 then<br />
+			else<br />
+			rprt_send()<br />
+			|initialise()<br />
+			endif<br />
+			<br />
+	endif	<br />
+	endselect<br />
+<br />
+	if indt.f &lt;&gt; 0 then<br />
+	select	tfacp200.*<br />
+	from	tfacp200<br />
+	where 	tfacp200._index2 = {:tccom020.suno}<br />
+	and	(tfacp200.tpay in (14, 2))<br />
+	|or	tfacp200.tpay = tfacp.tpay.normal<br />
+	|or	tfacp200.cdam &lt;&gt; 0)<br />
+	|and     tfacp200.year = :year<br />
+	|and     tfacp200.prod between :prod.f and :prod.t<br />
+	and 	tfacp200.docd between :indt.f and :indt.t<br />
+ 	order by tfacp200.suno,tfacp200.docd<br />
+	selectdo<br />
+	balance = 0.0<br />
+	debit = 0.0<br />
+	credit = 0.0<br />
+<br />
+	balance = 0<br />
+	select	tfacp200.amth:balance, tfacp200.tpay<br />
+	from	tfacp200<br />
+	where 	tfacp200._index1 = {:tfacp200.ttyp, :tfacp200.ninv, :tfacp200.line}<br />
+	and	tfacp200.tdoc = &quot;&quot;<br />
+	and 	tfacp200.docd &lt; :indt.f<br />
+	selectdo<br />
+<br />
+	tfacp200.amth = tfacp200.amth * -1 |+ tfacp200.cdam<br />
+	debit = tfacp200.amth <br />
+	balance = debit - credit<br />
+	if tfacp200.amth &lt; 0 then<br />
+		credit = abs(tfacp200.amth)<br />
+		debit = 0<br />
+	endif<br />
+	clbal = clbal+balance<br />
+	<br />
+	|*if balance = 0.0 then<br />
+	if credit = 0.0 and debit = 0.0 then<br />
+	else<br />
+	rprt_Send()<br />
+	endif<br />
+	endselect<br />
+	endselect<br />
+	endif<br />
+endselect<br />
+<br />
+}<br />
+<br />
+function double opbal(domain tcsuno cuop)<br />
+{<br />
+	extern	domain tfgld.amnt bal,debit.amt,credit.amt<br />
+	extern	domain	tfgld.prod prod.f1,prod.t1,prod1<br />
+	<br />
+<br />
+	prod1 = prod.f - 1<br />
+	if prod1 = 0 then<br />
+		prod.f1 = 1<br />
+		prod.t1 = 12<br />
+	else<br />
+		prod.f1 = 1<br />
+		prod.t1 = prod1<br />
+	endif<br />
+	fyer = year - 1<br />
+	indt = indt.f - 1<br />
+	bal = 0.0<br />
+	<br />
+	select sum(tfacp200.amth):tfacp200.amth, sum(tfacp200.cdam):tfacp200.cdam<br />
+	|select tfacp200.suno,tfacp200.docd,tfacp200.amth,tfacp200.ttyp,tfacp200.ninv,tfacp200.balh,tfacp200.prod,tfacp200.year<br />
+	from	tfacp200<br />
+	where	tfacp200._index2 = {:cuop}<br />
+	|and	tfacp200.tdoc = &quot;&quot;<br />
+	|and tfacp200.year &lt;= :fyer<br />
+	|and tfacp200.prod between :prod.f1 and :prod.t1<br />
+	and tfacp200.docd &lt; :indt.f<br />
+	|order by tfacp200.suno,tfacp200.docd<br />
+	<br />
+	selectdo<br />
+	<br />
+		|*bal = bal - tfacp200.amth + tfacp200.cdam<br />
+		|*continue<br />
+<br />
+	  if tfacp200.tpay = tfacp.tpay.invoice then<br />
+			credit.amt = tfacp200.amth	<br />
+			debit.amt = 0<br />
+			bal =  bal + debit.amt - credit.amt<br />
+			|cl.bal = cl.bal+balance.amt<br />
+		endif<br />
+		if (tfacp200.tpay = tfacp.tpay.credit and tfacp200.docn = 0) then<br />
+		<br />
+		<br />
+			if tfacp200.amth &gt; 0 then	<br />
+				credit.amt = tfacp200.amth	<br />
+				debit.amt = 0<br />
+				bal =  bal + debit.amt - credit.amt<br />
+				|cl.bal = cl.bal+balance.amt<br />
+			else<br />
+				debit.amt = tfacp200.amth * -1	<br />
+				credit.amt = 0<br />
+				bal =  bal + debit.amt - credit.amt<br />
+				|cl.bal = cl.bal+balance.amt<br />
+			endif<br />
+		<br />
+		endif<br />
+		if (tfacp200.tpay = tfacp.tpay.normal <br />
+		       or tfacp200.tpay = tfacp.tpay.advance<br />
+		       or tfacp200.tpay = tfacp.tpay.unallocated) then<br />
+			debit.amt = tfacp200.amth*-1	<br />
+			credit.amt = 0<br />
+			bal =  bal + debit.amt - credit.amt<br />
+			|cl.bal = cl.bal+balance.amt<br />
+		endif<br />
+		endselect<br />
+	<br />
+	return(bal)<br />
+	<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd April 2012, 15:53</div></div><div class="posttext">Not sure what I am checking for, but this:<br />
+    rprt_Send() <br />
+    continue <br />
+With the continue right after the report send everything after it to the endselect will not get executed.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

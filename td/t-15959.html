@@ -1,0 +1,121 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Passing Record Buffer to a DLL, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Passing Record Buffer to a DLL Tools Development" />
+	
+	<title>Passing Record Buffer to a DLL [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Passing Record Buffer to a DLL</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">shaboo</div><div class="date">13th July 2004, 01:27</div></div><div class="posttext">We have created a history table for one of our custom table and actually the history table is same as main table but with different index. The records in the main table gets deleted during one of the processes but we want to keep a history of certain kind of records and that is why we have created a history table. <br />
+<br />
+As I did not want to do lot of changes in the session that processes the main table and delete records, I decided to create a separate dll so that before deleteing the records, the program will call this dll and that dll will post that record into this new history table. An easier way to achieve this would have been to pass on all the values to the dll function and then simply that dll function updates the new table. Now I am wondering if it is possible to pass on the record buffer to a dll call and if yes, then could someone look at the code below and tell me if I am doing something wrong.<br />
+<br />
+In the main program script I have<br />
+<br />
+ string  rec.buffer(1)    based<br />
+ long    rec.length<br />
+....		<br />
+	if not rec.length then<br />
+		db.row.length (ttdabc251,rec.length)<br />
+		alloc.mem (rec.buffer, rec.length)<br />
+	endif	<br />
+	rec.buffer = rcd.ttdabc251<br />
+....<br />
+  tdabcdll0002.fill.order.history (rec.buffer)<br />
+<br />
+<br />
+And then in my dll I have<br />
+<br />
+<br />
+<br />
+function extern tdabcdll0002.fill.order.history(string record.buffer(1))<br />
+{<br />
+ db.insert(ttdabc500, DB.RETRY)	<br />
+ rcd.ttdabc500 = record.buffer(1)	<br />
+ commit.transaction()<br />
+}<br />
+<br />
+<br />
+The program crashes and I get the message &quot;Error 606 (Reference does not exist) on tdabc500200 in commit_trans&quot;<br />
+<br />
+Any ideas? Is this due to difference in indices of two tables? <br />
+<br />
+Thanks in advance for your help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">malutz</div><div class="date">13th July 2004, 08:34</div></div><div class="posttext">Hej,<br />
+<br />
+I wrote a simular programm just some month ago. First I experienced the same problem as you did. After some debugging I found that some hidden flags changes during my process.<br />
+<br />
+This could be avoided by saving the fields before. Here a copy from the essenctial lines:<br />
+<br />
+<br />
+        dlock_number = tcmcs023._dlock<br />
+        save_company = tcmcs023._compnr<br />
+        rcd.ttcmcs023 = buffer<br />
+        tcmcs023._dlock = dlock_number<br />
+        tcmcs023._compnr = save_company<br />
+<br />
+I guess that you will not need the company number, since i copied the records between different companies though it was necessary for me.<br />
+<br />
+Hope this helps. :D</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dorleta</div><div class="date">13th July 2004, 16:13</div></div><div class="posttext">Maybe some this<br />
+<br />
+<br />
+function extern archive.table(<br />
+					string table.name(8),<br />
+					domain tcncmp comp.org,<br />
+					domain tcncmp comp.arch)<br />
+{<br />
+	pointer.org  = db.bind(&quot;t&quot;&amp;table.name,&quot;&quot;,comp.org)<br />
+	pointer.arch = db.bind(&quot;t&quot;&amp;table.name,&quot;&quot;,comp.arch)<br />
+<br />
+	if pointer.org &gt; 0 and pointer.arch &gt; 0  then<br />
+		db.first(pointer.org) |or another one<br />
+<br />
+		db.retry.point()	<br />
+		<br />
+		db.record.to.columns(pointer.arch)<br />
+		db.insert(pointer.arch, db.retry, db.return.dupl)<br />
+<br />
+		commit.transaction()<br />
+<br />
+		db.unbind(pointer.org)<br />
+		db.unbind(pointer.arch)<br />
+             else<br />
+                         | troubles with company permisions probably<br />
+	endif<br />
+}<br />
+<br />
+<br />
+<br />
+good luck</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">wiggum</div><div class="date">14th July 2004, 11:30</div></div><div class="posttext">Try:<br />
+<br />
+<br />
+function extern tdabcdll0002.fill.order.history(ref string record.buffer())<br />
+{<br />
+    rcd.ttdabc500 = record.buffer<br />
+    db.insert(ttdabc500, DB.RETRY)<br />
+    commit.transaction()<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

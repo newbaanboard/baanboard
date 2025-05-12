@@ -1,0 +1,164 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Baan IV c4 SP18 Sales Order Lines AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Baan IV c4 SP18 Sales Order Lines AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>Baan IV c4 SP18 Sales Order Lines AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Baan IV c4 SP18 Sales Order Lines AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">vinceco252</div><div class="date">20th July 2009, 19:43</div></div><div class="posttext">Ok, I really hope I'm doing something obviously wrong here.  I am creating a session to process a custom table populated from a text file into a sales order.  Here is the code for the AFS portion of the session:<br />
+<br />
+function domain tcbool process.tdair101.to.sales.order(ref domain tcorno h.orno, ref domain tcpono h.pono)<br />
+{<br />
+	domain	tcbool	h.return<br />
+		long	count, ret<br />
+		<br />
+		<br />
+	h.return = false<br />
+	<br />
+	string error(100)<br />
+	string error.mesg(100)<br />
+	string value(6)<br />
+	<br />
+	boi.call = &quot;tdboidll0005&quot;<br />
+	<br />
+	|*tdsls4101m000<br />
+	| Header<br />
+	stpapi.put.field( &quot;tdsls4101m000&quot;, &quot;tdsls040.orno&quot;, &quot;10&quot;)			|SO Number/Series<br />
+	stpapi.put.field( &quot;tdsls4101m000&quot;, &quot;tdsls040.cuno&quot;, tdair101.cuno)		|Customer<br />
+	stpapi.put.field( &quot;tdsls4101m000&quot;, &quot;tdsls040.cotp&quot;, tdair101.cwar)		|Order Type<br />
+	stpapi.put.field( &quot;tdsls4101m000&quot;, &quot;tdsls040.odat&quot;, str$(tdair101.date))	|Order Date<br />
+	stpapi.put.field( &quot;tdsls4101m000&quot;, &quot;tdsls040.prdt&quot;, str$(tdair101.date))	|Planned Receipt Date<br />
+	stpapi.put.field( &quot;tdsls4101m000&quot;, &quot;tdsls040.ddat&quot;, str$(tdair101.date))	|Planned Delivery Date<br />
+	stpapi.put.field( &quot;tdsls4101m000&quot;, &quot;tdsls040.refa&quot;, tdair101.refa)		|Reference A<br />
+	stpapi.put.field( &quot;tdsls4101m000&quot;, &quot;tdsls040.refb&quot;, tdair101.refa)		|Reference B<br />
+	stpapi.put.field( &quot;tdsls4101m000&quot;, &quot;tdsls040.scom&quot;, str$(tcyesno.no))		|Ship Complete<br />
+	stpapi.put.field( &quot;tdsls4101m000&quot;, &quot;tdsls040.eono&quot;, tdair101.refa)		|Customer PO<br />
+<br />
+	ret = stpapi.insert( &quot;tdsls4101m000&quot;, 1, error )<br />
+	if ret = 1 then<br />
+		stpapi.get.field( &quot;tdsls4101m000&quot;, &quot;tdsls040.orno&quot;, value )<br />
+		h.orno = lval(value)<br />
+		h.return = true<br />
+		ret = 0<br />
+	else<br />
+		h.return = false<br />
+	endif<br />
+		<br />
+	|* Insert lines<br />
+<br />
+	stpapi.handle.subproc(&quot;tdsls4101m000&quot;, &quot;tdsls4105s000&quot;, &quot;add&quot;)	<br />
+	stpapi.continue.process(&quot;tdsls4101m000&quot;, error)<br />
+		<br />
+	stpapi.handle.subproc( &quot;tdsls4105s000&quot;, &quot;mtdsls00009045&quot;, &quot;10&quot; )<br />
+|	stpapi.handle.subproc(&quot;tdsls4105s000&quot;, &quot;tdsls4504s000&quot;, &quot;kill&quot;)	<br />
+	stpapi.enum.answer(&quot;tdsls4105s000&quot;, &quot;tdsls4102l.01&quot;, tcyesno.yes)		|Recalculate taxes?<br />
+	stpapi.enum.answer(&quot;tdsls4105s000&quot;, &quot;tdsls41043&quot;, tcyesno.yes)<br />
+<br />
+	stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.item&quot;, tdair101.item)		|Item<br />
+	stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.oqua&quot;, str$(tdair101.dqua))		|Ordered Qty<br />
+	stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.cwar&quot;, tdair101.cwar)		|Warehouse<br />
+|	stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.drct&quot;, str$(tcyesno.no))		|Direct Delivery?<br />
+|	stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.scom&quot;, str$(orno))			|Ship Complete<br />
+|	stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.epos&quot;, tdair101.abid)		|Customer PO Position<br />
+|	stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.eseq&quot;, str$(orno))			|Customer PO Line<br />
+		<br />
+	ret = stpapi.insert(&quot;tdsls4105s000&quot;, 1, error)<br />
+	if strip$(error) &lt;&gt; &quot;&quot; then<br />
+		message(error)<br />
+		error.mesg = stpapi.get.mess.code(&quot;tdsls4105s000&quot;, error.mesg)<br />
+	endif<br />
+	<br />
+	if ret = 1 then<br />
+		stpapi.save(&quot;tdsls4105s000&quot;, error)<br />
+		stpapi.get.field( &quot;tdsls4105s000&quot;, &quot;tdsls041.pono&quot;, value)<br />
+		h.pono = lval(value)<br />
+		h.return = true<br />
+	else<br />
+		h.return = false<br />
+	endif<br />
+<br />
+|	stpapi.end.session(&quot;tdsls4504s000&quot;)<br />
+	stpapi.end.session(&quot;tdsls4105s000&quot;)<br />
+	stpapi.end.session(&quot;tdsls4101m000&quot;)<br />
+<br />
+	return(h.return)<br />
+}<br />
+<br />
+The sales order header gets created successfully.  When I get to ret = stpapi.insert(&quot;tdsls4105s000&quot;, 1, error) in the debugger, it hangs.  If I check the running processes, the process for tdsls4105s000 goes through a cycle of the ticks increasing to a very large number, turning to a negative number, then decreasing, then repeating the cycle.  Also, the ntbshell process on the server consumes most of the CPU resources.<br />
+<br />
+I have updated tdsls4102 to the latest objects, and have installed the latest stpapi objects.<br />
+<br />
+Several statements are commented out.  I have tried various combinations of these statements being active.  I have also tried tdsls4105m000 with no luck.  I cannot get the stpapi.change.view function to work in that session to get to the order I want to insert a line for.<br />
+<br />
+Any suggestions/thoughts?<br />
+<br />
+Thanks,<br />
+<br />
+Vince :confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th July 2009, 20:43</div></div><div class="posttext">See if this thread helps you (http://www.baanboard.com/baanboard/showthread.php?t=54578&amp;highlight=tdsls4105s000).  It looks like they use:<br />
+<br />
+stpapi.handle.subproc( &quot;tdsls4101m000&quot;, &quot;tdsls4105s000&quot;, &quot;add&quot;)	<br />
+stpapi.zoom.option( &quot;tdsls4101m000&quot;,1,&quot;tdsls4105s000&quot;, error)	<br />
+<br />
+In 4c4 if the choice calls a menu you are suppose to be able to use stpapi.zoom to call that subsession on the menu.  So maybe trying this will work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vinceco252</div><div class="date">20th July 2009, 21:46</div></div><div class="posttext">Thanks Mark.  I actually did try that one too (I forgot to mention it, and already removed it from my script).  I did search before I asked... :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th July 2009, 22:27</div></div><div class="posttext">Okay try this - basing this on something I just tested for another post:<br />
+<br />
+	stpapi.handle.subproc(&quot;tdsls4101m000&quot;, &quot;tdsls4105s000&quot;, &quot;add&quot;)<br />
+	stpapi.handle.subproc( &quot;tdsls4101m000&quot;, &quot;mtdsls000090451&quot;, &quot;10&quot; )<br />
+	stpapi.zoom.option(&quot;tdsls4101m000&quot;,10,&quot;tdsls4105s000&quot;,err)<br />
+| The 10 assumes this session is the 10th item on the list of sessions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th July 2009, 22:32</div></div><div class="posttext">Forgot to mention on mtdsls000090451 the 1 is the sequence of the menu itself.  I added that onto the command.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vinceco252</div><div class="date">21st July 2009, 00:47</div></div><div class="posttext">Thanks.  I'm not seeing a zoom option on tdsls4101m000.  mtdsls000090451 is a zoom menu for handling insufficient inventory off of tdsls4105s000.<br />
+<br />
+stpapi.zoom.option does not seem to be doing anything either.<br />
+<br />
+Thanks though,<br />
+<br />
+Vince</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">22nd July 2009, 00:23</div></div><div class="posttext">Sorry Vincent I just realized this is just like doing maintain purchase orders.  It should just be this easy:<br />
+<br />
+	stpapi.handle.subproc(&quot;tdsls4101m000&quot;, &quot;tdsls4105s000&quot;, &quot;add&quot;)	<br />
+	stpapi.continue.process(&quot;tdsls4101m000&quot;, error)<br />
+	stpapi.enum.answer(&quot;tdsls4105s000&quot;, &quot;tdsls4102l.01&quot;, tcyesno.yes)		|Recalculate taxes?<br />
+	stpapi.enum.answer(&quot;tdsls4105s000&quot;, &quot;tdsls41043&quot;, tcyesno.yes)<br />
+<br />
+	stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.item&quot;, tdair101.item)		|Item<br />
+	stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.oqua&quot;, str$(tdair101.dqua))		|Ordered Qty<br />
+	stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.cwar&quot;, tdair101.cwar)		|Warehouse<br />
+|	stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.drct&quot;, str$(tcyesno.no))		|Direct Delivery?<br />
+|	stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.scom&quot;, str$(orno))			|Ship Complete<br />
+|	stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.epos&quot;, tdair101.abid)		|Customer PO Position<br />
+|	stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.eseq&quot;, str$(orno))			|Customer PO Line<br />
+	ret = stpapi.insert(&quot;tdsls4105s000&quot;, 1, error)<br />
+<br />
+The continue should activiate tdsls4105s000 and you should have control.  In the later releases I found you did not have to worry about the display session that starts with the line sub-session. It really should be this easy - have you double checked all the fields? Plus have you checked the boi.call variable? I am not sure what it should be, but it has caused things to hang on me before.  Sorry not much help.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

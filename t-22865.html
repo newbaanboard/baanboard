@@ -1,0 +1,132 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Afs for session tpppc2191m000, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Afs for session tpppc2191m000 AFS/DDC/OLE: Function servers" />
+	
+	<title>Afs for session tpppc2191m000 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Afs for session tpppc2191m000</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">PeterH</div><div class="date">16th January 2005, 10:31</div></div><div class="posttext">I've tried to create a AFS script for this session. But after the first api-call the session doesn't do anything anymore, and I've to kill it. This is te afs-script I use:<br />
+<br />
+function verwerk.overige.kosten()<br />
+{<br />
+    stpapi.clear(&quot;tpppc2191m000&quot;)<br />
+    stpapi.put(&quot;tpppc2191m000&quot;, &quot;tpppc291.cprj&quot;, cprj)<br />
+    stpapi.put(&quot;tpppc2191m000&quot;, &quot;tpppc291.cico&quot;, &quot;CONVOVKN&quot;)<br />
+    stpapi.put(&quot;tpppc2191m000&quot;, &quot;tpppc291.ccco&quot;, ccco)<br />
+    stpapi.put(&quot;tpppc2191m000&quot;, &quot;tpppc291.pric&quot;, str$pric))<br />
+    stpapi.put(&quot;tpppc2191m000&quot;, &quot;tpppc291.quan&quot;, str$(1))<br />
+    stpapi.put(&quot;tpppc2191m000&quot;, &quot;tpppc291.rgdt&quot;, dte$())<br />
+    stpapi.put(&quot;tpppc2191m000&quot;, &quot;tpppc291.year&quot;, &quot;2005&quot;)<br />
+    stpapi.put(&quot;tpppc2191m000&quot;, &quot;tpppc291.year&quot;, &quot;1&quot;)<br />
+<br />
+    e = stpapi.insert(&quot;tpppc2191m000&quot;, false, recc.mess)<br />
+    if e then<br />
+         stpapi.save(&quot;tpppc2191m000&quot;, recc.mess)<br />
+    else<br />
+        rprt_send()<br />
+        stpapi.recover(&quot;tpppc2191m000&quot;, recc.mess)<br />
+   endif<br />
+<br />
+   stpapi.end.session(&quot;tpppc2191m000&quot;, recc.mess)<br />
+}<br />
+<br />
+When i start the debugger i can see that execution stops at the put command. Why I don't know. I hope someone can give me an answer. Thanks in advance.<br />
+<br />
+Peter</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kbartelds</div><div class="date">17th January 2005, 10:41</div></div><div class="posttext">This is a subsession that can not be activated directly, only from a main session. The first statement of the program is wait.for.switch, so it seems to me that a handle.subproc should be used.<br />
+<br />
+Regards,<br />
+Klaas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">PeterH</div><div class="date">17th January 2005, 10:45</div></div><div class="posttext">Tried this morning to use:<br />
+stpapi.handle.subproc(&quot;tpppc2811m000&quot;, &quot;tpppc2191m000&quot;, add/ignore/send)<br />
+But unfortunately nothing happend. :confused:  <br />
+<br />
+Peter.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kbartelds</div><div class="date">18th January 2005, 12:31</div></div><div class="posttext">Hi Peter,<br />
+<br />
+Did you get any part of the session to work with afs or doesn't it work at all? Did you check baan support to see if the sessions are supported for afs?<br />
+<br />
+Can you debug the calling session (ttppc2811m000) to see whether it gets in part where it calls ttppc2191m000? These sessions have a highly irregular behaviour, in tpppc2811m000 all is done in init.form section. The first subsession that is started (at least in my case) is tpppc2131m000, so that one should be killed I guess. Maybe depending on the data present, the other sessions should be killed to.<br />
+<br />
+Regards,<br />
+Klaas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th January 2005, 17:24</div></div><div class="posttext">The only time I had to deal with something like this I wrote my own calling program. Below is all it had in it:<br />
+<br />
+<br />
+before.program:<br />
+	child.id = 0<br />
+<br />
+|****************************** ZOOM FROM   SECTION ***************************<br />
+|****************************** FORM	     SECTION ***************************<br />
+|****************************** CHOICE      SECTION ***************************<br />
+choice.cont.process:<br />
+on.choice:<br />
+	if(child.id&lt;&gt;0) then<br />
+		kill(child.id)<br />
+	endif<br />
+	child.id=activate(&quot;tpptc9110m00c&quot;)<br />
+	switch.to.process(child.id)<br />
+| Cannot use zoom because tpptc9110m00c is waiting for a<br />
+| switch.to.process<br />
+	execute(end.program)<br />
+<br />
+choice.interrupt:<br />
+before.choice:<br />
+	execute(end.program)<br />
+	<br />
+choice.abort.program:<br />
+before.choice:<br />
+	execute(end.program)<br />
+<br />
+choice.end.program:<br />
+before.choice:<br />
+	kill(child.id)<br />
+<br />
+<br />
+You might be able to use the same method.  I did this because I could not control how it reacted using the Baan main session.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RaymondH</div><div class="date">20th January 2006, 14:09</div></div><div class="posttext">Peter,<br />
+<br />
+Did you have the AFS working for this session? I'm working on a solution for the session tpppc2131m000. But I'm still getting the problem that the execution of the session stops.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th January 2006, 17:45</div></div><div class="posttext">Try writing a simple little session like I did.  Just have it activate tpppc2131m000 and see if this solves the control issue.  We also have several sessions that writes directly into tpppc231 without any problems that I am aware of. Even though I prefer AFS sometimes other solutions are needed - not sure if that is an option for you.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RaymondH</div><div class="date">23rd January 2006, 16:06</div></div><div class="posttext">Mark,<br />
+<br />
+Thank you for your reply. <br />
+<br />
+I tried to use your solution as well. Still my own session stops when tpppc2131m000 is started, no AFS action can be activated at that moment.<br />
+<br />
+The reason that I would like to use AFS for tpppc2131m000 is that it uses the default checks within this session. But I think that filling the table, will be the best 'work around'.<br />
+<br />
+Thanks for your help</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

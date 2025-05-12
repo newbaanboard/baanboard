@@ -1,0 +1,326 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Timestamp as argument in device output path, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Timestamp as argument in device output path Tools Administration &amp; Installation" />
+	
+	<title>Timestamp as argument in device output path [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Timestamp as argument in device output path</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">17th September 2008, 17:20</div></div><div class="posttext">Does anyone know of a way to send a parameter like &lt;timestamp&gt; along with a device output path, in order to create unique files? Such arguments can be extremely usefull for job processing.<br />
+<br />
+Example:<br />
+/${BSE}/tmp/output &amp;&lt;timestamp&gt; .txt<br />
+<br />
+Thanks,<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">17th September 2008, 18:42</div></div><div class="posttext">Hi there,<br />
+<br />
+why don't you use a script as a printer? The printer definition in Baan looks something like this:<br />
+<br />
+  Drucker          : EMD1                                                     <br />
+  Bezeichnung      : FS 1700 1.Schacht Export                                 <br />
+  Druckerart       : Direkt                                                   <br />
+  Locale           : ISO-8859-1      Western Europe - 8 bit                   <br />
+  Drucker          <br />
+  Treiber          : br1250A4h                                                <br />
+  Warteschlange    : emd1.sh %d %s                                            <br />
+  Papierart        : A4 E    A4 format mittel Schriftart                      <br />
+  Linker Rand      :   0     Seitenvorschub   : Ja<br />
+<br />
+The &quot;script&quot; does something simple like <br />
+timestamp=`date +%s`<br />
+cat $1 &gt; dat$timstamp.txt<br />
+cat $1 | lp -d fixprinter<br />
+<br />
+In this example the printed output was still wanted, therefore a driver was specified. if no<br />
+output on printer is necessary, you can use ttstpconv likewise.<br />
+There's one thing that often goes wrong and gets me confused all the time:<br />
+the script should be located in $BSE/bin and have the appropriate execution rigths for group bsp, otherwise simply NOTHING happens, no error or logfile entry occurs. :-)<br />
+<br />
+hth<br />
+<br />
+Norbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">17th September 2008, 22:31</div></div><div class="posttext">Just an idea, try to add this piece of code and see if it works -<br />
+<br />
+boolean job.process 4R Indicates if process is started by a job. <br />
+<br />
+if job.process then<br />
+	spool.fileout = spool.fileout &amp; <br />
+	sprintf$(&quot;%u(%02m/%02d/%04Y)-%U(%02h%x%02m%x%02s:%a)&quot;,<br />
+	utc.num(), utc.num())<br />
+endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sushil</div><div class="date">18th September 2008, 08:25</div></div><div class="posttext">Hi,<br />
+<br />
+the following code worked for me , you can try this.<br />
+<br />
+curr.dt = date.num()<br />
+	<br />
+	indate = date.to.inputstr$(curr.dt,&quot;%D002,3&quot;,8) <br />
+<br />
+	spool.pg.length = 9999<br />
+	<br />
+	spool.fileout = &quot;C:\filename&quot;&amp; str$(indate)&amp;&quot;.txt&quot;<br />
+<br />
+<br />
+Regards,<br />
+Sushil Kumar Mudaliar</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">18th September 2008, 13:19</div></div><div class="posttext">Hey guys, thanks for your input.<br />
+<br />
+Norbert,<br />
+<br />
+How would you apply your suggestion for my requirement? I don't want output to a printer, I just want to add a timestamp the selected output file. For instance, if outputfile is /export/tmp/output.txt I want instead /export/tmp/output18092008120000.txt<br />
+<br />
+NPRao &amp; Sushil,<br />
+<br />
+You both suggest solutions which require modifying the program scripts. Of course it is easily done that way, but I want a solution in which I can add it to the device settings, or even much better, user can add on the form during runtime in ttstpconv or in the output settings for jobs...<br />
+<br />
+<br />
+Regards,<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">18th September 2008, 14:16</div></div><div class="posttext">Hi there,<br />
+<br />
+first of all thx to nprao and sushil - although we have some applications which read device names from files into spool.device, I didn't know spool.fileout yet. Great!<br />
+<br />
+@en@ffrom:<br />
+<br />
+create a file timestmp.sh in $BSE, see that owner and group ist bsp and it is executable.<br />
+##Start of file timestmp.sh ##<br />
+timestamp=`date +%s`<br />
+cat $1 &gt; /export/tmp/output$timstamp.txt<br />
+##End of file timestmp.sh ##<br />
+<br />
+In Baan create a printer called FILETIMSTP (or whatever)<br />
+Description: Printing to File /export/tmp/outputTIMESTAMP.txt<br />
+Printertype: Direct   (!!!!)<br />
+Locale: ISO-8859-1   (or whatever)<br />
+Driver: hplj4  (any will do)<br />
+Queue: timestmp.sh %s<br />
+Paper: A4 (any will do)<br />
+<br />
+If you wish to use a printer, where the user can enter the desired filename ,have a look at ASCIIF<br />
+<br />
+hth<br />
+<br />
+Norbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">18th September 2008, 15:23</div></div><div class="posttext">Heya Norbert,<br />
+<br />
+I do want to have the user fill in the path or for jobs fill in the path in the job settings, I just want the shell script to add a timestamp to it... Can I achieve that with your suggested solution as well...?<br />
+<br />
+Regards,<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">19th September 2008, 11:51</div></div><div class="posttext">jup, use ttstpconv and the following script, it will append the filename choosen in the printer dialog with a timestamp :<br />
+<br />
+---------start of script-----<br />
+firsttoken=`echo ${1:0:1}`<br />
+prefix=&quot;/home/$USER/&quot;<br />
+#if string doesn't begin with slash, it is not an absolute filename<br />
+#and therefore has to be preceeded with the users homedir<br />
+if [ .$firsttoken = &quot;./&quot; ]<br />
+then<br />
+#nope,absolute path was used<br />
+ prefix=&quot;&quot;<br />
+fi<br />
+filename=$prefix$1<br />
+timst=`date +%Y%m%d%H%M%S`<br />
+newfilename=$filename$timst<br />
+mv $filename $newfilename<br />
+-------end of script-----------------<br />
+<br />
+hth<br />
+<br />
+Norbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">19th September 2008, 12:18</div></div><div class="posttext">Norbert,<br />
+<br />
+Sorry for my slow understanding, but how/where do I call this script? I created the script timestamp.sh containing the code you send me. Now how do I apply it? Can I just apply it to my device settings? If yes, in which field? Let's say I have device 'ASCIF' of type 'rewrite file', program ttstpconv and argument 'ascii', where do I add my timestamp script? Or even better, could I apply it during runtime? In other words, choose while printing a report whether or not I want to print a timestamp...? <br />
+<br />
+<br />
+Thanks again,<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">19th September 2008, 14:34</div></div><div class="posttext">sorry, I am in a hurry:<br />
+<br />
+Konv.prog: ttstpconv<br />
+Argument: ASCII\/path/scriptname %s<br />
+Path: SOME SUGGESTION FOR FILENAME<br />
+change permitted: yes<br />
+pagelength: 55 (doesn't matter)<br />
+<br />
+Check permissions of script<br />
+<br />
+hth<br />
+Norbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sushil</div><div class="date">19th September 2008, 14:34</div></div><div class="posttext">Hi,<br />
+<br />
+May be you could try this .<br />
+<br />
+1.create a device.<br />
+2.add a script to it .<br />
+<br />
+<br />
+with the date added to the user input filename like the code below:<br />
+cust .device script.<br />
+function read.main.table()<br />
+{<br />
+	tmp.file = creat.tmp.file$( bse.tmp.dir$() )<br />
+	wait.and.activate(&quot;ttstpconv&quot;, argv$(1), tmp.file, argv$(3),argv$(4))<br />
+	<br />
+	indate = date.to.inputstr$(date.num(),&quot;%D002,3&quot;,8)   |added<br />
+	local.path = strip$(spool.fileout)&amp;str$(indate)&amp;&quot;.txt&quot;  |added<br />
+<br />
+      err = server2client(tmp.file, local.path, 1)<br />
+	if (err) then<br />
+            message(&quot;Error %d copying file to PC (may not have permission)&quot;, err)<br />
+      endif<br />
+}<br />
+<br />
+<br />
+Regards,<br />
+Sushil Kumar Mudaliar</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">22nd September 2008, 12:45</div></div><div class="posttext">Hello Norbert, Sushil,<br />
+<br />
+<br />
+Sushil,<br />
+<br />
+Your suggestion is obviously a possibility but I did not want to create an extra script for this. I wanted to know if this is possible without a script, just by setting an argument/variable or so..<br />
+<br />
+<br />
+Norbert,<br />
+<br />
+Your suggestion also requires a kind of a script, but still preferred since it is a small unix script...<br />
+I tried your suggestion and it works if I adjust your proposed script. From your suggested <br />
+---------start of script-----<br />
+firsttoken=`echo ${1:0:1}`<br />
+prefix=&quot;/home/$USER/&quot;<br />
+#if string doesn't begin with slash, it is not an absolute filename<br />
+#and therefore has to be preceeded with the users homedir<br />
+if [ .$firsttoken = &quot;./&quot; ]<br />
+then<br />
+#nope,absolute path was used<br />
+prefix=&quot;&quot;<br />
+fi<br />
+filename=$prefix$1<br />
+timst=`date +%Y%m%d%H%M%S`<br />
+newfilename=$filename$timst<br />
+mv $filename $newfilename<br />
+-------end of script-----------------<br />
+<br />
+I shrank it to <br />
+<br />
+---------start of script-----<br />
+filename=$1<br />
+timst=`date +%Y%m%d%H%M%S`<br />
+newfilename=$filename&quot;_&quot;$timst<br />
+mv $filename $newfilename<br />
+---------end of script------<br />
+<br />
+The check on fixed path is not necessary, because during runtime the correct (full) path is passed in both cases, whether it concerns a fixed path or just a filename under /home/$user..<br />
+<br />
+The next step to optimization would be to find a way to send this timestamp along as an argument or so in the 'select device' dialog (ttstplopen) for any output-to-file-device, instead of having to adjust &amp; allocate a specific device for this purpose. Like this you can decide for each device every time at runtime whether you want a timestamp added or not...<br />
+<br />
+<br />
+Regards,<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">23rd September 2008, 02:09</div></div><div class="posttext">I shrank it to<br />
+<br />
+---------start of script-----<br />
+filename=$1<br />
+timst=`date +%Y%m%d%H%M%S`<br />
+newfilename=$filename&quot;_&quot;$timst<br />
+mv $filename $newfilename<br />
+Let's just shrink it to a 1-liner ;)   <br />
+cp $1 $1&quot;_&quot;`date +%Y%m%d%H%M%S`<br />
+copy than move to be safe :)<br />
+The next step to optimization would be to find a way to send this timestamp along as an argument or so in the 'select device' dialog (ttstplopen) for any output-to-file-device, instead of having to adjust &amp; allocate a specific device for this purpose. Like this you can decide for each device every time at runtime whether you want a timestamp added or not...<br />
+In that case the better option is to use Sushil's code and ignore the server2client() and add this function to make it generic for any file to be spooled to display browser or redirect to a device:<br />
+<br />
+function extern	 void print.file(	const 	string 		fname(),<br />
+					[string 	devc(14)])<br />
+{<br />
+DLLUSAGE<br />
+	Print the file with spooler option with different devices choices<br />
+ENDDLLUSAGE<br />
+<br />
+long	fp, splid, mode, devtype<br />
+string	buffer(1024), dev.desc(50)<br />
+<br />
+if get.argc() = 2 then<br />
+	devc = get.string.arg(2)<br />
+	mode = 0<br />
+	if tt.device(devc, dev.desc, devtype) then<br />
+		splid = spool.open(&quot;&quot;, devc, 0)<br />
+	else<br />
+		splid = spool.open(&quot;&quot;, &quot;&quot;, 1)<br />
+	endif<br />
+else<br />
+	splid = spool.open(&quot;&quot;, devc, 1)<br />
+endif<br />
+if splid &gt; 0 then<br />
+	fp = seq.open(fname, &quot;r&quot;)<br />
+	if	fp &lt; 0 then<br />
+		mess(&quot;zmadms0036&quot;, 1, fname)	|* File Opening Error: %1$s<br />
+		return<br />
+	endif<br />
+	while  seq.gets(buffer, 1024, fp) = 0<br />
+		spool.pr.line = buffer<br />
+		spool.line()<br />
+	endwhile<br />
+	e = seq.close(fp)<br />
+	spool.close()<br />
+endif<br />
+}<br />
+<br />
+Disclaimer: I have not tested this function against a direct printer (lp -d filename) as we use Windows Network Printers.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">27th September 2008, 12:02</div></div><div class="posttext">By writing your own conversion program (like ttstpconv) you can also do a lot of funny things :rolleyes:.<br />
+<br />
+We currently use this way for &quot;batch printing&quot; because we need a special order of print jobs (one landscape and directly after this one or more portrait. All are single reports/printouts.) and our external print server at another location sometimes &quot;re-arranges&quot; the order of the print jobs to a new sort. So we concatenate the single jobs to one big one within the conversion program before really sending to the printer.<br />
+<br />
+Back to your question:<br />
+In a conversion program you can modify the output pathes in any way you like by copying the original tmp file to a new name/path/printer/... without modifying your program script. Because you have full access to Baan functionality/tables you could i.e. create a table whith rules for the output file depending on the printername/session/user. So the user(/jobs?) wouldn't need to know/need to enter pathes and so on.<br />
+<br />
+Just an idea<br />
+<br />
+hth<br />
+<br />
+Regards<br />
+Christof</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

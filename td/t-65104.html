@@ -1,0 +1,148 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Marked Records, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Marked Records Tools Development" />
+	
+	<title>Marked Records [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Marked Records</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">eric.dizon</div><div class="date">11th December 2013, 22:33</div></div><div class="posttext">I have a multi-occ form that I have like 1000 records which I am trying to write the contents in a csv file.   When i use the following code <br />
+<br />
+ for i = 1 to filled.occ  | fattr.occurnr <br />
+  do.occ.without.update(i, insert_contact)<br />
+ next i <br />
+<br />
+no matter if i  used filled.occ or fattr.occunr I can only get the records visible in the screen which is like 41 records.  How can I export all the 1000 records visible or not?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th December 2013, 16:00</div></div><div class="posttext">What I typically do in 4C4 is write a routine to find all the records and process the records.  So what I typically do is give them two options (1) Process the selected records which does what you posted.  Or option (2) process all the records.  Then I write a routined to do a select to get all the records and then process them all one at a time.  Now there is a possibility something better exists in LN.  PS you don't need to worry about the extra stuff in the sample below - just shows how I do something like this.<br />
+<br />
+Here is a sample from 4c4:<br />
+<br />
+|******************************************************************************<br />
+| This is what the Process Order button runs<br />
+|******************************************************************************<br />
+choice.user.0:<br />
+before.choice:<br />
+	cmd.value = 0<br />
+<br />
+on.choice:<br />
+        execute(update.db)<br />
+	if(not marked) then<br />
+		if ask.enum(&quot;tdapi0002&quot;, tcyesno.no) =  tcyesno.yes then<br />
+			spool.device = &quot;&quot;<br />
+			process.pick()<br />
+		endif<br />
+		select_second()<br />
+		execute(find.data)<br />
+	else<br />
+		message(&quot;Individual Items are selected, please use the Selected Items Button.&quot;)<br />
+		choice.again()<br />
+	endif<br />
+<br />
+|******************************************************************************<br />
+| This is what the Cancel button runs<br />
+|******************************************************************************<br />
+choice.user.1:<br />
+before.choice:<br />
+	cmd.value = 0<br />
+<br />
+on.choice:<br />
+	execute(end.program)<br />
+<br />
+|******************************************************************************<br />
+| This is what the Process Selected item button runs<br />
+|******************************************************************************<br />
+choice.user.2:<br />
+before.choice:<br />
+	cmd.value = 0<br />
+<br />
+on.choice:<br />
+	if(not marked) then<br />
+		message(&quot;No records selected.&quot;)<br />
+		choice.again()<br />
+	else<br />
+		spool.device = &quot;&quot;<br />
+		process_selected_items()<br />
+		select_second()<br />
+		execute(find.data)<br />
+	endif<br />
+<br />
+| Part of process selected items<br />
+function process_selected_items()<br />
+{<br />
+| Hold the 4 fields that we can do the release by.<br />
+	hold.orno = tdapi401.orno<br />
+	hold.opno = tdapi401.opno | 20080811<br />
+	hold.cwar = tdapi401.cwar<br />
+	hold.runn = tdapi401.runn<br />
+	hold.occu = 0<br />
+<br />
+	if pdno.status = &quot;Onhold&quot; then<br />
+		message(&quot;Order on hold, release not possible.&quot;)<br />
+		choice.again()<br />
+	endif<br />
+<br />
+	for i = 1 to filled.occ<br />
+		if(mark.table(i)) then<br />
+			hold.occu = hold.occu + 1<br />
+			do.occ(i,store_item)<br />
+		endif<br />
+	endfor<br />
+<br />
+| Part of process the pick routine<br />
+function process.pick()<br />
+{<br />
+	domain	tcitem	lockset<br />
+	domain	tcmcs.long	cnt.dates<br />
+<br />
+| Check production order status<br />
+	hold.orno = tdapi401.orno<br />
+	hold.cwar = tdapi401.cwar<br />
+	hold.opno = tdapi401.opno 	| 20080811.st Add operation<br />
+	hold.runn = tdapi401.runn<br />
+<br />
+	if pdno.status = &quot;Onhold&quot; then<br />
+		message(&quot;Order on hold, release not possible.&quot;)<br />
+		choice.again()<br />
+	endif<br />
+<br />
+	load_tdapi401()<br />
+<br />
+| Check and make sure no items are blocked for cycle count or signal code.<br />
+	select	tdapi401.*<br />
+	from	tdapi401 |for update<br />
+	where	tdapi401._index2 = {:hold.orno}<br />
+	and	tdapi401.opno = :hold.opno	| 20080811 Add opno to the select<br />
+	and	tdapi401.runn = :hold.runn<br />
+	and	tdapi401.cwar = :hold.cwar<br />
+	selectdo</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eric.dizon</div><div class="date">12th December 2013, 22:44</div></div><div class="posttext">Hi Mark,<br />
+<br />
+   Thanks for the response.   My UI would behave this way.  I would show all the Contacts table (tccom140) to my user linked with their corresponding BP and Addresses.  Then they can filter dynamically in the WebUI.  And then what is displayed in the rows are the one I like to update all the records and export to a csv file.  There is a need then to look whatever dynamic selection the user filtered in quick filter in the WebUI.   I would need to look to all visible and non-visible records listed in my overview session.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">13th December 2013, 09:36</div></div><div class="posttext">The pattern to use here is to export the selected records to the file. You can do that with the do.selection() function. <br />
+So, the user makes the selection (also Select All is supported) and activates the export. <br />
+Note that you need to have the TIV number of the script of at least 1075 and you must also activate the Select All standard command. See Record Selection Overview in the Programmers Manual.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eric.dizon</div><div class="date">13th December 2013, 18:27</div></div><div class="posttext">Thanks Jaap that worked for me.  You are life saver.  Your recommendations are on point and usually leads to resolutions.  I appreciate your help and mark_h for your timely responses.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

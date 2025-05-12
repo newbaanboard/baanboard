@@ -1,0 +1,1242 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Customized Maintain Session field not updating, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Customized Maintain Session field not updating Tools Development" />
+	
+	<title>Customized Maintain Session field not updating [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Customized Maintain Session field not updating</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">19th May 2011, 18:27</div></div><div class="posttext">I have a customized maintain session that stores Supplier QMS metadata for various industries (Medical, Aerospace, Automotive, General).  Business rules are applied against the data in this session and some data in another session which tracks Supplier Corrective Action Responses (SCARs) to determine a supplier status (Approved, Not Approved, Conditionally Approved, Executive Override).  The main table that my session uses is tiobg999.  The status fields belong to the main table (tiobg999.scsa, tiobg999.scsb, tiobg999.scsc, tiobg999.scsd), but are able to be modified by the user.  Their value is determined by the application of the business rules against the data (coding within my session).  My problem…. If I change data in my session or in the SCAR session which would then (through the application of the business rules) change the status of the supplier, the new status value displays on form, but does not change in the database.  I’m not sure why this is.  Below is the function which applies the business rules and returns the appropriate status.  Any assistance would be greatly appreciated!<br />
+<br />
+tiobg999.scsa = determine.medical.supplier.control.status()<br />
+<br />
+|******************************************************************************<br />
+| This function will apply business rules to determine the status of a <br />
+| medical supplier.<br />
+|******************************************************************************<br />
+function  domain tisupstat determine.medical.supplier.control.status()<br />
+{<br />
+	domain	tisupstat f.scst<br />
+<br />
+	f.scst = tisupstat.notapprove<br />
+		<br />
+	|******************************************************************************<br />
+	| Application of Business Rules to determine the approval status for Medical Suppliers<br />
+<br />
+		| Determine if Medical Industry is selected<br />
+			if tiobg999.inda = tgyenox.no then<br />
+				f.scst = tisupstat.notapprove<br />
+				return(f.scst)<br />
+			endif<br />
+	<br />
+		| Determine if there is a non-expired executive override<br />
+			if tiobg999.exoa = tgyenox.yes and tiobg999.exda &gt;= ws.today then<br />
+				f.scst = tisupstat.override<br />
+				return(f.scst)<br />
+			endif<br />
+<br />
+		| Determine if the Supplier Add/Change/Delete form is completed and on-file<br />
+			if tiobg999.sarc = tgyenox.no then<br />
+				f.scst = tisupstat.notapprove<br />
+				return(f.scst)<br />
+			endif<br />
+<br />
+		| Determine if there is a non-expired ISO 9001 certificate<br />
+			if tiobg999.isoa = tgyenox.no or tiobg999.expa &lt; ws.today then<br />
+				f.scst = tisupstat.notapprove<br />
+				return(f.scst)<br />
+			endif<br />
+		<br />
+		| Determine if any commodities have been assigned to determine if supplier is Critical or Major<br />
+			if ws.comc = &quot;None&quot; then<br />
+				f.scst = tisupstat.notapprove<br />
+				return(f.scst)<br />
+			endif<br />
+				<br />
+		| Determine if the supplier provides commidities which are classified as Critical.<br />
+			if ws.sccl = ticomclass.critical then<br />
+				| Critical commodities require Medical Validation.<br />
+				if tiobg999.mval = tgyenox.no then<br />
+					f.scst = tisupstat.notapprove<br />
+					return(f.scst)<br />
+				else<br />
+					| If there are non-accepted SCARs, then the supplier is disapproved.<br />
+					if ws.stus.disputed &lt;&gt; 0 then<br />
+						f.scst = tisupstat.notapprove<br />
+						return(f.scst)<br />
+					endif<br />
+					|If the Supplier no SCARs they are approved.<br />
+					if ws.stus.open = 0 then<br />
+						f.scst = tisupstat.approve<br />
+						return(f.scst)<br />
+					else<br />
+					| If there are accepted SCARs, then the supplier is conditionally approved.<br />
+						f.scst = tisupstat.conditional<br />
+						return(f.scst)<br />
+					endif<br />
+				endif<br />
+			else<br />
+				| Determine if the supplier provides commidities which are classified as Major.<br />
+				if ws.sccl = ticomclass.major then<br />
+					| See if any commodities are Testing types<br />
+					select	tiobg998.test<br />
+					from	tiobg997, tiobg998<br />
+					where	tiobg997.comc = tiobg998.comc<br />
+					and 	tiobg997._index1 = {:tiobg999.suno}<br />
+					and		tiobg998.test = tgyenox.yes<br />
+					as set with 1 rows<br />
+					selectdo<br />
+						| Major Suppliers that we use for Testing must have <br />
+						| (non-expired) A2LA Certification.<br />
+						if tiobg999.atla = tgyenox.no or<br />
+						(tiobg999.atla = tgyenox.yes and tiobg999.adla &lt; ws.today) then<br />
+							f.scst = tisupstat.notapprove<br />
+							return(f.scst)<br />
+						endif<br />
+					selectempty<br />
+						f.scst = tisupstat.notapprove<br />
+					endselect<br />
+		<br />
+					| See if any commodities are Calibration types<br />
+					select	tiobg998.test<br />
+					from	tiobg997, tiobg998<br />
+					where	tiobg997.comc = tiobg998.comc<br />
+					and 	tiobg997._index1 = {:tiobg999.suno}<br />
+					and		tiobg998.catt = tgyenox.yes<br />
+					as set with 1 rows<br />
+					selectdo<br />
+						| Major Suppliers that we use for Calibration must have <br />
+						| (non-expired) ISO 17025 Certification.<br />
+						if tiobg999.isoe = tgyenox.no or<br />
+						(tiobg999.isoe = tgyenox.yes and tiobg999.expe &lt; ws.today) then<br />
+							f.scst = tisupstat.notapprove<br />
+							return(f.scst)<br />
+							endif<br />
+					selectempty<br />
+						f.scst = tisupstat.notapprove<br />
+					endselect<br />
+				endif		<br />
+			<br />
+			| Major Medical suppliers must have either ISO 13485 or a Site Audit<br />
+			if (tiobg999.isob = tgyenox.yes and tiobg999.expb &gt;= ws.today) or<br />
+			   (tiobg999.moss = tgyenox.yes and tiobg999.mssd &gt;= ws.today) then<br />
+				f.scst = tisupstat.approve<br />
+			else<br />
+				| If there are non-accepted SCARs, then the supplier is disapproved.<br />
+					if ws.stus.disputed &lt;&gt; 0 then<br />
+						f.scst = tisupstat.notapprove<br />
+						return(f.scst)<br />
+					endif<br />
+				|If the Supplier no SCARs they are approved.<br />
+					if ws.stus.open = 0 then<br />
+						f.scst = tisupstat.approve<br />
+						return(f.scst)<br />
+					else<br />
+					| If there are accepted SCARs, then the supplier is conditionally approved.<br />
+						f.scst = tisupstat.conditional<br />
+						return(f.scst)<br />
+					endif<br />
+			endif<br />
+		endif<br />
+<br />
+		return(f.scst)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">19th May 2011, 20:05</div></div><div class="posttext">Assuming that tiobg999 is the maintable of the session, then call <br />
+tiobg999.scsa = determine.medical.supplier.control.status()<br />
+should also be placed in the before.rewrite section to update the table.<br />
+<br />
+Alternatively, use update.occ() after the call.<br />
+<br />
+If it is not the maintable, you have program the update completely.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">19th May 2011, 20:52</div></div><div class="posttext">Thank you!  <br />
+<br />
+That is working, but only when I'm saving a record.  I originally was attempting to perform that function call under:<br />
+<br />
+field.all:<br />
+when.field.changes:<br />
+function call<br />
+<br />
+<br />
+<br />
+Not sure why that isn't working.  I've tried so many different things, I may need to scale back and start looking at it fresh.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">toolswizard</div><div class="date">19th May 2011, 21:05</div></div><div class="posttext">The 4gl engine will set a flag that the database needs to do a save whenever you have modified a field on the form.  When you don't modify a field, but change a table value in the code, you need to call update.occ. to set the flag manually.<br />
+<br />
+What this means is that you should be able to put your function call in a when.field.changes: subsection and it will work if you change a field value to something new.<br />
+<br />
+Do you want to update the value any other time?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">19th May 2011, 22:22</div></div><div class="posttext">First... thanks to shah_bs and toolswizard for your assistance.<br />
+<br />
+<br />
+Still having some issue with getting the data to save when the field changes.  It is odd because it appears that the tiobg999.scsa (and scsb, scsc, scsd) values in the session's buffer changes to the appropriate approval code because on the session itself, the values change and I can see it as a click different selections, but it doesn't get changed in the database until I force a save or save-exit.<br />
+<br />
+<br />
+Here is the entire code:<br />
+<br />
+|******************************************************************************<br />
+|* tiosd9199 00100 0  VRC B40C c4 tst4<br />
+|* Maintain Supplier Data<br />
+|* erice<br />
+|* 03.31.2011<br />
+|******************************************************************************<br />
+|* Script Type: 4<br />
+|******************************************************************************<br />
+<br />
+<br />
+|****************************** DECLARATION SECTION ***************************<br />
+declaration:<br />
+<br />
+| Tables:<br />
+<br />
+	table	ttcccm300		| SCAR Table<br />
+	table	ttccom020		| Supplier Master<br />
+	table	ttiobg997		| Commodity Code by Supplier <br />
+	table	ttiobg998		| Commodity Codes<br />
+	table	ttiobg999		| QMS Supplier Data<br />
+	<br />
+| Selection Criteria:<br />
+<br />
+	extern	domain  tcsuno			ws.suno				| Supplier Number<br />
+	<br />
+| Working Storage Variables:<br />
+<br />
+	extern	domain	tisupstat		return.status<br />
+	extern	domain	tcmcs.long		return.value<br />
+	extern	domain	tcmcs.long		user.executive.override<br />
+	extern	domain	tcmcs.str10		ws.comc				| Commodity Status<br />
+	extern	domain	tcmcs.long		ws.ecof				| Executive Conditional Override Flag (0 = No Authorization, <br />
+														| 1 = Authorization)<br />
+	extern	domain	ticomclass		ws.sccl				| Supplier Status<br />
+	extern	domain	tcmcs.long		ws.stus.open		| Count of Open SCARs<br />
+	extern	domain	tcmcs.long		ws.stus.closed		| Count of Closed SCARs<br />
+	extern	domain	tcmcs.long		ws.stus.disputed	| Count of Disputed SCARs<br />
+	extern	domain	tcmcs.long		ws.supplier.status<br />
+	extern	domain	tcdate			ws.today<br />
+	<br />
+| Libraries Used<br />
+<br />
+	#pragma used dll otiobgd10000001		| Check Special User Permissions<br />
+	#pragma used dll otiobgd10000003		| Determine Commodity Status<br />
+	<br />
+|****************************** PROGRAM     SECTION ***************************<br />
+before.program:<br />
+	user.executive.override = check.special.user.permissions(prog.name$, logname$)<br />
+	<br />
+	import(&quot;tccom020.suno&quot;, ws.suno)<br />
+	query.extension = &quot;tiobg999.suno = '&quot; &amp; ws.suno &amp; &quot;'&quot;<br />
+	<br />
+	ws.today = date.num()<br />
+<br />
+	| Retrieve value for ws.sccl<br />
+	return.value = check.supplier.commodity.status(tiobg999.suno)<br />
+<br />
+|****************************** TABLE I/O   SECTION ***************************<br />
+main.table.io:<br />
+before.rewrite:<br />
+	update.supplier.status()<br />
+	<br />
+after.delete:<br />
+	check.key.supplier()<br />
+<br />
+	| Removes any commodities which are assigned to the deleted supplier.<br />
+	select	tiobg997.*<br />
+	from	tiobg997<br />
+	for update<br />
+	where	tiobg997._index1 = {:tiobg999.suno}<br />
+	selectdo<br />
+		db.delete(ttiobg997, db.retry)<br />
+		commit.transaction()<br />
+	endselect<br />
+<br />
+|****************************** FORM	    SECTION ***************************<br />
+<br />
+form.all:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+	update.supplier.commodity.status()<br />
+	refresh.scar.data()<br />
+<br />
+|****************************** CHOICE      SECTION ***************************<br />
+choice.user.0:		| Maintain Commodities<br />
+on.choice:<br />
+	export(&quot;ws.suno&quot;, ws.suno)<br />
+	zoom.to$(&quot;tiosd9198m000&quot;,Z.Session,&quot;&quot;,&quot;&quot;,0)<br />
+	update.supplier.status()<br />
+<br />
+|****************************** FIELD       SECTION ***************************<br />
+field.all:<br />
+when.field.changes:<br />
+	update.supplier.status()<br />
+	<br />
+field.tiobg999.acqi:<br />
+when.field.changes:<br />
+	if tiobg999.acqi = tgyenox.yes then<br />
+		tiobg999.cqid = date.num() + 365<br />
+	else<br />
+		tiobg999.cqid = 0<br />
+	endif<br />
+	display(&quot;tiobg999.cqid&quot;)<br />
+<br />
+field.tiobg999.aess:<br />
+when.field.changes:<br />
+	if tiobg999.aess = tgyenox.no then<br />
+		tiobg999.esss = 0<br />
+		display(&quot;tiobg999.esss&quot;)<br />
+	endif<br />
+<br />
+field.tiobg999.aoss:<br />
+when.field.changes:<br />
+	if tiobg999.aoss = tgyenox.no then<br />
+		tiobg999.assd = 0<br />
+		display(&quot;tiobg999.assd&quot;)<br />
+	endif<br />
+	<br />
+field.tiobg999.atla:<br />
+when.field.changes:<br />
+	if tiobg999.atla = tgyenox.yes then<br />
+		tiobg999.adla = date.num()<br />
+	else<br />
+		tiobg999.adla = 0<br />
+	endif<br />
+	display(&quot;tiobg999.adla&quot;)<br />
+<br />
+field.tiobg999.auss:<br />
+when.field.changes:<br />
+	if tiobg999.auss = tgyenox.no then<br />
+		tiobg999.usss = 0<br />
+		display(&quot;tiobg999.usss&quot;)<br />
+	endif<br />
+<br />
+field.tiobg999.exda:<br />
+before.input:<br />
+	if user.executive.override = 0 then<br />
+		message(&quot;You have no authorization for Executive Override.&quot;)<br />
+		attr.input = 0<br />
+	else<br />
+		attr.input = 1<br />
+	endif<br />
+<br />
+field.tiobg999.exdb:<br />
+before.input:<br />
+	if user.executive.override = 0 then<br />
+		message(&quot;You have no authorization for Executive Override.&quot;)<br />
+		attr.input = 0<br />
+	else<br />
+		attr.input = 1<br />
+	endif	<br />
+<br />
+field.tiobg999.exdc:<br />
+before.input:<br />
+	if user.executive.override = 0 then<br />
+		message(&quot;You have no authorization for Executive Override.&quot;)<br />
+		attr.input = 0<br />
+	else<br />
+		attr.input = 1<br />
+	endif<br />
+<br />
+field.tiobg999.exdd:<br />
+before.input:<br />
+	if user.executive.override = 0 then<br />
+		message(&quot;You have no authorization for Executive Override.&quot;)<br />
+		attr.input = 0<br />
+	else<br />
+		attr.input = 1<br />
+	endif<br />
+	<br />
+field.tiobg999.exoa:<br />
+before.input:<br />
+	if user.executive.override = 0 then<br />
+		message(&quot;You have no authorization for Executive Override.&quot;)<br />
+		attr.input = 0<br />
+	else<br />
+		attr.input = 1<br />
+	endif<br />
+	<br />
+when.field.changes:<br />
+	if tiobg999.exoa = tgyenox.no then<br />
+		tiobg999.exra = 0<br />
+		tiobg999.exda = 0<br />
+		display.all()<br />
+	else<br />
+		tiobg999.exda = date.num() + 90<br />
+	endif<br />
+<br />
+field.tiobg999.exob:<br />
+before.input:<br />
+	if user.executive.override = 0 then<br />
+		message(&quot;You have no authorization for Executive Override.&quot;)<br />
+		attr.input = 0<br />
+	else<br />
+		attr.input = 1<br />
+	endif<br />
+	<br />
+when.field.changes:<br />
+	if tiobg999.exob = tgyenox.no then<br />
+		tiobg999.exrb = 0<br />
+		tiobg999.exdb = 0<br />
+		display.all()<br />
+	else<br />
+		tiobg999.exdb = date.num() + 90<br />
+	endif<br />
+<br />
+field.tiobg999.exoc:<br />
+before.input:<br />
+	if user.executive.override = 0 then<br />
+		message(&quot;You have no authorization for Executive Override.&quot;)<br />
+		attr.input = 0<br />
+	else<br />
+		attr.input = 1<br />
+	endif<br />
+	<br />
+when.field.changes:<br />
+	if tiobg999.exoc = tgyenox.no then<br />
+		tiobg999.exrc = 0<br />
+		tiobg999.exdc = 0<br />
+		display.all()<br />
+	else<br />
+		tiobg999.exdc = date.num() + 90<br />
+	endif<br />
+<br />
+field.tiobg999.exod:<br />
+before.input:<br />
+	if user.executive.override = 0 then<br />
+		message(&quot;You have no authorization for Executive Override.&quot;)<br />
+		attr.input = 0<br />
+	else<br />
+		attr.input = 1<br />
+	endif<br />
+	<br />
+when.field.changes:<br />
+	if tiobg999.exod = tgyenox.no then<br />
+		tiobg999.exrd = 0<br />
+		tiobg999.exdd = 0<br />
+		display.all()<br />
+	else<br />
+		tiobg999.exdd = date.num() + 90<br />
+	endif<br />
+<br />
+field.tiobg999.exra:<br />
+before.input:<br />
+	if user.executive.override = 0 then<br />
+		attr.input = 0<br />
+		message(&quot;You have no authorization for Executive Override.&quot;)<br />
+	else<br />
+		attr.input = 1<br />
+	endif<br />
+<br />
+after.input:<br />
+	if tiobg999.exra = 0 then<br />
+		message(&quot;You must specify a reason code for an executive override.&quot;)<br />
+		to.field(tiobg999.exoa)<br />
+		endif<br />
+<br />
+field.tiobg999.exrb:<br />
+before.input:<br />
+	if user.executive.override = 0 then<br />
+		attr.input = 0<br />
+		message(&quot;You have no authorization for Executive Override.&quot;)<br />
+	else<br />
+		attr.input = 1<br />
+	endif<br />
+<br />
+after.input:<br />
+	if tiobg999.exrb = 0 then<br />
+		message(&quot;You must specify a reason code for an executive override.&quot;)<br />
+		to.field(tiobg999.exob)<br />
+		endif<br />
+		<br />
+field.tiobg999.exrc:<br />
+before.input:<br />
+	if user.executive.override = 0 then<br />
+		attr.input = 0<br />
+		message(&quot;You have no authorization for Executive Override.&quot;)<br />
+	else<br />
+		attr.input = 1<br />
+	endif<br />
+<br />
+after.input:<br />
+	if tiobg999.exrc = 0 then<br />
+		message(&quot;You must specify a reason code for an executive override.&quot;)<br />
+		to.field(tiobg999.exoc)<br />
+		endif<br />
+	<br />
+field.tiobg999.exrd:<br />
+before.input:<br />
+	if user.executive.override = 0 then<br />
+		attr.input = 0<br />
+		message(&quot;You have no authorization for Executive Override.&quot;)<br />
+	else<br />
+		attr.input = 1<br />
+	endif<br />
+<br />
+after.input:<br />
+	if tiobg999.exrd = 0 then<br />
+		message(&quot;You must specify a reason code for an executive override.&quot;)<br />
+		to.field(tiobg999.exod)<br />
+		endif<br />
+		<br />
+field.tiobg999.inda:<br />
+after.input:<br />
+	if tiobg999.inda = tgyenox.no then<br />
+		tiobg999.isob = tgyenox.no<br />
+		tiobg999.expb = 0<br />
+		tiobg999.mval = tgyenox.no<br />
+		tiobg999.moss = tgyenox.no<br />
+		tiobg999.mssd = 0<br />
+		tiobg999.osss = 0<br />
+		tiobg999.exoa = tgyenox.no<br />
+		tiobg999.exra = 0<br />
+		tiobg999.exda = 0<br />
+		display.all()<br />
+	endif<br />
+	<br />
+field.tiobg999.indb:<br />
+after.input:<br />
+	if tiobg999.indc = tgyenox.no then<br />
+		tiobg999.isoc = tgyenox.no<br />
+		tiobg999.expc = 0<br />
+		tiobg999.nadc = tgyenox.no<br />
+		tiobg999.ncpd = 0<br />
+		tiobg999.aoss = tgyenox.no<br />
+		tiobg999.assd = 0<br />
+		tiobg999.aess = tgyenox.no<br />
+		tiobg999.esss = 0<br />
+		tiobg999.exob = tgyenox.no<br />
+		tiobg999.exrb = 0<br />
+		tiobg999.exdb = 0<br />
+		display.all()<br />
+	endif<br />
+	<br />
+field.tiobg999.indc:<br />
+after.input:<br />
+	if tiobg999.indc = tgyenox.no then<br />
+		tiobg999.isod = tgyenox.no<br />
+		tiobg999.expd = 0<br />
+		tiobg999.acqi = tgyenox.no<br />
+		tiobg999.cqid = 0<br />
+		tiobg999.auss = tgyenox.no<br />
+		tiobg999.usss = 0<br />
+		tiobg999.exoc = tgyenox.no<br />
+		tiobg999.exrc = 0<br />
+		tiobg999.exdc = 0<br />
+		display.all()<br />
+	endif<br />
+	<br />
+field.tiobg999.indd:<br />
+after.input:<br />
+	if tiobg999.indc = tgyenox.no then<br />
+		tiobg999.gess = tgyenox.no<br />
+		tiobg999.gsss = 0<br />
+		tiobg999.exod = tgyenox.no<br />
+		tiobg999.exrd = 0<br />
+		tiobg999.exdd = 0<br />
+		display.all()<br />
+	endif<br />
+	<br />
+field.tiobg999.isoa:<br />
+when.field.changes:<br />
+		if tiobg999.isoa = tgyenox.yes then<br />
+			tiobg999.expa = date.num()<br />
+		else<br />
+			tiobg999.expa = 0<br />
+		endif<br />
+		display(&quot;tiobg999.expa&quot;)<br />
+		<br />
+field.tiobg999.isob:<br />
+when.field.changes:<br />
+		if tiobg999.isob = tgyenox.yes then<br />
+			tiobg999.expb = date.num()<br />
+		else<br />
+			tiobg999.expb = 0<br />
+		endif<br />
+		display(&quot;tiobg999.expb&quot;)<br />
+<br />
+field.tiobg999.isoc:<br />
+when.field.changes:<br />
+		if tiobg999.isoc = tgyenox.yes then<br />
+			tiobg999.expc = date.num()<br />
+		else<br />
+			tiobg999.expc = 0<br />
+		endif<br />
+		display(&quot;tiobg999.expc&quot;)<br />
+<br />
+field.tiobg999.isod:<br />
+when.field.changes:<br />
+		if tiobg999.isod = tgyenox.yes then<br />
+			tiobg999.expd = date.num()<br />
+		else<br />
+			tiobg999.expd = 0<br />
+		endif<br />
+		display(&quot;tiobg999.expd&quot;)<br />
+<br />
+field.tiobg999.isoe:<br />
+when.field.changes:<br />
+		if tiobg999.isoe = tgyenox.yes then<br />
+			tiobg999.expe = date.num()<br />
+		else<br />
+			tiobg999.expe = 0<br />
+		endif<br />
+		display(&quot;tiobg999.expe&quot;)<br />
+<br />
+field.tiobg999.moss:<br />
+when.field.changes:<br />
+		if tiobg999.moss = tgyenox.yes then<br />
+			tiobg999.mssd = date.num()<br />
+		else<br />
+			tiobg999.mssd = 0<br />
+			tiobg999.osss = 0<br />
+			display(&quot;tiobg999.osss&quot;)<br />
+		endif<br />
+		display(&quot;tiobg999.mssd&quot;)<br />
+<br />
+field.tiobg999.nadc:<br />
+when.field.changes:<br />
+		if tiobg999.nadc = tgyenox.yes then<br />
+			tiobg999.ncpd = date.num()<br />
+		else<br />
+			tiobg999.ncpd = 0<br />
+		endif<br />
+		display(&quot;tiobg999.ncpd&quot;)<br />
+		<br />
+field.tiobg999.osss:<br />
+when.field.changes:<br />
+	if tiobg999.osss &gt; 100 or tiobg999.osss &lt; 0 then<br />
+		message(&quot;On Site Survey Score must be between 0 and 100.&quot;)<br />
+		tiobg999.osss = 0<br />
+		display(&quot;tiobg999.osss&quot;)<br />
+		endif<br />
+<br />
+field.tiobg999.suno:<br />
+before.input:<br />
+	tiobg999.suno = ws.suno<br />
+	<br />
+after.input:<br />
+	check.key.supplier()<br />
+		<br />
+field.ws.comc:<br />
+after.zoom:<br />
+	update.supplier.status()<br />
+	<br />
+|****************************** FUNCTION    SECTION ***************************<br />
+<br />
+functions:<br />
+<br />
+|******************************************************************************<br />
+| This function toggles as to whether the supplier is a key supplier or not.<br />
+|******************************************************************************<br />
+function check.key.supplier()<br />
+{<br />
+	domain	tgyenox		f.aslc<br />
+	<br />
+	select	tccom020.aslc:f.aslc<br />
+	from	tccom020<br />
+	where	tccom020._index1 = {:tiobg999.suno}<br />
+	selectdo<br />
+			if f.aslc = tgyenox.no then<br />
+				f.aslc = tgyenox.yes<br />
+			else<br />
+				f.aslc = tgyenox.no<br />
+			endif<br />
+	endselect<br />
+	<br />
+	select	tccom020.aslc<br />
+	from 	tccom020 for update<br />
+	where	tccom020._index1 = {:tiobg999.suno}<br />
+	selectdo<br />
+		tccom020.aslc = f.aslc<br />
+		db.update(ttccom020, db.retry)<br />
+		commit.transaction()<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+|******************************************************************************<br />
+| This function will execute four separate functions which will apply business<br />
+| rules to determine supplier status and then display the updated results.<br />
+|******************************************************************************<br />
+function update.supplier.status()<br />
+{<br />
+	update.supplier.commodity.status()<br />
+	refresh.scar.data()<br />
+	tiobg999.scsa = determine.medical.supplier.control.status()<br />
+	tiobg999.scsb = determine.aero.supplier.control.status()<br />
+	tiobg999.scsc = determine.auto.supplier.control.status()<br />
+	tiobg999.scsd = determine.general.supplier.control.status()<br />
+	update.occ()<br />
+	display.all()<br />
+}<br />
+<br />
+<br />
+|******************************************************************************<br />
+| This function updates the assigns the display value based on the supplier <br />
+| commodity.<br />
+|******************************************************************************<br />
+function update.supplier.commodity.status()<br />
+{<br />
+	return.value = check.supplier.commodity.status(tiobg999.suno)<br />
+	if return.value = 0 then<br />
+		ws.comc = &quot;None&quot;<br />
+	else<br />
+		if ws.sccl = ticomclass.major then<br />
+			ws.comc = &quot;Major&quot;<br />
+			endif<br />
+		if ws.sccl = ticomclass.critical then<br />
+			ws.comc = &quot;Critical&quot;<br />
+			endif<br />
+	endif<br />
+	display(&quot;ws.comc&quot;)<br />
+}<br />
+<br />
+<br />
+|******************************************************************************<br />
+| This function toggles as to whether the supplier is a key supplier or not.<br />
+|******************************************************************************<br />
+function refresh.scar.data()<br />
+{<br />
+	extern	domain	tcmcs.long	f.stus.count<br />
+	extern	domain	tcstus		f.stus<br />
+	<br />
+	ws.stus.open = 0<br />
+	ws.stus.closed = 0<br />
+	ws.stus.disputed = 0<br />
+	<br />
+	select 	tcccm300.stus:f.stus,<br />
+			count(tcccm300.stus):f.stus.count<br />
+	from 	tcccm300<br />
+	where	tcccm300.suno = :tiobg999.suno<br />
+	group by tcccm300.stus<br />
+	selectdo<br />
+		on case(etol(f.stus))<br />
+			case(1):			| Open<br />
+				ws.stus.open = f.stus.count<br />
+				break<br />
+			case(2):			| Closed<br />
+				ws.stus.closed = f.stus.count<br />
+				break<br />
+			case(3):			| Disputed<br />
+				ws.stus.disputed = f.stus.count<br />
+				break<br />
+		endcase<br />
+	endselect<br />
+	display(&quot;ws.stus.open&quot;)<br />
+	display(&quot;ws.stus.closed&quot;)<br />
+	display(&quot;ws.stus.disputed&quot;)<br />
+}<br />
+<br />
+<br />
+|******************************************************************************<br />
+| This function will apply business rules to determine the status of a <br />
+| medical supplier.<br />
+|******************************************************************************<br />
+function  domain tisupstat determine.medical.supplier.control.status()<br />
+{<br />
+	domain	tisupstat f.scst<br />
+<br />
+	f.scst = tisupstat.notapprove<br />
+		<br />
+	|******************************************************************************<br />
+	| Application of Business Rules to determine the approval status for Medical Suppliers<br />
+<br />
+		| Determine if Medical Industry is selected<br />
+			if tiobg999.inda = tgyenox.no then<br />
+				f.scst = tisupstat.notapprove<br />
+				return(f.scst)<br />
+			endif<br />
+	<br />
+		| Determine if there is a non-expired executive override<br />
+			if tiobg999.exoa = tgyenox.yes and tiobg999.exda &gt;= ws.today then<br />
+				f.scst = tisupstat.override<br />
+				return(f.scst)<br />
+			endif<br />
+<br />
+		| Determine if the Supplier Add/Change/Delete form is completed and on-file<br />
+			if tiobg999.sarc = tgyenox.no then<br />
+				f.scst = tisupstat.notapprove<br />
+				return(f.scst)<br />
+			endif<br />
+<br />
+		| Determine if there is a non-expired ISO 9001 certificate<br />
+			if tiobg999.isoa = tgyenox.no or tiobg999.expa &lt; ws.today then<br />
+				f.scst = tisupstat.notapprove<br />
+				return(f.scst)<br />
+			endif<br />
+		<br />
+		| Determine if any commodities have been assigned to determine if supplier is Critical or Major<br />
+			if ws.comc = &quot;None&quot; then<br />
+				f.scst = tisupstat.notapprove<br />
+				return(f.scst)<br />
+			endif<br />
+				<br />
+		| Determine if the supplier provides commidities which are classified as Critical.<br />
+			if ws.sccl = ticomclass.critical then<br />
+				| Critical commodities require Medical Validation.<br />
+				if tiobg999.mval = tgyenox.no then<br />
+					f.scst = tisupstat.notapprove<br />
+					return(f.scst)<br />
+				else<br />
+					| If there are non-accepted SCARs, then the supplier is disapproved.<br />
+					if ws.stus.disputed &lt;&gt; 0 then<br />
+						f.scst = tisupstat.notapprove<br />
+						return(f.scst)<br />
+					endif<br />
+					|If the Supplier no SCARs they are approved.<br />
+					if ws.stus.open = 0 then<br />
+						f.scst = tisupstat.approve<br />
+						return(f.scst)<br />
+					else<br />
+					| If there are accepted SCARs, then the supplier is conditionally approved.<br />
+						f.scst = tisupstat.conditional<br />
+						return(f.scst)<br />
+					endif<br />
+				endif<br />
+			else<br />
+				| Determine if the supplier provides commidities which are classified as Major.<br />
+				if ws.sccl = ticomclass.major then<br />
+					| See if any commodities are Testing types<br />
+					select	tiobg998.test<br />
+					from	tiobg997, tiobg998<br />
+					where	tiobg997.comc = tiobg998.comc<br />
+					and 	tiobg997._index1 = {:tiobg999.suno}<br />
+					and		tiobg998.test = tgyenox.yes<br />
+					as set with 1 rows<br />
+					selectdo<br />
+						| Major Suppliers that we use for Testing must have <br />
+						| (non-expired) A2LA Certification.<br />
+						if tiobg999.atla = tgyenox.no or<br />
+						(tiobg999.atla = tgyenox.yes and tiobg999.adla &lt; ws.today) then<br />
+							f.scst = tisupstat.notapprove<br />
+							return(f.scst)<br />
+						endif<br />
+					selectempty<br />
+						f.scst = tisupstat.notapprove<br />
+					endselect<br />
+		<br />
+					| See if any commodities are Calibration types<br />
+					select	tiobg998.test<br />
+					from	tiobg997, tiobg998<br />
+					where	tiobg997.comc = tiobg998.comc<br />
+					and 	tiobg997._index1 = {:tiobg999.suno}<br />
+					and		tiobg998.catt = tgyenox.yes<br />
+					as set with 1 rows<br />
+					selectdo<br />
+						| Major Suppliers that we use for Calibration must have <br />
+						| (non-expired) ISO 17025 Certification.<br />
+						if tiobg999.isoe = tgyenox.no or<br />
+						(tiobg999.isoe = tgyenox.yes and tiobg999.expe &lt; ws.today) then<br />
+							f.scst = tisupstat.notapprove<br />
+							return(f.scst)<br />
+							endif<br />
+					selectempty<br />
+						f.scst = tisupstat.notapprove<br />
+					endselect<br />
+				endif		<br />
+			<br />
+			| Major Medical suppliers must have either ISO 13485 or a Site Audit<br />
+			if (tiobg999.isob = tgyenox.yes and tiobg999.expb &gt;= ws.today) or<br />
+			   (tiobg999.moss = tgyenox.yes and tiobg999.mssd &gt;= ws.today) then<br />
+				f.scst = tisupstat.approve<br />
+			else<br />
+				| If there are non-accepted SCARs, then the supplier is disapproved.<br />
+					if ws.stus.disputed &lt;&gt; 0 then<br />
+						f.scst = tisupstat.notapprove<br />
+						return(f.scst)<br />
+					endif<br />
+				|If the Supplier no SCARs they are approved.<br />
+					if ws.stus.open = 0 then<br />
+						f.scst = tisupstat.approve<br />
+						return(f.scst)<br />
+					else<br />
+					| If there are accepted SCARs, then the supplier is conditionally approved.<br />
+						f.scst = tisupstat.conditional<br />
+						return(f.scst)<br />
+					endif<br />
+			endif<br />
+		endif<br />
+<br />
+		return(f.scst)<br />
+}<br />
+<br />
+<br />
+|******************************************************************************<br />
+| This function will apply business rules to determine the status of an <br />
+| Aerospace supplier.<br />
+|******************************************************************************<br />
+function  domain tisupstat determine.aero.supplier.control.status()<br />
+{<br />
+	domain	tisupstat f.scst<br />
+<br />
+	f.scst = tisupstat.notapprove<br />
+		<br />
+	|******************************************************************************<br />
+	| Application of Business Rules to determine the approval status for Aerospace Suppliers<br />
+<br />
+		| Determine if Aerospace Industry is selected<br />
+			if tiobg999.indb = tgyenox.no then<br />
+				f.scst = tisupstat.notapprove<br />
+				return(f.scst)<br />
+			endif<br />
+	<br />
+		| Determine if there is a non-expired executive override<br />
+			if tiobg999.exob = tgyenox.yes and tiobg999.exdb &gt;= ws.today then<br />
+				f.scst = tisupstat.override<br />
+				return(f.scst)<br />
+			endif<br />
+<br />
+		| Determine if the Supplier Add/Change/Delete form is completed and on-file<br />
+			if tiobg999.sarc = tgyenox.no then<br />
+				f.scst = tisupstat.notapprove<br />
+				return(f.scst)<br />
+			endif<br />
+			<br />
+		| Determine if any commodities have been assigned to determine if supplier is Critical or Major<br />
+			if ws.comc = &quot;None&quot; then<br />
+				f.scst = tisupstat.notapprove<br />
+				return(f.scst)<br />
+			endif<br />
+			<br />
+		| Determine if the supplier provides commidities which are classified as Critical.<br />
+			if ws.sccl = ticomclass.critical then<br />
+				| Critical commodities require Medical Validation.<br />
+				if tiobg999.nadc = tgyenox.no or tiobg999.ncpd &lt; ws.today then<br />
+					f.scst = tisupstat.notapprove<br />
+					return(f.scst)<br />
+				else<br />
+					| If there are non-accepted SCARs, then the supplier is disapproved.<br />
+					if ws.stus.disputed &lt;&gt; 0 then<br />
+						f.scst = tisupstat.notapprove<br />
+						return(f.scst)<br />
+					endif<br />
+					|If the Supplier no SCARs they are approved.<br />
+					if ws.stus.open = 0 then<br />
+						f.scst = tisupstat.approve<br />
+						return(f.scst)<br />
+					else<br />
+						f.scst = tisupstat.conditional<br />
+						return(f.scst)<br />
+					endif<br />
+				endif<br />
+			else<br />
+				| Determine if the supplier provides commidities which are classified as Major.<br />
+			if ws.sccl = ticomclass.major then<br />
+				| See if any commodities are Testing types<br />
+				select	tiobg998.test<br />
+				from	tiobg997, tiobg998<br />
+				where	tiobg997.comc = tiobg998.comc<br />
+				and 	tiobg997._index1 = {:tiobg999.suno}<br />
+				and		tiobg998.test = tgyenox.yes<br />
+				as set with 1 rows<br />
+				selectdo<br />
+					| Major Suppliers that we use for Testing must have <br />
+					| (non-expired) A2LA Certification.<br />
+					if tiobg999.atla = tgyenox.no or<br />
+					   (tiobg999.atla = tgyenox.yes and tiobg999.adla &lt; ws.today) then<br />
+						f.scst = tisupstat.notapprove<br />
+						return(f.scst)<br />
+					endif<br />
+				selectempty<br />
+					return.value = 0<br />
+				endselect<br />
+		<br />
+				| See if any commodities are Calibration types<br />
+				select	tiobg998.test<br />
+				from	tiobg997, tiobg998<br />
+				where	tiobg997.comc = tiobg998.comc<br />
+				and 	tiobg997._index1 = {:tiobg999.suno}<br />
+				and		tiobg998.catt = tgyenox.yes<br />
+				as set with 1 rows<br />
+				selectdo<br />
+					| Major Suppliers that we use for Calibration must have <br />
+					| (non-expired) ISO 17025 Certification.<br />
+					if tiobg999.isoe = tgyenox.no or<br />
+					   (tiobg999.isoe = tgyenox.yes and tiobg999.expe &lt; ws.today) then<br />
+						f.scst = tisupstat.notapprove<br />
+						return(f.scst)<br />
+						endif<br />
+				selectempty<br />
+					return.value = 0<br />
+				endselect<br />
+			endif		<br />
+			<br />
+			| Major Aerospace suppliers must have either ISO 9001, AS 9100, Site Audit, or a Self-Survey<br />
+			if (tiobg999.isoa = tgyenox.yes and tiobg999.expa &gt;= ws.today) or<br />
+			   (tiobg999.isoc = tgyenox.yes and tiobg999.expc &gt;= ws.today) or<br />
+			   (tiobg999.aoss = tgyenox.yes and tiobg999.assd &gt;= ws.today) or<br />
+			   (tiobg999.aess = tgyenox.yes) then<br />
+				f.scst = tisupstat.approve<br />
+			else<br />
+				| If there are non-accepted SCARs, then the supplier is disapproved.<br />
+					if ws.stus.disputed &lt;&gt; 0 then<br />
+						f.scst = tisupstat.notapprove<br />
+						return(f.scst)<br />
+					endif<br />
+				|If the Supplier no SCARs they are approved.<br />
+					if ws.stus.open = 0 then<br />
+						f.scst = tisupstat.approve<br />
+						return(f.scst)<br />
+					else<br />
+						f.scst = tisupstat.conditional<br />
+						return(f.scst)<br />
+					endif<br />
+			endif<br />
+		endif<br />
+<br />
+		return(f.scst)<br />
+}<br />
+<br />
+<br />
+|******************************************************************************<br />
+| This function will apply business rules to determine the status of an <br />
+| Automotive supplier.<br />
+|******************************************************************************<br />
+function  domain tisupstat determine.auto.supplier.control.status()<br />
+{<br />
+	domain	tisupstat f.scst<br />
+<br />
+	f.scst = tisupstat.notapprove<br />
+		<br />
+	|******************************************************************************<br />
+	| Application of Business Rules to determine the approval status for Automotive Suppliers<br />
+<br />
+		| Determine if Automotive Industry is selected<br />
+			if tiobg999.indc = tgyenox.no then<br />
+				f.scst = tisupstat.notapprove<br />
+				return(f.scst)<br />
+			endif<br />
+	<br />
+		| Determine if there is a non-expired executive override<br />
+			if tiobg999.exoc = tgyenox.yes and tiobg999.exdc &gt;= ws.today then<br />
+				f.scst = tisupstat.override<br />
+				return(f.scst)<br />
+			endif<br />
+<br />
+		| Determine if the Supplier Add/Change/Delete form is completed and on-file<br />
+			if tiobg999.sarc = tgyenox.no then<br />
+				f.scst = tisupstat.notapprove<br />
+				return(f.scst)<br />
+			endif<br />
+<br />
+		| Determine if there is a non-expired ISO 9001 certificate<br />
+			if tiobg999.isoa = tgyenox.no or tiobg999.expa &lt; ws.today then<br />
+				f.scst = tisupstat.notapprove<br />
+				return(f.scst)<br />
+			endif<br />
+			<br />
+		| Determine if any commodities have been assigned to determine if supplier is Critical or Major<br />
+			if ws.comc = &quot;None&quot; then<br />
+				f.scst = tisupstat.notapprove<br />
+				return(f.scst)<br />
+			endif<br />
+		<br />
+		| Determine if the supplier provides commidities which are classified as Critical.<br />
+			if ws.sccl = ticomclass.critical then<br />
+				| Critical commodities require CQI Accreditation.<br />
+				if tiobg999.acqi = tgyenox.no or tiobg999.cqid &lt; ws.today then<br />
+					f.scst = tisupstat.notapprove<br />
+					return(f.scst)<br />
+				else<br />
+					| If there are non-accepted SCARs, then the supplier is disapproved.<br />
+					if ws.stus.disputed &lt;&gt; 0 then<br />
+						f.scst = tisupstat.notapprove<br />
+						return(f.scst)<br />
+					endif<br />
+					|If the Supplier no SCARs they are approved.<br />
+					if ws.stus.open = 0 then<br />
+						f.scst = tisupstat.approve<br />
+						return(f.scst)<br />
+					else<br />
+						f.scst = tisupstat.conditional<br />
+						return(f.scst)<br />
+					endif<br />
+				endif<br />
+			else<br />
+				| Determine if the supplier provides commidities which are classified as Major.<br />
+			if ws.sccl = ticomclass.major then<br />
+				| See if any commodities are Testing types<br />
+				select	tiobg998.test<br />
+				from	tiobg997, tiobg998<br />
+				where	tiobg997.comc = tiobg998.comc<br />
+				and 	tiobg997._index1 = {:tiobg999.suno}<br />
+				and		tiobg998.test = tgyenox.yes<br />
+				as set with 1 rows<br />
+				selectdo<br />
+					| Major Suppliers that we use for Testing must have <br />
+					| (non-expired) A2LA Certification.<br />
+					if tiobg999.atla = tgyenox.no or<br />
+					   (tiobg999.atla = tgyenox.yes and tiobg999.adla &lt; ws.today) then<br />
+						f.scst = tisupstat.notapprove<br />
+						return(f.scst)<br />
+					endif<br />
+				selectempty<br />
+					return.value = 0<br />
+				endselect<br />
+		<br />
+				| See if any commodities are Calibration types<br />
+				select	tiobg998.test<br />
+				from	tiobg997, tiobg998<br />
+				where	tiobg997.comc = tiobg998.comc<br />
+				and 	tiobg997._index1 = {:tiobg999.suno}<br />
+				and		tiobg998.catt = tgyenox.yes<br />
+				as set with 1 rows<br />
+				selectdo<br />
+					| Major Suppliers that we use for Calibration must have <br />
+					| (non-expired) ISO 17025 Certification.<br />
+					if tiobg999.isoe = tgyenox.no or<br />
+					   (tiobg999.isoe = tgyenox.yes and tiobg999.expe &lt; ws.today) then<br />
+						f.scst = tisupstat.notapprove<br />
+						return(f.scst)<br />
+						endif<br />
+				selectempty<br />
+					return.value = 0<br />
+				endselect<br />
+			endif		<br />
+			<br />
+			| Major Medical suppliers must have either TS 16949 or a Self Survey<br />
+			if (tiobg999.isod = tgyenox.yes and tiobg999.expd &gt;= ws.today) or<br />
+			   (tiobg999.auss = tgyenox.yes) then<br />
+				f.scst = tisupstat.approve<br />
+			else<br />
+				| If there are non-accepted SCARs, then the supplier is disapproved.<br />
+					if ws.stus.disputed &lt;&gt; 0 then<br />
+						f.scst = tisupstat.notapprove<br />
+						return(f.scst)<br />
+					endif<br />
+				|If the Supplier no SCARs they are approved.<br />
+					if ws.stus.open = 0 then<br />
+						f.scst = tisupstat.approve<br />
+						return(f.scst)<br />
+					else<br />
+						f.scst = tisupstat.conditional<br />
+						return(f.scst)<br />
+					endif<br />
+			endif<br />
+		endif<br />
+		return(f.scst)<br />
+}<br />
+<br />
+<br />
+|******************************************************************************<br />
+| This function will apply business rules to determine the status of an <br />
+| General supplier.<br />
+|******************************************************************************<br />
+function  domain tisupstat determine.general.supplier.control.status()<br />
+{<br />
+	domain	tisupstat f.scst<br />
+<br />
+	f.scst = tisupstat.notapprove<br />
+		<br />
+	|******************************************************************************<br />
+	| Application of Business Rules to determine the approval status for General Suppliers<br />
+<br />
+		| Determine if General Industry is selected<br />
+			if tiobg999.indd = tgyenox.no then<br />
+				f.scst = tisupstat.notapprove<br />
+				return(f.scst)<br />
+			endif<br />
+	<br />
+		| Determine if there is a non-expired executive override<br />
+			if tiobg999.exod = tgyenox.yes and tiobg999.exdd &gt;= ws.today then<br />
+				f.scst = tisupstat.override<br />
+				return(f.scst)<br />
+			endif<br />
+<br />
+		| Determine if the Supplier Add/Change/Delete form is completed and on-file<br />
+			if tiobg999.sarc = tgyenox.no then<br />
+				f.scst = tisupstat.notapprove<br />
+				return(f.scst)<br />
+			endif<br />
+		<br />
+		| Determine if any commodities have been assigned to determine if supplier is Critical or Major<br />
+			if ws.comc = &quot;None&quot; then<br />
+				f.scst = tisupstat.notapprove<br />
+				return(f.scst)<br />
+			endif<br />
+			<br />
+		| Check to see if any commodities are for Testing<br />
+			select	tiobg998.test<br />
+			from	tiobg997, tiobg998<br />
+			where	tiobg997.comc = tiobg998.comc<br />
+			and 	tiobg997._index1 = {:tiobg999.suno}<br />
+			and		tiobg998.test = tgyenox.yes<br />
+			as set with 1 rows<br />
+			selectdo<br />
+				| General Suppliers that we use for Testing must have <br />
+				| (non-expired) A2LA Certification.<br />
+				if tiobg999.atla = tgyenox.no or<br />
+				   (tiobg999.atla = tgyenox.yes and tiobg999.adla &lt; ws.today) then<br />
+					f.scst = tisupstat.notapprove<br />
+					return(f.scst)<br />
+				endif<br />
+			selectempty<br />
+				return.value = 0<br />
+			endselect<br />
+	<br />
+		| Check to see if any commodities are for Calibration<br />
+			select	tiobg998.test<br />
+			from	tiobg997, tiobg998<br />
+			where	tiobg997.comc = tiobg998.comc<br />
+			and 	tiobg997._index1 = {:tiobg999.suno}<br />
+			and		tiobg998.catt = tgyenox.yes<br />
+			as set with 1 rows<br />
+			selectdo<br />
+				| General Suppliers that we use for Calibration must have <br />
+				| (non-expired) ISO 17025 Certification.<br />
+				if tiobg999.isoe = tgyenox.no or<br />
+				   (tiobg999.isoe = tgyenox.yes and tiobg999.expe &lt; ws.today) then<br />
+					f.scst = tisupstat.notapprove<br />
+					return(f.scst)<br />
+					endif<br />
+			selectempty<br />
+				return.value = 0<br />
+			endselect<br />
+		<br />
+		| If there are non-accepted SCARs, then the supplier is disapproved.<br />
+			if ws.stus.disputed &lt;&gt; 0 then<br />
+				f.scst = tisupstat.notapprove<br />
+				return(f.scst)<br />
+			endif<br />
+		|If the Supplier no SCARs they are approved.<br />
+			if ws.stus.open = 0 then<br />
+				f.scst = tisupstat.approve<br />
+				return(f.scst)<br />
+			else<br />
+				f.scst = tisupstat.conditional<br />
+				return(f.scst)<br />
+			endif<br />
+<br />
+	return(f.scst)<br />
+}<br />
+<br />
+|******************************   END  OF  SCRIPT   ***************************</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">19th May 2011, 23:01</div></div><div class="posttext">Sorry Eric - but did I miss something?  I am sure you know this, but I mean in any maintain session no changes are saved until a &quot;save&quot; or &quot;save and exit&quot; is executed.  You can change all the fields you want, but until a save or commit is executed they do not make it into the table. Anytime I want to update a table in a session like this I usually execute(update.db) or in somecases a quick select..update..commit.  Is there any reason you can't just execute(update.db)?  I feel like I am missing something on this thread.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">19th May 2011, 23:10</div></div><div class="posttext">Thanks Mark... I had tried that a few times but kept getting recursion errors, but then (smack me in the head with a big stick), I never commented out the before.rewrite calls to the functions which was causing the issue.<br />
+<br />
+This is one of those projects where I've received the final revision of the user specifications 18 times now and I think that with all the changes I was going crazy.<br />
+<br />
+Thanks to all of you that responded.  I did learn some things about the update.occ() as well.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

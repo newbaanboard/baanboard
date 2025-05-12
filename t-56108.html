@@ -1,0 +1,268 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Problem with AFS on LN 6.1, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Problem with AFS on LN 6.1 AFS/DDC/OLE: Function servers" />
+	
+	<title>Problem with AFS on LN 6.1 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Problem with AFS on LN 6.1</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">gget79</div><div class="date">11th June 2009, 16:21</div></div><div class="posttext">Hi Friends,  <br />
+  <br />
+I am working with Infor LN  6.1  <br />
+  <br />
+I am making a program that for api (AFS), it uses the session &quot;Link Credit Notes to schedules - tfacr2122m000&quot;, but when I send a search for api to this session, it doesn't work for me, my source code is the following:  <br />
+  <br />
+<br />
+function extern domain tcbool lesls.dll0003.aplica.ventas(domain tfgld.year l.year, domain tfgld.btno l.btno, domain tfgld.ttyp l.ttyp)<br />
+{<br />
+	domain tcbool		f.ventas<br />
+	domain tfgld.long	retval<br />
+	domain tfgld.long	ret<br />
+	domain tfgld.long	i<br />
+	domain tfgld.long	j<br />
+	domain tfgld.long	retaux<br />
+	domain tcmcs.str215	error.msg<br />
+	domain tfgld.ttyp	l.tdra<br />
+	domain tfgld.amnt	l.tret<br />
+	domain tccom.bpid	l.bpid<br />
+	domain tcncmp		l.cia<br />
+	domain tcyesno		l.prog<br />
+	domain tfgld.ninv	l.nina<br />
+	domain tfgld.ninv	l.ninv(100)<br />
+	domain tcmcs.str16	fecha.doc<br />
+	long	puntero_tfacr200<br />
+	string	buf.ttfacr200(2048)<br />
+i = 1<br />
+j = 0<br />
+m.rtyp = &quot;&quot;<br />
+l.cia = get.compnr()<br />
+puntero_tfacr200 = db.bind(&quot;ttfacr200&quot;, buf.ttfacr200)<br />
+db.columns.to.record(puntero_tfacr200)<br />
+select 	tfacr200.ninv<br />
+from 	tfacr200<br />
+where 	tfacr200._index3 = {:l.year,:l.btno,:l.ttyp}<br />
+and	tfacr200.tdoc = &quot;&quot;<br />
+and	tfacr200.docn = 0<br />
+and	tfacr200.lino = 0<br />
+selectdo<br />
+	l.ninv(i) = tfacr200.ninv<br />
+	i = i + 1<br />
+endselect<br />
+db.record.to.columns(puntero_tfacr200)<br />
+db.unbind(puntero_tfacr200)<br />
+for i = 1 to 100 <br />
+	if l.ninv(i) &lt;&gt; 0 then<br />
+	|* Encuentro el lote al que voy a aplicar la nota de venta<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;tfgld101.year&quot;,str$(l.year))<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;tfgld101.btno&quot;,str$(l.btno))<br />
+	retval = stpapi.find(&quot;tfgld1101m000&quot;,error.msg)<br />
+	if retval = 1 then<br />
+		|* Encuentro el tipo de transacción que aplica la nota de venta<br />
+		dal.start.business.method(&quot;lepar000&quot;,&quot;give.tdra&quot;,retval,l.cia,l.tdra)<br />
+		stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;tfgld101.ttyp&quot;,str$(l.tdra))<br />
+		retval = stpapi.find(&quot;tfgld1101m000&quot;,error.msg)<br />
+		if retval &lt;&gt; 1 then<br />
+			|* Inserto el tipo de transacción que aplica la nota de venta<br />
+			stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;tfgld101.ttyp&quot;,str$(l.tdra))<br />
+			retval = stpapi.insert(&quot;tfgld1101m000&quot;,true,error.msg)<br />
+			if retval &lt;&gt; 1 then<br />
+				retaux = stpapi.recover(&quot;tfgld1101m000&quot;,error.msg)<br />
+				f.ventas = false<br />
+				stpapi.end.session(&quot;tfgld1101m000&quot;)<br />
+			endif<br />
+		endif<br />
+		if retval = 1 then<br />
+			stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;tfgld101.ttyp&quot;,str$(l.tdra))<br />
+			retval = stpapi.find(&quot;tfgld1101m000&quot;,error.msg)<br />
+			if retval = 1 then <br />
+				retval = stpapi.mark(&quot;tfgld1101m000&quot;,error.msg)<br />
+				|* Encuentro el registro insertado<br />
+				if retval = 1 then<br />
+					stpapi.form.command(&quot;tfgld1101m000&quot;,1,&quot;exec.cont.process&quot;,error.msg)<br />
+					|* Para cada registro atado al lote y período fiscal, busco el partner y el tipo de transacción<br />
+					dal.start.business.method(&quot;lesls006&quot;,&quot;give.bpid&quot;,retval,l.ttyp,l.ninv(i),0,l.bpid)<br />
+					stpapi.put.field(&quot;tfacr2120m000&quot;,&quot;form.itbp&quot;,str$(l.bpid))<br />
+					stpapi.put.field(&quot;tfacr2120m000&quot;,&quot;tfacr200.itbp&quot;,str$(l.bpid))  <br />
+					stpapi.put.field(&quot;tfacr2120m000&quot;,&quot;tfacr200.ttyp&quot;,str$(l.ttyp))<br />
+					stpapi.put.field(&quot;tfacr2120m000&quot;,&quot;tfacr200.ninv&quot;,str$(l.ninv(i)))<br />
+					retval = stpapi.find(&quot;tfacr2120m000&quot;,error.msg)<br />
+					if retval = 1 then<br />
+ 						|* Si lo encuentra busco el número de documento<br />
+						stpapi.put.field(&quot;tfacr2120m000&quot;,&quot;tfacr200.ttyp&quot;,str$(l.ttyp))<br />
+						stpapi.put.field(&quot;tfacr2120m000&quot;,&quot;tfacr200.ninv&quot;,str$((l.ninv(i))))<br />
+						retval = stpapi.find(&quot;tfacr2120m000&quot;,error.msg)<br />
+						if retval = 1 then<br />
+							l.nina = l.ninv(i)<br />
+							tiene.prog(l.ttyp,(l.ninv(i)), l.prog)<br />
+							select 	lesls007.rtyp, lesls007.rnin, sum(lesls007.iret):l.tret<br />
+							from 	lesls007<br />
+							where 	lesls007._index1 = {:l.ttyp, :l.nina}<br />
+							group by lesls007.rtyp, lesls007.rnin<br />
+							selectdo<br />
+								j = j + 1<br />
+								m.rtyp = lesls007.rtyp<br />
+								m.rninv = str$(lesls007.rnin)<br />
+								if l.prog = tcyesno.no then<br />
+									|* Si lo encuentra ejecuto Asignar notas de abono a factura<br />
+									stpapi.form.command(&quot;tfacr2120m000&quot;,1,&quot;start.second.session&quot;,error.msg)<br />
+									|* Busco el documento al cual voy a afectar<br />
+									stpapi.put.field(&quot;tfacr2121m000&quot;,&quot;tfacr200.bpid&quot;,str$(l.bpid))  <br />
+									stpapi.put.field(&quot;tfacr2121m000&quot;,&quot;tfacr200.ttyp&quot;,str$(lesls007.rtyp))<br />
+									stpapi.put.field(&quot;tfacr2121m000&quot;,&quot;tfacr200.ninv&quot;,str$(lesls007.rnin))<br />
+									ret = stpapi.find(&quot;tfacr2121m000&quot;,error.msg)<br />
+									if ret = 1 then<br />
+										ret = stpapi.mark(&quot;tfacr2121m000&quot;, error.msg)<br />
+										if ret = 1 then<br />
+											|* Si lo encuentro actualizo el valor de la retención. <br />
+											stpapi.put.field(&quot;tfacr2121m000&quot;, &quot;tfacr200.lamt&quot;,str$(l.tret))<br />
+											ret = stpapi.update(&quot;tfacr2121m000&quot;, true, error.msg)<br />
+											if trim$(error.msg) = &quot;&quot; then<br />
+												stpapi.form.command(&quot;tfacr2121m000&quot;,1,&quot;exec.cont.process&quot;,error.msg)<br />
+												if j = 1 then<br />
+													stpapi.form.command(&quot;tfcmg2114s000&quot;,1,&quot;user.1&quot;,error.msg)<br />
+												endif<br />
+												f.ventas = true	<br />
+											else<br />
+												f.ventas = false<br />
+												break<br />
+											endif<br />
+										else<br />
+											f.ventas = false<br />
+											break<br />
+										endif<br />
+									else<br />
+										f.ventas = false<br />
+										break<br />
+									endif<br />
+								endif<br />
+								if l.prog = tcyesno.yes then<br />
+									l.nina = l.ninv(i)<br />
+									stpapi.form.command(&quot;tfacr2120m000&quot;,1,&quot;start.schedules.session&quot;,error.msg)  <br />
+									|* Busco el documento al cual voy a afectar<br />
+									| stpapi.put.field(&quot;tfacr2122m000&quot;,&quot;main.bpid&quot;,str$(l.bpid))<br />
+									stpapi.put.field(&quot;tfacr2122m000&quot;,&quot;tfacr201.ttyp&quot;,str$(lesls007.rtyp))<br />
+									stpapi.put.field(&quot;tfacr2122m000&quot;,&quot;tfacr201.ninv&quot;,str$(lesls007.rnin))<br />
+									stpapi.put.field(&quot;tfacr2122m000&quot;,&quot;tfacr201.schn&quot;,str$(1))<br />
+									ret = stpapi.find(&quot;tfacr2122m000&quot;,error.msg)<br />
+									if ret = 1 then<br />
+										ret = stpapi.mark(&quot;tfacr2122m000&quot;,error.msg)<br />
+										stpapi.put.field(&quot;tfacr2122m000&quot;,&quot;tfacr201.lamt&quot;,str$(l.tret))<br />
+										ret = stpapi.update(&quot;tfacr2122m000&quot;,true,error.msg)<br />
+										if ret &lt;&gt; 1 then<br />
+											ret = stpapi.update(&quot;tfacr2122m000&quot;,true,error.msg)<br />
+											if ret &lt;&gt; 1 then<br />
+												ingresa.tfacr201(lesls007.rtyp,lesls007.rnin,fecha.doc,l.tret)<br />
+											endif<br />
+										endif<br />
+									else<br />
+										ingresa.tfacr201(lesls007.rtyp,lesls007.rnin,fecha.doc,l.tret)<br />
+										ret = stpapi.find(&quot;tfacr2122m000&quot;,error.msg)<br />
+									endif<br />
+									if trim$(error.msg) = &quot;&quot; then<br />
+										stpapi.form.command(&quot;tfacr2122m000&quot;,1,&quot;exec.cont.process&quot;,error.msg) <br />
+										if j = 1 then<br />
+											stpapi.form.command(&quot;tfcmg2114s000&quot;,1,&quot;user.1&quot;,error.msg)    |get utilizar subproc<br />
+										endif<br />
+										f.ventas = true<br />
+									else<br />
+										f.ventas = false<br />
+										break<br />
+									endif<br />
+								else<br />
+									f.ventas = false<br />
+									break<br />
+								endif<br />
+							endselect<br />
+							j = 0<br />
+						endif<br />
+						if retval &lt;&gt; 1 then<br />
+							retval = stpapi.recover(&quot;tfacr2120m000&quot;,error.msg)<br />
+							stpapi.end.session(&quot;tfacr2120m000&quot;)<br />
+							stpapi.end.session(&quot;tfgld1101m000&quot;)<br />
+							f.ventas = false<br />
+						endif<br />
+						if not f.ventas then<br />
+							if l.prog = tcyesno.no then<br />
+								retval = stpapi.recover(&quot;tfacr2121m000&quot;,error.msg)<br />
+								stpapi.end.session(&quot;tfacr2121m000&quot;)<br />
+							endif<br />
+							if l.prog = tcyesno.yes then<br />
+								retval = stpapi.recover(&quot;tfacr2122m000&quot;,error.msg)<br />
+								stpapi.end.session(&quot;tfacr2122m000&quot;)<br />
+							endif<br />
+						endif<br />
+						stpapi.end.session(&quot;tfacr2120m000&quot;)<br />
+						stpapi.end.session(&quot;tfgld1101m000&quot;)<br />
+					else<br />
+						retval = stpapi.recover(&quot;tfacr2120m000&quot;,error.msg)<br />
+						stpapi.end.session(&quot;tfacr2120m000&quot;)<br />
+						stpapi.end.session(&quot;tfgld1101m000&quot;)<br />
+						f.ventas = false<br />
+					endif<br />
+				else<br />
+					retval = stpapi.recover(&quot;tfgld1101m000&quot;,error.msg)<br />
+					stpapi.end.session(&quot;tfgld1101m000&quot;)<br />
+					f.ventas = false<br />
+				endif<br />
+			else<br />
+				retval = stpapi.recover(&quot;tfgld1101m000&quot;,error.msg)<br />
+				stpapi.end.session(&quot;tfgld1101m000&quot;)<br />
+				f.ventas = false<br />
+			endif<br />
+		else<br />
+			retval = stpapi.recover(&quot;tfgld1101m000&quot;,error.msg)<br />
+			stpapi.end.session(&quot;tfgld1101m000&quot;)<br />
+			f.ventas = false<br />
+		endif	<br />
+	else<br />
+		retval = stpapi.recover(&quot;tfgld1101m000&quot;,error.msg)<br />
+		stpapi.end.session(&quot;tfgld1101m000&quot;)<br />
+		f.ventas = false<br />
+	endif<br />
+	else<br />
+		break<br />
+	endif<br />
+endfor<br />
+<br />
+for i = 1 to 100<br />
+	l.ninv(i) = 0<br />
+	| i = i +1<br />
+endfor<br />
+<br />
+return(f.ventas)<br />
+}<br />
+  <br />
+  <br />
+Anybody can help me?  <br />
+  <br />
+Thank you</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th June 2009, 17:02</div></div><div class="posttext">Well first on LN they recommend using Dal2 functionality.<br />
+<br />
+Second is this the code not working:<br />
+<br />
+	stpapi.form.command(&quot;tfacr2120m000&quot;,1,&quot;start.schedules.session&quot;,error.msg)  <br />
+	|* Busco el documento al cual voy a afectar<br />
+	stpapi.put.field(&quot;tfacr2122m000&quot;,&quot;tfacr201.ttyp&quot;,str$(lesls007.rtyp))<br />
+	stpapi.put.field(&quot;tfacr2122m000&quot;,&quot;tfacr201.ninv&quot;,str$(lesls007.rnin))<br />
+	stpapi.put.field(&quot;tfacr2122m000&quot;,&quot;tfacr201.schn&quot;,str$(1))<br />
+	ret = stpapi.find(&quot;tfacr2122m000&quot;,error.msg)<br />
+<br />
+Can you confirm that the form command is working?  In debug mode make sure that the form command starts session tfacr2122m000.  Also make sure that the process ID for tfacr2122m000 has a parent process that is tfacr2120m000.  If that does not work then the first put field will start tfacr2122m000, but it will not be tied correctly to the parent session.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="appl.delete problem, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] appl.delete problem Tools Development" />
+	
+	<title>appl.delete problem [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; appl.delete problem</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">evertsen</div><div class="date">2nd July 2002, 22:56</div></div><div class="posttext">I am trying to use appl.delete() to remove a lock created by another script (without using ttstpdellocks).  I have been told that it is not working because I have not specified the same parameters as appl.write() used.  One problem is I do not have source to check the parameters used by the other session but the bigger problem is I do not know how to specify parameters with appl.delete() the help file didn't aid me at all.  Any help will be appreciated.  BTW I am using 4c4.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">alejandro</div><div class="date">2nd July 2002, 23:33</div></div><div class="posttext">To use this function:<br />
+<br />
+long APPL.DELETE( string name(32) )<br />
+<br />
+It returns:<br />
+<br />
+      0 : OK, lock is removed<br />
+     -1 : error, lock not found<br />
+     -3 : internal error<br />
+<br />
+The variable name is in session ttstpdelllocks, first field.<br />
+<br />
+Hope this help</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evertsen</div><div class="date">3rd July 2002, 04:12</div></div><div class="posttext">Thanks, but that is exactly what I tried (like it says in the help file) and it returns -3.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">3rd July 2002, 14:14</div></div><div class="posttext">Please post your code, than we can probably help you out.<br />
+<br />
+Han</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">isimeon</div><div class="date">3rd July 2002, 15:23</div></div><div class="posttext">I think you cannot delete application lock created by another process or user (except via the session ttstpdellocks). Try to use function appl.modify(...) or/and manipulate data in tables ttadv997 and ttadv998 in company 000.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evertsen</div><div class="date">3rd July 2002, 18:08</div></div><div class="posttext">| This session is designed to allow our sales order entry staff to <br />
+| delete their own app locks.  <br />
+declaration:<br />
+<br />
+	extern	domain	tcmcs.str32.l	app.name<br />
+	extern	domain	tcmcs.str6	order.num<br />
+	extern	domain	tcmcs.str8	curr.user<br />
+	extern	domain	tcmcs.str12	app.user<br />
+<br />
+	long	ret<br />
+	long	ret2<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+<br />
+	curr.user 	= getenv$(&quot;LOGNAME&quot;)<br />
+	ret2 		= appl.get.user(app.name, app.user)<br />
+<br />
+	if ret2 = 0 then<br />
+		if strip$(app.user) = strip$(curr.user) then<br />
+			ret = appl.delete(app.name)  <br />
+		else<br />
+			message(&quot;Cannot Remove! Lock belongs to %s.&quot;, app.user)<br />
+		endif<br />
+	else<br />
+		message(&quot;Lock for order %s not found!&quot;, order.num)<br />
+	endif <br />
+<br />
+field.order.num:<br />
+when.field.changes:<br />
+	<br />
+	app.name = &quot;tdsls040&quot; &amp; order.num</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">alejandro</div><div class="date">3rd July 2002, 18:44</div></div><div class="posttext">I think that in your post, app.name variable is empty or full with spaces. If you do not fullfill this variable I think you will always see your message &quot;Lock for order %s not found!&quot;<br />
+<br />
+app.name it is not a reference variable like app.user</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evertsen</div><div class="date">3rd July 2002, 19:35</div></div><div class="posttext">I looked at my app.name variable as the cause of the error by having it print in a message and also by replacing it with it's value in the statement.  I purposely created a lock for sales order 100065 then tried to remove it with appl.delete(&quot;tdsls040100065&quot;) but still received a return value of -3.  It never returns the &quot;Lock for order %s not found!&quot; message.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">isimeon</div><div class="date">3rd July 2002, 19:35</div></div><div class="posttext">OK.<br />
+<br />
+If you insert a next line before appl.delete(..)<br />
+<br />
+ret=appl.modify(app.name,old.pid,pid)<br />
+<br />
+where old.pid is owner pid of application lock, pid is current pid.<br />
+<br />
+Application Lock will be deleted. But, this working only when process with old.pid is still active and in current bshell. To get owner pid you have to select ttadv998 in company 000 (authorization problem!)<br />
+<br />
+I think you cannot delete Application Lock with user session using appl.delete function.<br />
+<br />
+A possible solution is to delete ttadv998 record, but you have to give authorization to user for the table in company 000, which is not preferable.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evertsen</div><div class="date">3rd July 2002, 19:56</div></div><div class="posttext">I have tried appl.modify solution but still receive the same return value from appl.delete</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">isimeon</div><div class="date">3rd July 2002, 20:09</div></div><div class="posttext">I have tried it and work fine. Remember: in the same bshell and owner pid process is still active.<br />
+<br />
+This technique is usable when a child process of locking process have to delete application lock. But this is not your case.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

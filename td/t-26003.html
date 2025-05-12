@@ -1,0 +1,244 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to sort the output based on user input, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to sort the output based on user input Tools Development" />
+	
+	<title>How to sort the output based on user input [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; How to sort the output based on user input</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">nansat99</div><div class="date">4th January 2006, 22:58</div></div><div class="posttext">I have a report which shows the values prid, desc,custprid.<br />
+<br />
+I want to sort the output based on user input. for this i created a enumarted field with prid,desc,custprid. so when user selects any of these three, the output should be sorted by that value.<br />
+<br />
+thanks<br />
+nansat99</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">4th January 2006, 23:12</div></div><div class="posttext">Couple options -<br />
+<br />
+1.  Instead of sorting on the report, you can choose the 'Presorted' sorting option when you set up the input fields on the report.  Then you can sort in your program script and they should come out in the same order on the report.<br />
+<br />
+2.  Create a second/third/fourth report that sorts things in the right order, and have the code open the correct report.  Probably only want this if you also want to move around the fields in the layout as well.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nansat99</div><div class="date">4th January 2006, 23:14</div></div><div class="posttext">if I opt for first option suggested by you how can i sort them in program script ? is there any predefined variable ?<br />
+<br />
+thanks<br />
+nansat99</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">4th January 2006, 23:26</div></div><div class="posttext">Well, you can do it dynamically with 1 sql statement, but that's probably more bother than yours sounds like.  I would suggest 3 different SQL's with 3 different 'order by' clauses, depending on what sort option they chose.  Something like:<br />
+<br />
+<br />
+if sort.choice = 1 then<br />
+    select  tdsls401.*<br />
+    from    tdsls401<br />
+    where  (your where conditions)<br />
+    order by tdsls401._index1    <br />
+     selectdo<br />
+           process.record()     |* processes &amp; prints<br />
+    endselect<br />
+endif<br />
+if sort.choice = 2 then<br />
+      select   tdsls401.*<br />
+      from     tdsls401<br />
+      where (your where conditions)<br />
+      order by tdsls401._index2<br />
+       selectdo<br />
+            process.record()   |* processes &amp; prints<br />
+       endselect<br />
+endif<br />
+if sort.choice = 3 then<br />
+      select   tdsls401.*<br />
+      from     tdsls401<br />
+      where (your where conditions)<br />
+      order by tdsls401._index3<br />
+       selectdo<br />
+            process.record()   |* processes &amp; prints<br />
+       endselect<br />
+endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th January 2006, 23:33</div></div><div class="posttext">I would pick option number 2.  You already have the domain and can just open different reports.  All you have to do is clone the report and change the sort options.  <br />
+<br />
+Typically when I do it in the program I do not set any sort options on the report.  Then I just send the records in the order that I want them.<br />
+<br />
+A third way to do this is to create a key field - not printed, but passed to the report.  Each time you get ready to send the report create the key field in the sort order you want.  So one time it may be keyfield = prid &amp; desc &amp;custprid, the next time it can be custprid &amp; prid &amp; desc.  On the report use this keyfield as the sorted field.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nansat99</div><div class="date">5th January 2006, 23:33</div></div><div class="posttext">I made the sort mode to presorted in report inputfields(prid, custprid, desc) and did the following coding.<br />
+<br />
+functions:<br />
+function read.sort.and.process()<br />
+{<br />
+	on case etol(sort.by)<br />
+			case 1:<br />
+				read.main.table.1()<br />
+				break<br />
+			case 2:<br />
+				read.main.table.2()<br />
+				break<br />
+			case 3:<br />
+				read.main.table.3()<br />
+				break<br />
+			default: read.main.table()<br />
+				break<br />
+		  endcase<br />
+}<br />
+function read.main.table()<br />
+{<br />
+	select timjr914.prid,timjr914.tbid<br />
+	from 	timjr914<br />
+	|where  timjr914.auth = tcyesno.yes<br />
+	selectdo<br />
+		select timjr101.*, timjr910.upcc,timjr910.prid<br />
+		from   timjr101, timjr910<br />
+		where	timjr101._index1 = {:timjr914.prid}<br />
+		and 	timjr101.prid refers to timjr910<br />
+		selectdo<br />
+			on case strip$(timjr914.tbid)<br />
+				case &quot;00024101&quot;:<br />
+					cust.id = &quot;95000&quot;<br />
+					break<br />
+				default:break<br />
+			endcase<br />
+				rprt_send()<br />
+		endselect<br />
+	endselect<br />
+}<br />
+function read.main.table.1()<br />
+{<br />
+	select timjr914.prid,timjr914.tbid<br />
+	from 	timjr914<br />
+	|where  timjr914.auth = tcyesno.yes<br />
+	selectdo<br />
+		select timjr101.*, timjr910.upcc,timjr910.prid<br />
+		from   timjr101, timjr910<br />
+		where	timjr101._index1 = {:timjr914.prid}<br />
+		and 	timjr101.prid refers to timjr910<br />
+		order by timjr101._index1	selectdo<br />
+			on case strip$(timjr914.tbid)<br />
+				case &quot;00024101&quot;:<br />
+					cust.id = &quot;95000&quot;<br />
+					break<br />
+				default:break<br />
+			endcase<br />
+				rprt_send()<br />
+		endselect<br />
+	endselect<br />
+}<br />
+function read.main.table.2()<br />
+{<br />
+	select timjr914.prid,timjr914.tbid<br />
+	from 	timjr914<br />
+	|where  timjr914.auth = tcyesno.yes<br />
+	selectdo<br />
+		select timjr101.*, timjr910.upcc,timjr910.prid<br />
+		from   timjr101, timjr910<br />
+		where	timjr101._index1 = {:timjr914.prid}<br />
+		and 	timjr101.prid refers to timjr910<br />
+		order by timjr910.prid		selectdo<br />
+			on case strip$(timjr914.tbid)<br />
+				case &quot;00024101&quot;:<br />
+					cust.id = &quot;95000&quot;<br />
+					break<br />
+				default:break<br />
+			endcase<br />
+				rprt_send()<br />
+		endselect<br />
+	endselect<br />
+}<br />
+function read.main.table.3()<br />
+{<br />
+	select timjr914.prid,timjr914.tbid<br />
+	from 	timjr914<br />
+	|where  timjr914.auth = tcyesno.yes<br />
+	selectdo<br />
+		select timjr101.*, timjr910.upcc,timjr910.prid<br />
+		from   timjr101, timjr910<br />
+		where	timjr101._index1 = {:timjr914.prid}<br />
+		and 	timjr101.prid refers to timjr910<br />
+		order by timjr101.desc<br />
+		selectdo<br />
+			on case strip$(timjr914.tbid)<br />
+				case &quot;00024101&quot;:<br />
+					cust.id = &quot;95000&quot;<br />
+					break<br />
+				default:break<br />
+			endcase<br />
+				rprt_send()<br />
+		endselect<br />
+	endselect<br />
+}<br />
+<br />
+Now even when i select sort by as &quot;description&quot; on form, still the report shown sort by prid,custprid.<br />
+<br />
+Can you tell me where am I missing ?<br />
+<br />
+regards<br />
+nansar99</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">5th January 2006, 23:54</div></div><div class="posttext">Not sure on your data or what you are trying to accomplish, but it looks like you are first selecting from the timjr914 table, which probably comes out in a prid order, then selecting the specific timjr910/101 record that matches this prid.  The sort is then based on the order that timjr914 is selected from, the order by on the inside select to 910/101 probably not doing much, since you are getting only for that prid (if the data is set up how I am imaging).<br />
+<br />
+With multiple levels of selects, you may want to do as Mark originally recommended, choose option 2 where you create 3 different reports, the only difference being the sort order, and then all you need to do is open the right report instead of figuring all the sorting out in the script.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Youp2001</div><div class="date">6th January 2006, 16:38</div></div><div class="posttext">Hi, <br />
+<br />
+This is what I would do:<br />
+- Define an additional variable in your program script. <br />
+- Fill this variable with the value of the variable on which you want to sort, so either prid, desc or custprid depending on the sort option the user selected.<br />
+- Add this variable to the report input fields and set sort sequence to 1 for this field (and ascending / descending). <br />
+<br />
+The report will be sorted on this newly added field containing the value for the field that you want the report to be sorted on. <br />
+<br />
+So:<br />
+- Only one query needed<br />
+- Only one report needed<br />
+<br />
+Hope this helps. <br />
+<br />
+Youp</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">11th January 2006, 13:23</div></div><div class="posttext">My personal recommendation is to work as Youp suggested. I have had many similar situations, also with very complicated queries, and the most simple, neat, and efficient way to do it (also of course performance-wise) is by assigninging the - by user selected - sort-field names to variables, which are in turn defined as the report sort fields. <br />
+<br />
+If you choose not to opt for this option, I would choose the different reports. It is about the same performance wise, yet creates of course a whole lot of extra reports, to be maintained, etc...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nansat99</div><div class="date">11th January 2006, 22:59</div></div><div class="posttext">thank you all for your valuable suggestions, I followed the idea suggested by Youp and it worked.<br />
+<br />
+Thanks<br />
+nansat</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lsatenstein</div><div class="date">12th January 2006, 00:20</div></div><div class="posttext">What I have done in the past, is to create a sort key as a text string.<br />
+I then fill the sort key with the fields in the order I require them.<br />
+<br />
+The sort key is sent to the report writer, and is identified as the input field, sorted ascending.  It is not necessarily used on any report line. I repeat, it is used to control the output sequence.<br />
+A low order byte on this sortkey can be the report option that is desired.<br />
+so for a key of three fields,  chars you could have something similar to...<br />
+<br />
+xxxxyyyzzz1    report type 1  <br />
+zzzxxxxyyy2    report type 2<br />
+yyyxxxxzzz3    report type 3<br />
+<br />
+When sorted, you will know how to process the data, <br />
+In the report, you could use ... after.receive.data, or other intercept.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,208 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Increment a Sequence Number on new insert, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Increment a Sequence Number on new insert Tools Development" />
+	
+	<title>Increment a Sequence Number on new insert [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Increment a Sequence Number on new insert</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ben.kansas</div><div class="date">24th September 2015, 22:28</div></div><div class="posttext">Hi All,<br />
+<br />
+I am trying to increment a Sequence number in a custom session when the user chooses to insert a new record.  Basically, I want a default value placed in the Sequence Number that the user can't change.  The Sequence is part of the Key so it should have a unique value.<br />
+<br />
+This is what I am attempting:<br />
+<br />
+choice.add.set:<br />
+before.choice:<br />
+tdcgs630.sern = get.sern()<br />
+display.all()<br />
+<br />
+function domain tcsern get.sern()<br />
+{		<br />
+		SELECT tdcgs630.sern<br />
+		FROM tdcgs630 <br />
+		WHERE tdcgs630.dtyp = tdcgs.dtyp.cio<br />
+			AND tdcgs630.seri = :tdcgs630.seri<br />
+			AND tdcgs630.docn = :tdcgs630.docn<br />
+		ORDER BY tdcgs630.sern DESC<br />
+		AS SET WITH 1 ROWS<br />
+		SELECTDO<br />
+			<br />
+			sequence = tdcgs630.sern + 1<br />
+			<br />
+		SELECTEMPTY<br />
+			sequence = 1<br />
+		ENDSELECT<br />
+	<br />
+	<br />
+	return(sequence)<br />
+}<br />
+<br />
+<br />
+<br />
+However, after the before.choice section executes the sequence number on the form results in a &quot;0.&quot;<br />
+<br />
+Any thoughts on how I might increment the sequence number?<br />
+<br />
+Thanks,<br />
+Ben</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kevalghelani</div><div class="date">25th September 2015, 08:20</div></div><div class="posttext">I haven't used before.choice section of add.set for incrementing sequence.<br />
+<br />
+Instead i prefer before.new.object section that works fine for me.<br />
+<br />
+you can try using before.new.object section like:<br />
+<br />
+before.new.object:<br />
+        SELECT	tdcgs630.sern<br />
+	FROM	tdcgs630 <br />
+	WHERE	tdcgs630.dtyp = tdcgs.dtyp.cio<br />
+	AND	tdcgs630.seri = :tdcgs630.seri<br />
+	AND	tdcgs630.docn = :tdcgs630.docn<br />
+	ORDER BY tdcgs630.sern DESC<br />
+	AS SET WITH 1 ROWS<br />
+	SELECTDO<br />
+		tdcgs630.sern = tdcgs630.sern + 1<br />
+	SELECTEMPTY<br />
+		tdcgs630.sern = 1<br />
+	ENDSELECT</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">25th September 2015, 12:04</div></div><div class="posttext">Hi Ben,<br />
+<br />
+this depends on which Baan Version you are on.<br />
+<br />
+in Baan4 is you do something like this:<br />
+<br />
+field.tdcgs630.sern:<br />
+before.field:<br />
+	if tdpur041.pono = 0 and choice	&lt;&gt; def.find then<br />
+		tdcgs630.sern = get.next.sern()<br />
+	endif<br />
+<br />
+function domain tcsern get.next.sern()<br />
+{<br />
+	long last.sern<br />
+<br />
+	SELECT max(tdcgs630.sern):last.sern<br />
+	FROM tdcgs630 <br />
+	WHERE tdcgs630.dtyp = tdcgs.dtyp.cio<br />
+		AND tdcgs630.seri = :tdcgs630.seri<br />
+		AND tdcgs630.docn = :tdcgs630.docn<br />
+	SELECTDO<br />
+	SELECTEMPTY<br />
+		last.sern = 0<br />
+	ENDSELECT<br />
+<br />
+	return(last.sern + 1)<br />
+}<br />
+<br />
+<br />
+In LN the prefered way is to do this in DAL:<br />
+<br />
+dal.field.depends.on(	&quot;tdcgs630.sern&quot;,<br />
+	HOOK_UPDATE,	&quot;tdcgs630.dtyp&quot;,<br />
+			&quot;tdcgs630.seri&quot;,<br />
+			&quot;tdcgs630.docn&quot;)<br />
+<br />
+function extern void tdcgs630.sern.update()<br />
+{<br />
+	long last.sern<br />
+<br />
+	SELECT max(tdcgs630.sern):last.sern<br />
+	FROM tdcgs630 <br />
+	WHERE tdcgs630.dtyp = tdcgs.dtyp.cio<br />
+		AND tdcgs630.seri = :tdcgs630.seri<br />
+		AND tdcgs630.docn = :tdcgs630.docn<br />
+	SELECTDO<br />
+	SELECTEMPTY<br />
+		last.sern = 0<br />
+	ENDSELECT<br />
+<br />
+	tdcgs630.sern = last.sern + 1<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ben.kansas</div><div class="date">25th September 2015, 17:22</div></div><div class="posttext">Thanks, guys.<br />
+<br />
+I went with DAL approach as I am already using it.  I must have had a serious brain block as I didn't see this earlier.<br />
+<br />
+Cheers,<br />
+Ben</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ben.kansas</div><div class="date">25th September 2015, 18:02</div></div><div class="posttext">Actually, I was a little hasty there.<br />
+<br />
+My records appear in a list window.  It is possible to tab through all the fields and start a new record without saving the records to the DB from the buffer.  So the new record gets the same value as the previous record in the buffer because they haven't been written to the DB.<br />
+<br />
+Is there a way to force the session to write a record to the DB, when &quot;tabbing&quot; to a new record?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">25th September 2015, 18:15</div></div><div class="posttext">Just use the following code to force save record on tab to new occurrence. <br />
+<br />
+after.form.read:<br />
+enable.save.on.occ.change  ()</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th September 2015, 18:23</div></div><div class="posttext">In 4c4 without saving the record we do something like this and yes I know he is using dal, but I would think you could the same thing without forcing a save after each record.<br />
+<br />
+<br />
+field.tdcyc010.locf:<br />
+before.input:<br />
+		read.serial.number()<br />
+		search.last.used.seqn.on.screen()<br />
+		tdcyc010.sern = serial.number + 1<br />
+		display(&quot;tdcyc010.sern&quot;)<br />
+function read.serial.number()<br />
+{<br />
+	serial.number =	0<br />
+	select	max(tdcyc010.sern):serial.number<br />
+	from	tdcyc010<br />
+	where	tdcyc010._index1 = {:tdcyc010.cycg,:tdcyc010.cwaf, :tdcyc010.cwat }<br />
+	as set with 1 rows					<br />
+	selectdo						<br />
+	endselect<br />
+}<br />
+function search.last.used.seqn.on.screen()<br />
+{<br />
+	for occ.no = 1 to (filled.occ -	1)<br />
+		do.occ(occ.no,check.last.used.sern)<br />
+	endfor<br />
+}<br />
+<br />
+function check.last.used.sern()<br />
+{<br />
+	if tdcyc010.sern &gt; serial.number then<br />
+		serial.number =	tdcyc010.sern<br />
+	endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ben.kansas</div><div class="date">25th September 2015, 18:38</div></div><div class="posttext">Thanks for the replies.<br />
+<br />
+The enable.save.on.occ.change() worked perfectly.  <br />
+<br />
+Mark, I'll keep that solution in mind for our Baan IV systems.  We still have a number of sites on Baan IV.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">28th September 2015, 07:42</div></div><div class="posttext">@Mark: In your case, do.occ.without.update() would be better.<br />
+<br />
+Regards<br />
+Günther</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

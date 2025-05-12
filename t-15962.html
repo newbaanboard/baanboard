@@ -1,0 +1,127 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="reactivating tdind0271s000, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] reactivating tdind0271s000 AFS/DDC/OLE: Function servers" />
+	
+	<title>reactivating tdind0271s000 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; reactivating tdind0271s000</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">veyant</div><div class="date">13th July 2004, 08:49</div></div><div class="posttext">Hi,<br />
+<br />
+Thru AFS i am creating sales order. AS qty and price was not getting updated so i updated them thru some function calls in table tdind017,tdsls041,tdsls051 &amp; tdind203.<br />
+<br />
+NOw order is ready but still Net Rate &amp; Line Amount is not coming properly. AS if i go to that Sales Order Manually and table on price field session tdind0271s000 get activated and if i simply save &amp; exit it after opening form.<br />
+The net Rate &amp; Line Amount gets calculated.<br />
+<br />
+So i was calling that session tdind0271s000 once again in end before closing tdsls4105s000 &amp; tdsls4504s000 thru stpapi.end.session.<br />
+I just wrote following lines.<br />
+<br />
+Now when i check it in debugger mode and it reaches at that point where i am calling this subsession again. It runs the code but actually it doesn't starts the session and when it reaches to PUT command, it gives error becoz no actual process is active in back-ground. <br />
+<br />
+Spo please help. am i missing some thing. Pls correct me.<br />
+<br />
+The code is here<br />
+function create.sales.order.lines()<br />
+{<br />
+  f4101m000.handle.sub.process(&quot;tdsls4105s000&quot;,&quot;add&quot;)<br />
+  stpapi.continue.process(&quot;tdsls4101m000&quot;,save.error)<br />
+  stpapi.put.field(&quot;tdsls4105s000&quot;,&quot;tdsls040.orno&quot;,str$(order.no))<br />
+  ret = stpapi.find(&quot;tdsls4105s000&quot;)<br />
+  ret = f4105s000.find()<br />
+<br />
+  f4105s000.put.tdsls041.item(item)<br />
+  f4105s000.put.Ordered_Quantity(ordered.qty)<br />
+  suspend(2000)<br />
+  f4105s000.handle.sub.process(&quot;tdind0271s000&quot;,&quot;add&quot;)<br />
+  stpapi.continue.process(&quot;tdsls4105s000&quot;,insert.error.in.tdsls4105s000)<br />
+  line.pono  = f0271s000.get.posi.no()<br />
+<br />
+  f0271s000.put.base_date(tdspd981.odate) | For Base date<br />
+  f0271s000.put.excise_applicable(excise.app) | For Line Excise<br />
+  f0271s000.put.sales_tax_applicable(sls.app) | For Sales Tax Code<br />
+  f0271s000.put.state_code(tdind019.scty)<br />
+  f0271s000.put.sales_tax_code(tdind019.svat)<br />
+  f0271s000.put.octroi_applicable(octr.app)<br />
+  f0271s000.put.octroi_code(tdind019.octr)<br />
+  f0271s000.put.srtx(ser.tax)<br />
+  f0271s000.update(1,insert.error.in.tdind0271s000)<br />
+  f0271s000.save(save.error)<br />
+  f0271s000.end()<br />
+|======== updatuing quantity again as quantity inserted was 0 =====    <br />
+    f4105s000.insert(1,insert.error.in.tdsls4105s000)<br />
+    f4105s000.handle.sub.process(&quot;tdind0271s000&quot;,&quot;kill&quot;)<br />
+    f4105s000.put.ordered_quantity(ordered.qty)<br />
+    f4105s000.update(1,insert.error.in.tdsls4105s000)<br />
+<br />
+    pono = f4105s000.get.position_number()<br />
+    dummy.price = f4105s000.get.slsbasepr()<br />
+|======= updating price as price was not inserted thru AFS =======<br />
+    if  dummy.price = 0 then<br />
+        get.price()<br />
+    endif<br />
+<br />
+|======= Calling subsession again to get the Line amount &amp; net rate ==      <br />
+   f4105s000.handle.sub.process(&quot;tdind0271s000&quot;,&quot;add&quot;)<br />
+   stpapi.continue.process(&quot;tdsls4105s000&quot;,insert.error.in.tdsls4105s000)<br />
+   line.dis = 1<br />
+<br />
+|========= Giving Error as process tdind0271s000 was not activated <br />
+|==== actually. I checked it thru Bshell. ===================<br />
+<br />
+   f0271s000.put.line_discount(line.dis)<br />
+   f0271s000.update(1,insert.error.in.tdind0271s000)<br />
+   f0271s000.save(save.error)<br />
+   f0271s000.end()<br />
+<br />
+  f4105s000.save(save.error)<br />
+  f4504s000.end()<br />
+  f4105s000.end()<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">SriksAdi</div><div class="date">15th July 2004, 10:48</div></div><div class="posttext">Hi,<br />
+I have done a similar thing for session tdind0277s000. I am not sure if this works for ur sesison tdind0271s000.<br />
+<br />
+Before calling the session tdind0271s000 select data from tdsls040, tdsls041 and tdsls045 for the order , position and sequence. In tdind0277s000, the script expects values from all the three tables mentioned above.<br />
+<br />
+Declare a variable docu.type of type tdextr and assign it the value tdextr.sales or tdextr.purchase.<br />
+<br />
+Let me know if it works.<br />
+<br />
+<br />
+regards<br />
+Sriks<br />
+PS: Script Follows<br />
+	select	tdpur045.*, tdpur041.*, tdpur040.*<br />
+	from	tdpur045, tdpur041, tdpur040<br />
+	where	tdpur045.orno = :tdpfl201.orno and<br />
+		tdpur045.pono = :tdpfl201.pono and<br />
+		tdpur045.srnb = :tdpfl201.srnb and<br />
+		tdpur041.orno = tdpur045.orno and<br />
+		tdpur041.pono = tdpur045.pono and<br />
+		tdpur040.orno = tdpur045.orno<br />
+	selectdo<br />
+		break<br />
+	endselect<br />
+<br />
+	docu.type = tdextr.purchase<br />
+	dqua = lval(value)<br />
+		stpapi.handle.subproc&quot;tdpur4122m000&quot; ,&quot;tdind0277s000&quot;, &quot;send&quot;)<br />
+	value = str$(date.num())<br />
+	stpapi.put.field(&quot;tdind0277s000&quot;, &quot;base.dt&quot;, value)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

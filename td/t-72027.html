@@ -1,0 +1,124 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Help needed in query.extend.where.in.zoom, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Help needed in query.extend.where.in.zoom Tools Development" />
+	
+	<title>Help needed in query.extend.where.in.zoom [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Help needed in query.extend.where.in.zoom</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mvanta</div><div class="date">10th July 2019, 15:34</div></div><div class="posttext">Hello all.<br />
+We try to create a script to limit the selection option of the user on a session.<br />
+we have a field that is zooming in tcemm170 and returns the company number.  We want to give to the user the option to select either the  logistic or the financial company.<br />
+<br />
+we have the financial company from the code comp=get.compnr() and the logistic from the sql below,<br />
+extern	domain    tcncmp	comp<br />
+<br />
+select tfgld003.bcmp<br />
+	from tfgld003<br />
+	where tfgld003._compnr=:comp and tfgld003.indt=0<br />
+	selectdo<br />
+	endselect<br />
+<br />
+But when trying to use query.extend.where.in.zoom we get no result and a lot of errors.<br />
+for example if we try this code,<br />
+query.extend.where.in.zoom( &quot;tcemm170.comp= :comp&quot; )<br />
+we get the error,<br />
+Process 431 - Error : SQLState HYL04: External variable 'comp' not found (301) (rcdset.onfinddata() in object ottstpstandard)<br />
+We are about to give up!<br />
+Please advice,<br />
+<br />
+Maria</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">10th July 2019, 17:57</div></div><div class="posttext">try doing something like<br />
+<br />
+<br />
+<br />
+query.extend.where.in.zoom( &quot;tcemm170.comp in (select tfgld003.bcmp from tfgld003 where tfgld003.indt = 0 )&quot; )<br />
+<br />
+<br />
+<br />
+Is there a need to use get.compnr() as by default the table would look in the current company?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mvanta</div><div class="date">10th July 2019, 19:03</div></div><div class="posttext">Thank you for your help and for answering!<br />
+:-)<br />
+It works but it returns only one of the companies, the logistic.<br />
+We need to have as well get.compnr() because the user should have 2 options:either the financial or the logistic.<br />
+We could get the financial from this sql,<br />
+select	tcemm170.comp<br />
+	from	tcemm170<br />
+	where	tcemm170.comp = :comp <br />
+	selectdo<br />
+endselect<br />
+<br />
+but how we could combine it to your code?<br />
+<br />
+Regards,<br />
+Maria</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">11th July 2019, 12:12</div></div><div class="posttext">I think the better option is to build a customized session, txemm1170m00 and in before.program of that session, use<br />
+<br />
+<br />
+<br />
+before.program:<br />
+              import(&quot;sess.name&quot;,sess.name)<br />
+              log.comp = get.compnr()<br />
+              select tfgld003.bcmp:fin.comp<br />
+              from tfgld003<br />
+              where tfgld003.indt=0<br />
+              selectdo<br />
+              endselect<br />
+              if sess.name = &quot;XXXXX&quot; then  |Where XXXX is your specific session<br />
+              query.extend.where( &quot;tcemm170.comp = :log.comp or<br />
+               tcemm170.comp = :fin.comp&quot;)<br />
+               endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mvanta</div><div class="date">11th July 2019, 12:24</div></div><div class="posttext">Thank you very much for your time!<br />
+we will try your suggestion but I think we will get the same error we got before,<br />
+Process 431 - Error : SQLState HYL04: External variable 'comp' not found (301) (rcdset.onfinddata() in object ottstpstandard)<br />
+weird because comp is declared!<br />
+<br />
+Maria</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">11th July 2019, 13:35</div></div><div class="posttext">If you use in<br />
+<br />
+query.extend.where instead of query.extend.where.in.zoom<br />
+<br />
+i mean in the new session which you will create, in before.program, comp should not give an error. I have used it before.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mvanta</div><div class="date">11th July 2019, 14:20</div></div><div class="posttext">Thank you a lot!!!<br />
+<br />
+Regards,<br />
+Maria</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">11th July 2019, 19:32</div></div><div class="posttext">You have to send the converted string to query.extend.where.in.zoom since the zoom session may not know how to handle 'comp'.<br />
+<br />
+query.extend.where.in.zoom(&quot;tcemm170.comp=&quot; &amp; str$(comp))<br />
+<br />
+This will append &quot;tcemm170.comp=100&quot; to the end of the query for the zoom session if the 'curr' variable is returned as 100 in the select.<br />
+<br />
+Use 'quoted.string' when building an extension with a string variable.  In this example, 'currency' is a string filled before the call.<br />
+<br />
+query.extend.where.in.zoom(&quot;tcemm170.fcua=&quot; &amp; quoted.string(currency))</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="slow performance on tfgld418, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] slow performance on tfgld418 Performance &amp; Tuning" />
+	
+	<title>slow performance on tfgld418 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Performance &amp; Tuning</a> &gt; slow performance on tfgld418</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">lakoon</div><div class="date">23rd March 2005, 15:45</div></div><div class="posttext">Hello<br />
+<br />
+We face the problem thet the booking of material receipts for project items is very slow. for standard items the booking performance is o.k.<br />
+<br />
+We checked with the ORAPROF options and get for always the following result for project items:<br />
+<br />
+------ Profiling value exceeded -----<br />
+&lt;fcper&gt;&lt;tdpur4120m000&gt;:2005-03-23[12:50:56.265]: <br />
+Time (parse) : 0.000000 seconds<br />
+SQL statement:<br />
+SELECT /*+ FIRST_ROWS index(a ttfgld418100$idx1) */ MAX(a.t$sern) FROM baandb.ttfgld418100 a WHERE a.t$ocom = :1 AND a.t$tror = :2 AND a.t$fitr = :3 AND a.t$trdt = :4 AND a.t$trtm = :5<br />
+-------------------------------------<br />
+------ Profiling value exceeded -----<br />
+&lt;fcper&gt;&lt;tdpur4120m000&gt;:2005-03-23[12:50:56.265]: <br />
+Time (multi_exec) : 0.000000 seconds<br />
+SQL statement:<br />
+SELECT /*+ FIRST_ROWS index(a ttfgld418100$idx1) */ MAX(a.t$sern) FROM baandb.ttfgld418100 a WHERE a.t$ocom = :1 AND a.t$tror = :2 AND a.t$fitr = :3 AND a.t$trdt = :4 AND a.t$trtm = :5<br />
+-------------------------------------<br />
+------ Profiling value exceeded -----<br />
+&lt;fcper&gt;&lt;tdpur4120m000&gt;:2005-03-23[12:52:21.280]: <br />
+Time (multi_fetch) : 85.015000 seconds<br />
+SQL statement:<br />
+SELECT /*+ FIRST_ROWS index(a ttfgld418100$idx1) */ MAX(a.t$sern) FROM baandb.ttfgld418100 a WHERE a.t$ocom = :1 AND a.t$tror = :2 AND a.t$fitr = :3 AND a.t$trdt = :4 AND a.t$trtm = :5<br />
+-------------------------------------<br />
+As the table has more then 10 million records we did not reorganize it yet.<br />
+<br />
+Do you now a similar problem, and if, how did you solve it?<br />
+<br />
+Thanks for your help<br />
+<br />
+/lakoon</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">23rd March 2005, 16:18</div></div><div class="posttext">It's a simple query using key fields in the table. You may want to run oracle's statspack at the same time to see what oracle is waiting on. I think you'll find<br />
+that its I/O. You can alleviate that somewhat by doing a reorg of the table as well as generating statistics on the table (using dbms_stats if you're 9i or higher)<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lakoon</div><div class="date">23rd March 2005, 16:31</div></div><div class="posttext">Hello Dave<br />
+<br />
+We will do the reorg. The oracle version we are running is 7.3.4....<br />
+How can we check in oracle, which tools for this version?<br />
+<br />
+Thanks for your help<br />
+<br />
+/lakoon</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">23rd March 2005, 17:23</div></div><div class="posttext">Hi Lakoon,<br />
+<br />
+for SQL you can use utlbstat/utlestat (located in $ORACLE_HOME/rdbms/admin) I believe then you can upload the results<br />
+to www.oraperf.com to get a readable report.<br />
+<br />
+for the statistics do <br />
+analyze table &lt;table name&gt; estimate statistics sample 35 percent;<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lakoon</div><div class="date">23rd March 2005, 17:34</div></div><div class="posttext">Hello Dave<br />
+<br />
+Thank you, we'll have a try on it. I will update with the resutls.<br />
+<br />
+/lakoon</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">24th March 2005, 09:59</div></div><div class="posttext">Something else that could go wrong:<br />
+- index 1 is not available/corrupt. I don't think this is the problem as 85 seconds is than probably too less<br />
+- indexes are fragmented. Because 418 can have a lot of inserts at the end and deletes at the beginning, so indexes specialy in older versions can get imbalanced.<br />
+<br />
+I think that a recreation of index 1 followed by an generating of statistics will help. As you use 7.3.4 I doubt if a reorg can be done when users try to access the table, so I advise to do this during a weekend.<br />
+<br />
+If this doesn't help (sufficient) there are other things that can be investigated. These are the steps that can be done at that moment<br />
+- checking the excecution plan of the query<br />
+- checking the cost in Oracle<br />
+- change application query so that performance becomes better.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lakoon</div><div class="date">24th March 2005, 10:08</div></div><div class="posttext">Hello Dick<br />
+<br />
+We have run the program serveral times with ORAPROF. Sometimes we got up to 120 seconds for the execution.<br />
+<br />
+I have figured out that the table tfgld410 and tfgld417 are also out of balance to tfgld418 (269 records). We started to run otfcor0232 but have not found the difference yet.<br />
+<br />
+How can we only recreate index 1?<br />
+<br />
+/lakoon</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">24th March 2005, 11:16</div></div><div class="posttext">drop index 1 of the table and recreate it by SQL*Plus.<br />
+As I don't have access at this moment to the Oracle docs nor the Baan DD of tfgld418 you have to wait for another or till tomorrow.<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tgk660</div><div class="date">14th April 2005, 14:13</div></div><div class="posttext">We are the company with the problem described by lakoon.<br />
+Last weekend we reorganized tfgld418. This solve our performance problem.<br />
+I think the problem was the corrupt index1.<br />
+<br />
+Thomas</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

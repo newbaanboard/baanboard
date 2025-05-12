@@ -1,0 +1,125 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="BaanERP 5.0b Cluster with HPUX SG, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] BaanERP 5.0b Cluster with HPUX SG Tools Administration &amp; Installation" />
+	
+	<title>BaanERP 5.0b Cluster with HPUX SG [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; BaanERP 5.0b Cluster with HPUX SG</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ranias</div><div class="date">29th August 2005, 19:52</div></div><div class="posttext">Hi All,<br />
+I'm planning to move the Baan application from oracle 8i on HPUX 11.00 to Oracle 9.2.0.6 on HPUX 11.11 with SG cluster.<br />
+<br />
+Does anyone has Baan ERP 5.0b working on HPUX 11i v1 service Gaurd cluster to share some information and experience on the following:<br />
+1. Baan validation and licensing<br />
+2. Baan configuration for Unix Cluster.<br />
+3. Failover success<br />
+4. Any documentation on BaanERP installation or configuration on Unix clusters.<br />
+<br />
+Your input is appreciated,<br />
+- ranias</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">victor_cleto</div><div class="date">30th August 2005, 12:43</div></div><div class="posttext">I am assuming that you have some good knowledge on MC/SG and package setup and just want to check if there are any particularities for Baan. If this is not the case, then get some good training or a consultant with experience on MC/SG, this is not the proper way to start from scratch (MS/SG takes time to learn and experience). Based on this, some advises then:<br />
+<br />
+Baan licensing: you generate one license request (from each node) and need to ask Baan to provide two registration codes, one from each node. You enter one while running on node A and then switch to the other node and enter the second. While the licensing is per node name, the users will do everything in Baan using the package IP/name.<br />
+<br />
+Baan SG config: nothing major, just follow the normal guidelines for any package.<br />
+One thing that I played particular attention was the synchronization of cluster files across the nodes and, quite important, the user home filesystem and password. Plan this well in advance to avoid problems later on (I saw a lot of badly clusters where this details were not taken into consideration causing headaches in the UNIX user maintenance!)<br />
+<br />
+Failover success: Baan was somewhat fast, Oracle (DB) was the one taking longer, careful with any package dependencies.<br />
+I saw several time MC/SG being sold as load balancer instead of clustering, avoid package dependencies like hell! Do not put the DB as one package and Baan as another, you will need to be quite clever with your scripts to avoid dependencies at package start-up and stop. The best is to have Baan+DB as one package, don't buy what a consultant/seller tells you regarding &quot;load balancing&quot; of packages (unless you can live with the dependencies or work around them) or the guy can prove an implementation with dependencies (I had experience with all kinds of setup, even one with NFS within the cluster that was a true nightmare, so, no NFS except to cluster outside exports!).<br />
+Baan switches fine, the most time spend on a package switch is the filesystem switch; depending on the machine and disk array, Baan can switch in 10 seconds but the damn filesystem can take minutes! (Thats why I preferred True64 cluster filesystems!)<br />
+<br />
+Documentation: MC/SG is critical to know deeply. Baan does not have any good document on HPUX clusters, but as long you understand properly the licensing method and know how MC/SG clusters work, that's straight forward.<br />
+<br />
+As usual, think ahead by taking notes on everything you can think of (even things that may look insignificant, like UNIX user maintenance...) and plan the best way to get it working properly in a cluster. When you become experienced on HPUX clusters, a Baan clustered setup (Baan+Oracle in a cluster) takes no longer than 1 week to setup (at least that was my implementation usual time :) from a Sys. Admin point of view of course)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ranias</div><div class="date">30th August 2005, 15:50</div></div><div class="posttext">Hi victor,<br />
+Thanks for your input and useful information. <br />
+1. what is your suggestion from your exprience to best way of maintaining usernames/home directories ? <br />
+the failover node 2 will be used also as development enviroment meaning the cluster will shutdown Baan on the node 2 in failure of node 1 and failover to node 2. <br />
+2. What about licensing in this case? I understood that licensing mechanisim will be based on hostname (as usual) not package name/IP, correct? so can I use Baan testing enviroment on this node #2 too.<br />
+In the validation system request do I need to check the option of High Availability Cluster to recieve the validation code ?<br />
+<br />
+Thanks for your help,<br />
+- ranias</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">victor_cleto</div><div class="date">1st September 2005, 17:22</div></div><div class="posttext">1. Depends if you will share the same logins on both machine or use different ones for prod and dev? And also how the packages switch (prod can change, what about dev)?.<br />
+Your Baan users home dir should be in a clustered vg in any case to be able to switch with the corresponding package.<br />
+Just draw your design as clustered and then imagine all possible switch scenarios and how you would accomplish the end-result (changes of scripts, location of files, synchronizations, etc.), then go back to your design and adapt, then re-do it again and so on untill all works as expected.<br />
+<br />
+2. Sorry about the confusion, what I meant is that the users will use the package name to conect but licensing uses the node names.<br />
+The license6.2 file needs both node names added as first step (for prod at least). Running on each node you need to generate a sys. conf key using a unique sequence.<br />
+For the package that can switch you need 2 sequences and you need High Availability selected (don't know if ERP also has the network management or not like in BaanIV... this also costs money!).<br />
+If the dev does not switch and uses its own licd6.2, you need it's own key using a 3rd sequence and no High. Avail/Network thingy.<br />
+You should check with Baan, they will guide you on the licensing and provide you information, but do read the licensing quick guides and look for licensing information also (they also contain some info regarding clusters if I'm not mistaken...).<br />
+<br />
+My experiences are based on BaanIV not ERP, it should be the same but I don't know if there were changes so, check with Baan for possible adaptations or corrections.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ranias</div><div class="date">6th September 2005, 12:55</div></div><div class="posttext">Hi Victor,<br />
+Thanx for clearing this. As far as I understood regarding the vadlidation on Dev is that it can be validated as standalone and I can use the licd6.2 on this node for the package, when it switches this way I don't need to check the high availability option in the configuration request. Is this what you meant? <br />
+And if I validate it as high availability on the dev node, can I use the licd6.2 on it when no failover occurs?<br />
+<br />
+Thanx again.<br />
+- ranias</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">victor_cleto</div><div class="date">6th September 2005, 19:15</div></div><div class="posttext">Your phrase left me more confused regarding what switches and what does not switch, start by explaining what will be a package or not and if the package is allowed to switch or not or, maybe the next example will give you a start point.<br />
+My last MC/SG BaanIVc4 implementation had (quite some time ago, some things are not so fresh anymore and I cannot check it anymore):<br />
+<br />
+- 2 nodes (call them A and B).<br />
+- A usually runs package prod (Oracle+BaanIVc4, on vg as /opt/baan4c4) that can switch to node B. This means Baan license options High Avail+Network selected; licd6.1 with &quot;A,B&quot;; 2 license sequences generated: seq1 on nodeA, seq2 on nodeB; runs its own licd6.1<br />
+- B usually runs package dev (Oracle+BaanIVc4, own vg like /opt/baan4c4dev) that cannot ever switch. This means no additional Baan license options; licd6.1 with &quot;B&quot;; 3rd sequence generated solely for nodeB; runs its own licd6.1<br />
+- Users login's were the same on prod and dev! (this was a tricky part to implement). This means same /etc/passwd on node A and B, I had to think heavily to make sure all works flawlessly (user add/remove, password sync., home locations, cluster start/stop scripts, links from real home location to vg home, etc).<br />
+- Prod takes priority over dev (so if both run on nodeB, users home are linked to prod home vg; special users can access both thru a specific procedure).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ranias</div><div class="date">12th September 2005, 14:53</div></div><div class="posttext">This makes it clearer for me. but the only concern I have is that will there be a problem of validating node B (Dev) with 15 liceneses for example while the failover license with HA on Node A &amp; B need to be 100?<br />
+Meaning is there a conflict problem if validating Dev as standalone and then again with the package with HA option? Cause the .brand6.2 file is unique on each Node.<br />
+<br />
+Thanks again,<br />
+- ranias</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">victor_cleto</div><div class="date">13th September 2005, 13:19</div></div><div class="posttext">That is why Baan has sequences so that Baan will store (for node B) the information from 2 sequence validations in the same brand file but will take the corresponding one.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ranias</div><div class="date">13th September 2005, 14:56</div></div><div class="posttext">Victor,<br />
+thanks for your help in that. it's understandable now.<br />
+<br />
+Regards,<br />
+- ranias</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ranias</div><div class="date">18th December 2005, 14:50</div></div><div class="posttext">Hi Victor,<br />
+I'm doing the validation now to the new servers but want to make sure of 2 things cause for not it didn't work: <br />
+1. If the network managment must be checked in the system configuration request for validation? <br />
+2. What value should be in $BSE/lib/licence6.2 ? in node A I have writen the hostname of node A and when it switches to Node B should I change the hostname of that node in licece6.2 when validating? <br />
+Or to add both hostnames of the nodes in the licence6.2.<br />
+<br />
+Thanks a lot!<br />
+- Ranias</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">victor_cleto</div><div class="date">18th December 2005, 19:27</div></div><div class="posttext">1. Don't know for ERP, I think it used to be needed for BaanIV (see 4th comment of this thread on page 1).<br />
+2. See the first comment of page 2, it needs both node names.<br />
+In cases of doubt check with Baan, they can give you all the details for MC/SG licensing.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

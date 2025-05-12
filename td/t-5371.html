@@ -1,0 +1,191 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="copy data from one company to another, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] copy data from one company to another Tools Development" />
+	
+	<title>copy data from one company to another [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; copy data from one company to another</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">francishsu</div><div class="date">31st May 2002, 16:56</div></div><div class="posttext">Using Baan 4GL/SQL, what's the most straightforward way of copying data from a table in one company to the same table in another?<br />
+<br />
+For example, I want to copy a range of items in tiitm001 from company 160 to tiitm001 in company 161<br />
+<br />
+Thanks,<br />
+Francis</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">francishsu</div><div class="date">31st May 2002, 17:19</div></div><div class="posttext">Looks like Baan DLL tccomdll0025 has some functions for archiving data from one company to another.  I should probably just make use of those?<br />
+<br />
+Francis</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">31st May 2002, 19:32</div></div><div class="posttext">There are a number of methods.  Are the companies on the same VRC?  There should be no table definition difference.  <br />
+<br />
+You can run Create Sequential Dump of Table (ttaad4226m000) and Create Table from Sequential Dump (ttaad4227m000), however that will give you the whole table.<br />
+<br />
+Exchange would be very easy if you know how to use it.<br />
+<br />
+One method that may work easily for you is in General Table Maintenance (ttaad4100).   Look up the item master table for your source company and choose 'Y' (Continue) to view the records.  You can then hit the space bar to get a drop down menu structure (Ascii Version of one anyway).  Arrow over to 'Application' and you will see 'Export Rows'.  Choose that, and it will ask for a range of items to export.  You give it a directory - remember that directory.   Then, exit (E), and look up the item master for the Target company, choose 'Y', and view the records from that company.  Under 'Application', you will see 'Import Rows'.  Choose that, give it the same path, and in they come. <br />
+<br />
+This does not work if there are company numbers listed in the data you are trying to move, and it does not check for references, etc.  But it's nice if all you need is the single table data unchanged.<br />
+<br />
+Good luck.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">31st May 2002, 20:01</div></div><div class="posttext">Hi Francis,<br />
+<br />
+I would prefer to the bdbpre and bdbpost commands they are easy to use and portable across companies.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">trchandra</div><div class="date">1st June 2002, 00:24</div></div><div class="posttext">Hi Francis,<br />
+<br />
+   If all the reference data exists in the target company for the records you want to copy, you can write simple 3GL code like this...<br />
+<br />
+<br />
+<br />
+table ttiitm001<br />
+<br />
+function main()<br />
+{<br />
+  db.retry.point()<br />
+   select   tiitm001.*<br />
+   from     tiitm001 for update<br />
+   where  tiitm001._index1 inrange {:item.f} and {:item.t}<br />
+   selectdo<br />
+      tiitm001._compnr = 511  |Target Company<br />
+      db.insert(ttiitm001,db.retry)<br />
+   endselect<br />
+   commit.transaction()<br />
+}<br />
+<br />
+<br />
+Note: Make sure you run this program in source company!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">1st June 2002, 01:47</div></div><div class="posttext">Improvisation to Ravi's code -<br />
+<br />
+<br />
+table ttiitm001<br />
+<br />
+function main()<br />
+{<br />
+  db.retry.point()<br />
+   select   tiitm001.*<br />
+   from     tiitm001<br />
+   where  tiitm001._index1 inrange {:item.f} and {:item.t}<br />
+   and      tiitm001._compnr = 160 |* Source Company<br />
+   selectdo<br />
+      tiitm001._compnr = 161  |Target Company<br />
+      db.insert(ttiitm001,db.retry, db.skip.dupl)<br />
+   endselect<br />
+   commit.transaction()<br />
+}<br />
+<br />
+<br />
+So you need not be in the source company and also the duplicate records are skipped.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">alejandro</div><div class="date">1st June 2002, 01:57</div></div><div class="posttext">Hi Prashanth,<br />
+<br />
+Sorry to break this thread with a different question, but commit can be put before or after endselect. I would put it before, so:<br />
+<br />
+What is better, and which difference occur?<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">1st June 2002, 02:04</div></div><div class="posttext">Hi Alejandro,<br />
+<br />
+I would prefer to put the commit inside the select statements, than to do a mass commit at the end of processing and I might run into any buffer update errors.<br />
+<br />
+I have written my own dlls which can import/export data (with the use of bdbpre and bdbpost command) from a table from one company to another, and I have built some programs which I handled multiple table data copying from company to another.<br />
+<br />
+I think its a matter of choice and ease of which you like to use.<br />
+<br />
+Mine is generic, that I can reuse again to built any new program, I just need to pass table name, company, path (for the creation of *.S files) as parameters.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">trchandra</div><div class="date">1st June 2002, 02:38</div></div><div class="posttext">Alejandro, <br />
+<br />
+   You can keep a counter so that for every say 100 records, you can commit.  That will keep update buffer small and improves performace.<br />
+<br />
+table ttiitm001<br />
+<br />
+function main()<br />
+{<br />
+  long c<br />
+  db.retry.point()<br />
+   select   tiitm001.*<br />
+   from     tiitm001<br />
+   where  tiitm001._index1 inrange {:item.f} and {:item.t}<br />
+   and      tiitm001._compnr = 160 |* Source Company<br />
+   selectdo<br />
+      tiitm001._compnr = 161  |Target Company<br />
+      db.insert(ttiitm001,db.retry, db.skip.dupl)<br />
+      c = c+1<br />
+      if (c&gt;100) then<br />
+          commit.transaction()<br />
+          c=0<br />
+      endif<br />
+   endselect<br />
+   if (c&gt;0) then<br />
+      commit.transaction()<br />
+   endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">1st June 2002, 03:12</div></div><div class="posttext">Also refer to the performance guidelines manual,<br />
+<br />
+maybe you can use good options as -<br />
+<br />
+&quot;order by with retry&quot; in case any commit fails, or &quot;as prepared set&quot; etc ...<br />
+<br />
+<br />
+Baan SQL supports the following options in relation to sets:<br />
+<br />
+§	Maximum set size.<br />
+<br />
+With this option you can indicate the maximum number of records the query can produce. The syntax is:<br />
+<br />
+SELECT .... [from][where] AS SET WITH &lt;number&gt; ROWS<br />
+<br />
+§	Prepared set.<br />
+<br />
+With this option, the entire set is retrieved before the first record is returned. The set is temporarily stored. This option is useful when a process simultaneously selects and maintains (or deletes or adds) records. In this case, changes must not be visible in the selected records. The prepared set option forces a consistent read. The syntax is as follows:<br />
+<br />
+SELECT ... [from][where] AS PREPARED SET<br />
+<br />
+§	Maximum set size and prepared set. <br />
+<br />
+You can combine both options as follows:<br />
+<br />
+SELECT ... [from][where] AS PREPARED SET WITH &lt;number&gt; ROWS</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">alejandro</div><div class="date">1st June 2002, 03:19</div></div><div class="posttext">If it works is good. Improve it, is better, but sharing improvements is the best.<br />
+ Or something so...<br />
+<br />
+By Folks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">francishsu</div><div class="date">6th June 2002, 23:58</div></div><div class="posttext">Just wanted to thank y'all for the suggestions.  We're going to try the compnr trick first.  I didn't realize you could set it outside of the select statement itself.<br />
+<br />
+We elected not to try export/import using bdbpre/bdbpost because some other calculations/table field value changes, etc. need to take place as well, along with wanting to select a limited set of items for copying.<br />
+<br />
+For anyone who cares, the copying of items from one company to another is part of a bigger project that will hopefully let us effectively run MRP and MPS simulations.  We don't have enough disk space for an entire copy of our production environment, so we're creating simulation companies that share most of the data with their production counterparts, except those tables that get updated by MRP and MPS, along with a few other tables as well.  We'll create special users to run MRP and MPS in the simulation companies, and set their database permissions so they have read-only access to data stored in production companies.  Hopefully, this approach will be viable...</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

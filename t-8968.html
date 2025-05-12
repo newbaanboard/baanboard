@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Function Server for tfgld1101m000, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Function Server for tfgld1101m000 AFS/DDC/OLE: Function servers" />
+	
+	<title>Function Server for tfgld1101m000 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Function Server for tfgld1101m000</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">LittleJohn</div><div class="date">20th February 2003, 18:57</div></div><div class="posttext">Hi,<br />
+<br />
+  I'm trying to create a procedure to upload financial data, using the function server calls. The session that I would be using is the tfgld1101m000. This session lets you put in a Transaction type and based on the transaction type, respective sessions are started. In this case, I have hardcoded the transaction type as JNL. When this type is used, Baan normally opens up the tfgld1103s000 sub-session.<br />
+ <br />
+The problem that I am facing is, when I try to do a insert for the tfgld1101m000, It does not insert a new record with the new batch number. It is entering the JNL value(transaction type) for a batch that is already existing. How can I insert a new record in the tfgld1101m000 session and further on open the respective sub-session and insert data there ?.<br />
+ <br />
+The tfgld1101m000 session is started in the background, but the subsequent &quot;handle sub process&quot; call does not start the sub-session.<br />
+ <br />
+    Please find attached the Program script :<br />
+<br />
+                temp.date = date.num()<br />
+	num.to.date(temp.date, temp.year, temp.mnth, ret)<br />
+	jv.txt.str = &quot;Pro Business Batch&quot;<br />
+	<br />
+	select	tfgld100.*<br />
+	from		tfgld100<br />
+	where		tfgld100._index1 = {:temp.year}<br />
+	order by tfgld100._index1 desc<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		hold.btno = tfgld100.btno + 1<br />
+	selectempty<br />
+		hold.btno = 0<br />
+	endselect<br />
+	<br />
+	f1101m000.put.Transaction_Entry_Date(temp.date)<br />
+	<br />
+	f1101m000.put.Fiscal_Year(temp.year)<br />
+	f1101m000.put.Batch_Number(hold.btno)<br />
+	hold.btno = f1101m000.get.Batch_Number()<br />
+	f1101m000.put.Batch_Reference(jv.txt.str)<br />
+	f1101m000.put.Fiscal_Period(temp.mnth)<br />
+	f1101m000.put.Tax_Year(temp.year)<br />
+	f1101m000.put.Tax_Period(temp.mnth)<br />
+	f1101m000.put.Transaction_Type_Code(&quot;JNL&quot;)<br />
+	f1101m000.insert(1, err.msg)<br />
+	f1101m000.save(err.msg)<br />
+	if isspace(err.msg) then<br />
+		f1101m000.mark(err.msg)<br />
+		|ret = f1101m000.get.actual.occ()<br />
+                f1101m000.handle.sub.process &quot;tfgld1103s000&quot;, &quot;add&quot;)<br />
+	endif<br />
+<br />
+ <br />
+We are on Baan IVc2 and no program scripts :(<br />
+<br />
+Really appreciate any help. Thanks.<br />
+<br />
+Regards<br />
+Minhaaj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th February 2003, 21:26</div></div><div class="posttext">Here is my sample using tfgld1101m000<br />
+<br />
+<br />
+|************************************************************************************************<br />
+| Step 1.  Go Find the Batch. and activate the tfacp1110s000 Session.<br />
+|************************************************************************************************<br />
+		f1101m000.end()	| Always stop before starting just in case<br />
+		f1101m000.put.Fiscal_Year(use.year)<br />
+		f1101m000.put.Batch_Number(use.batch)<br />
+		f1101m000.put.Transaction_type_code(&quot;ZRC&quot;)<br />
+		rc = f1101m000.find()<br />
+		if(rc&lt;&gt;1) then<br />
+			title(&quot;Tfgld1101m000 - Find values not found&quot;)<br />
+			f1101m000.end()<br />
+			return<br />
+		endif<br />
+|************************************************************************************************<br />
+| Step 2. Handle sub session<br />
+|************************************************************************************************<br />
+		f1101m000.handle.sub.process(&quot;tfacp1110s000&quot;,&quot;add&quot;)<br />
+<br />
+		f1101m000.continue(msg)<br />
+		if(strip$(msg)&lt;&gt;&quot;&quot;) then<br />
+			title(&quot;tfgldf1101m000 continue &quot;&amp;msg)<br />
+			f1101m000.end()<br />
+			return<br />
+		endif<br />
+| <br />
+		rc = f1110s000.first()<br />
+<br />
+<br />
+<br />
+You can try something like this with your session.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">LittleJohn</div><div class="date">21st February 2003, 00:30</div></div><div class="posttext">Hi Mark,<br />
+<br />
+ Thanks for the quick reply. I still am facing problems with this.<br />
+<br />
+To do the below call, shouldnt the batch number be existing ?<br />
+<br />
+f1101m000.put.Fiscal_Year(temp.year)<br />
+f1101m000.put.Batch_Number(hold.btno)<br />
+f1101m000.put.Transaction_type_code(&quot;JNL&quot;)<br />
+ret = f1101m000.find()<br />
+if(ret&lt;&gt;1) then<br />
+       message(&quot;Tfgld1101m000 - Find values not found&quot;)<br />
+       f1101m000.end()<br />
+       return<br />
+endif<br />
+<br />
+When we do a find for the above view fields, The batch number still has not been generated. Hence the values are never found.<br />
+<br />
+Do I need to create another function server to insert the batch number first? If not, how is the batch number created in the FS?<br />
+I am selecting the last record in the tfgld100 table and incrementing the batch number and doing a find in the FS.<br />
+(This is on Baan IVc2)<br />
+<br />
+Appreciate your comments. Thanks<br />
+<br />
+Minhaaj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st February 2003, 16:06</div></div><div class="posttext">On mine I knew the only thing out there was what I wanted.  Probably what you need to do is a stpapi.change.view to find the first batch, year and transaction type.  Look in your dll for something like f1101m000.set.view.  Hopefully this will find the correct record for you.<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

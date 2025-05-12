@@ -1,0 +1,112 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Three sets of companies on BAAN V, is good?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Three sets of companies on BAAN V, is good? Tools Administration &amp; Installation" />
+	
+	<title>Three sets of companies on BAAN V, is good? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Three sets of companies on BAAN V, is good?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ciatecmx</div><div class="date">6th July 2006, 06:10</div></div><div class="posttext">The more I talked to our BAAN administrator; I found more about our setup between the BAAN V and Oracle 10g r2.  Because lack of budget, we only have one AIX 5.3 (4  -1.6G CPU, 3.8 G memory) box, so the original contractor installed the BAAN and created three sets of company on BAAN, one development, one test and one production, and one instance of Oracle, all the BAAN tables, total 9k plus, are under one database schema.  My question is for the sake of performance and management, should be better with different oracle schema for those three companies, since there is no association among them anyway?  The huge database schema not only caused more time on export/import. Sometimes it caused memory overload problem. Maybe there is more problem from the BAAN side, which I am learning now.  When I check the db_resource file, I saw a very simple setup, only parameter for language, one tablespace, one temporary tablespace, one database name.  Any experience user, can offer your suggestion?  Or maybe my freshman concept is wrong, which I think that a simple environment is better for the management of either application. Appreciate. <br />
+<br />
+Chi</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">victor_cleto</div><div class="date">7th July 2006, 12:35</div></div><div class="posttext">I don't see a problem of having multiple companies using the same schema and within one single instance (all the installations I managed had multiple companies in the same instance/schema - and some had more than 100 companies).<br />
+The only bad thing I see on your setup is the fact that all companies (data and indexes) are under one tablespace. We had each company using two tablespaces: 1 for the data, another for the indexes.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ciatecmx</div><div class="date">7th July 2006, 16:43</div></div><div class="posttext">Thanks, Vistor.<br />
+I think what you mention is my concern. right now, each company set has about 11K tables, 22K index.  So all three company sets (dev, test, prod) are total at 99K objects, and all storaged in one data tablespace and one index tablespace.  From view of Oracle, it is not a good setup, So I try to separate them into different instance. Because i am a new comer in the BAAN, I want to learn how a BAAN works with three Oracle Instances 10g r2, ie. how db_resource, or other configuration parameters, should be set up for that purpose?  Which document can teach me?<br />
+Chi</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">7th July 2006, 17:26</div></div><div class="posttext">oracle can handle multiple tablespaces. no need for multiple instances.<br />
+<br />
+Here's how i setup my clients.<br />
+<br />
+10 tablespaces / company all locally managed uniform extent size<br />
+<br />
+DATSMALL    extent size 8k<br />
+DATMED       extent size 100k<br />
+DATLARGE    extent size 5M<br />
+DATXLARGE   extent size 50M<br />
+DATHUGE     extent size 500M<br />
+<br />
+for indexes i do the same except :s/DAT/IDX<br />
+<br />
+my guideline is that you want the minimum number of extents greater than<br />
+1 in each tablespace. So if a table 15 megs, you would add it to DATLARGE<br />
+even though it would fit into 1 50 meg extent in DATXLARGE. <br />
+<br />
+I try to keep my datafiles to 4 GB in size just because they're faster to move<br />
+around that way.<br />
+<br />
+You can, of course, tweek all of that to your needs.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ciatecmx</div><div class="date">7th July 2006, 22:08</div></div><div class="posttext">Dave, thanks for your suggestion.  However, I have a question for your setup.  Because the size of tables varies from 0 to 180 M and they constantly change, How can you keep one particular table in one kind of tablespace. the increase of the particular table will change based on the process. <br />
+secondly, with such setup, one kind of tablespace will store table from the company of dev, test, prod, because the table is used by the same process of the company.  Will that be problem for Oracle management? (example, the table used in a financial report of company_prod has another redundant table in company_test, same other one in company_dev, but all three tables in one tablespace).  Can you elaborate your reason?  <br />
+Chi</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">7th July 2006, 22:28</div></div><div class="posttext">Dave, thanks for your suggestion.  However, I have a question for your setup.  Because the size of tables varies from 0 to 180 M and they constantly change, How can you keep one particular table in one kind of tablespace. the increase of the particular table will change based on the process. <br />
+secondly, with such setup, one kind of tablespace will store table from the company of dev, test, prod, because the table is used by the same process of the company.  Will that be problem for Oracle management? (example, the table used in a financial report of company_prod has another redundant table in company_test, same other one in company_dev, but all three tables in one tablespace).  Can you elaborate your reason?  <br />
+Chi<br />
+<br />
+Let's discuss the last statement first. In Oracle your table will look something like ttfgld410200, ttfgld410 is the table name and 200 is the company number. So if your production company is 200, your test company is 300 and your dev company is 300 then, as you can see, there is no problem.<br />
+<br />
+Now, for the tablespace setup. The table size does not fluxuate, by that i mean, it does not go up and then down. Overall they just go UP. So you identify key tables that you know will grow (or if you're on an existing environemnt - you know the sizes of your tables) and you place them accordingly. After a time, yes they will grow, and as they take more and more extents you &quot;promote&quot; the table to the next tablespace. <br />
+<br />
+For example - let's assume ttiitm001 starts at 10M it would fit nicely in 2 extents in DATLARGE. <br />
+<br />
+Now it grows, first to 15M next to 20M then to 30M and so on.. you're allocating 5 megs each time - and overall Baan tables don't grow so quickly that allocating these new extents would cause performance problems. Once the table hits 50M you move it to DATXLARGE now, it's back to one extent - and you have plenty of time for it to grow within that extent before it extents, and most likely you will not ever have to promote it again (unless it was seriously under sized to start with..)<br />
+<br />
+does that make sense?<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ciatecmx</div><div class="date">8th July 2006, 00:53</div></div><div class="posttext">Dave:  <br />
+Thanks again.  I followed your points of the tablespace now and it makes sense.  I also understand the naming for the tables for the different company.  However, from oracle viewpoint, each instance will have its own SGA memory, so the some user in test/dev company, doing testing or else, will not accidentally use all the same SGA that the prod tried to use if prod has its own.  That´s what I know about the instance structure in Oracle. Unless I am wrong.  On the other hand, in our case, actually there is only one casual developer.  He seldom develops/tests new codes for Oracle; and according to contract with BAAN, we can not change ANYTHING on the BAAN process, so separation of those tables is not SO critical.  I just want to improve the Oracle to see where it leads to. <br />
+Chi</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">10th July 2006, 00:46</div></div><div class="posttext">Yes, that is one possible condition. But, it's also not particularly likely.<br />
+<br />
+Queries that come from the baan system are usually fairly simple, it's not<br />
+like you're going to be running PL/SQL that could possibly loop or anything like that. <br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ciatecmx</div><div class="date">10th July 2006, 02:27</div></div><div class="posttext">Dave:<br />
+    Now I think you hit the point.  Probably because of particular setup of BAAN application, there is no need of separation of database table sets of multiple companies. However, for the oracle backup sake, I still need to figure out a way to export only the prod part of data/index tables.  I had tried to export full (schema) and import full (or schema) of database, it was just too long for the process, unacceptable,  At least with only 1/3 of the numbers of total objects, the time will be expected shorter.  Thanks for your petient and discussions.<br />
+Chi</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">10th July 2006, 02:35</div></div><div class="posttext">Hotbackups with rman are the only way to go.<br />
+<br />
+otherwise a parfile listing just the tables in the company you're looking<br />
+for.<br />
+<br />
+baan actually delivers something you could use as a template to genereate the parfile in ora8_pre.sql<br />
+<br />
+Dave</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

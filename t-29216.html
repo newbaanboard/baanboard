@@ -1,0 +1,119 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS : Purchase Order Generate, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS : Purchase Order Generate AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS : Purchase Order Generate [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS : Purchase Order Generate</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">nileshsamsonite</div><div class="date">26th December 2006, 13:49</div></div><div class="posttext">Hi,<br />
+<br />
+I need help on AFS .I want to customize a session which will generate Purchase order by reading a text file.  The text file contains the information like Supplier code , Item code , and quantity. I have searched most of threads on AFS. As I don't know much about AFS pls guide me how to start.<br />
+<br />
+Thanks.<br />
+Nilesh</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kozure Ohashi</div><div class="date">27th December 2006, 13:45</div></div><div class="posttext">Dear nileshsamsonite,<br />
+<br />
+not to difficult:<br />
+<br />
+You need a session or 3 gl script or dll.<br />
+<br />
+You have to register the 2 afs relevant dll's for purchase order in the maintain session of the script.<br />
+<br />
+tdpurf4101m000 (Header)<br />
+tdpurf4102s000 (Position)<br />
+<br />
+In short:<br />
+<br />
+You need the proper afs functions calls (if you don't have the source of the afs dll's) you can print the  function prototypes (i have no system now, it is somewhere &quot;Print Script&quot;), therefore you are able to find the proper functions without having the source.<br />
+<br />
+Important: Don't wirte on script both for SLS and PUR because the AFS function names are sometimes the same this is not working. I found a solution by writing PUR in a script and SLS in a seperate DLL.<br />
+(We needed this because we had to update both SLS and related PUR data).<br />
+<br />
+Then you set the values from your inputfile with the PUT functions (e.g. put.orno // put.suno ...)<br />
+Then you make an ...insert. (Sometimes you also need a ...save, so the history and tdpur045 tables are also updated).<br />
+<br />
+(Sorry i am not in the office, i try to send you an sample within the next days).<br />
+<br />
+Regards,<br />
+<br />
+Kozure</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th December 2006, 14:36</div></div><div class="posttext">The best starting point is to ready the sticky note on this forum.  This will show you the commands and help you prepare for writing an AFS session.  Next start small - just create the header.  The concept is simple - do a header manually, track what you have to enter(or what you enter). Next figure out which AFS commands you need - probably just stpapi.put.field and stpapi.insert.  I think one you get this down it will help you understand own it works.  Then the next step is activating the lines and handling that.<br />
+<br />
+Also search this forum for the session name.  You might find an example or two.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hiba_t</div><div class="date">28th December 2006, 15:53</div></div><div class="posttext">Hi nileshsamsonite,<br />
+<br />
+I hope this example will help you,<br />
+<br />
+stpapi.put.field(&quot;dtfsa1101s000&quot;, &quot;dtfsa100.seno&quot;, str$(i.seno))<br />
+stpapi.put.field(&quot;dtfsa1101s000&quot;, &quot;dtfsa100.key1&quot;, i.key1)	<br />
+stpapi.put.field(&quot;dtfsa1101s000&quot;, &quot;dtfsa100.name&quot;, i.name)	<br />
+retval = stpapi.insert(&quot;dtfsa1101s000&quot;, true, o.mess)		<br />
+if not retval then<br />
+       retval = stpapi.recover(&quot;dtfsa1101s000&quot;, dummy.msg)		<br />
+endif<br />
+stpapi.end.session(&quot;dtfsa1101s000&quot;)				<br />
+return(isspace(o.mess))<br />
+<br />
+Regards,<br />
+Hiba</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kozure Ohashi</div><div class="date">29th December 2006, 12:13</div></div><div class="posttext">Dear nileshsamsonite,<br />
+<br />
+Sample with tdpurf4101m000 and tdpurf4102s000 AFS DLL's.<br />
+<br />
+		f4102s000.put.Purchase_Order(tdpur041.orno)<br />
+		f4102s000.put.Position_Number(tdpur041.pono)<br />
+		error.code = f4102s000.find()<br />
+		if error.code &lt;&gt; 1 then		<br />
+			mess (&quot;ccbois0009&quot;,1)<br />
+			|* Record Not Found<br />
+			set.error = 1<br />
+			f4102s000.end()<br />
+			exit()<br />
+		endif<br />
+		f4102s000.put.tdpur041.cwar(temp.cwar)<br />
+		f4102s000.update(1, gapi.error.code)<br />
+		|* Update tdpur041 und tdpur045 und tdpur051<br />
+		f4102s000.save(gapi.error.code)<br />
+		f4102s000.end()<br />
+<br />
+You can use the bwc Option Command: -- - set AFSLOG=1<br />
+<br />
+You will find a file afs.log. With tail -f (on Unix/Linux) you can follow each response from the afs server while debugging your source code with &quot;s&quot;.<br />
+<br />
+Regards,<br />
+<br />
+Kozure</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nileshsamsonite</div><div class="date">1st January 2007, 07:20</div></div><div class="posttext">Dear all,<br />
+Thank you.<br />
+I have successfully created the Purchase order by reading a text file with the help of AFS. ( In the same manner what Kozure posted in the thread. ) <br />
+<br />
+Wishing you Happy new year..!!:) <br />
+<br />
+Nilesh</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

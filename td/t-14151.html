@@ -1,0 +1,370 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Cant copy file on server to another location using file.cp, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Cant copy file on server to another location using file.cp Tools Development" />
+	
+	<title>Cant copy file on server to another location using file.cp [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Cant copy file on server to another location using file.cp</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">9th January 2004, 18:48</div></div><div class="posttext">I am using the file.cp command to copy files from one directory to another.  The sesison is returning the code that the file is found, but it does not find the file when I need to copy it.<br />
+<br />
+This is what I have:<br />
+<br />
+function read.main.table()<br />
+{<br />
+	string file_pathb (256)<br />
+	string file_patha (256)<br />
+	string file_path (256)<br />
+<br />
+	file_path =&quot;/apps/tlink/baan/customer_files/history&quot;<br />
+	file_patha = concat$(&quot;/&quot;,file_path,reln.f)<br />
+	file_pathb =&quot;/apps/tlink/baan/to_baan&quot;		<br />
+	<br />
+	fp = seq.open(file_patha, &quot;r&quot;)<br />
+	if fp &lt; 1 then<br />
+		message(&quot;Can not open file&quot;)<br />
+	endif<br />
+	<br />
+	if fp &gt;= 1<br />
+	then<br />
+	message(&quot;Message Found&quot;)<br />
+	file.cp(file_patha,file_pathb)<br />
+	<br />
+	endif<br />
+	e = file.cp(file_patha,file_pathb)<br />
+	if e &lt; 0 then<br />
+		message(&quot;Can not move File&quot;)<br />
+	<br />
+	endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">9th January 2004, 19:24</div></div><div class="posttext">As per this thread (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=1597&amp;highlight=file.cp) you might want to try copy.file in ottdllfilehand.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">9th January 2004, 19:37</div></div><div class="posttext">Yep, I would suggest what Mark said, use the ttdllfilehand functions instead.  They are newer.<br />
+Still, the old should work.  Maybe a permission problem?<br />
+If you use the ttdllfilehand functions, there are more options to check for permissions within the code.  You can use the is_file function instead of the seq.open to see if the file exists.  Not only does it not have to needlessly open the file, but it will also return to you not only if it exists, but a separate error for permissions that you can check.<br />
+To see if the target directory is available and the user has permissions for it, use the is_dir call, also part of ttdllfilehand:<br />
+<br />
+<br />
+function extern long is_dir(<br />
+         const string dirname() )<br />
+ <br />
+        pre:    true<br />
+        return: -1 : file does not exist<br />
+                 0 : file exists but is not a directory or<br />
+                     file is directory but user has no write permission for it<br />
+                 1 : file is directory and user has write permission for<br />
+                     this directory<br />
+ <br />
+function extern long is_file(<br />
+         const string path() )<br />
+ <br />
+        pre:    true<br />
+        return: -1 : file does not exist<br />
+                 0 : file exists but is not a regular file or file<br />
+                     is regular file but user has no write permission for it<br />
+                 1 : file is regular file and user has write permission for<br />
+                     this file<br />
+<br />
+<br />
+Note:  I updated this post with better syntax</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">9th January 2004, 22:22</div></div><div class="posttext">How do I call this function</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">9th January 2004, 22:29</div></div><div class="posttext">First you have to attach the library:<br />
+<br />
+ttdllfilehand <br />
+<br />
+to your program script.  You can do this in the session Maintain Program Scripts, the 'Library' button (Baan IV) or Library Drop Down option (Baan V).<br />
+<br />
+You can alternately put the statement:<br />
+<br />
+#pragma used dll &quot;ottdllfilehand&quot; <br />
+<br />
+in your declaration section, this works for all versions.<br />
+<br />
+Then, you can just call the functions, giving it the paramters.  The parameters should be in the format of your operating system, but I believe it works for either Unix or NT.<br />
+<br />
+<br />
+long    ret<br />
+<br />
+ret = is_dir(my.directory.path)<br />
+if ret &lt; 1 then<br />
+    ** file does not exist<br />
+endif<br />
+if ret = 0 then<br />
+  ** most likely no permission<br />
+endif<br />
+if ret = 1 then<br />
+  ** success<br />
+endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">9th January 2004, 23:11</div></div><div class="posttext">I put this in, copiled with no errors, but the file is not copied using copy.file.<br />
+<br />
+I did the checks recommend and all came back positive, but copy did not work.<br />
+<br />
+declaration:<br />
+	table	twtedi011	| TLe Recue Releases<br />
+	extern long	fp,e<br />
+	extern	domain	tcdsca        	reln.f	fixed<br />
+	extern	domain	tcdsca        	reln.t	fixed<br />
+	#pragma used dll &quot;otgbrg0019&quot;<br />
+	#pragma used dll &quot;ottdllfilehand&quot;<br />
+|****************************** form section **********************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	execute(print.data)<br />
+choice.print.data:<br />
+on.choice:<br />
+	if rprt_open() then<br />
+		read.main.table()<br />
+		rprt_close()<br />
+	else<br />
+		choice.again()<br />
+	endif<br />
+<br />
+<br />
+|****************************** field section *********************************<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{<br />
+	string file_pathb (256)<br />
+	string file_patha (256)<br />
+	string file_path (256)<br />
+	long ret<br />
+	file_path =&quot;/apps/tlink/baan/customer_files/history&quot;<br />
+	file_patha = concat$(&quot;/&quot;,file_path,reln.f)<br />
+	file_pathb =&quot;/apps/tlink/baan/to_baan&quot;		<br />
+	<br />
+	fp = seq.open(file_patha, &quot;r&quot;)<br />
+	if fp &lt; 1 then<br />
+		message(&quot;Can not open file&quot;)<br />
+	endif<br />
+	<br />
+	if fp &gt;= 1<br />
+	then<br />
+	message(&quot;Message Found&quot;)<br />
+	<br />
+	endif<br />
+	e = file.cp(file_patha,file_pathb)<br />
+	if e &lt; 0 then<br />
+		message(&quot;Can not move File&quot;)<br />
+	<br />
+	endif<br />
+<br />
+<br />
+	ret = is_file(file_patha)<br />
+<br />
+	if ret &lt; 1 then<br />
+		message(&quot;file does not exist&quot;)<br />
+	endif<br />
+<br />
+        if ret = 0 then<br />
+	message(&quot;no permission&quot;)<br />
+	endif<br />
+<br />
+<br />
+	ret = is_file(file_patha)<br />
+<br />
+	if ret &lt; 1 then<br />
+		message(&quot;file does not exist&quot;)<br />
+	endif<br />
+<br />
+        if ret = 0 then<br />
+	message(&quot;no permission&quot;)<br />
+	endif<br />
+<br />
+	if ret = 1 then<br />
+	message(&quot;GOOD&quot;)<br />
+	copy.file(file_patha, file_pathb, ret)	<br />
+	endif  	<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">9th January 2004, 23:23</div></div><div class="posttext">But this does not check for permissions in the target directory - they may have access to the file but not permission to the directory you want to write it to...?<br />
+Issue the is_dir command on your target (pathb) directory and check the results of that.<br />
+<br />
+Also, are you walking through on the debugger?   It's often helpful to me when working with files and directories to check the path after you concat it to make sure it's coming out how you expect.  Also, What are the results in the ret variable after the copy.file command?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">10th January 2004, 09:25</div></div><div class="posttext">The return value in variable ret should be 0 for successful execution .<br />
+<br />
+If u are trying to copy the file to an NFS mount point then permission problems may be encountered due to different uid in another server. In case of NFS mount point it may be better to copy direct to the server with preceding server name . <br />
+<br />
+for example <br />
+&quot;server1!/apps/baan/&quot; <br />
+where server1 is the name of the remote server.  <br />
+<br />
+If you adopt this approach, u have to have remote user data maintained and converted to runtime.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">r_nagu</div><div class="date">10th January 2004, 18:59</div></div><div class="posttext">I see that you are running on UNIX so why not use the shell() command to copy file from one directory to other. <br />
+<br />
+If you try <br />
+<br />
+shell (cp  &amp; file_patha &amp;   &amp; file_pathb, 0) <br />
+<br />
+it should copy the file form patha to pathb.<br />
+<br />
+Thanks,<br />
+NS</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">11th January 2004, 05:57</div></div><div class="posttext">I tested the cp command suggested, but it does not seem to recognize my file_patha or file_pathb variable. When I enter the complete path and file name, it works. I need it to work with the variables</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">r_nagu</div><div class="date">11th January 2004, 18:36</div></div><div class="posttext">You should be able work with variables with cp command.<br />
+<br />
+Try this:<br />
+<br />
+<br />
+<br />
+string comm(100)<br />
+<br />
+&lt;assign paths here&gt;<br />
+<br />
+comm = cp  &amp; file_patha &amp;   &amp; file_patha<br />
+<br />
+shell(comm, 0)<br />
+<br />
+<br />
+Please post your code if this still does not work.<br />
+<br />
+Thanks,<br />
+NS</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">12th January 2004, 17:10</div></div><div class="posttext">Try making those variables external...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">12th January 2004, 17:31</div></div><div class="posttext">Thanks again</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">learner</div><div class="date">19th March 2004, 08:44</div></div><div class="posttext">Hi,<br />
+<br />
+When i am using file.cp function it is returning me error code as -1<br />
+<br />
+<br />
+return.value = file.cp(&quot;C:\firstfol\abc.txt&quot;,&quot;C:\secondfol\&quot;)<br />
+<br />
+<br />
+<br />
+return.value = file.cp(&quot;C:\firstfol\abc.txt&quot;,&quot;\\someotherserver\C\secondfol\&quot;)<br />
+<br />
+<br />
+<br />
+but the code are retuning as -1<br />
+<br />
+?????<br />
+<br />
+I am assuming that my first code of line actually copies the file from local pc to local pc acrros the folders and the second line of code copies the file from local pc to some other server.<br />
+<br />
+What should i do ???<br />
+<br />
+does it utilises internally the ftp service of server ????<br />
+<br />
+Regards<br />
+<br />
+Learner</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">19th March 2004, 09:28</div></div><div class="posttext">**** SERVER 2 SERVER COPY *********<br />
+<br />
+Here is the help for file.cp . <br />
+<br />
+      NAME<br />
+      file.cp           Copy a file<br />
+                     <br />
+      SYNOPSIS<br />
+      long file.cp(const string source, const string target)<br />
+                     <br />
+      DESCRIPTION<br />
+      Copies file source to file target. Source and target  may be on a<br />
+      remote host (þhost!pathþ).<br />
+      RETURN VALUE<br />
+      The function returns 1 when successfull. A negative value will be<br />
+      returned on failure.<br />
+<br />
+So  u need to take care of following.<br />
+<br />
+1. Referencing remote host with exclamation.<br />
+2.  U may need to maintain remote server in ttaad0150m000 (maintain systems) , ttaad2101m000 (Maintian remote users) ,convert to runtime etc.<br />
+<br />
+<br />
+********* CLIENT 2 CLIENT COPY *********<br />
+U need to create a batch file which reads the source and target argument in command line adn copies the files actually . Call the batch file through app_start function of ottdllbw . It should copy files at client. If  u have mapped a drive for your  another server , u can use this approach to copy to other server also.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">19th March 2004, 17:10</div></div><div class="posttext">I am 99 % sure the server to server and the client to server functions use FTP.  The user should have ftp privelages.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">marnix</div><div class="date">31st March 2004, 15:35</div></div><div class="posttext">Originally posted by learner <br />
+When i am using file.cp function it is returning me error code as -1<br />
+<br />
+<br />
+return.value = file.cp(&quot;C:\firstfol\abc.txt&quot;,&quot;C:\secondfol\&quot;)<br />
+<br />
+<br />
+<br />
+return.value = file.cp(&quot;C:\firstfol\abc.txt&quot;,&quot;\\someotherserver\C\secondfol\&quot;)<br />
+<br />
+<br />
+<br />
+but the code are retuning as -1 <br />
+<br />
+Please note the second argument to file.cp() is a *file* name, not a directory name.<br />
+<br />
+(And also that both arguments to file.cp() are file names on the server, or on another server if the !-notation is used.)<br />
+<br />
+And I don't know whether UNC paths are supported.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fosterjr</div><div class="date">7th February 2005, 16:37</div></div><div class="posttext">We have BaanIVc3 running on HP-UX 11i.  I am working on a project where we need to have Baan output a file to our intranet (Windows 2000 Server).  The file should go to \\Intranet\Intranet$\databases.   Would the above process work?  If so what needs to be done on the Win200 side?<br />
+<br />
+Thanks for the help</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th February 2005, 01:11</div></div><div class="posttext">I am not sure it would work - I believe file.cp should work across platforms, but I do not know what it takes.  If you are running a batch job in Baan on HP/UX could't you just ftp it to that server?  <br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">10th February 2005, 16:48</div></div><div class="posttext">We have BaanIVc3 running on HP-UX 11i.  I am working on a project where we need to have Baan output a file to our intranet (Windows 2000 Server).  The file should go to \\Intranet\Intranet$\databases.   Would the above process work?  If so what needs to be done on the Win200 side?<br />
+<br />
+Thanks for the help<br />
+<br />
+File.cp will work only on NFS mounted file systems and to/fro servers maintained /etc/hosts . If u access \\Intranet\Intranet$\databases on ur client PC (meaning u can not access this folder in HPUX in telnet mode), then u need to user the server2client command. I would be better if u map \\Intranet\Intranet$\databases to some drive and then use server2client.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

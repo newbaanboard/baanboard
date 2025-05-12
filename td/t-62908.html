@@ -1,0 +1,153 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Header and line information on same form, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Header and line information on same form Tools Development" />
+	
+	<title>Header and line information on same form [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Header and line information on same form</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ravi99</div><div class="date">29th September 2012, 16:49</div></div><div class="posttext">Hi,<br />
+<br />
+I have a following requirement:<br />
+<br />
+I have a custom table. I want to create a display session which should show header data (unit set, warehouse on half of the form) and when clicked on each header record it should all the line records in below half of the screen. How to do it? Is there any standard Baan session which does this, please let me know.<br />
+<br />
+Thanks<br />
+Venkat</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">1st October 2012, 14:31</div></div><div class="posttext">Yes - this can be done, not something I recommend, but it is possible.  You can search on things like sattr.combined = COMBINED.BOTTOM(combined.top), switch.to.process or synchronized sessions.  As far as I know baan does not do this - and I do not blame them.  What you do is create the lines session as the driving session - then you have to code all of the options in both of the sessions on what should take place - switching between the two sessions.  You have to control all of this while switching sessions - it can be done, but not always very easily.  At least with a display session you need less commands than the one I had to do - mine was a maintain session where they could insert headers and lines.<br />
+<br />
+Example code from header session(combined.top)<br />
+<br />
+form.1:<br />
+init.form:<br />
+	|disable.resize()<br />
+	if background then<br />
+	while true<br />
+		|import(&quot;tisfc001.pdno&quot;,tisfc010.pdno)<br />
+		import(&quot;instruction&quot;, instruction)<br />
+		import(&quot;hold.rfq&quot;,hold.rfq)<br />
+		import(&quot;hold.rfqline&quot;,hold.rfqline)<br />
+		tdexi001.rfqnum = hold.rfq<br />
+		on case	instruction<br />
+		case find.data:<br />
+		case last.set:<br />
+		case first.set:<br />
+		case next.set:<br />
+		case prev.set:<br />
+		case mark.delete:<br />
+|			execute(prev.set)<br />
+			execute(find.data)<br />
+			if (instruction = prev.set or instruction = last.set)<br />
+				and tdexi001.status &lt;&gt; tdexi.stat.new then<br />
+				select	tdexi001.rfqnum<br />
+				where	tdexi001.rfqnum&lt;:tdexi001.rfqnum<br />
+				and	tdexi001.status = tdexi.stat.new<br />
+				order by tdexi001.rfqnum desc<br />
+				as set with 1 rows<br />
+				selectdo<br />
+				endselect<br />
+				execute(find.data)<br />
+			endif<br />
+			if instruction = first.set<br />
+				and tdexi001.status &lt;&gt; tdexi.stat.new then<br />
+				select	tdexi001.rfqnum<br />
+				where	tdexi001.rfqnum&gt;:tdexi001.rfqnum<br />
+				and	tdexi001.status = tdexi.stat.new<br />
+				order by tdexi001.rfqnum<br />
+				as set with 1 rows<br />
+				selectdo<br />
+				endselect<br />
+				execute(find.data)<br />
+			endif<br />
+			hold.rfq = tdexi001.rfqnum<br />
+			export(&quot;hold.rfq&quot;,hold.rfq)<br />
+			break<br />
+		case resize.frm:<br />
+			execute(resize.frm)<br />
+			break<br />
+		case start.set:<br />
+			input.error = false<br />
+			get.rfq.number()<br />
+			while appl.set(&quot;tdexi001 &quot; &amp; str$(rfq.num), APPL.EXCL) &gt; 0<br />
+				rfq.num = rfq.num +1<br />
+			endwhile<br />
+			execute(add.set)<br />
+			execute(update.db)<br />
+			|insert.line.zero()<br />
+			hold.rfq = tdexi001.rfqnum<br />
+			export(&quot;hold.rfq&quot;,hold.rfq)<br />
+			export(&quot;input.error&quot;,input.error)<br />
+			appl.delete(&quot;tdexi001 &quot; &amp; str$(rfq.num))			<br />
+			break<br />
+		case modify.set:<br />
+			execute(modify.set)<br />
+			hold.rfq = tdexi001.rfqnum<br />
+			export(&quot;hold.rfq&quot;,hold.rfq)<br />
+			execute(update.db)<br />
+			break<br />
+		case user.1:<br />
+			execute(user.1)<br />
+			break<br />
+		case user.2:<br />
+			execute(user.2)<br />
+			break<br />
+		case user.4:<br />
+			execute(user.4)<br />
+			execute(find.data)<br />
+			break<br />
+		case user.5:<br />
+			execute(user.5)<br />
+			break<br />
+		case recover.set:<br />
+			execute(recover.set)<br />
+			break<br />
+		case 34:<br />
+		|	tisfc951.pdno = tisfc010.pdno<br />
+		|	ticst001.pdno = tisfc010.pdno<br />
+		|	import(&quot;zoom.prog&quot;, zoom.prog)<br />
+		|	zoom.to$(zoom.prog,z.session,&quot;&quot;,&quot;&quot;,0)<br />
+			break<br />
+		default:<br />
+			display.all()<br />
+		endcase<br />
+		switch.to.process(parent, SWITCH.SAME.SIZE)<br />
+	endwhile<br />
+	endif<br />
+<br />
+<br />
+Second sample calling code from lines session(combined.bottom)<br />
+<br />
+choice.next.view:<br />
+after.choice:<br />
+	hold.rfq = tdexi010.rfqnum<br />
+	export(&quot;hold.rfq&quot;, hold.rfq)<br />
+	instruction = next.set<br />
+	switch.to.process(process.exi0109,SWITCH.SAME.SIZE + SWITCH.WITHOUT.INTERACTION)<br />
+	import(&quot;hold.rfq&quot;, hold.rfq)<br />
+	tdexi010.rfqnum = hold.rfq<br />
+	get.header.text()<br />
+	execute(find.data)<br />
+	execute(first.set)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">8th October 2012, 18:38</div></div><div class="posttext">I agree with Mark - not recommended.<br />
+<br />
+My suggestion would be to create a session with a type 3 form based on the detail table as the main-table. The required fields from header can then always be read and displayed in the space above what is occupied by the detail lines. Simplest example that can be used as a starting skeleton: Maintain Currency Rates.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

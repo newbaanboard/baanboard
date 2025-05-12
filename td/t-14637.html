@@ -1,0 +1,194 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Approaching string elements in program scripts, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Approaching string elements in program scripts Tools Development" />
+	
+	<title>Approaching string elements in program scripts [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Approaching string elements in program scripts</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">1st March 2004, 09:15</div></div><div class="posttext">Hi all,<br />
+<br />
+I'm for the first tim eplaying around with multi-element string fields in Baan. I don't understand very well how to approach them in scripts.<br />
+<br />
+Example: <br />
+- Print session<br />
+- have form field citg (item group) with 15 elements<br />
+- in program script:<br />
+<br />
+field.citg:<br />
+check.input:<br />
+	select	tcmcs023._index1<br />
+	from	tcmcs023<br />
+	where	tcmcs023._index1 = {citg} |  :citg / :citg(attr.element) / :citg(1, :attr.element) etc..<br />
+	order by tcmcs023._index1<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	selectempty<br />
+		message(&quot;............&quot;)<br />
+		input.again()<br />
+	endselect <br />
+<br />
+So for every element of citg Baan will indeed enter this section, like I expected. However, I do not know how to pass on the correct 'citg' value in my query to tcmcs023.  <br />
+<br />
+I have already tried where tcmcs023._index1 = {:citg}, this compiles, but then at runtime I receive a fatal error: 'array not implemented'. If I just write {citg}, it will compile (!!), but no matter what the value of citg(1, attr.element) is, it will never hit the selectempty clause!!?? I also tried :citg(1, attr.element) or :citg(1, :attr.element) or even citg(attr.element), but don't get it yet...<br />
+<br />
+Please assist/clarify...<br />
+<br />
+Many thanks in advance,<br />
+<br />
+En.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dorleta</div><div class="date">1st March 2004, 11:04</div></div><div class="posttext">Try of this way:<br />
+<br />
+field.citg:<br />
+check.input:<br />
+	select	tcmcs023.*<br />
+	from	tcmcs023<br />
+	where	tcmcs023._index1 = {:citg} 		selectdo<br />
+	selectempty<br />
+                      set.input.error(messcode) <br />
+<br />
+or the message of this no so correct way:<br />
+<br />
+                      message(&quot;Error Family&quot;)<br />
+                      set.input.error(&quot;&quot;) <br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jan van dillen</div><div class="date">1st March 2004, 11:11</div></div><div class="posttext">Hi,<br />
+<br />
+You should use the variable attr.element.<br />
+<br />
+field.citg:<br />
+check.input:<br />
+          item.group.allowed(citg(attr.element))<br />
+<br />
+function item.group.allowed(domain tcccitg i.citg)<br />
+{<br />
+                select	tcmcs023._index1<br />
+	from	tcmcs023<br />
+	where	tcmcs023._index1 = {:i. citg} <br />
+	as set with 1 rows<br />
+	selectempty<br />
+		set.input.error(&quot;&quot;)<br />
+	endselect <br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">1st March 2004, 11:22</div></div><div class="posttext">Another way, closer to your code:<br />
+<br />
+<br />
+<br />
+field.citg:<br />
+check.input:<br />
+	select	tcmcs023._index1<br />
+	from	tcmcs023<br />
+	where	tcmcs023._index1 = {:1}  | &lt;=<br />
+	wherebind(1, citg(attr.element)) | &lt;=<br />
+	order by tcmcs023._index1<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	selectempty<br />
+		message(&quot;............&quot;)<br />
+		input.again()<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">3rd March 2004, 10:41</div></div><div class="posttext">Thanks guys for the reply!!<br />
+<br />
+The way I got it to work is by passing on the citg(1, attr.element) to a check.function, and there import it in a single element string. <br />
+<br />
+Now next question:<br />
+I want to use diable.fields()/enable.fields() based on the input. <br />
+I.e. I have 15 input fields on the form (-&gt; inp.fld(1), inp.fld(2) etc), and if inp.fld(attr.element) is empty, then: <br />
+for i = (attr.element + 1) to 15 disable.fields(&quot;inp.fld(i)&quot;).<br />
+<br />
+If I write the above, then all elements from 1 to 15 will be disabled!! I tried also inp.fld(1, i) but then always the first element will be disabled. I even tried plain inp.field, then also they are all disabled.<br />
+<br />
+Anyone an idea??</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">3rd March 2004, 15:20</div></div><div class="posttext">Have you tried using that logic in a before.input section?<br />
+<br />
+For example:<br />
+<br />
+long	i<br />
+...<br />
+field.inp.fld:<br />
+before.input:<br />
+	for i = 1 to attr.element - 1<br />
+		if isspace(inp.fld(1,i)) then<br />
+			attr.input = false<br />
+			break<br />
+		endif<br />
+	endfor<br />
+<br />
+<br />
+It doesn't use enable/disable, but should do what you want.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">3rd March 2004, 15:48</div></div><div class="posttext">Ed,<br />
+<br />
+I'm not sure you understood my situation, so I will try to describe it better:<br />
+<br />
+- Print session<br />
+- on form:<br />
+-- inp.fld1(15) -&gt; 15 elements of inp.fld1<br />
+-- inp.fld2(15) <br />
+-- inp.fld3(15)<br />
+<br />
+The user can select upto 15 groups of required info to be printed, yet does not have to select 15, and in most cases will not select 15. So therefor when the user leaves inp.fld1(attr.element) empty, that means he has completed input, and so I want to disable input for all remaining fields inp.fld1, inp.fld2, inp.fld3. For instance, if the user selected info on 4 elements, I.e. filled in four times the 3 input-fields, then all three input fields 5-&gt;15 will be disabled.<br />
+<br />
+I just don't get it working yet. Like I said, either all of them will get disabled, or always the first one.<br />
+<br />
+<br />
+Kind regards,<br />
+<br />
+En.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jan van dillen</div><div class="date">3rd March 2004, 16:16</div></div><div class="posttext">field.inp.fld:<br />
+before.input:<br />
+        if attr.element &gt; 1 then<br />
+                if isspace(inp.fld(1, attr.element - 1)) then<br />
+                        inp.fld(1, attr.element) = &quot;&quot;<br />
+                        attr.input = false<br />
+                endif<br />
+        endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">3rd March 2004, 20:04</div></div><div class="posttext">En,<br />
+<br />
+Since you are on the BaaN-5 series, you can use the disable.fields() function in this case.<br />
+<br />
+Syntax<br />
+void disable.fields( [ long mode,] string field [, occurrence] [, string field [, occurrence] ... )<br />
+<br />
+field [,occurrence]<br />
+ This identifies the field to be disabled. <br />
+<br />
+For a single-occurrence field, this is the field name. For a multioccurrence field, this can be either the field name or the field name followed by an occurrence number (depending on whether you wish to disable all occurrences of the field or only one particular occurrence). <br />
+<br />
+For array fields, UTC fields, and segmented fields, you can append suffixes to the field name to indicate the particular element or segment to be disabled. If you omit these suffixes, all elements/segments are disabled.<br />
+<br />
+To disable a particular element of an array field, append the element number (in parentheses) to the field name. The element number must be an integer, formatted as a string. It cannot be a variable. For example: &quot;tfmod100.perd(10)&quot;. <br />
+To disable only the date or time element of a UTC field, append either .date or .time to the field name. For example: &quot;ttadv300.cdat.time&quot;. <br />
+To disable a particular segment of a segmented field, append <br />
+.segment.segment_id to the field name. For example: &quot;tiitm001.item.segment.1&quot;.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

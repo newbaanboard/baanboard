@@ -1,0 +1,176 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="sql query, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] sql query Tools Development" />
+	
+	<title>sql query [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; sql query</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">srikarthy</div><div class="date">13th April 2004, 12:08</div></div><div class="posttext">Hello,<br />
+<br />
+1. When a service order is costed, integration transaction &quot;service/approved for invoicing&quot; debits account 10010.  <br />
+<br />
+2. When the service order is invoiced,  the account 10010 is credited with the same amount by the integration transaction &quot;sales-invoicing(service)/COGS(material)&quot; so that the balance in account 10010 becomes zero. <br />
+<br />
+But I find there is credit in account 10010 which is surprising. All the transactions have been posted in the financial year 2003 and if at all there is some amount it must be debit and not credit. <br />
+<br />
+To know what happened, I want to find out for each credit entry in sales-invoicing(service)/COGS(material) transaction in account 10010 whether there is  equivalent debit amount in transaction service/approved for invoicing(With the same amount). I want a list which doesn't satisfy this criteria in the financial year 2003 in all the 12 periods. I think service order number, financial year, financial period, transaction time, transaction origin, financial transaction, ledger account etc. are the fields which must be used for selection and the tables must be tfgld410, tfgld417 and tfgld418.  I am a functional guy and I know a bit of SQl but I find it difficult to combine the three tables and write an SQL query. Also I understand that the query must run in a loop(like PL/SQL) so that it brings the list in the entire year. Can someone help me please? If I get the SQL code, I can cut/paste/modify in the easy sql module and get a report. Thanks in advance.<br />
+<br />
+(I have already verified that no other account is involved for these two integration transactions and also the account 10010 has no other entry than for these integration transactions which makes the query to be simple.)<br />
+<br />
+Thanks in advance,<br />
+<br />
+srikarthy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gguymer</div><div class="date">13th April 2004, 16:14</div></div><div class="posttext">This is a query our finance people use all the time:<br />
+<br />
+select *<br />
+  from ttfgld106100 a,<br />
+       ttfgld418100 b,<br />
+       ttfgld011100 c,<br />
+       ttfgld008100 d<br />
+ where a.t$otyp = b.t$ttyp (+)<br />
+   and a.t$odoc = b.t$docn (+)<br />
+   and a.t$olin = b.t$lino (+) <br />
+   and a.t$ocmp = b.t$fcom (+) <br />
+   and a.t$otyp = c.t$ttyp<br />
+   and a.t$leac = d.t$leac<br />
+   and b.t$tror = 15 <br />
+   and a.t$fyer = 2003;<br />
+<br />
+(tror = Transaction Origin, 15 = Service Order)<br />
+<br />
+I tried to add a little extra that I believe you were trying to filter for. You'll need to supply the columns you want instead of the &quot;*&quot; that I placed in the &quot;select&quot;. This is an Oracle SQL query, so you will need to change the company numbers to what you're using. The &quot;(+)&quot; syntax is for an outer join because not all records from 418 are found in 106 especially if you want to find all records that have a specific ledger account. Hope this helps.<br />
+<br />
+Gilbert Guymer<br />
+Database Administrator<br />
+Lufkin Industries, Inc.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">srikarthy</div><div class="date">14th April 2004, 03:15</div></div><div class="posttext">Hi Gilbert,<br />
+<br />
+Thanks a lot. I am using the text manager in Easy SQL and accordingly I have modified the query you have supplied. <br />
+<br />
+select tfgld418.orno, tfgld418.docn<br />
+from tfgld106,<br />
+tfgld418,<br />
+tfgld011,<br />
+tfgld008<br />
+where tfgld106.otyp = tfgld418.ttyp |(+)<br />
+and tfgld106.odoc = tfgld418.docn   |(+)<br />
+and tfgld106.olin = tfgld418.lino       |(+)<br />
+and tfgld106.ocmp = tfgld418.fcom   |(+)<br />
+and tfgld106.otyp = tfgld011.ttyp<br />
+and tfgld106.leac = tfgld008.leac<br />
+and tfgld418.tror = 15<br />
+and tfgld418.fitr = 4 <br />
+and tfgld106.fyer = 2003<br />
+order by tfgld418.orno<br />
+<br />
+This query gives me all the records that are in tfgld106 and as you have mentioned, I need the records which are not in tfgld106. The outer join is not working in easy sql. I found that you have mentioned earlier to some other query that 'refers to' or '...empty...' can be used in Baan SQL. Could you please modify the above one for outer joins, if it is simple?<br />
+<br />
+Thanks,<br />
+srikarthy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gguymer</div><div class="date">14th April 2004, 17:01</div></div><div class="posttext">This query is Oracle specific and the syntax of the outer join is not applicable to Easy SQL. In Baan the outer join can be done using the &quot;refers to&quot;, but can only be used were a primary key matches the primary key of the other table.  The primary keys for both tables do not match up in this case. I thought you were seeking an Oracle type of solution, however this could be done programatically in a Baan print session if you have access to the Baan development tools.<br />
+<br />
+<br />
+Gilbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tomlbacon</div><div class="date">14th April 2004, 22:12</div></div><div class="posttext">Try the not exists command.  You have tfgld008 but its not being used in you select.  You may need to make a few changes but this should help some.<br />
+<br />
+select tfgld418.orno, tfgld418.docn<br />
+from <br />
+tfgld418,<br />
+tfgld011,<br />
+tfgld008<br />
+where tfgld418.tror = 15<br />
+and tfgld418.fitr = 4<br />
+and tfgld418.ttyp = tfgld011.ttyp<br />
+and not exists<br />
+	(select *<br />
+	 from tfgld106<br />
+where<br />
+tfgld106.otyp = tfgld418.ttyp |(+)<br />
+and tfgld106.odoc = tfgld418.docn |(+)<br />
+and tfgld106.olin = tfgld418.lino |(+)<br />
+and tfgld106.ocmp = tfgld418.fcom |(+)<br />
+and tfgld106.otyp = tfgld011.ttyp<br />
+and tfgld106.leac = tfgld008.leac<br />
+and tfgld106.fyer = 2003)<br />
+order by tfgld418.orno</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">srikarthy</div><div class="date">15th April 2004, 09:49</div></div><div class="posttext">Hi Gilbert, Tommy,<br />
+<br />
+Thank you very much. The queries were highly helpful.<br />
+<br />
+Thanks,<br />
+srikarthy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Anusha</div><div class="date">25th August 2010, 10:46</div></div><div class="posttext">hi,<br />
+<br />
+table1 : tdkpm014                      <br />
+fields   : salesReq,                                                                    <br />
+            prod                                          <br />
+                                                         <br />
+table2: tdkpm010<br />
+fields : salesReq,<br />
+          salesOrder,<br />
+          prod<br />
+<br />
+table3: tdkpm015<br />
+fields :  salesOrder,        <br />
+           lotid<br />
+<br />
+tdkpm014 has size : 700, 900, 1000<br />
+But tdkpm015 has item. <br />
+tdkpm015.item(8;4) = tdkpm014.size  <br />
+kn421800700xxxxn, kn421900800xxxxn, kn421800900xxxxn, kn421801000xxxxn.<br />
+<br />
+<br />
+<br />
+i want to write a query to display size 800 from tdkpm015 which is not exist in tdkpm014.<br />
+<br />
+I tried this query in report script:<br />
+<br />
+detail.2:<br />
+before.layout:<br />
+	<br />
+	SELECT  tdkpm010.*, tdkpm015.* <br />
+  	FROM 	tdkpm010, tdkpm015 <br />
+	WHERE   tdkpm010.salesOrder = tdkpm015.salesOrder<br />
+	AND NOT EXISTS (SELECT *  FROM tdkpm014<br />
+                          WHERE  tdkpm014.salesReq = tdkpm010.salesReq<br />
+			  AND    tdkpm014.prod = tdkpm010.prod)  <br />
+	selectdo<br />
+	<br />
+     endselect<br />
+<br />
+this method is not working.<br />
+Can pls help me on this?<br />
+<br />
+Thanks<br />
+<br />
+Regards<br />
+Anusha</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

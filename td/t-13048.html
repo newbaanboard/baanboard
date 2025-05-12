@@ -1,0 +1,284 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Performance issue on SQL-queries, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Performance issue on SQL-queries Tools Development" />
+	
+	<title>Performance issue on SQL-queries [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Performance issue on SQL-queries</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">19th September 2003, 12:34</div></div><div class="posttext">I encounter the following issue and wonder if anyone has an explanation and / or solution/workaround:<br />
+<br />
+I zoom from a parent display-session to its child display-session, passing on certain values of the current selection in the parent to the child, and displaying the data in the child for that selection.<br />
+<br />
+In the before.program of the child I execute a query using 'group by', for I must select the orders on the index, but have them ordered by a different field. I know that 'group by' and 'order by' take long time [by the way does anyone know what takes longer: group by or order by, or that they are about the same - logically I would say that group by takes even slightly longer, but I'm not sure]; however I noticed that the first time entering the child session with a certain selection, the select in the before.program takes very long. If then I EXIT the child, and then from the parent zoom again to the child with the SAME SELECTION, the the select in the child takes maybe a tenth of the time!!!<br />
+<br />
+For instance:<br />
+Let's say the selection is on about 30k records SEARCHED ON INDEX, grouped by one field, which is producing 15 records. Without using group by this selection takes a split second, and the first time with group by it takes around 20 seconds or more(!!!!). Second time zommed without having changed the selection in the parent session, - ALTHOUGHT THE CHILD SESSION HAS BEEN CLOSED COMPLETELY AFTER THE FIRST TIME -  it takes maximum 2 seconds!! <br />
+ <br />
+<br />
+-   How is this happening (i.e. I had closed the child completely and then re-opened it for the same selection)? <br />
+-   Is the first time where it takes long 'unusual' and from the second time on the 'usual' or is the first time the normal time it takes, and for some reason afterwards goes faster?<br />
+-   I need to solve this. I.e. I MUST get this running as fast as the second time, (also) when zooming to the child the first time for the given selection!! How?<br />
+<br />
+<br />
+Thanks a lot in advance! Any clues would be highly appreciated!!<br />
+<br />
+En.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">19th September 2003, 12:41</div></div><div class="posttext">Try to perform some comparing loggings:<br />
+use -- -set TT_SQL_TRACE=20240 -dbgsrdduse -dbgtime -keeplog -logfile comparefile in all situations (order by / group by).<br />
+<br />
+Initialization of the first session maybe slow when you use an older portingset. This has to do with file-I/O even though the system logs files as being read from shared memory.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">19th September 2003, 13:00</div></div><div class="posttext">Hi Ome Luuk,<br />
+<br />
+Thanks for your response. I think however you misunderstand me. This has nothing to do with first session start-up. The case is as follows:<br />
+<br />
+On the active bshell, after running already the specific sessions 10 times - that doesn't matter - I start session A, which is a display session. <br />
+- The session starts immediately, and gives me my records; no problem. <br />
+- In session A I define a selection for display, and get the records immediately - no problem. <br />
+- The I zoom - via specific - to session B, the child of session A. This session receives the selection criteria from session A, and display data accordingly. <br />
+<br />
+In the before.program of session B, I run a select based on the selection criteria which were imported from the parent session A, using 'group by'. Here the symptoms happen as descibed in my first post. I.e. first time selecting with specific selection - even if the session has been closed, AND EVEN IF THE PARENT SESSION HAS BEEN CLOSED MEANWHILE (!!) and then open the parent again, select in the parent the same selection as the last time. Now zoom to the child, and the selection will go fast. If the selection criteria were changed in the parent, even while the session is still open, the select in the child will be again very slow the first time, etc.<br />
+<br />
+Hope the symptoms are clear... <br />
+<br />
+Kind regards,<br />
+<br />
+En.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">19th September 2003, 13:48</div></div><div class="posttext">Yet, although symptoms are clear.<br />
+<br />
+I think logging would help you understand what it taking so long either way with using group by etc.<br />
+<br />
+Ok, what you say: srdd usage is not the problem, it is query handling. So you will need to see the logfile with TT_SQL_TRACE=20240 and in that case a dbgtime option (added in newer portingset) and dbgfdev (to see creation of sort / query file IO).<br />
+<br />
+Then you may be able to pinpoint the cause of your delay.<br />
+<br />
+What is your portingset version?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">19th September 2003, 13:55</div></div><div class="posttext">Also, since the second time is much faster, it points to the query being cached by Oracle.  The first time, Oracle probably has some difficulty building a query plan, but, once it is cached, the query runs reasonably fast.  If you can, you could verify this by executing the sessions, then flush the Oracle cache, and execute again.  The second time should now talking as long as the first time!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">19th September 2003, 14:24</div></div><div class="posttext">Hi Ome Luuk, Nico,<br />
+<br />
+Thanks for the replies. <br />
+<br />
+I ran a trace with -dbgfdev, and these are the results:<br />
+<br />
+First time:<br />
+<br />
+------------------------------------------------<br />
+Nr Rows Fetched                 :    24<br />
+Fetch Time for 1st Row          : 31.281 sec<br />
+Max Fetch Time                  : 31.281 sec<br />
+Average Fetch Time              :  1.304 sec<br />
+Average Fetch Time (except Max) :  0.000 sec<br />
+Total Time                      : 31.297 sec<br />
+<br />
+<br />
+Second time:<br />
+<br />
+-----------------------------------------------<br />
+Nr Rows Fetched                 :    24<br />
+Fetch Time for 1st Row          :  1.734 sec<br />
+Max Fetch Time                  :  1.734 sec<br />
+Average Fetch Time              :  0.072 sec<br />
+Average Fetch Time (except Max) :  0.000 sec<br />
+Total Time                      :  1.750 sec<br />
+==============================================<br />
+<br />
+When trying with -dbgtime, I received bw-errors, and the bshell didn't connect, so I assume that this is not available for my porting set...?<br />
+<br />
+As you can see the first time takes over 30 seconds in this case, and the second time lesst than 2 seconds! This is also after closing both the parent and the child, and then opening them again with the same selection criteria as before.<br />
+<br />
+Nico, where do I find the Oracle cach? How do I flush the cache?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">19th September 2003, 20:09</div></div><div class="posttext">En,<br />
+<br />
+I would not advise you to manually flush the Oracle cache. <br />
+<br />
+From my observation from few sessions in our development group was due to many disable/enable-fields commands used in the sessions, which were executed for all the fields, used in single &amp; multi-occ sessions. I changed the code to use certain enable/disable in single occ mode and the rest in multi-occ mode.<br />
+This helped to improve the startup of the session.<br />
+<br />
+More info refer to the link -  <br />
+refresh  (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=1676&amp;highlight=disable.fields) <br />
+<br />
+If you post your code it will certainly help others to look at the programming problems.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">19th September 2003, 22:04</div></div><div class="posttext">en@frrom: ... Fetch Time for 1st Row          : 31.281 sec ... Fetch Time for 1st Row          :  1.734 secRunning level 1 driver or level 2? And is there a way to optimize your query with other sequence of fields, using index etc?When trying with -dbgtime, I received bw-errors, and the bshell didn't connect, so I assume that this is not available for my porting set...?Correct.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">22nd September 2003, 10:57</div></div><div class="posttext">Hi all, thanks for the posts! <br />
+<br />
+Np, I am aware of the performance problem when using too many display() and refresh(). However, this is not the case in my session at all.<br />
+<br />
+Ome Luuk,<br />
+<br />
+I think we have a level 2 db driver. But am not sure how/where to check that...  :o <br />
+<br />
+I think my queries are optimized. I played around with it, and tried a few variations. I will post the relevant parts of the code; maybe anyone sees anything...?<br />
+<br />
+In the parent session:<br />
+<br />
+function extern details.cpcl()<br />
+{<br />
+	if synch.id then<br />
+		synchronize.with.child(synch.id)<br />
+	endif<br />
+	if not synch.id then<br />
+		synch.id = start.synchronized.child ( &quot;tdrom9505se00&quot;, <br />
+		&quot;form.curr&quot;, &quot;from.form&quot;,<br />
+		&quot;rel.field.f&quot;, &quot;rel.field.f&quot;,<br />
+		&quot;rel.field.t&quot;, &quot;rel.field.t&quot;,<br />
+		&quot;tdrom991.year.c&quot;, &quot;imp.year&quot;,<br />
+		&quot;incl.free&quot;, &quot;incl.free&quot;,<br />
+		&quot;incl.cost&quot;, &quot;incl.cost&quot;,<br />
+		&quot;perd.f&quot;, &quot;perd.f&quot;,<br />
+		&quot;perd.t&quot;, &quot;perd.t&quot; )<br />
+	endif<br />
+}<br />
+<br />
+<br />
+In the child:<br />
+<br />
+<br />
+	     CASE 3:<br />
+		db.retry.point()<br />
+		select	tdrom901.cpcl.c, sum(tdrom901.brom.c):sum.brom, sum(tdrom901.disc.c):sum.disc, <br />
+			sum(tdrom901.squa.c):sum.squa, sum(tdrom901.spcs.c):sum.spcs<br />
+		from 	tdrom901<br />
+		where	tdrom901._index1 inrange {:from.form, :dummy, 0, :dummy, :rel.field.f, <br />
+						     :dummy, :dummy, :imp.year, :perd.f} <br />
+					          and {:from.form, :dummy, 0, :dummy, :rel.field.t, <br />
+						      :dummy, :dummy, :imp.year, :perd.t}<br />
+		and	(tdrom901.free.c = tcyesno.no or :incl.free = tcyesno.yes)<br />
+		and	((tdrom901.kitm.c = tckitm.purchase or tdrom901.kitm.c = tckitm.manufacture)<br />
+			or :incl.cost = tcyesno.yes)<br />
+		group by tdrom901.cpcl.c<br />
+		selectdo<br />
+			| performs some updates...<br />
+		endselect<br />
+		commit.transaction()<br />
+		break<br />
+<br />
+The dummy's are just empty strings, because those fields must be empty.<br />
+<br />
+Regards,<br />
+<br />
+En.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">22nd September 2003, 11:35</div></div><div class="posttext">You want to have some sums on certain fields and also perform actions on several of the data selected...<br />
+would it not be better to split the query into two queries: first determine the sums and then perform the actions... or would the actions influence the sums? In that case first perform the actions and then calculate the sums...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">22nd September 2003, 11:43</div></div><div class="posttext">You want to have some sums on certain fields and also perform actions on several of the data selected...<br />
+<br />
+Ome Luuk, I probably wasn't clear. I select the sum of these (grouped) fields, and update a different table with the sum values.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">22nd September 2003, 11:48</div></div><div class="posttext">Is it possible to add an index that starts with the field tdrom901.cpcl.c? Because now you will defenitely need a lot of Full Table Scans (see logfile of TT_SQL_TRACE=20240) to be able to group when selected on index_1.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">22nd September 2003, 11:58</div></div><div class="posttext">Is it possible to add an index that starts with the field tdrom901.cpcl.c? Because now you will defenitely need a lot of Full Table Scans (see logfile of TT_SQL_TRACE=20240) to be able to group when selected on index_1.<br />
+<br />
+Will that help?? My select will anyway be for all  tdrom901.cpcl.c's. So it would look like this:<br />
+<br />
+		select	tdrom901.cpcl.c, sum(tdrom901.brom.c):sum.brom, sum(tdrom901.disc.c):sum.disc, <br />
+			sum(tdrom901.squa.c):sum.squa, sum(tdrom901.spcs.c):sum.spcs<br />
+		from 	tdrom901<br />
+		where	tdrom901._index1 inrange {&quot; &quot;, :from.form, :dummy, 0, :dummy, :rel.field.f, <br />
+						     :dummy, :dummy, :imp.year, :perd.f} <br />
+					          and {&quot;ZZZZZZ&quot;, :from.form, :dummy, 0, :dummy, :rel.field.t, <br />
+						      :dummy, :dummy, :imp.year, :perd.t}<br />
+		and	(tdrom901.free.c = tcyesno.no or :incl.free = tcyesno.yes)<br />
+		and	((tdrom901.kitm.c = tckitm.purchase or tdrom901.kitm.c = tckitm.manufacture)<br />
+			or :incl.cost = tcyesno.yes)<br />
+		group by tdrom901.cpcl.c</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">22nd September 2003, 12:07</div></div><div class="posttext">Current code:<br />
+Determine condition tdrom901.cpcl.c<br />
+Select subset from index1<br />
+then for each member determine the condition tdrom901.cpcl.c meets the group-by condition. if not discard, if so, select.<br />
+<br />
+Proposed code: (add extra index)<br />
+Select all based upon (ordered) tdrom901.cpcl.c/index1 index:<br />
+now all recods may be easlily grouped by the first indexfield because it is ordered with that index. (you should add the order by index X/field tdrom901.cpcl.c to actually use your new index)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">22nd September 2003, 12:28</div></div><div class="posttext">- Is the first time where it takes long 'unusual' and from the second time on the 'usual' or is the first time the normal time it takes, and for some reason afterwards goes faster?<br />
+<br />
+Are you saying that the time it should take is the time it takes the first time opening the session with the given selection? Is it normal that 'group by' will take that long??<br />
+<br />
+I'm sorry, but I still don't understand what you are suggesting me to do. Can you please give a little example of what you mean? Tia!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">22nd September 2003, 12:49</div></div><div class="posttext">I do not know what your current indices on the table are.<br />
+Assume you indeed use Level 2 driver (which evaluates the query and optimizes by itself).<br />
+<br />
+The database should be made as clear as possible to select the best index: <br />
+assume index 3 = tdrom901.cpcl.c, &quot;tdrom901.from.form&quot;, &quot;tdrom901.rel.field.f&quot;, &quot;tdrom901.imp.year&quot;, &quot;tdrom901.perd.f&quot;<br />
+<br />
+<br />
+	     CASE 3:<br />
+		db.retry.point()<br />
+		select	tdrom901.cpcl.c, sum(tdrom901.brom.c):sum.brom, sum(tdrom901.disc.c):sum.disc, <br />
+			sum(tdrom901.squa.c):sum.squa, sum(tdrom901.spcs.c):sum.spcs<br />
+		from 	tdrom901<br />
+		where	&quot;tdrom901.from.form&quot; = from.form<br />
+		and	&quot;tdrom901.rel.field.f&quot; inrange | or between<br />
+				:rel.field.f  and :relfield.t<br />
+		and	&quot;tdrom901.imp.year&quot; = imp.year<br />
+		and	&quot;tdrom901.perd.f&quot; inrange | or between<br />
+				:perd.f  and :perd.t<br />
+		and	&quot;dummyfieldX&quot; = &quot;&quot;	| x times<br />
+		and	(tdrom901.free.c = tcyesno.no or :incl.free = tcyesno.yes)<br />
+		and	((tdrom901.kitm.c = tckitm.purchase or tdrom901.kitm.c = tckitm.manufacture)<br />
+			or :incl.cost = tcyesno.yes)<br />
+		order by tdrom903._index3<br />
+		group by tdrom901.cpcl.c<br />
+		selectdo<br />
+			| performs some updates on other tables...<br />
+		endselect<br />
+		commit.transaction()<br />
+		break</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">22nd September 2003, 15:38</div></div><div class="posttext">Ome Luuk, as far as I know you cannot use order by AND group by at once. I also tested this now, and I receive compilation errors. The group by is 'not expected' etc.<br />
+<br />
+But anyway, I still do not understand how that shall improve my selection. The way I see it: I select a bunch of records - depending on user's selection upto 100k records - based on index fields. Without using group by this is no problem; it flies. When using group by it takes forever - upto 70 seconds for a big selection THE FIRST TIME per selection. When changing the selection criteria the performance is slow. When re-selecting a selection which was already selected, even if meanwhile the sessions have been closed, the performance is great. <br />
+<br />
+I would like to know if it is normal that the group by multiplies the fetch time by about 12-14 (i.e. it takes about 10 to 12 times more than without the group by). <br />
+<br />
+I will try to add an index with the cpcl.c as first index field, but seriously do not understand how this should enhance my performance... will let you know...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">23rd September 2003, 10:18</div></div><div class="posttext">You may leave the &quot;Order by&quot; out, but what is good to know: what index is taken to read the table.<br />
+If it is the optimized index, then that is ok,<br />
+but if you use a wrong index, after the selection of the data<br />
+it has to be resorted to be able to &quot;group by&quot;<br />
+This resorting costs a lot of time.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

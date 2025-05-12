@@ -1,0 +1,189 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Oracle partitioning, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Oracle partitioning Performance &amp; Tuning" />
+	
+	<title>Oracle partitioning [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Performance &amp; Tuning</a> &gt; Oracle partitioning</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">moreau</div><div class="date">13th March 2002, 12:50</div></div><div class="posttext">We are analysing the use of Oracle8 partitioning,<br />
+we plan to experiment it on finance table TFGLD106.......(more  than 5Gbytes on our system).The difficulties is to find the right axes for partition.<br />
+Can anybody help ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">13th March 2002, 14:12</div></div><div class="posttext">Well, I have no practical experience with partitioning myself (yet) but I think the main question here would be to determine the type of partitioning you need:<br />
+ range partitioning<br />
+ hash partioning<br />
+ composite key partitioning<br />
+Do you want to partition because of performance issues, maintenance issues, etc?<br />
+<br />
+The range - or - partition key based form would be the simplest but for that your data needs to be distributed evenly according the partition key value intervals that you choose.<br />
+<br />
+e.g. for tfgld106 the Transaction Type (o$typ) would be an obvious choice to select as partition key I guess. But are your transactions evenly distributed across the transactions types?<br />
+  1  select distinct(t$otyp) &quot;Trans. Type&quot;, count(t$otyp) &quot;# of Records&quot;<br />
+  2  from baan.ttfgld999255<br />
+  3* group by t$otyp<br />
+SQL&gt; /<br />
+Trans. Type     # of Records<br />
+--------------- ------------<br />
+ AA                     3241<br />
+001                    37076<br />
+002                     5710<br />
+004                    42258<br />
+005                    51614<br />
+016                     3102<br />
+017                     5708<br />
+018                    17114<br />
+031                      306<br />
+032                     2774<br />
+037                     7346<br />
+040                     5540<br />
+ACP                     7293<br />
+ADT                        6<br />
+ALC                      506<br />
+APR                    11131<br />
+AUP                       84<br />
+AUR                       78<br />
+CZZ                      502<br />
+CVP                       92<br />
+CVR                       67<br />
+DZZ                    24665<br />
+JMR                       14<br />
+JNL                      827<br />
+JNM                     1657<br />
+LAP                       28<br />
+MSC                     2504<br />
+MSI                      696<br />
+OPB                      402<br />
+PAP                     7196<br />
+PCR                      590<br />
+PUR                     7073<br />
+SCO                      343<br />
+SCR                     2430<br />
+SLS                    42934<br />
+SZZ                     2341<br />
+VZZ                       10<br />
+XXX                        2<br />
+<br />
+38 rows selected.<br />
+<br />
+Above results would not point to an even distribution per transaction type. Options here I think would be to base your partition key on groups of transaction types, to use a different partition key or to use hash/composite key partioning.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">moreau</div><div class="date">13th March 2002, 15:40</div></div><div class="posttext">Thanks for your quick answer.<br />
+The goal of partitioning for us is to improve performance (and optionnaly to help for maintenance).<br />
+The biggest performance problems we have are on sessions tfgld3206m000 (table tfgld106) and tfgld4201m000 (table tfgld410).<br />
+I don't think partitioning tfgld106 on Transaction Type (o$typ) would help the concerned session (and it's not an even distribution). As we are still using Oracle 8.0.5, the only type of partitioning available is range partitioning. So I thought about partitioning tfgld106 on vyer and vprd (year and period). What do you think about it?<br />
+I have no idea of how Baan access these tables for those sessions and it's the key of the problem (and of the partitioning). If you know that, I would be glad to share knowledge.<br />
+Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">13th March 2002, 16:12</div></div><div class="posttext">I don't have much knowledge in the finance area so I can't really say how these sessions work. You are right that is the key to the problem. Assuming you would take t$vyer and t$vprd as elements of your partition key then I have the following concern:<br />
+<br />
+how much of the processing that occurs in these sessions is happening in the same Tax Period and Year?<br />
+<br />
+If this is the case then the (t$vyer, t$vprd) would be a bad partition key as I/O would still be concentrated on a small group of partitions?<br />
+<br />
+I would like to hear the opinion of a finance expert on this.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zaidlaz</div><div class="date">14th March 2002, 02:02</div></div><div class="posttext">Hi,<br />
+<br />
+I'm not an expert in Finance.<br />
+I would like to know if your largest finance tables is in the same tablespace as all your other baan tables. I believe if you place these large tables in it's own tablespace without using oracle partitioning might give you a significant increase in performance. It allows you to monitor the growth of this tablespace and take necessary actions when due.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">moreau</div><div class="date">14th March 2002, 09:48</div></div><div class="posttext">To patvdv<br />
+I don't share your thoughts. For me, partitioning tfgld106 by Tax period and Year would help if the session work essentially on same periods and then on few partitions. I think it can improve performance as all others partitions would be eliminated by optimizer and also because there's no index on these columns. <br />
+Anyway, I will experiment on next weeks and actually, my point of view is only based on Oracle documentation (&quot;Partition elimination can provide remarkable performance improvements, by using range and composite partitioning in combination with predicates in WHERE clauses. This key optimization intelligently removes from consideration whole subsets of partitions that need not be examined by queries or DML operations.&quot; )<br />
+To zaidlaz<br />
+the largest table is TFGLD106 and it's alone in its tablespace. All others tables are in several tablespace (one per company). I don't know if we can do better and tha's why we want to use partitioning.<br />
+Thanks  to both of you.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">14th March 2002, 10:40</div></div><div class="posttext">Let us know the outcome of your experiments!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">phoenix</div><div class="date">14th March 2002, 11:23</div></div><div class="posttext">VERSION(S):<br />
+Oracle database<br />
+<br />
+SITUATION IDENTIFIED:<br />
+Reconfiguring tables, using session ttaad4225m000 or bdbpre6.x and bdbpost6.x, a table drop can take three hours and more for a single table of a size of about 200 MB.<br />
+<br />
+SITUATION DESCRIPTION:<br />
+The maximum number of extents for tables or indexes exceeds 20. It is recommended by ORACLE to have a maximum of 20 extents per index or table. Exceeding this number a considerable performance impact can be observed as a consequence. You find a script under point SOLUTION DESCRIPTION how to determine the number of extents for your tables and indexes. With the information from this script you can modify your ora_storage file as needed.<br />
+<br />
+1. Recalculate your new next extents: take actual size multiplied by the actual number of extents<br />
+2. Increase the extent size according to the size of the specific table.<br />
+<br />
+EXAMPLE:<br />
+Baan query shows # of extents = 112: BAANDB TTFGLD410100 Extents: 112<br />
+Current size of extent is: 64 KB<br />
+<br />
+Calculation: 112 * 64 KB = 7186 KB<br />
+<br />
+Old ora_storage:<br />
+*:*:T:group:0214:MSGSIZE:PCTFREE 5 TABLESPACE BAANDAT INITRANS 3 storage(initial 64K Next 64K)<br />
+*:*:I:group:0214:MSGSIZE:PCTFREE 5 TABLESPACE BAANIDX INITRANS 3 storage(initial 64K Next 64K)<br />
+<br />
+<br />
+Changes for new ora_storage (place the change before the * lines or they are not read):<br />
+<br />
+tfgld410:100:T:group:0214:MSGSIZE:PCTFREE 5 TABLESPACE BAANDAT INITRANS 3 storage(initial 7186K Next 10M maxextents unlimited)<br />
+<br />
+*:*:T:group:0214:MSGSIZE:PCTFREE 5 TABLESPACE BAANDAT INITRANS 3 storage(initial 64K Next 64K)<br />
+*:*:I:group:0214:MSGSIZE:PCTFREE 5 TABLESPACE BAANIDX INITRANS 3 storage(initial 64K Next 64K)<br />
+<br />
+<br />
+Be aware that the change in the ora_storage only takes effect when a table is newly created. In that moment the ora_storage is read. Nevertheless, it might be useful for your system to change your ora_storage only for the Reconfigure tables and have another ora_storage for the productive environment.<br />
+<br />
+N.B.:<br />
+The examples and indicated numbers are only meant for demonstration purpose. As all systems behave differently the actual values for your respective system(s) need to be verified on that respective system.<br />
+<br />
+SOLUTION DESCRIPTION:<br />
+<br />
+Create the following SQL statement in Oracle:<br />
+SQL&gt;<br />
+select owner, segment_name, segment_type,<br />
+count (extent_id), sum (blocks)<br />
+from dba_extents<br />
+where owner not in ('SYS, 'SYSTEM')<br />
+group by owner, segment_name, segment_type<br />
+having count (extent_id) &gt; 20 ;</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">14th March 2002, 12:14</div></div><div class="posttext">The extent issue is not a problem anymore in Oracle8</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Jeyaseelan</div><div class="date">14th March 2002, 13:21</div></div><div class="posttext">Oracle Database Clustering will help to resolve the performance related issues. Basically u can have different database clusters running for tfgld106 and tfgld410. The various clustering algorithms like nearest neighbour clustering, hierarchial clustering will help to increase performance rapidly.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gguymer</div><div class="date">5th April 2002, 20:29</div></div><div class="posttext">I have given a lot of thought to partitioning the tfgld106 table too and feel that, for us, the partition would be on FPRD (Financial Period) and FYER (Financial Year). It tends to be a consistant number of records each period. I have moved the table into its own tablespace because of its size. I'm looking forward to trying it to see how it affects performance against this table, especially for queries run against it. Right now we have 44 periods loaded in it which adds up to 17 Gig worth of data not to mention the additional space that the indexes take up on top of that.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">moreau</div><div class="date">19th April 2002, 15:50</div></div><div class="posttext">I partitioned tfgld106 and tfgld410 on FPRD and FYER (financial period and year). Results are quite poor : in some case, performance is better (up to 10% faster) but it also can be slower (up to 20%) !<br />
+Then I decided to partition the indexes of tfgld106 and results were much more interesting : all sessions were faster (from 5% to 100%) !!! <br />
+The problem is that I had to add the partitioning columns (FPTRD and FYER) at the end of each index (because for a unique index, the partitioning key must be a subset of the index key).<br />
+My problem now is that Baan administrators say that indexes cannot be changed in Baan. <br />
+Is it true ? What sort of risks we run if we change indexes ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Jeff Henslee</div><div class="date">15th February 2006, 18:40</div></div><div class="posttext">I was reading this older line of questinion on Oracle Partitioning.  What was your final outcome from partitioning oracle tables?  How did you address the partition with the multiple indexes defined in Baan in relation to your partitions?  This part is a little 'fuzzy' for me.  I'm experimenting with creating partitions on some of our larger tables.<br />
+<br />
+Please advise.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

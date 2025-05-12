@@ -1,0 +1,183 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Count / control number of fields (delimiters) in asci file, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Count / control number of fields (delimiters) in asci file Tools Development" />
+	
+	<title>Count / control number of fields (delimiters) in asci file [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Count / control number of fields (delimiters) in asci file</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">11th August 2012, 11:37</div></div><div class="posttext">Hi<br />
+<br />
+I'm trying to ensure that the file being imported (3gl... not using exchange) has the correct number of fields per record/string (there should only be 3 in this instance)<br />
+<br />
+Is there a simple way to count the number of decimals ?  I cant find such a function.  String scan works for this purpose but only if the numer of fields is less than 3.  If number of fields in the asci file (for the specific record) is greater than 3 it simply concats the last field (in this case # 3) with the extra fields (incl the delimter/s).  So the third delimiter is ignored.<br />
+<br />
+example:<br />
+file should contain 3 fields (seperated by 2 delimiters)<br />
+if the record has 4 fields (and 3 delimiters) e.g.<br />
+X|Y|Z|1  <br />
+then string.scan returns<br />
+Field 1  =  &quot;X&quot;<br />
+Field 2  =  &quot;Y&quot;<br />
+Field 3  =  &quot;Z|1&quot;<br />
+<br />
+What I want is an error stating something like &quot;number of fields in file is incorrect&quot;<br />
+<br />
+One would assume that a simple function should exist, which, could count the number of delimiters in a string.  This would be a simple fix to my problem.  Does this function exist or do I need some funky work around?<br />
+<br />
+Your input appreciated<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th August 2012, 23:04</div></div><div class="posttext">Hmmm - never thought of this, but most of my scripts check for &lt;# of fields.  You can run a if pos(field 3,  &quot;|&quot;) &gt; 0 then send an error message.  I can't think of a function that counts just the separators.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">13th August 2012, 19:02</div></div><div class="posttext">You would need to write the function.<br />
+<br />
+For example, here is the one that I use - maybe write a similar one for yourself.<br />
+<br />
+<br />
+<br />
+<br />
+function extern domain tcmcs.long tccomdllzzzz.count.chars(<br />
+                domain  tcmcs.s999      i.string.c,<br />
+                domain  tcmcs.long      i.string.length.c,<br />
+                        string          i.separator.char.c)<br />
+{<br />
+        domain  tcmcs.long      p.posn.c<br />
+        domain  tcmcs.long      p.chars.c<br />
+<br />
+        p.posn.c = 0<br />
+        p.chars.c = 0<br />
+<br />
+        p.posn.c = p.posn.c + 1<br />
+        while p.posn.c &lt;= i.string.length.c<br />
+            if  i.string.c(p.posn.c;1) = i.separator.char.c<br />
+            then<br />
+                p.chars.c = p.chars.c + 1<br />
+            endif<br />
+            p.posn.c = p.posn.c + 1<br />
+        endwhile<br />
+<br />
+        return(p.chars.c)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">14th August 2012, 16:41</div></div><div class="posttext">Hi,<br />
+<br />
+here is my usual solution:<br />
+<br />
+<br />
+     string  fields(50, 10)<br />
+     long    number.of.fields<br />
+     string  record.string(200)<br />
+<br />
+     ....<br />
+     <br />
+     number.of.fields = string.scan( record.string,<br />
+                    &quot;%s|%s|%s|%s|%s|%s|%s|%s|%s|%s&quot;,<br />
+                    fields(1,1), fields(1,2),.....)<br />
+     if number.of.field = expected then<br />
+                   long.var1 = lval( fields(1,1))<br />
+                   stringvar = trim$(fields(1,2))<br />
+                   etc....<br />
+     else<br />
+               |give error<br />
+     endif<br />
+     .....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">16th August 2012, 21:12</div></div><div class="posttext">Depending on the level of your tools, you can use a repeat/until loop and the 'pos()' call.  You will know if your tools set does not support the offset in POS if you get a 'too manu arguments' error during compile.  In LN, you have to set the TIV on the script to at least the base for the version (FP).<br />
+<br />
+<br />
+<br />
+        | 'delimit.count' is the number of 'delimeter' characters in<br />
+        | the 'buffer' string.<br />
+<br />
+delimit.count = 0<br />
+mypos = 1    | Start search at character #1<br />
+repeat<br />
+    mypos = pos(buffer, delimiter, mypos)<br />
+    if (mypos &gt; 0) then<br />
+           | Delimiter located, count it.<br />
+        delimit.count = delimit.count + 1<br />
+<br />
+           | Advance start position of next search, avoiding overflow<br />
+           | when the last character of the string is a delimiter. <br />
+        mypos = (mypos &lt; len(buffer)) ? mypos + 1 : 0<br />
+    endif<br />
+until mypos = 0<br />
+<br />
+<br />
+This method doesn't limit your search by number of expected characters (which you have to do in string.scan) and can be used for characters other than delimiters to determine numbers or special characters in a string.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Pieter van de L</div><div class="date">18th August 2012, 15:12</div></div><div class="posttext">Why not use the function stringscan$() then you can extract all the data from the imput string and at the same time check the number of fields.<br />
+<br />
+Regards,<br />
+<br />
+Pieter</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">20th August 2012, 14:49</div></div><div class="posttext">Why not use the function stringscan$() then you can extract all the data from the imput string and at the same time check the number of fields.<br />
+<br />
+Regards,<br />
+<br />
+Pieter<br />
+<br />
+Can use string.scan when you have a maximum number of fields that you will be expecting since the mask string is fixed, based on the number of fields between the delimiters.  In the example that I provided, I could have none, one or a hundred instances of a delimiter/character.  This way doesn't depend on the number of characters/delimiters in the mask.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sareen.sachin02</div><div class="date">29th August 2012, 13:10</div></div><div class="posttext">You can use String.scan function for this. We can add as many strings as we want <br />
+<br />
+Like <br />
+ret.num = string.scan(rec,&quot;%s,%s,%d,%d,%s,%s,%s,%f,%f,%s&quot;,mitm,opro,opno,seqn,tano,cwoc,tano.n,rutm.n,prte.n,exin.n)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">29th August 2012, 14:36</div></div><div class="posttext">You can use String.scan function for this. We can add as many strings as we want <br />
+<br />
+Like <br />
+ret.num = string.scan(rec,&quot;%s,%s,%d,%d,%s,%s,%s,%f,%f,%s&quot;,mitm,opro,opno,seqn,tano,cwoc,tano.n,rutm.n,prte.n,exin.n)<br />
+<br />
+That is not the issue - in this case he wants to confirm that only x number of fields are read.  So for example if your record contains a,b,c - when you do ret.num=string.scan(rec,&quot;%s,%s&quot;, field1, field2), you get field1 containing a and field2 containing b,c.  He was wanting to know if there were more fields than expected.  In this case string.scan returns 2 in ret.num, but robert was wanting a way to get 3.  So string.scan does not work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Amit_Jain</div><div class="date">30th August 2012, 06:30</div></div><div class="posttext">Hi Mark/Robertp<br />
+<br />
+Taking Mark's example <br />
+<br />
+if your record contains a,b,c - when you do ret.num=string.scan(rec,&quot;%s,%s&quot;, field1, field2), you get field1 containing a and field2 containing b,c. <br />
+<br />
+I would suggest you use string.scan as follows<br />
+<br />
+ret.num=string.scan(rec,&quot;%s,%s,%s&quot;, field1, field2, field3) (Add 1 field more than you expect in the input string 'rec')<br />
+<br />
+Now if ret.num contains 2 then you can be sure that 'rec' contains 2 fields and if ret.num contains 3 then certainly 'rec' contain more fields then actually required<br />
+<br />
+I accept this is not a perfect solution and it would be better if you use solution provided by 'Baaninohio' but this is an quick n easy fix for your situation</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">30th August 2012, 14:49</div></div><div class="posttext">Good solution Amit.  In my case this would have worked good if I had coded it that way to start.  What I noticed when creating some of my | or , delimited files sometimes excel tosses on extra ,'s at the end.  So I usually just pull up an editor and do a replace.  I am not sure how our users manager to create some of these files. :)<br />
+<br />
+Baaninohio is good also - just more coding.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">4th September 2012, 15:44</div></div><div class="posttext">Thanks for the help folks. I'l try the different options.<br />
+<br />
+Cheers</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

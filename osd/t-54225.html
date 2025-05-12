@@ -1,0 +1,104 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="baan hangs on sql statements, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] baan hangs on sql statements Operating Systems &amp; Databases" />
+	
+	<title>baan hangs on sql statements [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; baan hangs on sql statements</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">merian</div><div class="date">7th November 2008, 13:31</div></div><div class="posttext">hello<br />
+we are having a problem with baan performance. diferent sessions hangs and the performance of baan system is very poor. the oracle server procesor is 0% and with the debugger we see the execution stopped on select statements. if you make the same query in sql-plus, the processor activity increase and the query is executed in sql, but in baan the execution of the session stays stucked at the select. <br />
+the oracle statistics are good, and oracle people has looked at the system with no result. our porting set is 6.01.07.03.<br />
+db_resource:<br />
+<br />
+#dbsinit:01<br />
+dbsinit:021<br />
+ora_column_format:7<br />
+ora_init:0101000<br />
+rds_full:2<br />
+ora_max_array_fetch:2<br />
+ora_max_array_insert:2<br />
+lock_retry:0<br />
+<br />
+when the processes number decreases the system start to respond normally. we might be reaching some kind of limitation but we don't know wich one. as an example: the sales integration to finance goes like that: first n invoices takes 20-30 minutes per invoice to be integrated, from a moment on the system respond and the rest n invoices are done 10 per minute or so.<br />
+<br />
+any idea about the way of investigate this?<br />
+<br />
+thanks in advance.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">7th November 2008, 14:08</div></div><div class="posttext">Is it a general problem or session related? When did this start to happen?<br />
+<br />
+If it's session related:<br />
+1. use TT_SQL_TRACE=0200 to find the slow query (or use ORAPROF=1.0 )<br />
+2. use SQL_TRACE=true and tkprof to find the slow query from the oracle side.<br />
+<br />
+There is a solution avaliable which describes important oracle settings. Are you aware of that solution?<br />
+<br />
+Regards,<br />
+Han</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">merian</div><div class="date">10th November 2008, 10:38</div></div><div class="posttext">It is a general problem, but it gets worse when there are active sessions with heavy sql. the problem is that oracle is apparently &quot;not aware&quot; that there is requests to the data base and the processor is 0% executing. when it starts to work normally the processor increases its activity significantly.<br />
+we were having a look to baan solution nr 166049 and we changed db_resource parameters but it was worse (we had ora_max_array_insert:2 and we changed 1 and we put baan_oracle_prefetch:2) we didn't try hidden oracle parameters, that's next test.<br />
+we have recently growed  a lot in company numbers, so it seems that we have something to enlarge but memory, space, everything seems to be much more than enough.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">11th November 2008, 01:19</div></div><div class="posttext">If you're on Oracle 7 as your profile says you shouldn't touch solution #166049.<br />
+<br />
+you may be hitting some high end limitations as far as # of objects in the DB if you've &quot;increased the # of companies&quot; significantly. <br />
+<br />
+Keep in mind that each Company brings with it ~2200 tables and each table has at least 1 index and possibly more. <br />
+<br />
+Oracle 7 doesn't work well with large numbers of objects in your system. If you've got 10k objects then oracle will show a marked degradation in performance.<br />
+<br />
+You could try to<br />
+<br />
+1. Split your companies across multiple databases<br />
+2. Upgrade to 10g (still not great,  but you can have more objects)<br />
+<br />
+<br />
+You should also check your oracle alert logs and trace files as well as do some DB monitoring for Locking issues, etc.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">merian</div><div class="date">11th November 2008, 10:33</div></div><div class="posttext">Sorry Dave,<br />
+My profile was not updated, (it is ok now) we use oracle 9 and windows 2003 server.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">11th November 2008, 14:25</div></div><div class="posttext">we have recently growed  a lot in company numbers, so it seems that we have something to enlarge but memory, space, everything seems to be much more than enough.<br />
+<br />
+True every new company creates about 2500+ tables . We found a way to this by sharing logical tables for all modules  like tp , tr , ts etc which we dont use . And then new tables created for us  are hardly 400 (lot of which are customized .) <br />
+<br />
+So u too can do this . Delete all the tables of newly created companies  after taking appropriate backups . Share tables in ttaad4120m000 , convert to runtime , restart baan and create tables again for those companies . This will reduce the substantial overhead from shared memory and baan logic service will be able to respond very fast giving very much better throughput .<br />
+<br />
+PS - If u dont know which tables to share better consult ur functional expert before doing so .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">merian</div><div class="date">12th November 2008, 10:19</div></div><div class="posttext">we have changed ora_storage parameter (..\baan\lib\ora\ora_storage)<br />
+it was:<br />
+*:*:T:group:0214:MSGSIZE:PCTFREE 5 TABLESPACE BAANDB INITRANS 3 <br />
+*:*:I:group:014:MSGSIZE:PCTFREE 5 TABLESPACE BAANIDX INITRANS 3 <br />
+<br />
+now it is :<br />
+*:*:T:group:0214:MSGSIZE:PCTFREE 5 TABLESPACE BAANDB INITRANS 3 <br />
+*:*:I:group:0214:MSGSIZE:PCTFREE 5 TABLESPACE BAANIDX INITRANS 3 <br />
+<br />
+and the performance improved significantly.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

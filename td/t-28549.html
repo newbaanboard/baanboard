@@ -1,0 +1,114 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Adding text using the APIs, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Adding text using the APIs Tools Development" />
+	
+	<title>Adding text using the APIs [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Adding text using the APIs</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Troy M</div><div class="date">31st October 2006, 17:11</div></div><div class="posttext">I'm working on an API that loads data from a flat file and creates Purchase Orders.  It works fine, and includes header code as follows:<br />
+<br />
+	stpapi.put.field( &quot;tdpur4100s000&quot;, &quot;tdpur400.otbp&quot;, otbp)<br />
+	stpapi.put.field( &quot;tdpur4100s000&quot;, &quot;tdpur400.cofc&quot;, cofc)<br />
+	stpapi.put.field( &quot;tdpur4100s000&quot;, &quot;tdpur400.cotp&quot;, &quot;030&quot;)<br />
+	stpapi.put.field( &quot;tdpur4100s000&quot;, &quot;tdpur400.refa&quot;, refa)<br />
+	stpapi.put.field( &quot;tdpur4100s000&quot;, &quot;tdpur400.refb&quot;, refb)<br />
+	stpapi.put.field( &quot;tdpur4100s000&quot;, &quot;tdpur400.ddat&quot;, str$(ddat))<br />
+	stpapi.put.field( &quot;tdpur4100s000&quot;, &quot;tdpur400.cadr&quot;, cadr)<br />
+<br />
+However, we need to include text data for the &quot;header text&quot; and &quot;footer text&quot; in session Purchase Order Headers (tdpur4100s000).  Does anyone know how to use the APIs to add text?  The data appears to go to table ttttxt010610, but the popup box for adding the text doesn't seem to behave like a regular session.<br />
+<br />
+Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">31st October 2006, 17:36</div></div><div class="posttext">You cannot add text with API's, last I checked anyway.  It cannot control the Editors, etc, like it can a normal Baan session.<br />
+However, there not much validation or need for API's in text as there would be when calling session logic.   Just select the record and use the standard Text functions to do the work.<br />
+<br />
+http://www.baanboard.com/programmers_manual_baanerp_help_functions_text_fields_synopsis</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Troy M</div><div class="date">31st October 2006, 19:07</div></div><div class="posttext">Great, thanks for the information.  I've done a search on text.write and found some useful examples on the baanboard.<br />
+<br />
+Here's the completed function (relies on variables set elsewhere in the script).<br />
+<br />
+Troy<br />
+<br />
+function addPurchaseOrderHeaderText()<br />
+{<br />
+<br />
+	text_field = &quot;tdpur400.txta&quot;<br />
+	lang = &quot;2&quot;<br />
+	kw1 = &quot;Purchase.&quot;<br />
+	kw2 = &quot;Purchase.&quot;<br />
+	tgroup = &quot;purchase&quot;<br />
+	edit_opt = &quot;&quot;<br />
+	tmp_file = importDirectoryName &amp; &quot;\&quot; &amp; headerFileName<br />
+<br />
+	long fileStat<br />
+	long fileSize<br />
+<br />
+	fileStat = file.stat(tmp_file, fileSize)<br />
+<br />
+	if fileStat &lt;&gt; 0 then<br />
+		writeLog(&quot;Unable to write header text for PO &quot; &amp; orno &amp; &quot;. File not found: &quot; &amp; tmp_file &amp; &quot;.&quot;)<br />
+		missingTextFiles = missingTextFiles + 1<br />
+	else<br />
+		<br />
+		|rename the file as busy<br />
+		returnVal = file.mv (tmp_file, tmp_file &amp; &quot;.busy&quot;)<br />
+		<br />
+		|load the text from the file<br />
+		db.retry.point()<br />
+		select	tdpur400.*<br />
+		from	tdpur400 for update<br />
+		where	tdpur400._index1 = {:orno}<br />
+		selectdo<br />
+	<br />
+			kw3 = tdpur400.orno<br />
+			kw4 = tdpur400.refa<br />
+	<br />
+			if tdpur400.txta = 0 then<br />
+	<br />
+				returnVal = text.write( text_field, lang, kw1, <br />
+				kw2, kw3, kw4, tgroup, edit_opt, tmp_file &amp; &quot;.busy&quot;)<br />
+			else<br />
+		<br />
+				returnVal = text.rewrite( text_field, lang, kw1, <br />
+				kw2, kw3, kw4, tgroup, edit_opt, tmp_file &amp; &quot;.busy&quot;)<br />
+			endif<br />
+			db.update(ttdpur400, db.retry)<br />
+		endselect<br />
+	<br />
+		commit.transaction()<br />
+<br />
+		|assign original filename and move to archive<br />
+		returnVal = file.mv (tmp_file &amp; &quot;.busy&quot;, archiveDirectoryName &amp; &quot;\&quot; &amp; headerFileName)<br />
+<br />
+		|update file counts<br />
+		textFilesProcessed = textFilesProcessed + 1<br />
+		filesNotProcessed = filesNotProcessed - 1<br />
+<br />
+	endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jvranckx</div><div class="date">2nd November 2006, 12:46</div></div><div class="posttext">you have to include the statement :<br />
+ 	#include &lt;bic_text&gt;<br />
+<br />
+in your script. Then you have access to all the text.xxxx functions as per 4GL functions manual pages. Use these functions to create, retrieve.... texts. Use the API to store, retrieve the textnumbers.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

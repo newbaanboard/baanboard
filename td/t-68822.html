@@ -1,0 +1,170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="sorting on a non-indexed field at session start, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] sorting on a non-indexed field at session start Tools Development" />
+	
+	<title>sorting on a non-indexed field at session start [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; sorting on a non-indexed field at session start</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">VishalMistry</div><div class="date">21st April 2016, 14:41</div></div><div class="posttext">Hi all,<br />
+<br />
+Whenever a session starts, i want the records to be sorted on a particular field which is not part of any index.<br />
+<br />
+This is in Baan IVc4 and I tried to.key but no luck as it resulted in fatal error. <br />
+<br />
+Anybody can guide ?<br />
+<br />
+Vishal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st April 2016, 15:15</div></div><div class="posttext">The only way I know how to do this is to control every step of a program - that means when they come into the session you run a query to get the initial records, then if they hit next record you run another query to get the next record.  I have only done this once and I do not recommend it.  In my case it was not because of the sort order - but because of the data on the session they wanted.  You are better off adding a new index.<br />
+Below are some snipped lines of code just show the agony of what I had to go thru. Maybe someone else has something better for 4c4.<br />
+<br />
+choice.prev.view:<br />
+before.choice:<br />
+	hold.orno = tipgc521.orno<br />
+<br />
+after.choice:<br />
+| Check the filters for the records.<br />
+	if(filter.set) then<br />
+		record_event = 3<br />
+		get_record()<br />
+		execute(find.data)<br />
+	endif<br />
+	execute(first.set)<br />
+	get_pgc520_record()<br />
+	display.all()<br />
+<br />
+choice.last.view:<br />
+after.choice:<br />
+	hold.orno = tipgc521.orno<br />
+| Check the filters for the records.<br />
+	if(filter.set) then<br />
+		record_event = 4<br />
+		get_record()<br />
+		execute(find.data)<br />
+	endif<br />
+	get_pgc520_record()<br />
+	display.all()<br />
+<br />
+unction get_record()<br />
+{<br />
+	domain	tcbool	record.found<br />
+	domain	tcorno	original.order<br />
+		long	sql_id<br />
+<br />
+| Use record.found to make sure a record is found.<br />
+	record.found   = false<br />
+	original.order = tipgc521.orno<br />
+<br />
+| Find all records greater than current record.  Run through them<br />
+| looking for the first order that matches all filters.<br />
+| Use the &gt;= sign because by the time this routine is called the main program <br />
+| has increased the order number.<br />
+	build_sql_query()<br />
+<br />
+| Setup the query<br />
+	sql_id = sql.parse(sql_query)<br />
+<br />
+| Bind the variables.<br />
+	sql.where.bind(sql_id,1,original.order)<br />
+	sql.where.bind(sql_id,2,ccot.filter)<br />
+	sql.where.bind(sql_id,3,item.filter)<br />
+	sql.where.bind(sql_id,4,suno.filter)<br />
+	sql.where.bind(sql_id,5,buyr.filter)<br />
+| Execute the query.<br />
+	sql.exec(sql_id)<br />
+	<br />
+| Fetch the first record.<br />
+	e = sql.fetch(sql_id)<br />
+	if e = 0 then<br />
+		record.found = true<br />
+	else<br />
+		message(&quot;No more records.&quot;)<br />
+		select	tipgc521.*<br />
+		from	tipgc521<br />
+		where	tipgc521.orno = :hold.orno<br />
+		as set with 1 rows<br />
+		selectdo<br />
+		endselect<br />
+	endif<br />
+	sql.close(sql_id)<br />
+	<br />
+}<br />
+|******************************************************************************<br />
+| Function to build the sql<br />
+|******************************************************************************<br />
+function build_sql_query()<br />
+{<br />
+| Same for all queries<br />
+	sql_query =<br />
+	&quot;select tipgc520.*, tipgc521.* &quot; &amp;<br />
+	&quot;from tipgc520,tipgc521 &quot; <br />
+<br />
+	on case record_event<br />
+		case 1: 		| First record<br />
+ 	        case 4:			| Last record<br />
+			sql_query = sql_query &amp;&quot;where tipgc521.orno = tipgc520.orno &quot; <br />
+			break<br />
+		case 2:			| Next record<br />
+			sql_query = sql_query &amp;&quot;where tipgc520.orno &gt;= :1 &quot; &amp;<br />
+			&quot;and tipgc521.orno = tipgc520.orno &quot; <br />
+			break<br />
+		case 3:<br />
+			sql_query = sql_query &amp;&quot;where tipgc520.orno &lt;= :1 &quot; &amp;<br />
+			&quot;and tipgc521.orno = tipgc520.orno &quot; <br />
+			break<br />
+	endcase<br />
+	if(ccot.filter&lt;&gt;&quot;&quot;) then<br />
+		sql_query = sql_query &amp; &quot;and tipgc520.ccot = :2 &quot;<br />
+	endif<br />
+	if(item.filter&lt;&gt;&quot;&quot;) then<br />
+		sql_query = sql_query &amp; &quot;and tipgc520.item = :3 &quot;<br />
+	endif<br />
+	if(suno.filter&lt;&gt;&quot;&quot;) then<br />
+		sql_query = sql_query &amp; &quot;and tipgc520.suno = :4 &quot;<br />
+	endif<br />
+	if(buyr.filter&lt;&gt;0) then<br />
+		sql_query = sql_query &amp; &quot;and tipgc520.buyr = :5 &quot;<br />
+	endif<br />
+<br />
+	on case record_event<br />
+		case 1: 	| First record<br />
+			sql_query = sql_query &amp; &quot;order by tipgc520.orno asc &quot;<br />
+			sql_query = sql_query &amp; &quot;as set with 1 rows &quot;<br />
+			break<br />
+		case 2:		| Next record<br />
+			break<br />
+		case 3:		| Previous record<br />
+			sql_query = sql_query &amp; &quot;order by tipgc521.orno desc&quot;<br />
+			break<br />
+		case 4:		| Last record<br />
+			sql_query = sql_query &amp; &quot;order by tipgc520.orno desc &quot;<br />
+			sql_query = sql_query &amp; &quot;as set with 1 rows &quot;<br />
+			break<br />
+	endcase<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">22nd April 2016, 16:49</div></div><div class="posttext">May be query.extend.order can help , not sure if it works for baan 4<br />
+<br />
+http://www.baanboard.com/baanboard/showthread.php?t=58863</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th April 2016, 16:01</div></div><div class="posttext">As far as I know query.extend type functions do not work in 4c4.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

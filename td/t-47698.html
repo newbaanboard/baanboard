@@ -1,0 +1,148 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="alias and &quot;where exists&quot;, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] alias and &quot;where exists&quot; Tools Development" />
+	
+	<title>alias and &quot;where exists&quot; [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; alias and &quot;where exists&quot;</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">4th February 2008, 17:42</div></div><div class="posttext">I have to search a table in a certain time range and group the result.<br />
+Then I have to check if there exist records with the same conditions<br />
+&quot;before&quot; the selected time range.<br />
+I that isn't the case, I have to send one record of the group, now with all fields, to a report.<br />
+<br />
+I did that, like in the example below. I seems to work. But I'm not<br />
+sure if I should (or have to) use alias variables in the three selects??<br />
+<br />
+<br />
+select   a.field1, a.field2   |select 1<br />
+from     a<br />
+where    a.time inrange :date.f and :date.t<br />
+and not exists(<br />
+            select a.*        |select 2<br />
+            from  table a<br />
+            where a.field1 = :a.field1<br />
+            and   a.field2 = :a.field2<br />
+            and   a.time &lt; :date.f<br />
+<br />
+)<br />
+group by a.field1, a.field2<br />
+sort by a.field1, a.field2<br />
+selectdo<br />
+   select a.*     |select 3<br />
+   from   a<br />
+   where  a.field1 = :a.field1<br />
+   and    a.field2 = :a.field2<br />
+   and    a.time inrange :date.f and :date.t<br />
+   selectdo<br />
+   endselect<br />
+   as set with 1 rows<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th February 2008, 20:09</div></div><div class="posttext">I won't speak for others, but I usually have one query with the table names.  Depending on the situation if it is an outer query or one of the inner queries.  In this case I do not see a problem with using alias in all the queries - if it works then use it. :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">5th February 2008, 10:56</div></div><div class="posttext">Hi Mark,<br />
+<br />
+I'm so sorry. I fear I confused with my example the whole thing. Because I tried to save some typing I used a.field1 and a.field2 just for a real &lt;table.field&gt; name NOT AS AN ALIAS. I also removed some logic with should not be relevant.<br />
+<br />
+Below is the real code now, forget the first example!!<br />
+ The question should be: is ist OK to use no aliases all?<br />
+<br />
+<br />
+	select tdpur451.orno, tdpur451.pono<br />
+	from	tdpur451<br />
+	where	tdpur451.trdt inrange :odat.f and :odat.t	<br />
+	and		tdpur451.otbp inrange :otbp.f and :otbp.t	<br />
+	and   tdpur451.cotp.c &lt;&gt; &quot;PR1&quot;									        and		tdpur451.sqnb = 0	<br />
+	and		tdpur451.ckor = tdsls.ckor.cancellation<br />
+	and		tdpur451._compnr = :abmda250.ncmp<br />
+	and not exists (<br />
+		select 	tdpur451.*<br />
+		from		tdpur451<br />
+		where	tdpur451.trdt &lt; :odat.f <br />
+		and		tdpur451.orno = :tdpur451.orno<br />
+		and		tdpur451.pono = :tdpur451.pono<br />
+		and		tdpur451.otbp inrange :otbp.f and :otbp.t<br />
+		and   tdpur451.cotp.c &lt;&gt; &quot;PR1&quot;									|ohne Rücklieferungen<br />
+		and		tdpur451.sqnb = 0													|nur Folgenummer 0<br />
+		and		tdpur451.ckor = tdsls.ckor.cancellation <br />
+		and		tdpur451._compnr = :abmda250.ncmp<br />
+	)<br />
+	group by tdpur451.orno, tdpur451.pono<br />
+	order by tdpur451.orno, tdpur451.pono<br />
+	selectdo<br />
+		select	tdpur451.*<br />
+		from		tdpur451<br />
+		where	tdpur451.trdt inrange :odat.f and :odat.t<br />
+		and		tdpur451.otbp inrange :otbp.f and :otbp.t<br />
+		and   tdpur451.cotp.c &lt;&gt; &quot;PR1&quot;<br />
+		and		tdpur451.sqnb = 0<br />
+		and		tdpur451.ckor = tdsls.ckor.cancellation<br />
+		and		tdpur451._index1 = :tdpur451.orno,:tdpur451.pono}<br />
+		and		tdpur451._compnr = :abmda250.ncmp<br />
+		as set with 1 rows<br />
+		selectdo<br />
+			if write.header = tcyesno.yes then<br />
+					write.header = tcyesno.no<br />
+					write.column.heading.invoice() 	<br />
+			endif		<br />
+			write.buffer.invoice()				<br />
+		endselect<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th February 2008, 16:02</div></div><div class="posttext">To me the inner select looks like it might cause a problem - I do not know that for a fact.  All I recall is that I had one program that worked initially then had a problem in production.  I traced it to a spot where the outer query retrieved a set of records, then the inner query interferred with it.  From that point forward I pretty much use aliases for queries on the same table - so in this case I would use an alias on the tdpur951 table inside the selectdo.  In this case out of habit I would use an alias, especially if I did not have to report on the table fields.<br />
+<br />
+The other solution I have used is storing off the record buffer from the outer query, then reset it with db.eq - like below.  In this case the determine.prorate routine writes a bunch of tpppc210 records based off the prorate table.  In other words 1 cost record prorates to a bunch of other projects.<br />
+<br />
+	record.len = 0<br />
+	free.mem(record.buf)<br />
+	select	tpppc210.*<br />
+	from	tpppc210 <br />
+	where	tpppc210._index6 inrange {:cprj.f, :cspa.f} and {:cprj.t, :cspa.t}<br />
+	and	tpppc210.ltdt inrange :date.f and :date.t<br />
+	and	tpppc210.cfpo = tppdm.yeno.no<br />
+	selectdo<br />
+		if checklogin(tpppc210.loco) then<br />
+			continue<br />
+		endif<br />
+		store.tpppc210.record.buffer()<br />
+		if determine.prorate(tpppc210.cprj,<br />
+					tpppc210.cspa,<br />
+					tpppc210.sern,<br />
+					tpppc210.item,<br />
+					tpppc210.quan,<br />
+					tpppc210.pric,<br />
+					tpppc210.amoc,<br />
+					0.0,<br />
+					0.0,<br />
+					tpppc210.loco,<br />
+					&quot;Mat. Comm.&quot;,<br />
+					5,<br />
+					tpppc210.ltdt) then<br />
+| Store the record and updated it as prorated.					<br />
+			rcd.ttpppc210 = record.buf<br />
+			db.eq(ttpppc210,db.lock)<br />
+			tpppc210.loco = &quot;Prorate&quot;<br />
+			db.update(ttpppc210)<br />
+			commit.transaction()<br />
+		endif<br />
+	endselect</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

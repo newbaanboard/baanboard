@@ -1,0 +1,428 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="oddball attempt, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] oddball attempt Tools Development" />
+	
+	<title>oddball attempt [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; oddball attempt</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">4th December 2003, 21:25</div></div><div class="posttext">For certain financial processing we use quite a number of interim tables and I was hoping to have a user session that would allow the finance user to clear the interim tables as they needed.  There are mulitple tables and was hoping to be able to create a library to which the table name would be handed to and then that string manipulated into a query to remove all of the records.<br />
+<br />
+This is what I would like to do (if possible)... please excuse the poor syntax, I placed listed the below as a rough example do demonstrate the logic...<br />
+<br />
+	table	ttfobg150	| Table<br />
+	<br />
+function main(string ws.table)<br />
+{<br />
+	if ask.enum(&quot;tiobg3400&quot;, empty) = tcyesno.yes then		select	ws.table &amp; &quot;.*&quot;<br />
+		from 	ws.table for update<br />
+		selectdo<br />
+			db.delete(ws.table, db.retry)<br />
+			commit.transaction()<br />
+		endselect<br />
+	else	<br />
+		choice.again()<br />
+	endif			<br />
+}<br />
+<br />
+If this was truely all that I was going to do I would just re-use the customized select statement under different form buttons, but there are other things and I was trying to streamline the coding and only have one place to make any changes in future processes.<br />
+<br />
+Any suggestions would be greatly appreciated!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th December 2003, 22:16</div></div><div class="posttext">Could you possibly use dynamic sql to do what you are talking about?  Sample below I used for something else.<br />
+<br />
+Mark<br />
+<br />
+<br />
+<br />
+function double count_table_rows()<br />
+{<br />
+	string		sql(120)<br />
+	long		sql_id<br />
+	double		rows<br />
+<br />
+	<br />
+	rows = 0<br />
+	error.bypass = 1<br />
+	sql = &quot;select count(*):1 from &quot; &amp; table.name<br />
+	sql_id = sql.parse(sql)<br />
+	if sql_id&lt;&gt;0 then<br />
+		sql.select.bind(sql_id, 1, rows)<br />
+		sql.exec(sql_id)<br />
+		while true<br />
+			on case sql.fetch(sql_id)<br />
+				case eendfile:<br />
+					break<br />
+				case 0:<br />
+					break<br />
+				default:<br />
+			endcase<br />
+			break<br />
+		endwhile<br />
+		sql.break(sql_id)<br />
+		sql.close(sql_id)<br />
+	endif<br />
+	error.bypass = 0<br />
+	return(rows)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">4th December 2003, 22:33</div></div><div class="posttext">I'll definately take a look into it.  I never have used dynamic sql before so as soon as I finish my current project, I'll take a look.<br />
+<br />
+Once again, I am indebted to you.  Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">4th December 2003, 23:18</div></div><div class="posttext">You can make a simple function in a DLL - clear.table.data() with a tablename and company parameters using tools functions - <br />
+<br />
+db.clear.table()  (http://www.baanboard.com/programmers_manual_baanerp_help_functions_db_operations_db_clear_table)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">5th December 2003, 18:44</div></div><div class="posttext">Mark, I got this far, but can't figure out how to handle the actual delete - db.delete(table,db.retry).  Any suggestions???<br />
+<br />
+NPRao... Thanks for your suggestion!  I would like to attempt it this way first as there is some additional things I'd like to do in the processing.  If it isn't possible then I will give it a shot.<br />
+<br />
+<br />
+<br />
+function extern cleartabledll(domain tcmcs.str10 ws.table)<br />
+{<br />
+	string	ws.sql(500)<br />
+	long	ws.sql.id<br />
+	double	ws.row.count<br />
+	double	ws.row<br />
+	<br />
+	ws.row.count = 0<br />
+	<br />
+	| This defines the dynamic query.<br />
+	ws.sql = &quot;select count(*):1 from &quot; &amp; ws.table	<br />
+	<br />
+	| This executes the dynamic query.<br />
+	ws.sql.id = sql.parse(ws.sql)<br />
+	<br />
+	| 0 return value for ws.sql.id indicates and error.<br />
+	if ws.sql.id &lt;&gt; 0 then	| *** Query is successful.<br />
+		sql.select.bind(ws.sql.id,1,ws.row.count)<br />
+		sql.exec(ws.sql.id)<br />
+		sql.fetch(ws.sql.id)<br />
+		sql.break(ws.sql.id)<br />
+		sql.close(ws.sql.id)<br />
+	<br />
+		|*******************************************************************<br />
+		| New dynamic query to delete records<br />
+		|*******************************************************************<br />
+		| Asks if user is sure they want to delete ws.row.count number of records.<br />
+		if ask.enum(&quot;tiobgtabledel&quot;, empty, ws.row.count) = tcyesno.yes then<br />
+		| Continue and delete records.<br />
+			| This defines the query.<br />
+			ws.sql = &quot;select &quot; &amp; ws.table &amp; &quot;.* from &quot; &amp; ws.table &amp; &quot; for update&quot; <br />
+<br />
+			| This executes the query.<br />
+			ws.sql.id = sql.parse(ws.sql)<br />
+	<br />
+			| 0 return value for ws.sql.id indicates and error.<br />
+			if ws.sql.id &lt;&gt; 0 then		<br />
+				sql.select.bind(ws.sql.id,1,ws.row)<br />
+				sql.exec(ws.sql.id)<br />
+				while (true)<br />
+					on case (sql.fetch(ws.sql.id))<br />
+						case eendfile:<br />
+							break<br />
+						case 0:<br />
+							db.delete(????????,db.retry)<br />
+							commit.transaction()<br />
+							continue<br />
+						default:<br />
+							|message(&quot;Error %d occurred&quot;, db.error)<br />
+					endcase<br />
+					break<br />
+				endwhile<br />
+				sql.break(ws.sql.id)<br />
+				sql.close(ws.sql.id)<br />
+			else<br />
+				message(&quot;Table clear failed.  Please contact IT with Library reference tiobgtabledel().&quot;)<br />
+			endif<br />
+		else<br />
+		| Do not delete records and return to function call.<br />
+			return<br />
+		endif<br />
+		|*******************************************************************<br />
+		<br />
+	else<br />
+		message(&quot;Record counting query failed.  Please contact IT with Library reference tiobgtabledel().&quot;)<br />
+	endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th December 2003, 20:52</div></div><div class="posttext">You can try this:<br />
+<br />
+table_id = db.bind(&quot;t&quot;&amp;ws.table)<br />
+<br />
+db.delete(table_id,db.retry)<br />
+<br />
+Of course in your code I do not see a db.retry.point.  Not really sure where to put that.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th January 2004, 15:56</div></div><div class="posttext">Hello Eric!<br />
+<br />
+Did you ever get this to work?  Just curious.<br />
+<br />
+Thanks<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">12th January 2004, 16:14</div></div><div class="posttext">I was able to take another look on Friday and got it fixed.  <br />
+<br />
+With many of the Financial augmentations I have done, the Finance department wants to control when data is removed from an interim table - just in case...<br />
+<br />
+Since I reused this function over and over for different tables for different financial processes, I decided to try this.<br />
+<br />
+Thanks for the help.  As always it is greatly appreciated.<br />
+<br />
+If you see any code improvements I'd like to see them, this is my first use of dynamic SQL and it is probably a little crude.<br />
+<br />
+|------------------------------------------------------------------------------<br />
+| Description:	This function clear all records in a table.  It counts all<br />
+|		records in the target table.  If records are found the function<br />
+|		prompts the user with the number of records to be deleted and <br />
+|		asks for confirmation to before continuing.  If no records are<br />
+|		found then a message warns the user and places control back <br />
+|		to the main program.<br />
+|<br />
+| Notes:	In the declarations section of the script place the following:<br />
+|<br />
+|			#pragma used dll otiobgtabledel<br />
+|<br />
+|		Call the function as:<br />
+|<br />
+|			cleartabledll(xxxxxxxx)<br />
+|		<br />
+|		where xxxxxxxx is the table name (i.e. tiobg500)<br />
+|<br />
+|****************************** FUNCTION    SECTION ***************************<br />
+<br />
+|******************************************************************************<br />
+| This function clears the tfobg150 table so it can be populated with current<br />
+| data.<br />
+|******************************************************************************<br />
+function extern cleartabledll(domain tcmcs.str10 ws.table)<br />
+{<br />
+	string	ws.sql(500)<br />
+	long	ws.sql.id<br />
+	double	ws.row.count	<br />
+	double	ws.row<br />
+	long	table_id<br />
+	<br />
+	ws.row.count = 0<br />
+	<br />
+	| This defines the dynamic query.<br />
+	ws.sql = &quot;select count(*):1 from &quot; &amp; ws.table	<br />
+	<br />
+	| This executes the dynamic query.<br />
+	ws.sql.id = sql.parse(ws.sql)<br />
+	<br />
+	| 0 return value for ws.sql.id indicates and error.<br />
+	if ws.sql.id &lt;&gt; 0 then	| *** Query is successful.<br />
+		sql.select.bind(ws.sql.id,1,ws.row.count)<br />
+		sql.exec(ws.sql.id)<br />
+		sql.fetch(ws.sql.id)<br />
+		sql.break(ws.sql.id)<br />
+		sql.close(ws.sql.id)<br />
+		<br />
+		if ws.row.count = 0 then<br />
+			message(&quot;There were no records in table to delete.&quot;)<br />
+		else<br />
+<br />
+			|*******************************************************************<br />
+			| New dynamic query to delete records<br />
+			|*******************************************************************<br />
+			if ask.enum(&quot;tiobgtabledel&quot;, empty, ws.row.count) = tcyesno.yes then<br />
+				| This table has %s record(s) that will be removed.  Are you sure you want to continue?<br />
+			| Continue and delete records.<br />
+				| This defines the query.<br />
+				ws.sql = &quot;select &quot; &amp; ws.table &amp; &quot;.* from &quot; &amp; ws.table &amp; &quot; for update&quot; <br />
+	<br />
+				| This executes the query.<br />
+				ws.sql.id = sql.parse(ws.sql)<br />
+		<br />
+				| 0 return value for ws.sql.id indicates and error.<br />
+				if ws.sql.id &lt;&gt; 0 then		<br />
+					sql.select.bind(ws.sql.id,1,ws.row)<br />
+					sql.exec(ws.sql.id)<br />
+					while (true)<br />
+						on case (sql.fetch(ws.sql.id))<br />
+							case eendfile:<br />
+								break<br />
+							case 0:<br />
+								table_id = db.bind(&quot;t&quot; &amp; ws.table)<br />
+								db.delete(table_id,db.retry)<br />
+								commit.transaction()<br />
+								continue<br />
+							default:<br />
+								|message(&quot;Error %d occurred&quot;, db.error)<br />
+								break<br />
+						endcase<br />
+						break<br />
+					endwhile<br />
+					sql.break(ws.sql.id)<br />
+					sql.close(ws.sql.id)<br />
+				else<br />
+					message(&quot;Table clear failed.  Please contact IT with Library reference tiobgtabledel().&quot;)<br />
+				endif<br />
+			else<br />
+				| Do not delete records and return to function call.<br />
+				return<br />
+			endif<br />
+			|*******************************************************************<br />
+		endif<br />
+	else<br />
+		message(&quot;Record counting query failed.  Please contact IT with Library reference tiobgtabledel().&quot;)<br />
+	endif<br />
+}<br />
+<br />
+|****************************** END    OF    SCRIPT ***************************</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th January 2004, 16:49</div></div><div class="posttext">I was just working on a program where the user wanted to stage data.  They wanted to be able to enter and save data without any error checking until they clicked a botton.  I found that I was doing a lot of coding for reference tables and also for looking up descriptions.  So I started on some generic dynamic sql routines.  This made me remember this post - I thought I would check in to see if maybe I can use the dynamic SQL piece in another program.  I have two identical routines for different where clauses - I am hoping to combine and replace it with one routine.<br />
+<br />
+Below is the error code I am playing with.  It basically skips the error checking, until some user clicks an approve button.  Then it runs through and validates the data.  It still needs some work - the last error is the one it zooms to first, so you work back to front on errors.  I would rather reverse this, but have not really looked at it. I really got tired of all those select statements surrounded by ifs in the field section. :)<br />
+<br />
+Thanks<br />
+<br />
+Mark<br />
+<br />
+<br />
+field.tppdm690.prog.a:<br />
+before.input:<br />
+	check.error.field(5)<br />
+after.display:<br />
+	get.a.description(tppdm690.prog.a, &quot;tipgc002&quot;,&quot;tipgc002.prog&quot;,&quot;tipgc002.desc&quot;)<br />
+after.input:<br />
+	get.a.description(tppdm690.prog.a, &quot;tipgc002&quot;,&quot;tipgc002.prog&quot;,&quot;tipgc002.desc&quot;)<br />
+check.input:<br />
+	check.for.errors(tppdm690.prog.a,&quot;Invalid Program.&quot;,1,5,4,&quot;tipgc002&quot;,&quot;tipgc002.prog&quot;)<br />
+<br />
+<br />
+<br />
+|******************************************************************************<br />
+| Function to check to see if this field has an error<br />
+|******************************************************************************<br />
+function check.error.field(long currentfield)<br />
+{<br />
+	if chck.input and error.field &lt;&gt; currentfield then<br />
+		attr.input = false<br />
+	else<br />
+		chck.input = false<br />
+		error.field = 0<br />
+	endif<br />
+}<br />
+|******************************************************************************<br />
+| Routine to check for errors.<br />
+|******************************************************************************<br />
+function check.for.errors(	string 	field.info(255),	| Field Information.<br />
+				string	errmsg(80),		| Error Message Used.<br />
+				long 	formnr,			| Form Number field is on.<br />
+				long 	fieldnr, 		| Field Number on form.<br />
+				long 	ref.check,		| Which valadation to use<br />
+				string	ref.table(16),		| Ref. Table name to check<br />
+				string	ref.table.field(32))	| Field to select in ref. table<br />
+{<br />
+		string		sql(120)<br />
+		long		sql_id, found<br />
+		<br />
+	if chck.input then<br />
+		on case ref.check<br />
+		case 1:  	| No validation - same as checking for empty string field.<br />
+				| Also the same as making sure enumerated fields not empty.<br />
+			break<br />
+		case 2: 	| Date Validation maybe.<br />
+			break<br />
+		case 3:		| Number Validation.  Only check to make sure they are not 0.<br />
+			if val(field.info) = 0 then<br />
+				field.info = &quot;&quot;<br />
+			endif<br />
+			break<br />
+		case 4:		| Reference table validation.<br />
+			sql = 		&quot; select &quot; &amp; strip$(ref.table.field) <br />
+			sql = sql &amp;	&quot; from   &quot; &amp; strip$(ref.table)<br />
+			sql = sql &amp; 	&quot; where  &quot; &amp; strip$(ref.table.field) &amp; &quot;=&quot; &amp; chr$(34) &amp; strip$(field.info) &amp; chr$(34)<br />
+			sql = sql &amp;     &quot; as set with 1 rows&quot;<br />
+			sql_id = sql.parse(sql)<br />
+			sql.exec(sql_id)<br />
+			found = sql.fetch(sql_id)<br />
+			if found&lt;&gt;0 then<br />
+				field.info = &quot;&quot;<br />
+			endif<br />
+			error.bypass = 0<br />
+			sql.break(sql_id)<br />
+			sql.close(sql_id)<br />
+			break<br />
+		endcase<br />
+		if isspace(field.info) then<br />
+			error.form = formnr<br />
+			error.message = errmsg<br />
+			error.field = fieldnr<br />
+		endif<br />
+	endif<br />
+}<br />
+<br />
+|******************************************************************************<br />
+| Function to get a description or data field.<br />
+|******************************************************************************<br />
+function get.a.description(	string 	field.info(255),	| Field Information.<br />
+				string	ref.table(16),		| Ref. Table name to check<br />
+				string	ref.table.field(32),	| Field to find record.<br />
+				string	ref.table.desc(32))	| Field to select in ref. table<br />
+{<br />
+	string		sql(120)<br />
+	long		sql_id, found<br />
+	sql = 		&quot; select &quot; &amp; strip$(ref.table.desc) <br />
+	sql = sql &amp;	&quot; from   &quot; &amp; strip$(ref.table)<br />
+	sql = sql &amp; 	&quot; where  &quot; &amp; strip$(ref.table.field) &amp; &quot;=&quot; &amp; chr$(34) &amp; strip$(field.info) &amp; chr$(34)<br />
+	sql = sql &amp;     &quot; as set with 1 rows&quot;<br />
+	sql_id = sql.parse(sql)<br />
+	sql.exec(sql_id)<br />
+	found = sql.fetch(sql_id)<br />
+	error.bypass = 0<br />
+	sql.break(sql_id)<br />
+	sql.close(sql_id)<br />
+	display(ref.table.desc)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th March 2004, 21:44</div></div><div class="posttext">Need some help here in the get.a.description subroutine I need to blank the table field first. So if ref.table.desc is tppdm065.desc then I need to set tppdm065.desc to spaces (tppdm065.desc=&quot;&quot;). I have been trying the expr.compile, but do not have a clue as to how to get this to work.  What is happening in the description routine is that when a record is first input, the description holds the last records description.  I need to blank this out for the user.  Any help on how to do this in this subroutine is appreciated.<br />
+<br />
+Thanks<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th March 2004, 23:01</div></div><div class="posttext">Added this before the sql command:<br />
+<br />
+<br />
+	expid = expr.compile(ref.table.desc &amp; &quot;:=&quot;&quot;&quot;&quot;&quot;)<br />
+	sql = s.expr$(expid)<br />
+	expr.free(expid)<br />
+<br />
+<br />
+Not bad only took me a couple of hours to figure it out. :)<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

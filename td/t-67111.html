@@ -1,0 +1,269 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Net weight should be negative in return sales order, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Net weight should be negative in return sales order Tools Development" />
+	
+	<title>Net weight should be negative in return sales order [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Net weight should be negative in return sales order</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Aryaraj</div><div class="date">25th November 2014, 09:23</div></div><div class="posttext">Dear Concern,<br />
+<br />
+When we generate the Print Daily Sales Report, in that report weight is not showing negative in Return sales order(Quantity, value all showing negative value) .  Weight should show negative value in return sales invoicing. Please do the needful.<br />
+<br />
+We arre using script as <br />
+<br />
+r.invoice = cisli245.ityp &amp; &quot;/&quot; &amp; str$(cisli245.idoc)			|arya<br />
+		select	sum(whinh431.ntwt):r.net.wght<br />
+		from	whinh431<br />
+		where	whinh431._index1 = {:l.shpm}<br />
+		and	whinh431.item = :cisli245.item<br />
+		as set with 1 rows<br />
+		selectdo<br />
+		selectempty<br />
+		endselect<br />
+		<br />
+			<br />
+		if double.cmp(r.net.wght,0.00,0.0001) &lt;= 0 then<br />
+			select	tcibd001.wght<br />
+			from	tcibd001<br />
+			where	tcibd001._index1 = {:cisli245.item}<br />
+			as set with 1 rows<br />
+			selectdo<br />
+				r.net.wght = tcibd001.wght * r.dqua<br />
+			selectempty<br />
+				r.net.wght = 0.00<br />
+			endselect<br />
+		endif								|arya<br />
+<br />
+		<br />
+		r.tot.ntwt = r.tot.ntwt + r.net.wght<br />
+		r.tot.dqua = r.tot.dqua + r.dqua<br />
+		r.tot.amti = r.tot.amti + r.amti<br />
+		r.tot.amth = r.tot.amth + r.amth	<br />
+<br />
+<br />
+Regards,<br />
+Arya</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">25th November 2014, 09:29</div></div><div class="posttext">Hi,<br />
+<br />
+Which field shows the weight on report? Is it tcibd001.wght?<br />
+<br />
+If yes, just add a condition in before.layout. Something like,<br />
+<br />
+if order.type = sales_return then<br />
+      tcibd001.wght = tcibd001.wght * -1<br />
+endif<br />
+<br />
+OR<br />
+<br />
+if amount_variable_is_negative then<br />
+      tcibd001.wght = tcibd001.wght * -1<br />
+endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Aryaraj</div><div class="date">25th November 2014, 11:44</div></div><div class="posttext">Dear Sir,<br />
+<br />
+Still not coming. The weight used in report is whinh431.ntwt. where to put this condition.<br />
+<br />
+<br />
+select	cisli245.ityp,<br />
+		cisli245.idoc,<br />
+		cisli245.item,<br />
+		max(cisli245.stbp):l.hold.ofbp,<br />
+		max(cisli245.ddat):r.ddat,		|arya<br />
+		max(cisli245.ctem):r.aitc,<br />
+		max(cisli245.ccur):r.ccur,<br />
+		sum(cisli245.amth(1)):r.amth,<br />
+		sum(cisli245.dqua):r.dqua,<br />
+		sum(cisli245.amti):r.amti,<br />
+		max(cisli245.shpm):l.shpm,<br />
+		max(tcibd001.citg):r.citg<br />
+	from	cisli245, tcibd001, tccom110<br />
+	where	cisli245._index2 inrange {:l.curr.comp,:i.ityp.f,:i.idoc.f} and<br />
+					 {:l.curr.comp,:i.ityp.t,:i.idoc.t}<br />
+	and	cisli245.ddat inrange {:l.inv.dt.f} and {:l.inv.dt.t}<br />
+	and	cisli245.item inrange {:i.item.f} and {:i.item.t}<br />
+	and	cisli245.stbp inrange {:i.ofbp.f} and {:i.ofbp.t}<br />
+	and	((	:i.is.aitm = tcyesno.yes and<br />
+		  	cisli245.ctem inrange {:i.aitm.f} and {:i.aitm.t}) or<br />
+		  (	:i.is.aitm = tcyesno.no))<br />
+	and	cisli245.item refers to tcibd001 unref skip<br />
+	and	tcibd001.cpln inrange {:i.cpln.f} and {:i.cpln.t}<br />
+	and	cisli245.stbp refers to tccom110 unref skip<br />
+	and	tccom110.cbrn inrange {:i.cbrn.f} and {:i.cbrn.t}<br />
+	and	tccom110.creg inrange {:i.area.f} and {:i.area.t}<br />
+	group by cisli245.ityp, cisli245.idoc, cisli245.item<br />
+	selectdo<br />
+		<br />
+		l.need.cont = false<br />
+		if isspace(cisli245.ityp) or<br />
+		   cisli245.idoc = 0 then<br />
+			continue<br />
+		endif<br />
+| <br />
+| 		if i.is.aitm = tcyesno.yes then			<br />
+| 			select	tcibd004.*<br />
+| 			from	tcibd004<br />
+| 			where	tcibd004._index1 = {ITM_CODE_SYS, :i.ofbp.f, :cisli245.item}<br />
+| 			and	tcibd004.aitc inrange {:i.aitm.f} and {:i.aitm.t}<br />
+| 			as set with 1 rows<br />
+| 			selectdo<br />
+| 			selectempty<br />
+| 				l.need.cont = true<br />
+| 			endselect<br />
+<br />
+| 			if l.need.cont then<br />
+| 				continue<br />
+| 			endif<br />
+| 		endif					<br />
+<br />
+| <br />
+		r.invoice = cisli245.ityp &amp; &quot;/&quot; &amp; str$(cisli245.idoc)			<br />
+		select	sum(whinh431.ntwt):r.net.wght<br />
+		from	whinh431<br />
+		where	whinh431._index1 = {:l.shpm}<br />
+		and	whinh431.item = :cisli245.item<br />
+		as set with 1 rows<br />
+		selectdo<br />
+		selectempty<br />
+		endselect<br />
+		<br />
+			<br />
+		if double.cmp(r.net.wght,0.00,0.0001) &lt;= 0 then<br />
+			select	tcibd001.wght<br />
+			from	tcibd001<br />
+			where	tcibd001._index1 = {:cisli245.item}<br />
+			as set with 1 rows<br />
+			selectdo<br />
+				r.net.wght = tcibd001.wght * r.dqua<br />
+				<br />
+			selectempty<br />
+				r.net.wght = 0.00<br />
+			endselect<br />
+		endif	<br />
+<br />
+| 		<br />
+		<br />
+		r.tot.ntwt = r.tot.ntwt + r.net.wght<br />
+		r.tot.dqua = r.tot.dqua + r.dqua<br />
+		r.tot.amti = r.tot.amti + r.amti<br />
+		r.tot.amth = r.tot.amth + r.amth				 |gayatri</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">25th November 2014, 11:54</div></div><div class="posttext">Try this piece of code. I am not sure though without looking at the layouts and scritps. Debugging is the best option.<br />
+<br />
+<br />
+select	cisli245.ityp,<br />
+		cisli245.idoc,<br />
+		cisli245.item,<br />
+		max(cisli245.stbp):l.hold.ofbp,<br />
+		max(cisli245.ddat):r.ddat,		|arya<br />
+		max(cisli245.ctem):r.aitc,<br />
+		max(cisli245.ccur):r.ccur,<br />
+		sum(cisli245.amth(1)):r.amth,<br />
+		sum(cisli245.dqua):r.dqua,<br />
+		sum(cisli245.amti):r.amti,<br />
+		max(cisli245.shpm):l.shpm,<br />
+		max(tcibd001.citg):r.citg<br />
+	from	cisli245, tcibd001, tccom110<br />
+	where	cisli245._index2 inrange {:l.curr.comp,:i.ityp.f,:i.idoc.f} and<br />
+					 {:l.curr.comp,:i.ityp.t,:i.idoc.t}<br />
+	and	cisli245.ddat inrange {:l.inv.dt.f} and {:l.inv.dt.t}<br />
+	and	cisli245.item inrange {:i.item.f} and {:i.item.t}<br />
+	and	cisli245.stbp inrange {:i.ofbp.f} and {:i.ofbp.t}<br />
+	and	((	:i.is.aitm = tcyesno.yes and<br />
+		  	cisli245.ctem inrange {:i.aitm.f} and {:i.aitm.t}) or<br />
+		  (	:i.is.aitm = tcyesno.no))<br />
+	and	cisli245.item refers to tcibd001 unref skip<br />
+	and	tcibd001.cpln inrange {:i.cpln.f} and {:i.cpln.t}<br />
+	and	cisli245.stbp refers to tccom110 unref skip<br />
+	and	tccom110.cbrn inrange {:i.cbrn.f} and {:i.cbrn.t}<br />
+	and	tccom110.creg inrange {:i.area.f} and {:i.area.t}<br />
+	group by cisli245.ityp, cisli245.idoc, cisli245.item<br />
+	selectdo<br />
+		<br />
+		l.need.cont = false<br />
+		if isspace(cisli245.ityp) or<br />
+		   cisli245.idoc = 0 then<br />
+			continue<br />
+		endif<br />
+| <br />
+| 		if i.is.aitm = tcyesno.yes then			<br />
+| 			select	tcibd004.*<br />
+| 			from	tcibd004<br />
+| 			where	tcibd004._index1 = {ITM_CODE_SYS, :i.ofbp.f, :cisli245.item}<br />
+| 			and	tcibd004.aitc inrange {:i.aitm.f} and {:i.aitm.t}<br />
+| 			as set with 1 rows<br />
+| 			selectdo<br />
+| 			selectempty<br />
+| 				l.need.cont = true<br />
+| 			endselect<br />
+<br />
+| 			if l.need.cont then<br />
+| 				continue<br />
+| 			endif<br />
+| 		endif					<br />
+<br />
+| <br />
+		r.invoice = cisli245.ityp &amp; &quot;/&quot; &amp; str$(cisli245.idoc)			<br />
+		select	sum(whinh431.ntwt):r.net.wght<br />
+		from	whinh431<br />
+		where	whinh431._index1 = {:l.shpm}<br />
+		and	whinh431.item = :cisli245.item<br />
+		as set with 1 rows<br />
+		selectdo<br />
+		selectempty<br />
+		endselect<br />
+		<br />
+|*****************CHANGES START**************************<br />
+		if double.cmp(r.net.wght,0.00,0.0001) = 0 then<br />
+			select	tcibd001.wght<br />
+			from	tcibd001<br />
+			where	tcibd001._index1 = {:cisli245.item}<br />
+			as set with 1 rows<br />
+			selectdo<br />
+				r.net.wght = tcibd001.wght * r.dqua<br />
+				<br />
+			selectempty<br />
+				r.net.wght = 0.00<br />
+			endselect<br />
+		endif	<br />
+<br />
+               if double.cmp(r.net.wght,0.00,0.0001) &lt; 0 then<br />
+			select	tcibd001.wght<br />
+			from	tcibd001<br />
+			where	tcibd001._index1 = {:cisli245.item}<br />
+			as set with 1 rows<br />
+			selectdo<br />
+				r.net.wght = tcibd001.wght * r.dqua<br />
+                                r.net.wght = r.net.wght * -1<br />
+				<br />
+			selectempty<br />
+				r.net.wght = 0.00<br />
+			endselect<br />
+		endif	<br />
+|********************CHANGES END**************************<br />
+| 		<br />
+		<br />
+		r.tot.ntwt = r.tot.ntwt + r.net.wght<br />
+		r.tot.dqua = r.tot.dqua + r.dqua<br />
+		r.tot.amti = r.tot.amti + r.amti<br />
+		r.tot.amth = r.tot.amth + r.amth</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

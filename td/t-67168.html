@@ -1,0 +1,83 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Price Book Price change, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Price Book Price change Tools Development" />
+	
+	<title>Price Book Price change [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Price Book Price change</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">15th December 2014, 08:25</div></div><div class="posttext">There are many wrong entries in the price books based on expiry date and effective date.<br />
+The case is if :for any price entry the one previous Expiry Date is greater than the next Effective Date then the previous Expiry Date should be update by the next (Effective Date -1).<br />
+ I have written a logic which only works for one record. I want this logic to run for more than one record.<br />
+<br />
+functions:<br />
+function read.main.table()<br />
+{       | count = 0<br />
+                select    a.pbor:pbor,a.prbk:prbk,a.item:item, count(a.efdt):count<br />
+                from      tdpcg031 a<br />
+                group by a.pbor,a.prbk, a.item<br />
+                selectdo<br />
+<br />
+|******************************	SELECT THE LAST ROW**********************************************<br />
+			select    b.exdt:expdate, b.efdt:effdate<br />
+                        from      tdpcg031 b<br />
+                        where     b._index1 = {1,&quot;100000006&quot;,:item.f}<br />
+                        order by b.exdt desc<br />
+                        as set with 1 rows<br />
+                        selectdo<br />
+                        endselect<br />
+<br />
+|********************************SELECT THE (LAST-1)TH ROW*******************************<br />
+                                <br />
+                                select    c.exdt:expdate2,c.efdt:effdate2<br />
+                                from      tdpcg031 c<br />
+                                where     c._index1 = {1,&quot;100000006&quot;,:item.f}<br />
+                                order by  c.exdt desc<br />
+                                as set with 2 rows<br />
+                                selectdo<br />
+                                endselect            <br />
+|****************************************COMPARE THE LAST TWO ROWS ****************************************<br />
+|***************************************** UPDATE (LAST-1)TH ROW IF BOTH EXPIRY DATES ARE EQUAL*************                              <br />
+                              	 	if effdate &gt; expdate2 and count &gt; 1 then<br />
+                               			 	<br />
+						db.retry.point()<br />
+						select	tdpcg031.*<br />
+	 					from	tdpcg031 for update<br />
+						where	tdpcg031._index1 = {1,&quot;100000006&quot;,:item.f}<br />
+						order by tdpcg031.efdt desc<br />
+						as set with 2 rows<br />
+						selectdo<br />
+						selecteos<br />
+			<br />
+							tdpcg031.exdt = expdate2 - 2<br />
+							db.update(ttdpcg031,db.retry)<br />
+                                                	commit.transaction()<br />
+						selectempty	<br />
+						endselect<br />
+					else<br />
+					endif<br />
+		endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">15th December 2014, 17:59</div></div><div class="posttext">I am not sure I total understand looking at the code.  Why doesn't the out select with the group by have an item range like a.item inrange {:item.f} and {:item.t}.  Then why don't the inner selects have :item instead of item.f.<br />
+<br />
+The simplest advice I can give if the routine works for 1 record and I assume it is item - then just make it a function and pass each item you want it to work on.<br />
+<br />
+Not sure I get the request - I must be missing something.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

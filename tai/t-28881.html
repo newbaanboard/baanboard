@@ -1,0 +1,123 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Printing on demand, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Printing on demand Tools Administration &amp; Installation" />
+	
+	<title>Printing on demand [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Printing on demand</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Danny Leolux</div><div class="date">12th December 2006, 12:18</div></div><div class="posttext">Hi Everybody,<br />
+<br />
+We have just installed new multi-functional printers and want to use the 'printing on demand' functionality these machines provide. When printing documents from any of the Office applications this workes perfectly. The output is 'buffered in the memory of the printer' and only comes out when the user gives the instruction to do so once he/she is at the printer.<br />
+<br />
+When the same user prints Baan data to the same printer this doesn't work. The output is printed immediatly. This leades to extra time spend at the printer looking through all the printed documents in search of their own.<br />
+<br />
+Does anyone have any experience with 'printing on demand' from Baan?<br />
+Are there any PCL drivercodes that can support this functionality?<br />
+<br />
+Thanks in advance,<br />
+Danny</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">12th December 2006, 13:02</div></div><div class="posttext">Without ever having seen a printer with this interesting feature, I would guess the reason is in the user authentication.<br />
+<br />
+The lp spooler system does not really tell the printer, which user printed a specific print hob, so how would that work?<br />
+<br />
+Does the feature work, if you send a manual print job with the lp command to the printer?<br />
+Do you use direct printing from baan or do you print via the printer daemon?<br />
+<br />
+Regards<br />
+<br />
+Markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Danny Leolux</div><div class="date">12th December 2006, 14:03</div></div><div class="posttext">Hi Markus,<br />
+<br />
+All our Baan device are setup as 'Direct'. Via SAM (unix) the printers are setup as remote printers 'pointing' to our file&amp;printer server in our Citrix/Windows enviroment.<br />
+<br />
+I just tried to send a document directly from Unix via the 'lp' command and to my supprice the document was 'buffered' and only came out when I was at the printer and activated it. So the 'printing on demand' functionality workes when directly printing from Unix but not when it is printed from Baan.<br />
+<br />
+Somehow the printerdriver linked to the Baan device sents 'something' to the the printer that interfears with it.<br />
+<br />
+Do you have any idea's ?<br />
+<br />
+Grtz.<br />
+Danny</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">12th December 2006, 15:04</div></div><div class="posttext">Hi Danny,<br />
+<br />
+So i fthe lp command works and you use direct printing, then it should in principle also work from Baan. I agree with you, that most likely the printer driver of Baan &quot;does something&quot;.<br />
+<br />
+The good thing about the printer driver in Baan is, that you can easily analyze &quot;what it does&quot; and change it. Most likely you know the following already, but to be on the safe side:<br />
+<br />
+The printer driver in Baan resides in $BSE/lib/printinf/&lt;X&gt;, where X is the first letter of the driver name. It's an ascii file, which can be edited with vi. The interesting bits and pieces are initpr and resetpr, which are send at the beginning of the print job.<br />
+<br />
+<br />
+A long time ago I analyzed the contents of the hp_lj4 driver and here is my result:<br />
+<br />
+<br />
+initpr=\EE\E&amp;l26a66F\E(12U\E(s10H\E&amp;l5H\E(s0p10h0s0b4099T\E&amp;k11.6H,<br />
+#      |   |     |   |    |      |      |    |  | | |    |--- horizontal motion<br />
+#      |   |     |   |    |      |      |    |  | | |-------- Typefacce<br />
+#      |   |     |   |    |      |      |    |  | |---------- medium stroke<br />
+#      |   |     |   |    |      |      |    |  |------------ upright style<br />
+#      |   |     |   |    |      |      |    |--------------- 10 Chars per inch<br />
+#      |   |     |   |    |      |      |-------------------- fixed Spacing<br />
+#      |   |     |   |    |      |--------------------------- Tray 3<br />
+#      |   |     |   |    |---------------------------------- 10 Chas per inch<br />
+#      |   |     |   |--------------------------------------- IBM Layout EU<br />
+#      |   |     |------------------------------------------- 66 Lines<br />
+#      |   |------------------------------------------------- Paper Size ?<br />
+#      |----------------------------------------------------- Reset<br />
+<br />
+resetpr=\E(s10H\E&amp;l5H\E(s0p10h0s0b4099T\E&amp;k11.6H,<br />
+#       |      |     |    |  | | |     |--------------------- horizontal motion<br />
+#       |      |     |    |  | | |--------------------------- Typeface<br />
+#       |      |     |    |  | |----------------------------- medium stroke<br />
+#       |      |     |    |  |------------------------------- upright style<br />
+#       |      |     |    |---------------------------------- 10 chars per inch<br />
+#       |      |     |--------------------------------------- fixed spacing<br />
+#       |      |--------------------------------------------- Tray 3<br />
+#       |---------------------------------------------------- 10 chars per inch<br />
+<br />
+<br />
+<br />
+My assumption is, that in initpr, the driver sends an escape sequence restting the printer and discarding any previous commands and maybe so screw up your &quot;buffering&quot;. <br />
+<br />
+Try (on your test system) to remove the resetting escape sequence and see what happen!<br />
+<br />
+Good luck,<br />
+<br />
+Markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Danny Leolux</div><div class="date">12th December 2006, 15:53</div></div><div class="posttext">Hi Markus,<br />
+<br />
+When I just remove the reset code, nothing changes. The output keeps comming out immediately.<br />
+<br />
+However when I completely disabled the initpr en resetpr 'printing on demand' works. The printer 'buffered' the output and I could print it when I was at the printer.<br />
+Ofcourse the print was unreadable sinds the wright escape codes to translate the characters were not send to the printer.<br />
+<br />
+Now the big question is which of the escape codes is the one that messes up the settings of the printer. Or is there an extra code that should be added?<br />
+<br />
+Perhaps someone knows this? <br />
+<br />
+In the meantime I'll keep experimenting with the often proven method of 'trial and error' ;) ;) <br />
+Danny</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

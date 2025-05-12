@@ -1,0 +1,170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Script problem, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Script problem Tools Development" />
+	
+	<title>Script problem [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Script problem</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">maggrietjie</div><div class="date">10th November 2005, 20:45</div></div><div class="posttext">Hi all<br />
+<br />
+Help me please. I want to use the data tdinv760 to update trdrp001 (sales forecast). I use the script below, but I get an error 100 (Duplicate value) on trdrp001. How do I fix this, what am I doing wrong.<br />
+<br />
+function update.drp001()<br />
+{<br />
+<br />
+        long    i<br />
+<br />
+        db.retry.point()<br />
+<br />
+        i = 0<br />
+<br />
+        tdinv760.cwar = &quot;&quot;<br />
+        tdinv760.item = &quot;&quot;<br />
+        tdinv760.cntr = &quot;&quot;<br />
+        tdinv760.year = 0<br />
+<br />
+        select  tdinv760.*, trdrp001.*<br />
+        from    tdinv760, trdrp001 for update<br />
+        where   tdinv760._index1 inrange {&quot;SLS&quot;, :item.f, :cntr.f, :year.no}<br />
+                                 and     {&quot;SLS&quot;, :item.t, :cntr.t, :year.no}<br />
+        order by tdinv760._index1 with retry repeat last row<br />
+        selectdo<br />
+                for i = pern.f to pern.t<br />
+                        trdrp001.cwar = tdinv760.cwar<br />
+                        trdrp001.item = tdinv760.item<br />
+                        trdrp001.cntr = tdinv760.cntr<br />
+                        trdrp001.yrno = year.no<br />
+                        trdrp001.peri = i<br />
+                        trdrp001.pqua = tdinv760.fupp(i)<br />
+        db.update(ttrdrp001, db.retry)<br />
+                endfor<br />
+          commit.transaction()<br />
+        selectempty<br />
+                for i = pern.f to pern.t<br />
+                        trdrp001.cwar = tdinv760.cwar<br />
+                        trdrp001.item = tdinv760.item<br />
+                        trdrp001.cntr = tdinv760.cntr<br />
+                        trdrp001.yrno = year.no<br />
+                        trdrp001.peri = i<br />
+                        trdrp001.pqua = tdinv760.fupp(i)<br />
+                db.insert(ttrdrp001)<br />
+                endfor<br />
+        selecteos<br />
+          commit.transaction()<br />
+        endselect<br />
+        commit.transaction()<br />
+}<br />
+<br />
+Any help or suggestions will be appreciated.<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">just_fro</div><div class="date">11th November 2005, 00:24</div></div><div class="posttext">what will be the content of the inv760-record in the selectempty ??????????<br />
+right....EMPTY......over and over again........</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">11th November 2005, 01:47</div></div><div class="posttext">I think the db.insert should have a db.retry as second argument.....<br />
+And when you enter the selectempty the value of tdinv760 is unknown...<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Youp2001</div><div class="date">11th November 2005, 12:20</div></div><div class="posttext">You should split up your query:<br />
+<br />
+First select the records of table tdinv760. <br />
+Within the selectdo for each period select trdrp001. If in selectdo, update fields and do a db.update. In selectempty fill all fields and do a db.insert. So you will get something like:<br />
+<br />
+db.retry.point()<br />
+<br />
+select tdinv760.*<br />
+from   tdinv760<br />
+where tdinv760._index1 inrange {&quot;SLS&quot;, :item.f, :cntr.f, :year.no}<br />
+                                and     {&quot;SLS&quot;, :item.t, :cntr.t, :year.no}<br />
+selectdo<br />
+        for i = pern.f to pern.t<br />
+              select trdrp001.*<br />
+              from   trdrp001 for update<br />
+              where trdrp001._index1 = {:tdinv760.cwar, :tdinv760.item,<br />
+                                                  :tdinv760.cntr, :tdinv760.year}<br />
+              selectdo<br />
+                        trdrp001.pqua = tdinv760.fupp(i)<br />
+                        db.update(ttrdrp001, db.retry)<br />
+              selectempty<br />
+                        trdrp001.cwar = tdinv760.cwar<br />
+                        trdrp001.item = tdinv760.item<br />
+                        trdrp001.cntr = tdinv760.cntr<br />
+                        trdrp001.yrno = year.no<br />
+                        trdrp001.peri = i<br />
+                        trdrp001.pqua = tdinv760.fupp(i)<br />
+                        db.insert(ttrdrp001, db.retry)<br />
+               endselect<br />
+        endfor<br />
+        commit.transaction()<br />
+selecteos<br />
+        commit.transaction()<br />
+endselect<br />
+<br />
+Success<br />
+<br />
+Youp</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Evert-Jan Bosch</div><div class="date">11th November 2005, 12:40</div></div><div class="posttext">Wow, what a good analysis.<br />
+Now I understand what is meant with the script.<br />
+I made a little change (in red):<br />
+<br />
+db.retry.point()<br />
+<br />
+select tdinv760.*<br />
+from   tdinv760<br />
+where tdinv760._index1 inrange {&quot;SLS&quot;, :item.f, :cntr.f, :year.no}<br />
+                       and     {&quot;SLS&quot;, :item.t, :cntr.t, :year.no}<br />
+selectdo<br />
+        for i = pern.f to pern.t<br />
+              select trdrp001.*<br />
+              from   trdrp001 for update<br />
+              where trdrp001._index1 = {:tdinv760.cwar, :tdinv760.item,<br />
+                                        :tdinv760.cntr, :tdinv760.year,<br />
+                                        :i}<br />
+              as set with 1 rows<br />
+              selectdo<br />
+                        trdrp001.pqua = tdinv760.fupp(i)<br />
+                        db.update(ttrdrp001, db.retry)<br />
+              selectempty<br />
+                        trdrp001.cwar = tdinv760.cwar<br />
+                        trdrp001.item = tdinv760.item<br />
+                        trdrp001.cntr = tdinv760.cntr<br />
+                        trdrp001.yrno = year.no<br />
+                        trdrp001.peri = i<br />
+                        trdrp001.pqua = tdinv760.fupp(i)<br />
+                        db.insert(ttrdrp001, db.retry)<br />
+               endselect<br />
+        endfor<br />
+        commit.transaction()<br />
+selecteos<br />
+        commit.transaction()<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">maggrietjie</div><div class="date">14th November 2005, 21:12</div></div><div class="posttext">Thanks everybody, this works like a charm!!!!<br />
+<br />
+Have a nice day!!</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,311 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Search Part Information, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Search Part Information AFS/DDC/OLE: Function servers" />
+	
+	<title>Search Part Information [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Search Part Information</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">andrewtite</div><div class="date">5th February 2006, 00:18</div></div><div class="posttext">I have been trying to figure out how to develop a VBA macro in excel to get all relevant information about a specific part number. I have been playing around with the examples in the forum just trying to get some information of any kind as a test. I am connecting to Baan, I just don't get any information back. I am trying to get locations/quantities, Past Purchase Orders, Past Adjustments, Price, Desc, and Price. It would be more just one part number at a time. I realize it is likely a problem with my query but I am not sure.<br />
+<br />
+Here is what I have right now...<br />
+<br />
+Private Sub CommandButton1_Click()<br />
+<br />
+Set BaanObj = CreateObject(&quot;Baan.Application&quot;)<br />
+<br />
+BaanObj.Timeout = 10<br />
+<br />
+'        Query = &quot;select tiitm001.citg, count(tiitm001.item) from tiitm001 &quot; &amp; _<br />
+                &quot;where tccom010.cuno = &quot; &amp; Chr(34) &amp; Chr(34) &amp; &quot;SP0900&quot; &amp; Chr(34) &amp; Chr(34)<br />
+Query = &quot;select tfgld011.ttyp from tfgld011 where tfgld011._compnr=100 and tfgld011.ttyp&quot;<br />
+B_function = &quot;olesql_parse(&quot; &amp; Chr(34) &amp; Query &amp; Chr(34) &amp; &quot;)&quot;<br />
+        BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+<br />
+    B_function1 = &quot;olesql_getstring(&quot;&quot;tfccom010.cuno&quot;&quot;,&quot;&quot; &quot;&quot;)&quot;<br />
+    BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function1<br />
+    temp_string = BaanObj.ReturnCall<br />
+    customer = Mid(temp_string, 35, 8)<br />
+<br />
+' If this function fails the ReturnValue is equal to zero, otherwise<br />
+' the function olesql_parse returns a identification number of the query<br />
+' Convert the (string) ReturnValue to a long variable using the function Val<br />
+        query_id = Val(BaanObj.ReturnValue)<br />
+        If query_id = 0 Then<br />
+            MsgBox &quot;function olesql_parse fails&quot;<br />
+        End If<br />
+        <br />
+' Fetch the record<br />
+        B_function = &quot;olesql_fetch(&quot; &amp; query_id &amp; &quot;)&quot;<br />
+        BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+        If BaanObj.ReturnValue = 0 Then<br />
+        MsgBox (&quot;value is &quot; &amp; query_id)<br />
+        customer = Val(query_id)<br />
+        Else<br />
+        End If<br />
+        temp_string = &quot;tccom010.cuno&quot;<br />
+        customer = String(6, &quot; &quot;)<br />
+    ' The function olesql_getstring retrieves the query result and stores it in the second argument,<br />
+    ' a 'call by reference' argument. Note that the second argument must be large enough to fill in the result<br />
+    B_function2 = &quot;olesql_getstring(&quot; &amp; Chr(34) &amp; temp_string &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; customer &amp; Chr(34) &amp; &quot;)&quot;<br />
+    BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function2<br />
+    <br />
+    ' search returned string in the function call (call by reference argument)<br />
+    temp_string = BaanObj.FunctionCall<br />
+    customer = Mid(temp_string, 35, 6)<br />
+    customer = Trim(customer)<br />
+        <br />
+        <br />
+        Sheets(1).Cells(2, 2).Value = customer<br />
+<br />
+BaanObj.Quit<br />
+Set BaanObj = Nothing<br />
+<br />
+<br />
+End Sub<br />
+<br />
+<br />
+What am I screwing up here. Also does anyone know the table names I have to reference for the part info.<br />
+<br />
+Thank you in advance for your assistance. :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th February 2006, 16:00</div></div><div class="posttext">Yes - I did not see a query that looked correct.  Here is one I played with at one point:<br />
+<br />
+<br />
+    Query = &quot;select tdpur040.*,tccom020.* from tdpur040,tccom020 where tdpur040.orno = &quot; &amp; PO &amp; _<br />
+    &quot;and tdpur040.suno refers to tccom020 as set with 1 rows&quot;<br />
+    <br />
+    B_function = &quot;olesql_parse(&quot; &amp; Chr(34) &amp; Query &amp; Chr(34) &amp; &quot;)&quot;<br />
+' execute the function olesql_parse from DLL ottdllsql_query<br />
+    BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+<br />
+<br />
+Then I used this to extract part of the data:<br />
+<br />
+<br />
+Sub get_header_info()<br />
+' The function olesql_fetch reads one query result, in this example the (string) value of ttaad200.user<br />
+' The identification number of the query must be passed as argument to this function<br />
+    B_function = &quot;olesql_fetch(&quot; &amp; query_id &amp; &quot;)&quot;<br />
+    BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+    <br />
+' Get Position Number<br />
+    temp_string = &quot;tdpur040.suno&quot;<br />
+    Supplier = String(6, &quot; &quot;)<br />
+    B_function2 = &quot;olesql_getstring(&quot; &amp; Chr(34) &amp; temp_string &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; Supplier &amp; Chr(34) &amp; &quot;)&quot;<br />
+    BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function2<br />
+    temp_string = BaanObj.FunctionCall<br />
+    Supplier = Mid(temp_string, 35, 6)<br />
+    Supplier = Trim(Supplier)<br />
+    <br />
+' get supplier name<br />
+    temp_string = &quot;tccom020.nama&quot;<br />
+    supplier_name = String(35, &quot; &quot;)<br />
+    B_function2 = &quot;olesql_getstring(&quot; &amp; Chr(34) &amp; temp_string &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; supplier_name &amp; Chr(34) &amp; &quot;)&quot;<br />
+    BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function2<br />
+    temp_string = BaanObj.FunctionCall<br />
+    supplier_name = Mid(temp_string, 35, 35)<br />
+    supplier_name = Trim(supplier_name)<br />
+<br />
+' get supplier address<br />
+    temp_string = &quot;tccom020.namc&quot;<br />
+    supplier_address = String(30, &quot; &quot;)<br />
+    B_function2 = &quot;olesql_getstring(&quot; &amp; Chr(34) &amp; temp_string &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; supplier_address &amp; Chr(34) &amp; &quot;)&quot;<br />
+    BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function2<br />
+    temp_string = BaanObj.FunctionCall<br />
+    supplier_address = Mid(temp_string, 35, 30)<br />
+    supplier_address = Trim(supplier_address)<br />
+<br />
+' get supplier city_state<br />
+    temp_string = &quot;tccom020.name&quot;<br />
+    city_state = String(30, &quot; &quot;)<br />
+    B_function2 = &quot;olesql_getstring(&quot; &amp; Chr(34) &amp; temp_string &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; city_state &amp; Chr(34) &amp; &quot;)&quot;<br />
+    BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function2<br />
+    temp_string = BaanObj.FunctionCall<br />
+    city_state = Mid(temp_string, 35, 30)<br />
+    city_state = Trim(city_state)<br />
+<br />
+End Sub<br />
+<br />
+<br />
+<br />
+Good Luck!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andrewtite</div><div class="date">6th February 2006, 16:46</div></div><div class="posttext">What are the standard table/field names I want to use for the info I am looking to extract into Excel? I can then modify my query for the correct info once I get it working with this data.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th February 2006, 15:32</div></div><div class="posttext">Not sure I understand your question - are you asking for actual table/field names?  If so then you need to get a login to baan itself and look at the actual table structures.  I can only relate what our system does and we are on the A&amp;D version of Baan.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andrewtite</div><div class="date">13th February 2006, 19:24</div></div><div class="posttext">I got the table and fields names I need for our install of Baan but it still isn't returning any data. Do you see what I'm doing wrong?<br />
+<br />
+Set BaanObj = CreateObject(&quot;Baan.Application&quot;)<br />
+<br />
+BaanObj.Timeout = 10<br />
+<br />
+Query = &quot;select whinr140.* from whinr140 where whinr140.item = 'SUP9X14'&quot;<br />
+    <br />
+B_function = &quot;olesql_parse(&quot; &amp; Chr(34) &amp; Query &amp; Chr(34) &amp; &quot;)&quot;<br />
+' execute the function olesql_parse from DLL ottdllsql_query<br />
+BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+<br />
+query_id = Val(BaanObj.ReturnValue)<br />
+If query_id = 0 Then<br />
+MsgBox &quot;function olesql_parse fails&quot;<br />
+End If<br />
+<br />
+' The function olesql_fetch reads one query result, in this example the (string) value of ttaad200.user<br />
+' The identification number of the query must be passed as argument to this function<br />
+B_function = &quot;olesql_fetch(&quot; &amp; query_id &amp; &quot;)&quot;<br />
+BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+    <br />
+' Get Location<br />
+temp_string = &quot;whinr140.loca&quot;<br />
+Supplier = String(6, &quot; &quot;)<br />
+B_function2 = &quot;olesql_getstring(&quot; &amp; Chr(34) &amp; temp_string &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; Supplier &amp; Chr(34) &amp; &quot;)&quot;<br />
+BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function2<br />
+temp_string = BaanObj.FunctionCall<br />
+Location = Mid(temp_string, 35, 6)<br />
+Location = Trim(Location)<br />
+    <br />
+<br />
+BaanObj.Quit<br />
+Set BaanObj = Nothing</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th February 2006, 22:25</div></div><div class="posttext">(1) Are you sure of that item number?  <br />
+(2) Try some other fields.  <br />
+<br />
+I copied your code, put in my table and it worked.<br />
+<br />
+<br />
+et BaanObj = CreateObject(&quot;Baan4.Application.503&quot;)<br />
+<br />
+BaanObj.Timeout = 10<br />
+<br />
+Query = &quot;select tiitm001.* from tiitm001 where tiitm001.item = 'PLM7249020'&quot;<br />
+<br />
+B_function = &quot;olesql_parse(&quot; &amp; Chr(34) &amp; Query &amp; Chr(34) &amp; &quot;)&quot;<br />
+' execute the function olesql_parse from DLL ottdllsql_query<br />
+BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+<br />
+query_id = Val(BaanObj.ReturnValue)<br />
+If query_id = 0 Then<br />
+MsgBox &quot;function olesql_parse fails&quot;<br />
+End If<br />
+<br />
+' The function olesql_fetch reads one query result, in this example the (string) value of ttaad200.user<br />
+' The identification number of the query must be passed as argument to this function<br />
+B_function = &quot;olesql_fetch(&quot; &amp; query_id &amp; &quot;)&quot;<br />
+BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+' Get Location<br />
+B_function2 = &quot;&quot;<br />
+temp_string = &quot;tiitm001.ccur&quot;<br />
+Supplier = String(32, &quot; &quot;)<br />
+B_function2 = &quot;olesql_getstring(&quot; &amp; Chr(34) &amp; temp_string &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; Supplier &amp; Chr(34) &amp; &quot;)&quot;<br />
+BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function2<br />
+temp_string = BaanObj.FunctionCall<br />
+Location = Mid(temp_string, 35, 32)<br />
+Location = Trim(Location)<br />
+' Get Location<br />
+B_function2 = &quot;&quot;<br />
+temp_string = &quot;tiitm001.csig&quot;<br />
+Supplier = String(32, &quot; &quot;)<br />
+B_function2 = &quot;olesql_getstring(&quot; &amp; Chr(34) &amp; temp_string &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; Supplier &amp; Chr(34) &amp; &quot;)&quot;<br />
+BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function2<br />
+temp_string = BaanObj.FunctionCall<br />
+Location = Mid(temp_string, 35, 32)<br />
+Location = Trim(Location)<br />
+<br />
+<br />
+BaanObj.Quit<br />
+Set BaanObj = Nothing<br />
+End Sub<br />
+<br />
+<br />
+Other things to think about(that I had impact this before) - tools version, porting set and the client.  I no longer use this method to get data, but I have had updates to each of these components that caused problems.  So the code looks good - but I can not speak to the item number and table.  What made me think of this was that you still have baan.application.  I set this on the automation tab on the client - something different for each company I log into.  503 is a test company for me.  Are you actually getting connected?  Makes me wonder about the client.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andrewtite</div><div class="date">16th February 2006, 17:45</div></div><div class="posttext">Baan4.Application.503 doesn't work for me but Baan.Application does. I am using Baan version 5 I believe. When I go step by step...<br />
+<br />
+When Set BaanObj = CreateObject(&quot;Baan.Application&quot;) is run in the code it shows the Baan Login Dialog and I login using my user/pass and I don't get an error. The option dialog is open so I think am connected.<br />
+<br />
+the query_id seems to be increased by 1 each time I try to do a query (unless I close the Options Dialog and login again)<br />
+<br />
+temp_string returns<br />
+olesql_getstring(&quot;whinr140.ccur&quot;,&quot;                                &quot;)<br />
+<br />
+I don't understand how this is supposed to work or why it's not working. Doesn't Supplier = String(32, &quot; &quot;) make Supplier just 32 blank spaces?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">16th February 2006, 20:07</div></div><div class="posttext">The baan4.application.503 is what I setup when using the client.  When you run the bw configurator tab for is &quot;automation&quot;.  This is where I set the connection name - the last three are the company I connect to.  Of course I am running version B40c.80 of the client - yours could be different.  If your client supports this you may want to try - just to make sure you are connecting to the correct company.<br />
+<br />
+Yes (Supplier = String(32, &quot; &quot;)) sets supplier to 32 spaces.  The field needs to be large enough to accept the data.  The olesql_getstring actually parses the string into the field you select.  So be 100% sure you query is working and should contain data.  See the attached jpg.  I put it in debug mode so you could see what should happen.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andrewtite</div><div class="date">17th February 2006, 14:57</div></div><div class="posttext">This is what I'm getting different from yours. I am still playing with it. Hopefully I'll figure it out. :(</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th February 2006, 15:20</div></div><div class="posttext">Can you run exactly what I did?  Not sure if tiitm001 is the same between our systems.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andrewtite</div><div class="date">17th February 2006, 15:31</div></div><div class="posttext">At what point does the temp_string get filled with the data? I noticed yours has USD but the value opf my temp_string is:<br />
+olesql_getstring(&quot;whinr140.loca&quot;,&quot;                                &quot;)<br />
+<br />
+Your query id is a longer number. Mine increases by one each time I try a query. It is 1 the first time, then 2, then 3, and so on. Is it supposed to be a longer number like 10526 or something. Maybe that is the problem somehow.<br />
+<br />
+Is there a way get read any and all fields which have been retrieved with *? I am obviously making a connection and the table is correct becuase the query_id is not 0. I checked with the databawse people and they say the fields they provided me are correct. I'm tearing my hair out and I know it's probobly something simple too.<br />
+<br />
+grrrr</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th February 2006, 16:00</div></div><div class="posttext">temp_string gets filled right after this statement temp_string = BaanObj.FunctionCall.<br />
+<br />
+No clue about that query_id - I just ran it again and it came up with the same query id.  Ran it a third time to check - the query id is always the same.<br />
+<br />
+DO not make the mistake of thinking it is simple.  As mentioned above(and one reason I no longer use this method) is that the client, the porting set and the tools versions can all effect trying to get data from Baan.   One of the reasons I am running out of ideas.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nhhome</div><div class="date">18th July 2008, 06:00</div></div><div class="posttext">I know this tread is old but incase someone like me who are new in Baan Automation and using BaanV or BaanLN client.<br />
+The secret is:<br />
+<br />
+' Baan4<br />
+        strlen = Len(BaanObj.FunctionCall)<br />
+        tstr = BaanObj.FunctionCall<br />
+<br />
+' Baan5<br />
+        'strlen = Len(BaanObj.ReturnCall)<br />
+        'tstr = BaanObj.ReturnCall<br />
+<br />
+Hope it will help others.<br />
+Nath</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nhhome</div><div class="date">18th July 2008, 06:08</div></div><div class="posttext">I know this tread is old, but just in case if someone like who is new in Baan Automation and using Baan5 or BaanLN client. The secret is:<br />
+<br />
+For Baan5:<br />
+temp_string = BaanObj.ReturnCall<br />
+<br />
+For Baan 4:<br />
+temp_string = BaanObj.FunctionCall<br />
+<br />
+hope it will help others<br />
+nath</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

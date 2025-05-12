@@ -1,0 +1,171 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="table pointer and alias, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] table pointer and alias Tools Development" />
+	
+	<title>table pointer and alias [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; table pointer and alias</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Kozure Ohashi</div><div class="date">5th March 2007, 12:59</div></div><div class="posttext">Dear baanboard,<br />
+<br />
+strange situation:<br />
+<br />
+Using a tablealias in a select statement.<br />
+<br />
+My knowledge up to now. The table pointer is not moved because of the alias.<br />
+<br />
+I debugged a session -&gt; the record pointer is moved.<br />
+<br />
+Only solution: Map the tablefield to a customized var -&gt; the record pointer is not moved.<br />
+<br />
+Example:<br />
+<br />
+ tdsls045.orno = 123456<br />
+orno.f = 234567<br />
+<br />
+Record pointer moved:<br />
+<br />
+select tdsls045_1.orno<br />
+from tdsls045 tdsls045_01<br />
+where tdsls045_01._index1 = {:orno.f}<br />
+selectdo<br />
+endselect<br />
+-&gt; tdsls045.orno is 234567<br />
+<br />
+Record pointer not moved:<br />
+<br />
+select tdsls045_1.orno:my.orno<br />
+from tdsls045 tdsls045_01<br />
+where tdsls045_01._index1 = {:orno.f}<br />
+selectdo<br />
+endselect<br />
+-&gt; tdsls045.orno is 123456 // my.orno = 234567<br />
+<br />
+Can somebody please explain me this behaviour (esspecially why the aliasing is not preventing the movement of the recordpointer).<br />
+<br />
+This results in an error in printing sales invoices in connection with instalments.<br />
+<br />
+Regards,<br />
+<br />
+Kozure</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">5th March 2007, 13:40</div></div><div class="posttext">This is a good fix. But I couldn't use second one.I can only  use alies with third one coding.In second one ,AFAIK In selectdo  the debugger doesn't recognize tdsls045_1.orno.You must use extra variables. I wonder that do you use second statement in your programming and How ? <br />
+I don't have any comment about your fix .<br />
+<br />
+<br />
+G.Luck !</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kozure Ohashi</div><div class="date">5th March 2007, 14:16</div></div><div class="posttext">Dear Baanboard,<br />
+<br />
+just a sample script, you can run it in the debugger and understand my problem. Please modify the ordernumbers to existing ones on your system.<br />
+<br />
+My problem is to understand, why the table alias is not preventing the move of the record pointer. Up to now this was my understanding of the usage of the table alias.<br />
+<br />
+<br />
+3 GL Script Sample Script:<br />
+<br />
+<br />
+function main()	<br />
+{<br />
+	table	ttdsls045<br />
+	table	ttdsls048<br />
+	<br />
+extern	domain	tcorno	sls048.orno, sls045.orno, my.orno	<br />
+	<br />
+	sls048.orno = 200000			| Modify to an existing order number <br />
+	sls045.orno = 100000			| Modify to an existing order number <br />
+<br />
+<br />
+	 set.record.pointer.sls045()		| 1. set the tdsls045 pointer<br />
+	 table.alias.without.var.mapping()	| 2. record pointer moved	(-&gt; WHY?????)<br />
+	 set.record.pointer.sls045()		| 3. reset the tdsls045 pointer<br />
+	 table.alias.with.var.mapping()		| 4. record pointer NOT moved<br />
+	 set.record.pointer.sls045()		| 5. reset the tdsls045 pointer<br />
+	 no.table.alias.with.var.mapping()	| 6. record pointer NOT moved (-&gt; best solution)<br />
+<br />
+}<br />
+<br />
+<br />
+function domain tcbool table.alias.without.var.mapping()			<br />
+{<br />
+	| WHY is this not working, why is the record pointer tdsls045.orno moved ???<br />
+	select	tdsls045_1.orno<br />
+	from	tdsls045 tdsls045_1<br />
+	where	tdsls045_1._index1 = {:sls048.orno}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		return(false)<br />
+	endselect<br />
+	return(true)<br />
+| tdsls045.orno is now 20000 but why.<br />
+| My estimation: tdsls045.orno = 100000 // tdsls045_1.orno = 20000 ???<br />
+}		<br />
+<br />
+function domain tcbool table.alias.with.var.mapping()			<br />
+{<br />
+	| Var mapping is enough, table alias is not necessary<br />
+	select	tdsls045_1.orno:my.orno<br />
+	from	tdsls045 tdsls045_1<br />
+	where	tdsls045_1._index1 = {:sls048.orno}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		return(false)<br />
+	endselect<br />
+	return(true)<br />
+|tdsls045.orno is still 100000<br />
+|my.orno is now 200000<br />
+}	<br />
+<br />
+	<br />
+function domain tcbool no.table.alias.with.var.mapping()			<br />
+{<br />
+	select	tdsls045.orno:my.orno<br />
+	from	tdsls045<br />
+	where	tdsls045._index1 = {:sls048.orno}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		return(false)<br />
+	endselect<br />
+	return(true)<br />
+| tdsls045.orno is still 100000<br />
+| my.orno is 200000<br />
+}			<br />
+<br />
+function domain tcbool set.record.pointer.sls045()			<br />
+{<br />
+	select	tdsls045.orno<br />
+	from	tdsls045<br />
+	where	tdsls045._index1 = {:sls045.orno}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		return(false)<br />
+	endselect<br />
+	return(true)<br />
+}<br />
+<br />
+<br />
+<br />
+Regards,<br />
+<br />
+Kozure</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th March 2007, 16:28</div></div><div class="posttext">Because this &quot;select	tdsls045_1.orno&quot; does not have script variable it goes back to the tdsls045.orno variable - which is what it is tied to in this case.  I never really thought about this until this post - I checked my scripts and I never use an alias unless I tie it to a script variable.  I think I ran into this once before in the same type situation.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

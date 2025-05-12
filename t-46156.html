@@ -1,0 +1,109 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS maintain receipts, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS maintain receipts AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS maintain receipts [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS maintain receipts</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ConradMollink</div><div class="date">21st December 2007, 16:40</div></div><div class="posttext">I am busy creating an AFS function for the maintain receipts session in Baan 4<br />
+tdpur4120m000<br />
+<br />
+Sometimes the session zooms to the session tdilc4113s000.<br />
+<br />
+Is there an easy way to determine if this session pops up?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st December 2007, 19:02</div></div><div class="posttext">Search for my login(mark_h) and tdilc4113s000.   You should find code on how I handle this situation.  Basically I do a series of tests to see if I need to handle the subsession. I am not positive I have all possibilities covered, but it works for us.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st December 2007, 19:07</div></div><div class="posttext">Never mind - the code is old in those other posts.  Keep in mind I create a receipt first, then modify the receipt.  I do this because we may have 4 lines on PO for 10 each, the vendor ships in 40 parts.  On my receipt screen the user provides the po and 40(well a little more info than that, but not much) and I go receive all lines for them based off need date.  Just how I solved it, but there might be a better way.<br />
+<br />
+function extern modify_receipt(	domain	tcrcno		receipt.number,<br />
+				domain  tcorno		purchase.order,<br />
+				domain	tcpono  	purchase.line,<br />
+				domain	tcqiv1		packingslip.qty,<br />
+				domain	tcqiv1		received.qty,<br />
+				domain	tcdate		received.date,<br />
+				domain	tdltc.clot	purchase.lot,<br />
+				domain	tcdate		purchaselot.date,<br />
+				domain	tcconv		conv.factor,<br />
+				domain	tccuni		purchase.unit,<br />
+				domain	tcitem		purchase.item,<br />
+				ref     string          msg())<br />
+{<br />
+		string	dummy(6), error_code(16)<br />
+	domain	tcorno	get.orno<br />
+	domain	tcpono	get.pono<br />
+	<br />
+	select	tiitm001.stgu, tiitm001.kitm<br />
+	from	tiitm001<br />
+	where	tiitm001._index1 = {:purchase.item}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	endselect<br />
+	<br />
+	msg = &quot;&quot;<br />
+	boi.call = &quot;tdboidll0011.Create&quot;<br />
+ 	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,str$(receipt.number))<br />
+  	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.orno&quot;,str$(purchase.order))<br />
+ 	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.pono&quot;,str$(purchase.line))<br />
+	rc = stpapi.find(&quot;tdpur4120m000&quot;,msg)<br />
+	if not isspace(msg) or rc&lt;&gt;1 then<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return<br />
+	endif<br />
+	stpapi.get.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.orno&quot;,dummy)<br />
+	get.orno = val(dummy)<br />
+	stpapi.get.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.pono&quot;,dummy)<br />
+	get.pono = val(dummy)<br />
+| Prepare to handle lot controlled items.	<br />
+	if ((not isspace(purchase.lot) or conv.factor&gt;1 or  purchase.unit &lt;&gt; tiitm001.stgu)<br />
+	and (tiitm001.kitm=tckitm.purchase or tiitm001.kitm = tckitm.manufacture))	then<br />
+		stpapi.handle.subproc(&quot;tdpur4120m000&quot;,&quot;tdilc4113s000&quot;,&quot;add&quot;)<br />
+	endif<br />
+	<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.diqu&quot;,str$(packingslip.qty))<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.date&quot;,str$(received.date))<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.dqua&quot;,str$(received.qty))<br />
+	rc = stpapi.update(&quot;tdpur4120m000&quot;,1,msg)<br />
+	if not isspace(msg) or rc&lt;&gt;1 then<br />
+		if not isspace(purchase.lot) or conv.factor&gt;1 then<br />
+			stpapi.end.session(&quot;tdilc4113s000&quot;)<br />
+		endif<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return<br />
+	endif<br />
+<br />
+| Need to handle the conversion factor.<br />
+	if ((not isspace(purchase.lot) or conv.factor&gt;1 or  purchase.unit &lt;&gt; tiitm001.stgu)<br />
+	and (tiitm001.kitm=tckitm.purchase or tiitm001.kitm = tckitm.manufacture))	then<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.clot&quot;,purchase.lot)<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.date&quot;,str$(purchaselot.date))<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.qstr&quot;,str$(received.qty*conv.factor))<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.qstc&quot;,str$(received.qty*conv.factor))<br />
+		rc = stpapi.insert(&quot;tdilc4113s000&quot;,1,msg)<br />
+		error_code = stpapi.get.mess.code(&quot;tdilc4113s000&quot;,msg)<br />
+		if strip$(error_code) = &quot;tdilc40062&quot; then<br />
+			msg = &quot;&quot;<br />
+		endif<br />
+		stpapi.end.session(&quot;tdilc4113s000&quot;)<br />
+	endif<br />
+ 	stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="required rebuild index 1 for CPRRP100, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] required rebuild index 1 for CPRRP100 Operating Systems &amp; Databases" />
+	
+	<title>required rebuild index 1 for CPRRP100 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; required rebuild index 1 for CPRRP100</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">eppesuiG</div><div class="date">1st October 2010, 12:48</div></div><div class="posttext">Hi all,<br />
+I found a problem on our LN installation. This problem showed up after upgrading tools from FP3 to FP5 and moving from NCHAR to NVARCHAR, in UTF8 mode.<br />
+<br />
+Problem is that session cprrp1100m000 is really slow when saving records. This means that saving one record usually last 3 or 4 minutes.<br />
+<br />
+Analyzing the problem, we found that index 1 is probably broken, since if we drop/create that index, then saving record last a few seconds.<br />
+<br />
+If we use &quot;ALTER INDEX ... REBUILD&quot; the problem isn't solved, so we really have to DROP and then CREATE it.<br />
+<br />
+The main problem is that we have to do this operation every morning.<br />
+<br />
+Is there anyone with a clue about what is happening? Do you have any suggestion about what to check?<br />
+<br />
+Thank you very much,<br />
+Giuseppe</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vinceco252</div><div class="date">1st October 2010, 16:36</div></div><div class="posttext">No immediate ideas.  Have you submitted an inquiry to Infor?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eppesuiG</div><div class="date">1st October 2010, 16:53</div></div><div class="posttext">Not yet. I'll do it on monday.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">3rd October 2010, 05:26</div></div><div class="posttext">Hi all,<br />
+I found a problem on our LN installation. This problem showed up after upgrading tools from FP3 to FP5 and moving from NCHAR to NVARCHAR, in UTF8 mode.<br />
+<br />
+Problem is that session cprrp1100m000 is really slow when saving records. This means that saving one record usually last 3 or 4 minutes.<br />
+<br />
+Analyzing the problem, we found that index 1 is probably broken, since if we drop/create that index, then saving record last a few seconds.<br />
+<br />
+If we use &quot;ALTER INDEX ... REBUILD&quot; the problem isn't solved, so we really have to DROP and then CREATE it.<br />
+<br />
+The main problem is that we have to do this operation every morning.<br />
+<br />
+Is there anyone with a clue about what is happening? Do you have any suggestion about what to check?<br />
+<br />
+Thank you very much,<br />
+Giuseppe<br />
+<br />
+what version of oracle? that doesn't sound right at all.<br />
+<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eppesuiG</div><div class="date">3rd October 2010, 20:07</div></div><div class="posttext">oracle is version 10.2.0.4</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">3rd October 2010, 20:54</div></div><div class="posttext">Ok, so i don't think the index is &quot;broken&quot;.. (i.e., the db engine isn't corrupting the index in any way)  what did you do to lead you to believe that? (aside from dropping and re-creating it?)<br />
+<br />
+What i suspect is that when you re-create the index you're actually loading a lot of table data into the DB buffers so your lookup queries are going faster. (index creation is basically a full table scan of your table.)<br />
+<br />
+Your statistics could just be out of date, Even though Oracle 10 has an automated statistics collector. sometimes it doesn't work as well as you might think. try doing a &quot;dbms_stats...&quot; on the table. (not analyze table ... )<br />
+<br />
+If all else fails, find the query that's slow (probably not the insert, probably a lookup &quot;select&quot;) and pin that query in memory every startup. (check metalink or google on how to pin a query, i don't have the syntax infront of me).<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eppesuiG</div><div class="date">4th October 2010, 11:09</div></div><div class="posttext">I just ran SQL command<br />
+EXEC DBMS_STATS.GATHER_TABLE_STATS('BAAN','TCPRRP100500');<br />
+but it didn't fix the problem.<br />
+<br />
+I will try to pinpoint the query and block it in oracle cache.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eppesuiG</div><div class="date">4th October 2010, 13:06</div></div><div class="posttext">So, it seems the query is SELECT /*+FIRST_ROWS*/ a0.t$plnc,a0.t$type,a0.t$orno,a0.t$item,a0.t$plmt,<br />
+  a0.t$psdt,a0.t$pfdt,a0.t$prdt,a0.t$quan,a0.t$cplb,a0.t$osta,a0.t$trdt,<br />
+  a0.t$trpu,a0.t$dwar,a0.t$sfpl,a0.t$rgrp,a0.t$grid,a0.t$opro,a0.t$pbpl,<br />
+  a0.t$suno,a0.t$sush,a0.t$supl,a0.t$susi,a0.t$suwa,a0.t$carr,a0.t$pesi,<br />
+  a0.t$peko,a0.t$peor,a0.t$peop,a0.t$pepo,a0.t$pese,a0.t$cfor,a0.t$fono,<br />
+  a0.t$fopo,a0.t$odpr,a0.t$txta,500,a1.t$dsca,a7.t$dsca,a4.t$sfpl,a4.t$rgrp,<br />
+  a3.t$buyr <br />
+FROM<br />
+ (((( baan.tcprrp100500 a0 LEFT  JOIN  baan.tcprpd400500 a1 ON a1.t$plnc = <br />
+  a0.t$plnc) LEFT  JOIN  baan.tcprpd100500 a5 ON a5.t$plni = a0.t$item) LEFT  <br />
+  JOIN  baan.ttcibd200500 a6 ON a6.t$item = a5.t$item) LEFT  JOIN  <br />
+  baan.ttcibd001500 a7 ON a7.t$item = a6.t$item),(( baan.tcprpd100500 a2 LEFT <br />
+   JOIN  baan.ttdipu001500 a3 ON a3.t$item = a2.t$item) LEFT  JOIN  <br />
+  baan.ttcibd200500 a4 ON a4.t$item = a2.t$item) WHERE a2.t$plni = a0.t$item <br />
+  AND a0.t$type = :1 AND ((a0.t$plnc &gt; :2) OR (a0.t$plnc = :3 AND (a0.t$suno <br />
+  &gt; :4)) OR (a0.t$plnc = :5 AND a0.t$suno = :6 AND (a0.t$item &gt; :7)) OR <br />
+  (a0.t$plnc = :8 AND a0.t$suno = :9 AND a0.t$item = :10 AND (a0.t$psdt &gt; :11)<br />
+  ) OR (a0.t$plnc = :12 AND a0.t$suno = :13 AND a0.t$item = :14 AND a0.t$psdt <br />
+  = :15 AND (a0.t$type &gt; :16)) OR (a0.t$plnc = :17 AND a0.t$suno = :18 AND <br />
+  a0.t$item = :19 AND a0.t$psdt = :20 AND a0.t$type = :21 AND (a0.t$orno &gt; <br />
+  :22)) OR (a0.t$plnc = :23 AND a0.t$suno = :24 AND a0.t$item = :25 AND <br />
+  a0.t$psdt = :26 AND a0.t$type = :27 AND a0.t$orno = :28)) AND a0.t$plnc = <br />
+  :29 AND a0.t$suno = :30 AND (a0.t$plnc &gt;= :31 AND NOT(a0.t$plnc = :31 AND <br />
+  (a0.t$suno &lt; :32))) ORDER BY 1,20,4,6,2,3<br />
+<br />
+<br />
+call     count       cpu    elapsed       disk      query    current        rows<br />
+------- ------  -------- ---------- ---------- ---------- ----------  ----------<br />
+Parse        1      0.00       0.00          0          0          0           0<br />
+Execute      3      0.77       0.75          0          0          0           0<br />
+Fetch       21    143.56     140.57          1     901968          0          39<br />
+------- ------  -------- ---------- ---------- ---------- ----------  ----------<br />
+total       25    144.33     141.32          1     901968          0          39<br />
+<br />
+So, baan is not using any index, oracle is probably selecting index 1, and then?<br />
+I'll post more information tomorrow, when I hope I'll have the plan explained.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lebowski</div><div class="date">4th October 2010, 16:24</div></div><div class="posttext">Did you check the table cprrp100 with bdbvalidate (Validate data integrity) ?<br />
+Maybe there are some unallowed characters in the data.<br />
+<br />
+<br />
+lebowski</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">4th October 2010, 19:36</div></div><div class="posttext">So, it seems the query is SELECT /*+FIRST_ROWS*/ a0.t$plnc,a0.t$type,a0.t$orno,a0.t$item,a0.t$plmt,<br />
+  a0.t$psdt,a0.t$pfdt,a0.t$prdt,a0.t$quan,a0.t$cplb,a0.t$osta,a0.t$trdt,<br />
+  a0.t$trpu,a0.t$dwar,a0.t$sfpl,a0.t$rgrp,a0.t$grid,a0.t$opro,a0.t$pbpl,<br />
+  a0.t$suno,a0.t$sush,a0.t$supl,a0.t$susi,a0.t$suwa,a0.t$carr,a0.t$pesi,<br />
+  a0.t$peko,a0.t$peor,a0.t$peop,a0.t$pepo,a0.t$pese,a0.t$cfor,a0.t$fono,<br />
+  a0.t$fopo,a0.t$odpr,a0.t$txta,500,a1.t$dsca,a7.t$dsca,a4.t$sfpl,a4.t$rgrp,<br />
+  a3.t$buyr <br />
+FROM<br />
+ (((( baan.tcprrp100500 a0 LEFT  JOIN  baan.tcprpd400500 a1 ON a1.t$plnc = <br />
+  a0.t$plnc) LEFT  JOIN  baan.tcprpd100500 a5 ON a5.t$plni = a0.t$item) LEFT  <br />
+  JOIN  baan.ttcibd200500 a6 ON a6.t$item = a5.t$item) LEFT  JOIN  <br />
+  baan.ttcibd001500 a7 ON a7.t$item = a6.t$item),(( baan.tcprpd100500 a2 LEFT <br />
+   JOIN  baan.ttdipu001500 a3 ON a3.t$item = a2.t$item) LEFT  JOIN  <br />
+  baan.ttcibd200500 a4 ON a4.t$item = a2.t$item) WHERE a2.t$plni = a0.t$item <br />
+  AND a0.t$type = :1 AND ((a0.t$plnc &gt; :2) OR (a0.t$plnc = :3 AND (a0.t$suno <br />
+  &gt; :4)) OR (a0.t$plnc = :5 AND a0.t$suno = :6 AND (a0.t$item &gt; :7)) OR <br />
+  (a0.t$plnc = :8 AND a0.t$suno = :9 AND a0.t$item = :10 AND (a0.t$psdt &gt; :11)<br />
+  ) OR (a0.t$plnc = :12 AND a0.t$suno = :13 AND a0.t$item = :14 AND a0.t$psdt <br />
+  = :15 AND (a0.t$type &gt; :16)) OR (a0.t$plnc = :17 AND a0.t$suno = :18 AND <br />
+  a0.t$item = :19 AND a0.t$psdt = :20 AND a0.t$type = :21 AND (a0.t$orno &gt; <br />
+  :22)) OR (a0.t$plnc = :23 AND a0.t$suno = :24 AND a0.t$item = :25 AND <br />
+  a0.t$psdt = :26 AND a0.t$type = :27 AND a0.t$orno = :28)) AND a0.t$plnc = <br />
+  :29 AND a0.t$suno = :30 AND (a0.t$plnc &gt;= :31 AND NOT(a0.t$plnc = :31 AND <br />
+  (a0.t$suno &lt; :32))) ORDER BY 1,20,4,6,2,3<br />
+<br />
+<br />
+call     count       cpu    elapsed       disk      query    current        rows<br />
+------- ------  -------- ---------- ---------- ---------- ----------  ----------<br />
+Parse        1      0.00       0.00          0          0          0           0<br />
+Execute      3      0.77       0.75          0          0          0           0<br />
+Fetch       21    143.56     140.57          1     901968          0          39<br />
+------- ------  -------- ---------- ---------- ---------- ----------  ----------<br />
+total       25    144.33     141.32          1     901968          0          39<br />
+<br />
+So, baan is not using any index, oracle is probably selecting index 1, and then?<br />
+I'll post more information tomorrow, when I hope I'll have the plan explained.<br />
+<br />
+awesome!<br />
+<br />
+so make sure you update statistics on<br />
+tcprrp100500<br />
+tcprpd400500<br />
+tcprpd100500<br />
+ttcibd200500<br />
+ttcibd001500<br />
+tcprpd100500<br />
+ttdipu001500<br />
+<br />
+also, i'm assuming this is a standard baan session?<br />
+<br />
+ORDER BY 1,20,4,6,2,3 seems like that should be an index.<br />
+that's tcprrp100 (plnc, suno, item, psdt, type, orno) check that table to see if<br />
+that matches up with an index.<br />
+<br />
+back in the day if you did order by &lt;index&gt; that would force an index hint in baan.. are you using a noindexhint parameter somewhere?<br />
+<br />
+Dave</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

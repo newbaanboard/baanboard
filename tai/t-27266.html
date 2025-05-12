@@ -1,0 +1,201 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Performance Problem, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Performance Problem Tools Administration &amp; Installation" />
+	
+	<title>Performance Problem [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Performance Problem</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">satishind</div><div class="date">3rd June 2006, 08:15</div></div><div class="posttext">Hi, <br />
+<br />
+Environment details:<br />
+Baan4b<br />
+Oracle version: Oracle7.X<br />
+Driver2 <br />
+<br />
+Below Query is taking around 12 to 14mins any suggestions welcome to improve performance of the query. <br />
+<br />
+I am attaching profile file for your reference.<br />
+<br />
+select 	tdsls045.*,         	<br />
+           	tiitm001.ctyp, tiitm001.csgs<br />
+    	from	tdsls045, tiitm001<br />
+where	tdsls045.pono &lt;  :tdsls000.cspn.4    	    	    	<br />
+and not exists (select tdrpl100.sorn<br />
+         	         from tdrpl100<br />
+         	         where     tdrpl100._index9 = {tdsls045.orno, tdsls045.pono})and  not exists (select * <br />
+    	         from issls930<br />
+         	         where issls930._index5 = {tdsls045.orno, tdsls045.pono,tdsls045.srnb} <br />
+and issls930.dlnk = isdelink.active) 		<br />
+and tdsls045.ddat &lt;&gt; 0 		 <br />
+and tiitm001.item = tdsls045.item 		 <br />
+order by tdsls045.orno, tdsls045.pono, tdsls045.srnb<br />
+<br />
+Regards,<br />
+Reddy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">victor_cleto</div><div class="date">3rd June 2006, 14:10</div></div><div class="posttext">Run with DBSLOG debug information (search the threads for that) to get the times of the query and thus know where Baan is spending its time on.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">3rd June 2006, 16:46</div></div><div class="posttext">It looks like you've got some custome tables in there so i can't tell you 100%<br />
+<br />
+But you're outer query is using tdsls045 Index1 however you're not really limiting index 1 by much, so it is likely doing a full index scan.<br />
+<br />
+Your query on rpl100 should be &quot;ok&quot; but it's stilly to using the _index9. You should use _index1 which is orno, pono, srrb. You should also order by<br />
+_index1 just to make sure you're sending the index hint.<br />
+<br />
+You're also using a &quot;not exists&quot; from 2 subqeries. which is fairly bad design, I'd see if i could try to join the tables in another way. It might be better to send them in your selectdo or selectempty<br />
+<br />
+The only other thing you could hope for is to do &quot;analyse table &lt;tablename&gt; compute statistics&quot; on each of the tables in your query (at the oracle level) and hope the optimizer can figure it out.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">4th June 2006, 15:32</div></div><div class="posttext">Hi, <br />
+<br />
+Environment details:<br />
+Baan4b<br />
+Oracle version: Oracle7.X<br />
+Driver2 <br />
+<br />
+Below Query is taking around 12 to 14mins any suggestions welcome to improve performance of the query. <br />
+<br />
+I am attaching profile file for your reference.<br />
+<br />
+select 	tdsls045.*,         	<br />
+           	tiitm001.ctyp, tiitm001.csgs<br />
+    	from	tdsls045, tiitm001<br />
+where	tdsls045.pono &lt;  :tdsls000.cspn.4    	    	    	<br />
+and not exists (select tdrpl100.sorn<br />
+         	         from tdrpl100<br />
+         	         where     tdrpl100._index9 = {tdsls045.orno, tdsls045.pono})and  not exists (select * <br />
+    	         from issls930<br />
+         	         where issls930._index5 = {tdsls045.orno, tdsls045.pono,tdsls045.srnb} <br />
+and issls930.dlnk = isdelink.active) 		<br />
+and tdsls045.ddat &lt;&gt; 0 		 <br />
+and tiitm001.item = tdsls045.item 		 <br />
+order by tdsls045.orno, tdsls045.pono, tdsls045.srnb<br />
+<br />
+Regards,<br />
+Reddy<br />
+<br />
+Hello,<br />
+<br />
+(Display or Print Session ????)<br />
+as i suppose, you wanna select all salesorder deliveries without the additional positions above tdsls000.cspn.4 (Sales parameters) and without replenishment orders and all deliveries where is a deliverydate.<br />
+I don't know the structure of own tables (issls930).<br />
+Try to work with variable and functions, not all in one select statement.<br />
+If parameter cspn.4 is set to 960:<br />
+<br />
+select tdsls045.*, tiitm001.ctyp, tiitm001.csgs<br />
+from tdsls045, tiitm001<br />
+where tdsls045._index1 inrange {:orno.f, 0, 0}<br />
+and                                      {:orno.t, 950, 99}<br />
+and tdsls045.ddat &lt;&gt; 0<br />
+selectdo<br />
+  order = tdsls045.orno<br />
+  position = tdsls045.pono<br />
+  serial = tdsls045.srnb<br />
+  <br />
+  check.tdrpl100()<br />
+  if condition is ok then <br />
+<br />
+selectempty<br />
+  maybe do something<br />
+endselect<br />
+<br />
+function check.tdrpl100()<br />
+{<br />
+select tdrpl100.*<br />
+from tdrpl100<br />
+where tdrpl100._index1 = {:order, :position, :serial}<br />
+selectdo<br />
+selectempty<br />
+  here a repl. order does'nt exist<br />
+endselect<br />
+}<br />
+<br />
+Try to avoid &quot;full table scans&quot;<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">9th June 2006, 16:47</div></div><div class="posttext">Reddy,<br />
+<br />
+Your problem can be in different areas:<br />
+- how much is the &quot;not exists&quot; on tdrpl100 filtering?<br />
+- how much is the &quot;not exists&quot; on issls930 filtering?<br />
+<br />
+If one of these is filtering more than 50% of the records, I assume that this is causing your performance issue.<br />
+<br />
+If thsese filters filters less than a 10% I advise to do a SQL_TRACE and share the tkprof formatted output.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">9th June 2006, 17:23</div></div><div class="posttext">Hi All, I also check it . I saw something on SQL. <br />
+issls930.dlnk = isdelink.active <br />
+if DLNK domain type is enumareted then you should use corresponding integer number for your enumareted type.In sql query this is must on Baan Tools. However , timing for your sql may be normal if there ara so many records. Because your query is a bit complicated. Check DLNK domain type.For example if 1 is used for your isdelink.active then change it in  your code like <br />
+issls930.dlnk = 1  .<br />
+<br />
+Good lucks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">9th June 2006, 17:27</div></div><div class="posttext">if DLNK domain type is enumareted then you should use corresponding integer number for your enumareted type.<br />
+<br />
+IMHO this statement is not correct. <br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">9th June 2006, 18:05</div></div><div class="posttext">Are you sure ? In baan sql <br />
+For example <br />
+select *<br />
+from table<br />
+where [condition part]<br />
+selectdo<br />
+  [operation part]<br />
+endselect <br />
+<br />
+In condition part of Baan sql you should use int value for enum. Am I right ?<br />
+In operation part of baan sql you should use directly your enum like issls930.dlnk = isdelink.active <br />
+<br />
+ok. Dikke Understand it ?  If it is not correct me !</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">12th June 2006, 10:36</div></div><div class="posttext">It is not correct Suleyman, you should use the constant name, rather than the constant number. The debugger will by the way not even accept the constant numbers (at least in BaanV)..<br />
+<br />
+Regards,<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">12th June 2006, 11:41</div></div><div class="posttext">I mean constant number for enum.<br />
+<br />
+anyway , I said that because in our system , When I compile my code with enum name , it didn't compile it. But I said that for SQL condition part. Except that you are right. as soon as possible I will check it agin .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">15th June 2006, 09:37</div></div><div class="posttext">Reddy,<br />
+<br />
+Have you been able to make some progress on this topic? I like to hear what the problem was and how you fixed it. Or where we can help you to get it fixed.<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

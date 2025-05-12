@@ -1,0 +1,217 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="quick silly problem with select statement, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] quick silly problem with select statement Tools Development" />
+	
+	<title>quick silly problem with select statement [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; quick silly problem with select statement</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Haggis</div><div class="date">19th June 2003, 17:03</div></div><div class="posttext">Hi<br />
+<br />
+This is probably a stupid question on my behalf but my brain is not functioning.<br />
+<br />
+I have two tables.  I am trying to link them via 2 fields to get another field off the table. ie <br />
+<br />
+select	whinh210.*, whinh302.*<br />
+from	whinh210, whinh302<br />
+where	whinh210.oorg = 2	<br />
+and	whinh210.ardt &gt;= :rdate.f<br />
+and	whinh210.ardt &lt;= :rdate.t<br />
+and	whinh302._index1 = {whinh210.bpid, whinh210.orno}<br />
+selectdo<br />
+<br />
+I need a field off the whinh302 table but if it does not exist then still print out the record anyway.  It keeps coming up with no data found, yet when I remove the whinh302 table I get data.  I guess this is because I am only allowing it to print if all conditions are met.  <br />
+<br />
+Would I use the &quot;refer to&quot; instead to work around this, or create a seperate select statement under the selectdo section?<br />
+<br />
+Sorry I should know this but am not thinking today.<br />
+<br />
+Haggis</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">19th June 2003, 17:57</div></div><div class="posttext">Try something like this:<br />
+<br />
+<br />
+select	whinh210.*, whinh302.*<br />
+from	whinh210, whinh302<br />
+where	whinh210._index1 = {2} <br />
+and	whinh210.ardt &gt;= :rdate.f<br />
+and	whinh210.ardt &lt;= :rdate.t<br />
+and	{whinh210.bpid, whinh210.orno} refers to whinh302 unref clear<br />
+selectdo<br />
+<br />
+<br />
+Using &quot;refers to&quot; with &quot;unref clear&quot; allows the join to happen even if the reference does not exist.  In that case, the fields to the referenced table (whinh302) are filled with spaces or 0's as appropriate.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">19th June 2003, 18:37</div></div><div class="posttext">Would I use the &quot;refer to&quot; instead to work around this, or create a seperate select statement under the selectdo section?<br />
+<br />
+<br />
+If there is a reference between the tables, use it.  If not, you'll have to use a second select:<br />
+<br />
+<br />
+select  whinh210.*<br />
+where   whinh210._index1 = {2} <br />
+and     whinh210.ardt &gt;= :rdate.f<br />
+and     whinh210.ardt &lt;= :rdate.t<br />
+selectdo<br />
+           select  whinh302.*<br />
+           where   whinh302._index1 = {whinh210.bpid, whinh210.orno}<br />
+           selectdo<br />
+           selectempty<br />
+                 &lt;fill the print fields with blanks&gt;<br />
+           endselect<br />
+           &lt;print...&gt;<br />
+endselect<br />
+<br />
+<br />
+:( By the way, this style of SQL is bad for performance!  Rather replace &lt;table&gt;.* with &lt;table&gt;.&lt;field&gt;, &lt;table&gt;.&lt;field&gt;, etc...<br />
+<br />
+Regards,<br />
+Nico</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">19th June 2003, 18:39</div></div><div class="posttext">I am not sure how 'refers to' translates in your database driver, but I always try to avoid using it. Maybe it improved over time. but I am used to seeing the statement result in poor performance.<br />
+<br />
+What you are trying to do is create a so called 'outer-joined' relationship between the two tables.<br />
+Now I believe that there is some archaic method in Baan to actually accomplish this, but in your case there is a simpler solution.<br />
+<br />
+<br />
+select    *<br />
+from       whinh210<br />
+where   whinh210._index1 = {2}<br />
+selectdo<br />
+    select     *<br />
+    from        whin302<br />
+    where     whinh302._index1 = {whatever}<br />
+    selectdo<br />
+         | print info from 302 table<br />
+    selectempty<br />
+         | print info from 210 table only<br />
+    endselect<br />
+endselect<br />
+<br />
+<br />
+It may not be the most elegant code, but this way you stick to indexed queries and you'll keep your overhead low.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">19th June 2003, 18:41</div></div><div class="posttext">Not only did Nico beat me to it, he also got the [code] tags correct :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">19th June 2003, 18:45</div></div><div class="posttext">Don't worry Francesco, we still learn everyday! :D And that includes typing speed! :p <br />
+<br />
+Just as a general idea, isn't it possible to make the state of a thread known in the board's software?  So you can see whether somebody else is busy replying?<br />
+<br />
+Regards,<br />
+Nico</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">19th June 2003, 18:52</div></div><div class="posttext">Besides, it's no big deal that there are similar answers. It just makes it more likely that there is some merrit in the message.<br />
+<br />
+Let's not forget that we all just post here on our self-proclaimed authority (kinda like consultants ;) ). <br />
+I would never trust myself without a second opinion. Does anybody concur to that? :D</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">19th June 2003, 19:02</div></div><div class="posttext">You can see what some users are doing by looking at the active user list on the main page.  The only problem is that some users stay hidden and you can not see what they are doing.  Also you can never see what the Board Masters are doing - it says something like &quot;AH, AH - no peeking&quot;.  You could use it if you want, but I would just post if I thought I had a valid answer.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">19th June 2003, 19:07</div></div><div class="posttext">The idea for the question was more something like a competition: see who answers the fastest and most accurate!<br />
+<br />
+Regards,<br />
+Nico</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Haggis</div><div class="date">20th June 2003, 11:56</div></div><div class="posttext">Again I have to thank you guys as well as Baanboard for providing this service.<br />
+<br />
+I have to admit I have asked a lot more questions that provided answers, but my knowledge has increased through this board so hopefully soon I can contribute more.<br />
+<br />
+Thanks<br />
+Haggis</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dnnslbrwn</div><div class="date">20th June 2003, 18:35</div></div><div class="posttext">Francesco,<br />
+<br />
+Above, you mention a possible method of performing an outer join... do you have any idea what it might be or where to point me?  I find that I use qptool6.1 frequently to perform nightly queries that get e-mailed to my staff.  Sometimes the 'refers to' w/unref clear is not possible due to lack of index.  I then end up having to send the results of one query to a file and then use that as imput to a second query and that is, well ... messy!<br />
+<br />
+Any pointers as to a direction for research would be appreciated.<br />
+<br />
+Cheers,<br />
+<br />
+-Dennis</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">20th June 2003, 18:35</div></div><div class="posttext">Patrick has to recover an unexpected 500 EURO fine.<br />
+<br />
+With the new surcharges on the already inflated solution price, you might consider taking that second mortgage now.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">20th June 2003, 18:57</div></div><div class="posttext">Originally posted by Haggis <br />
+Hi<br />
+<br />
+This is probably a stupid question on my behalf but my brain is not functioning.<br />
+<br />
+I have two tables.  I am trying to link them via 2 fields to get another field off the table. ie <br />
+<br />
+select	whinh210.*, whinh302.*<br />
+from	whinh210, whinh302<br />
+where	whinh210.oorg = 2	<br />
+and	whinh210.ardt &gt;= :rdate.f<br />
+and	whinh210.ardt &lt;= :rdate.t<br />
+and	whinh302._index1 = {whinh210.bpid, whinh210.orno}<br />
+selectdo<br />
+<br />
+I need a field off the whinh302 table but if it does not exist then still print out the record anyway.  It keeps coming up with no data found, yet when I remove the whinh302 table I get data.  I guess this is because I am only allowing it to print if all conditions are met.  <br />
+<br />
+Would I use the &quot;refer to&quot; instead to work around this, or create a seperate select statement under the selectdo section?<br />
+<br />
+Sorry I should know this but am not thinking today.<br />
+<br />
+Haggis  <br />
+<br />
+Sorry !<br />
+<br />
+Try this.<br />
+<br />
+select whinh210.*<br />
+from whinh210<br />
+where whinh210.oorg = 2<br />
+and whinh210.ardt &gt;= :rdate.f<br />
+and whinh210.ardt &lt;= :rdate.t<br />
+selectdo<br />
+<br />
+select whinh302.*<br />
+from whinh302<br />
+where whinh302._index1 = {:whinh210.bpid, :whinh210.orno}<br />
+selectdo<br />
+  <br />
+   selectempty<br />
+<br />
+endselect<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">20th June 2003, 19:03</div></div><div class="posttext">Originally posted by NvanBeest <br />
+The idea for the question was more something like a competition: see who answers the fastest and most accurate!<br />
+<br />
+Regards,<br />
+Nico  <br />
+<br />
+Now if only Baan support would do the same thing heh? :D</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="db.insert to wrong table, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] db.insert to wrong table Tools Development" />
+	
+	<title>db.insert to wrong table [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; db.insert to wrong table</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">evertsen</div><div class="date">17th September 2002, 01:32</div></div><div class="posttext">I've written some code that is supposed to move records from a table (tivkm001) in one company (112) to the same table in another company (114).  However, what it does is place the records back in the same company (112) it just deleted them from.<br />
+Any ideas?  Here's the code...<br />
+<br />
+<br />
+choice.user.4:<br />
+after.choice:<br />
+	<br />
+	project = tivkm001.orno<br />
+	<br />
+	db.retry.point()<br />
+	select	tivkm001.*<br />
+	from	tivkm001 for update<br />
+	where	tivkm001.orno = :project and<br />
+		tivkm001._compnr = 114<br />
+	selectdo<br />
+		db.delete(ttivkm001, db.retry)<br />
+		commit.transaction()<br />
+	endselect<br />
+	<br />
+	location.f = &quot;       0&quot;<br />
+	location.t = &quot;     600&quot;<br />
+	<br />
+	db.retry.point()<br />
+	select	tivkm001.*<br />
+	from	tivkm001 for update<br />
+	where	tivkm001.orno = :project and<br />
+		(tivkm001.loca inrange :location.f and :location.t or<br />
+		tivkm001.loca = &quot;    1010&quot; or<br />
+		tivkm001.loca = &quot;    1020&quot;) and<br />
+		tivkm001._compnr = 112	<br />
+	selectdo<br />
+		db.delete(ttivkm001, db.retry)<br />
+		commit.transaction()<br />
+		<br />
+		a.code = tivkm001.code<br />
+		<br />
+		db.retry.point()		<br />
+		select	tivkm001.*<br />
+		from	tivkm001<br />
+		where	tivkm001._index1 = {:project, :a.code} and <br />
+			tivkm001._compnr = 114<br />
+		selectdo<br />
+			db.insert(ttivkm001, db.retry)<br />
+			commit.transaction()<br />
+		selectempty<br />
+			db.insert(ttivkm001, db.retry)<br />
+			commit.transaction()<br />
+		endselect<br />
+	selectempty<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dbinderbr</div><div class="date">17th September 2002, 02:48</div></div><div class="posttext">Try to use the function switch.to.company or check.compnr instead of using just the clause &quot;_compnr = &quot;.<br />
+<br />
+http://www.baanboard.com/programmers_manual_baanerp_help_functions_company_operations_compnr_check</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evertsen</div><div class="date">17th September 2002, 03:55</div></div><div class="posttext">I tried switch.to.company() but got the same result.  I've never had a problem with the _compnr before... it's really perplexing</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ayoobi</div><div class="date">17th September 2002, 04:22</div></div><div class="posttext">add the following line before the insert and that should do the trick:<br />
+tivkm001._compnr = 114</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evertsen</div><div class="date">17th September 2002, 04:36</div></div><div class="posttext">That was the answer.  Thanks for the help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">17th September 2002, 10:05</div></div><div class="posttext">Evertsen: <br />
+choice.user.4:<br />
+after.choice:<br />
+	<br />
+	project = tivkm001.orno<br />
+	<br />
+	db.retry.point()<br />
+	...<br />
+		commit.transaction()<br />
+	...<br />
+	db.retry.point()<br />
+	...<br />
+		commit.transaction()<br />
+		...<br />
+		db.retry.point()		<br />
+		...<br />
+			commit.transaction()<br />
+		...<br />
+			...<br />
+			commit.transaction()<br />
+		...<br />
+Are you afraid of not performing these actions? What will happen with your data when the second commit fails? Or the third? In my opinion it would be better to put all into one transaction to be sure that if it fails somewhere along the line, your situation is restored like it was before (that is where you use the option db.retry in your deletes and inserts for.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evertsen</div><div class="date">17th September 2002, 17:45</div></div><div class="posttext">What you say makes sense but I'm not sure how to code it all into one transaction...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">18th September 2002, 08:48</div></div><div class="posttext">Start that section with a db.retry.point() and end with a commit.transaction(). So replace all intermediate commits and retry points with one set that spans the whole action.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evertsen</div><div class="date">21st September 2002, 18:08</div></div><div class="posttext">After a little reorganization, I got it to work... thanks for your help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">21st September 2002, 23:21</div></div><div class="posttext">In general: commits and retry points (and abort transactions) are performance costly. Try to limit their use.<br />
+<br />
+Test the use of retry points with -- set TEST_RETRY=2 (you can do this in the debugger once to take good notice of all variables).<br />
+<br />
+Note that when you set a variable outside the transaction and you change this variable within the transaction and then write it to the database, when on a retry point, the variable is changed...<br />
+<br />
+a = 10<br />
+db.retry point<br />
+a = a+1<br />
+insert a into database<br />
+commit<br />
+<br />
+run program:<br />
+a = 10<br />
+a = 10 + 1 = 11<br />
+commit succeeds<br />
+a = 11 is inserted<br />
+<br />
+run program with TEST_RETRY=2<br />
+a = 10<br />
+db.retry.point<br />
+a = 10 + 1 = 11<br />
+insert prepared<br />
+commit fails (1)<br />
+jump to db.retry.point<br />
+a = 11 + 1 = 12<br />
+insert prepared<br />
+commit fails (2)<br />
+jump to db.retry.point<br />
+a = 12 + 1 = 13<br />
+insert prepared<br />
+commit succeeds<br />
+a = 13 is inserted.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evertsen</div><div class="date">22nd September 2002, 02:12</div></div><div class="posttext">sounds like good advice...I'll put it into practice.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

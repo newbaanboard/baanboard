@@ -1,0 +1,129 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Calculated field in planned orders, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Calculated field in planned orders Tools Development" />
+	
+	<title>Calculated field in planned orders [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Calculated field in planned orders</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">martin.f</div><div class="date">5th May 2020, 12:16</div></div><div class="posttext">Hello,<br />
+<br />
+I want to add a calculated field to the session cprrp1100m000 Planned Orders.<br />
+I want to use a nested selected so that it is possible to filter.<br />
+<br />
+The goal is to get a link to tdsls401.ddta<br />
+We have planned orders with specification and some without. <br />
+If there is no specification I want to try to use demand pegging information.<br />
+<br />
+If there is a specification linked to a planned order then use the specification to look up tdsls401.ddta. (sales1.ddta)<br />
+If there is no specification use pegged requirements information of cpr100 cpr100.peor and cpr100.pepo  (sales2.ddta)<br />
+<br />
+<br />
+select (case when sales1.ddta = 0 then <br />
+        (select sales2.ddta <br />
+        from tdsls401 sales2<br />
+        where <br />
+        sales2.orno = cprrp100.peor<br />
+        and <br />
+        sales2.pono = cprrp100.pepo<br />
+        and <br />
+        sales2.sqnb = 0)<br />
+<br />
+<br />
+else sales1.ddta<br />
+end) as ddta<br />
+<br />
+from tdsls401 sales1, cprrp001, cprrp105<br />
+<br />
+where <br />
+        cprrp105.plnc = cprrp100.plnc<br />
+        AND<br />
+        cprrp105.koor = cprrp100.type<br />
+        AND<br />
+        cprrp105.orno = cprrp100.orno<br />
+        AND<br />
+        cprrp001.spid = cprrp105.spid<br />
+        AND<br />
+        sales1.orno = cprrp001.albo<br />
+        AND<br />
+        sales1.pono = cast (cprrp001.abor as INTEGER)<br />
+        AND<br />
+        sales1.sqnb = 0<br />
+        <br />
+<br />
+<br />
+I get no syntax error for this code. However I only get values for sales1.ddta.<br />
+<br />
+What am I doing wrong?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">martin.f</div><div class="date">6th May 2020, 11:37</div></div><div class="posttext">Now I have rewritten the SQL. In SQL Server Management Studio I get the expected output.<br />
+I have put the 2 scenarios as 2 derived tables in the from statement and made a full outer join.<br />
+<br />
+However in LN I get the error message:<br />
+SQLState 42I00: Unexpected token ':1' (error 302)<br />
+<br />
+or cardinality error.<br />
+<br />
+<br />
+select  (case    when dataspec.ddta = 0 then <br />
+                datapegging.ddta<br />
+        else    dataspec.ddta<br />
+        end) as ddta<br />
+from<br />
+<br />
+(select cprrp100.orno as orno,<br />
+        cprrp100.plnc as plnc,<br />
+        cprrp100.type as type,<br />
+        tdsls401.ddta as ddta<br />
+from    tdsls401, <br />
+        cprrp001, <br />
+        cprrp105<br />
+where   cprrp105.plnc = cprrp100.plnc<br />
+and     cprrp105.koor = cprrp100.type<br />
+and     cprrp105.orno = cprrp100.orno<br />
+and     cprrp001.spid = cprrp105.spid<br />
+and     tdsls401.orno = cprrp001.albo<br />
+and     tdsls401.pono = cast (cprrp001.abor as INTEGER)<br />
+and     tdsls401.sqnb = 0<br />
+)  AS dataspec<br />
+<br />
+FULL OUTER JOIN<br />
+<br />
+(select cprrp100.orno as orno,<br />
+        cprrp100.plnc as plnc,<br />
+        cprrp100.type as type,<br />
+        tdsls401.ddta as ddta<br />
+from    tdsls401 <br />
+where   tdsls401.orno = cprrp100.peor<br />
+and     tdsls401.pono = cprrp100.pepo<br />
+and     tdsls401.sqnb = 0<br />
+) AS datapegging<br />
+ON     <br />
+(dataspec.orno = datapegging.orno<br />
+and     dataspec.plnc = datapegging.plnc<br />
+and     dataspec.type = datapegging.type)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RieseUSA</div><div class="date">11th May 2022, 22:44</div></div><div class="posttext">Hi Martin,<br />
+<br />
+FYI, the 'SQLState 42I00: Unexpected token ':1' (error 302)' is a bug in the LN tools, e.g., the Select statement is getting cut off somewhere and that causes the issue.  I reported it to Infor support and I am hoping that they will fix it.  I got the same error and removed all white space formatting, replaced every table code with one letter aliases, etc., to reduce its length and then the error went away for me.<br />
+<br />
+Yours,<br />
+Stephan</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

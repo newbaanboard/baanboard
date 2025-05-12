@@ -1,0 +1,169 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="LN 10.4 - dal.set.messages.off - Count ?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] LN 10.4 - dal.set.messages.off - Count ? Tools Development" />
+	
+	<title>LN 10.4 - dal.set.messages.off - Count ? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; LN 10.4 - dal.set.messages.off - Count ?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">15th February 2016, 13:38</div></div><div class="posttext">Hi guys,<br />
+<br />
+I am trying to use a standard  DLL which generates the GEO code if vertex integration is present.....tccom.dll4030.update.geocode(...)<br />
+<br />
+Now in my custom address session, Geo code is mandatory which should be derived form above dll.<br />
+<br />
+In dal  --&gt; before.save.object  -&gt; tccom.dll4030.update.geocode returns DALHOOKERROR ... i am setting an error message.But it doesnt show up because internally with in the DLL ( rather sub DLL ) .. dal.set.messages.off  and dal.set.messages.on is being used .<br />
+<br />
+ Error that pops up is &quot;Record not added&quot;<br />
+<br />
+Any suggestion how to pop my custom error.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">15th February 2016, 16:06</div></div><div class="posttext">Vamsi,<br />
+<br />
+What you can do is, get the return value of the DLL and based on that, set your custom message and set dal.set.message.on() to show your custom message.<br />
+<br />
+e.g. Following is my session where I am inserting the record via DAL.<br />
+<br />
+        dal.new.object(&quot;tcibd123&quot;)<br />
+	dal.set.field(&quot;tcibd123.citg&quot;,&quot;BHU&quot;)<br />
+	dal.set.field(&quot;tcibd123.dsca&quot;,&quot;Test&quot;)<br />
+	ret = dal.save.object(&quot;tcibd123&quot;)<br />
+	if ret = 0 then<br />
+		commit.transaction()<br />
+	else<br />
+			dal.set.messages.on()<br />
+			dal.set.error.message(&quot;@Test&quot;)<br />
+			show.dal.messages()<br />
+			abort.transaction()<br />
+	endif<br />
+<br />
+Following is my DAL - <br />
+<br />
+function extern long before.save.object(long type)<br />
+{<br />
+	dal.set.messages.off()<br />
+	select tcmcs023.*<br />
+	from tcmcs023<br />
+	where tcmcs023._index1 = {:tcibd123.citg}<br />
+	selectempty<br />
+		return(DALHOOKERROR)<br />
+	endselect<br />
+	return(0)<br />
+}<br />
+<br />
+I hope I understood the issue. <br />
+<br />
+Though there might be some hidden undocumented variable to track it. Need to dig into it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">15th February 2016, 17:28</div></div><div class="posttext">I am doing exactly what you have mentioned<br />
+<br />
+function extern long before.save.object(long type)<br />
+{	<br />
+ <br />
+	if validate.geo.code() then						|704697-001.sn		<br />
+		dal.set.error.message(&quot;gbcom43001&quot;)<br />
+		return(DALHOOKERROR)<br />
+	endif			<br />
+...<br />
+...<br />
+...<br />
+}<br />
+<br />
+function long validate.geo.code()<br />
+{<br />
+	long l.ret<br />
+	long		o.no.of.geo.codes	<br />
+	domain tcgeoc	o.geoc<br />
+	domain	tcname		o.county.array(1)	based	<br />
+	domain	tcgeoc		o.geo.code.array(1)	based<br />
+	<br />
+	l.ret = gbcom.dll4100.read.general.bp.request(gbcom430.rqno)<br />
+<br />
+<br />
+	if not compnr.check(gbcom400.rfco) then					<br />
+		dal.set.error.message(&quot;tcmcss0000&quot;, gbcom400.rfco)<br />
+		|* You are not authorized for Company Number %1$d.<br />
+		return(DALHOOKERROR)<br />
+	endif	<br />
+	<br />
+	<br />
+	if tctax.dll6100.tax.provider.interface.present() and<br />
+	   tctax.dll6103.country.registered.for.dest.sales.tax(<br />
+					gbcom400.rfco,<br />
+					gbcom430.ccty) then<br />
+		<br />
+		<br />
+		free.mem(o.county.array)<br />
+		free.mem(o.geo.code.array)<br />
+		<br />
+		RETIFNOK.SWITCH.COMP(curr.comp,tccom.dll4030.update.geocode(	<br />
+						gbcom430.ccty,	<br />
+						gbcom430.ccit,	<br />
+						gbcom430.cste,	<br />
+						gbcom430.pstc,	<br />
+						gbcom430.namc,	<br />
+						&quot;&quot;,			| current GEO code	<br />
+						o.no.of.geo.codes,	<br />
+						o.geoc,	<br />
+						o.county.array,	<br />
+						o.geo.code.array))<br />
+	endif	<br />
+		compnr.check(curr.comp)<br />
+	return(0)<br />
+<br />
+<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">darkhorse</div><div class="date">16th February 2016, 18:45</div></div><div class="posttext">Very Correctly Said by Bhushan <br />
+In fact if there are multiple possible error message in DLL then additional extern variables can be used and message code can be set in that DLL and use that variable in dal.set.error.message of your script. <br />
+Value of extern variables can be retrieved by export and import</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">17th February 2016, 08:35</div></div><div class="posttext">At darkhourse ... i feel you got me all wrong ...  basically .. i am setting the error .. only thing is .. that doesnt pop up because  DAL error message buffer (on / off functions used in standard dll) is blank and as result &quot;Record not added&quot; error .<br />
+<br />
+<br />
+:confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">18th February 2016, 18:14</div></div><div class="posttext">Hi,<br />
+<br />
+Another thing you can try is - <br />
+<br />
+dal.set.error.message(&quot;@Your_message&quot;)<br />
+while(dal.count.error.messages()) &gt; 0 <br />
+       dal.get.error.message(err)<br />
+      if  trim$(err) = &quot;Record not added&quot; then<br />
+      else<br />
+             show.dal.messages()<br />
+      endif<br />
+endwhile<br />
+<br />
+Or another way is to create a 3GL to show your own error message and before calling it just set dal.set.messages.off()</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">19th February 2016, 13:46</div></div><div class="posttext">will Play around next week</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">29th February 2016, 20:39</div></div><div class="posttext">@bhushan....  tried your solution did not work for me..;)<br />
+<br />
+dal.skip.messages is the variable i was looking for...:D:D</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

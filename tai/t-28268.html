@@ -1,0 +1,220 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to start a job at a random time., baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to start a job at a random time. Tools Administration &amp; Installation" />
+	
+	<title>How to start a job at a random time. [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; How to start a job at a random time.</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">MvanderHeide</div><div class="date">28th September 2006, 17:54</div></div><div class="posttext">Hi,<br />
+<br />
+I've got a challenge, how do I start a job from the shell at a random time?<br />
+<br />
+Some background info:<br />
+I want to start an &quot;EDI direct network communication&quot;-job for a specific network at a time which is not known. Because we have lots of different EDI-networks (more than 10), I build a loopscript which is suppose to:<br />
+- startup the DNC for a specific network, <br />
+- wait until the semaphore-file command.fil is created,<br />
+- sent the outgoing messages to the other site,<br />
+- collects the incomming messages from the other site,<br />
+- deletes the semaphone-file command.fil,<br />
+- wait until the job is done,<br />
+- startup the DNC for the next network,<br />
+- etc etc<br />
+<br />
+This script is suppose to run always, but as the networks loop I don't know in advance at which time which network is suppose to run DNC. As another matter, DNC can only run one at a time. Otherwise you will get EDI-SESSION-LOCKS.<br />
+<br />
+Is there a ways to startup a job at a time which is not known in advance with the fact that there must be only one job active at the same time?<br />
+<br />
+Thanks for all your input!<br />
+<br />
+Marco</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">29th September 2006, 09:06</div></div><div class="posttext">Hi there,<br />
+<br />
+I usually start Baan jobs with a shell script that calls this job (BSH_JOB=[jobname];export BSH_JOB;ba6.1 ttaad5203m000).<br />
+Your basic problem is to recognize whether job1 has finished before you can call job2 etc.<br />
+You could add two steps to each of your Baan jobs: <br />
+First you call a shell script that creates a control file &quot;jobx_running&quot;.<br />
+Last step in job1 will be another shell script that erases this control file.<br />
+Create one shell script for each job that starts this job.<br />
+Now you can have a &quot;master&quot;-shell script like:<br />
+<br />
+call shell-script to start job1<br />
+while [ -e job1_running ]<br />
+do<br />
+sleep 60<br />
+done  <br />
+call shell-script to start job2<br />
+while [ -e job2_running ]<br />
+do<br />
+sleep 60<br />
+done<br />
+.<br />
+.<br />
+call shell-script to start lastjob<br />
+<br />
+Not elegant, but I hope you get the idea, don't have much time atm.<br />
+<br />
+hth<br />
+<br />
+Norbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">29th September 2006, 10:33</div></div><div class="posttext">Your basic problem is to recognize whether job1 has finished before you can call job2 etc.<br />
+<br />
+Are you sure? I believe that running your method works synchronous while running &quot;sh $BSE/etc/rc.startjob [JOB]&quot; works <br />
+asynchronous (in background).<br />
+<br />
+That's why I usually use the method you mention.<br />
+<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">MvanderHeide</div><div class="date">29th September 2006, 10:48</div></div><div class="posttext">The problem I am facing is not that I cannot determine when a job is finished. BaaN creates a semaphore-file for this.<br />
+<br />
+My main problem is to start the job on a time which is not known in advance. An example:<br />
+- The job is scheduled to be run at 10:00.<br />
+- The script that triggers the job (rc.startjob) runs in a loop at 9:23, 9:48, 10:02.<br />
+<br />
+At the first trigger (at 9:23) the job starts waiting for until 10:00. My script can't wait, because there are more (appr. 10) other jobs to trigger, so it abandons the wait at 9:24 and triggers the next job. The same happens at 9:48 and finally at 10:02 the job has run, but perhaps other jobs have ran at 10:00 also, which causes EDI-LOCKS.<br />
+<br />
+I want to run a job from a script without scheduling the job. I want to just run a job, now! :) Without having to wait for the scheduled time to arrive.<br />
+<br />
+Thanks for your ideas!<br />
+<br />
+Marco.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">29th September 2006, 10:52</div></div><div class="posttext">We are using an update from the unix shell on the job table to ensure the correct status; could you also do something like that (status + date)?<br />
+<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">MvanderHeide</div><div class="date">29th September 2006, 11:02</div></div><div class="posttext">We are using an update from the unix shell on the job table to ensure the correct status; could you also do something like that (status + date)?<br />
+<br />
+Günther<br />
+<br />
+Wow!<br />
+<br />
+This is indeed my missing link! I can change the next run date/time and status in the job table from the script, trigger the job, wait for it to end and go about the next job.<br />
+<br />
+Sounds very good. Do you have the syntax of the command to update the jobtable? Or any hints where to find this?<br />
+<br />
+Thanks!<br />
+<br />
+Marco</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">29th September 2006, 11:11</div></div><div class="posttext">Hmmh. As I see you are using BISAM. But why don' t you create a baan session that does an update on ttaad500.edte / stim / jsta (in your current company or company 0)? Simply call that session &quot;ba6.1 [your session]&quot; before &quot;ba6.1 ttaad5203m000&quot;.<br />
+<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">MvanderHeide</div><div class="date">29th September 2006, 16:35</div></div><div class="posttext">Hi All,<br />
+<br />
+When you want to start a job now, without having to know in advance at what time the job you can use the UNIX-script below.<br />
+<br />
+Thanks Günther for your ideas while making this script.<br />
+<br />
+-----------------<br />
+# Schedule the EDI-job to run NOW!<br />
+echo &quot;2006-09-29 10:57:46.729&quot; &gt; $SCRIPTDIR/tttaad500${EDICOMP}.S<br />
+echo &quot;#\$!pre-dump!\$#00037cv&quot; &gt;&gt; $SCRIPTDIR/tttaad500${EDICOMP}.S<br />
+echo &quot;$EDIJOB|Direct Network Comm ${EDICOMP}|01012006|1|1|1|2|`date -u '+%m%d%Y'`|`date -u '+%H%M'`|0|01012006|0000|$EDIUSER|1|00000000|0||&quot; &gt;&gt; $SCRIPTDIR/tttaad500${EDICOMP}.S<br />
+bdbpost6.1 -R -t&quot;|&quot; -D$SCRIPTDIR -Itttaad500${EDICOMP}.S  -c${EDICOMP} -t&quot;|&quot;<br />
+rm -f $SCRIPTDIR/tttaad500${EDICOMP}.S<br />
+# Trigger the job<br />
+su $EDIUSER -c /baan/bse/etc/rc.startjob $EDIJOB<br />
+----------------<br />
+<br />
+Some remarks:<br />
+${EDICOMP} = in which company should the job run.<br />
+${EDIUSER} = with which user should the job run.<br />
+${EDIJOB} = the exact (unique) name of the job to be run.<br />
+<br />
+First I create a tttaad500....S file with the correct date/time when the job should run, which is NOW!<br />
+Then I su to the user which should run the job, and trigger the job.<br />
+<br />
+After this a loop is waiting for the semaphore-file (command.fil) to appear, after which the transfer of EDI-messages is engaged. The semaphore-file is deleted after that and the next network is processed.<br />
+<br />
+Thanks again, my boss will be pleased with you all! Have a nice weekend!<br />
+<br />
+Marco</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">29th September 2006, 17:15</div></div><div class="posttext">Maybe I am missing something but if you define the job in Baan as periodical with period of 1 minute and you keep the status to free than you can kickoff the job out of a script every minute?<br />
+<br />
+In 5c you define the job as being started by an external scheduler (which means you can not define the period anymore) and by this I am able to run my jobs as often as I like.<br />
+<br />
+Regards,<br />
+Han</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">MvanderHeide</div><div class="date">29th September 2006, 18:10</div></div><div class="posttext">Maybe I am missing something but if you define the job in Baan as periodical with period of 1 minute and you keep the status to free than you can kickoff the job out of a script every minute?<br />
+<br />
+In 5c you define the job as being started by an external scheduler (which means you can not define the period anymore) and by this I am able to run my jobs as often as I like.<br />
+<br />
+Regards,<br />
+Han<br />
+<br />
+Han,<br />
+<br />
+Sometimes the job starts AFTER the minute. So, you schedule a job at 10:00 with an interval of 1 minute. The first time the script runs at 10:00. The job gets started en rescheduled at 10:01. The next time the script runs it MAY be 10:02, so after the rescheduling time, but the next time after that the script MAY run at 10:03.<br />
+<br />
+The time when the script runs, is not predefined.<br />
+<br />
+Thanks for your input!<br />
+<br />
+Marco</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">2nd October 2006, 00:09</div></div><div class="posttext">Hi all,<br />
+<br />
+perhaps I didn't make myself clear enough.<br />
+If a job has status 'free', you can start it as I wrote in my posting above, regardless of the value of the field 'nect execution time'.<br />
+As we faced a lot of trouble controlling the execution of jobs via Baans job daemon (if the start time is in the past, it won't be started any more for example), we changed the logic to calling each job via a unix script.<br />
+All that I suggested was to have one script starting other scripts one after another once the predecessor has finished. This should work without any manipulation of the start dates in ttaad500.<br />
+But as your solution works, it's fine anyway :-)<br />
+<br />
+regards<br />
+<br />
+Norbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">MvanderHeide</div><div class="date">3rd October 2006, 09:28</div></div><div class="posttext">Hi all,<br />
+<br />
+perhaps I didn't make myself clear enough.<br />
+If a job has status 'free', you can start it as I wrote in my posting above, regardless of the value of the field 'nect execution time'.<br />
+As we faced a lot of trouble controlling the execution of jobs via Baans job daemon (if the start time is in the past, it won't be started any more for example), we changed the logic to calling each job via a unix script.<br />
+All that I suggested was to have one script starting other scripts one after another once the predecessor has finished. This should work without any manipulation of the start dates in ttaad500.<br />
+But as your solution works, it's fine anyway :-)<br />
+<br />
+regards<br />
+<br />
+Norbert<br />
+<br />
+Yep,<br />
+<br />
+You're right! When a job has the status free and the scheduled time is in the past, you can just start the job with the rc.startjob-script without having to &quot;hack&quot; into the ttaad500. And as this script will be running in an critical environment, I don't like to hack into it.<br />
+<br />
+I will change my script and make sure that at first the schedule of the job is in the past.<br />
+<br />
+Thanks!<br />
+Marco</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

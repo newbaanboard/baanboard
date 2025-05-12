@@ -1,0 +1,116 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Select unique records by order number in tdsls045, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Select unique records by order number in tdsls045 Tools Development" />
+	
+	<title>Select unique records by order number in tdsls045 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Select unique records by order number in tdsls045</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jmathew</div><div class="date">20th April 2005, 16:33</div></div><div class="posttext">Hi,<br />
+I am trying to select unique sales order numbers from the table tdsls045 and in some cases the system is not doing so. I am not sure about the mistake in my code which is given below;<br />
+select  tdsls045.orno :orno1<br />
+from    tdsls045, tiitm001, tccom010<br />
+where   tdsls045._index1 inrange {:orno.f} and {:orno.t}<br />
+and     (tdsls045.orno between :orno.f and :orno.t<br />
+         and tdsls045.orno not between 800000 and 899999)<br />
+and     tdsls045.item between :item.f and :item.t<br />
+and     tdsls045.cuno between :cuno.f and :cuno.t<br />
+and     tdsls045.ddat between :ddat.f and :ddat.t<br />
+and     tdsls045.item refers to tiitm001<br />
+and     tdsls045.cuno refers to tccom010<br />
+and     tiitm001.kitm = tckitm.manufacture<br />
+and     tccom010.ccty = &quot;BAH&quot;<br />
+group by tdsls045.orno<br />
+selectdo<br />
+           further process......<br />
+endselect<br />
+<br />
+Please let me know how can i get unique sales order number in the above code to further process after the selecdo option.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">20th April 2005, 16:44</div></div><div class="posttext">You should always use an order by statement when using the group by, maybe that's the problem. It will only group when the orders are in sequential order.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Evert-Jan Bosch</div><div class="date">21st April 2005, 09:47</div></div><div class="posttext">Why are you using orno.f and orno.t range 2 times?<br />
+It seems superfluous.<br />
+<br />
+where   tdsls045._index1 inrange {:orno.f} and {:orno.t}<br />
+and     (tdsls045.orno between :orno.f and :orno.t<br />
+         and tdsls045.orno not between 800000 and 899999)<br />
+I think this is also possible:<br />
+where   tdsls045._index1 inrange {:orno.f} and {:orno.t}<br />
+and     tdsls045.orno not between 800000 and 899999</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jmathew</div><div class="date">23rd April 2005, 14:26</div></div><div class="posttext">Hi,<br />
+I have made changes as suggested and problem still exists. Code is now as follows;<br />
+select  tdsls045.orno :orno1<br />
+from    tdsls045, tiitm001, tccom010<br />
+where   tdsls045._index1 inrange {:orno.f} and {:orno.t}<br />
+and tdsls045.orno not between 800000 and 899999<br />
+and     tdsls045.item between :item.f and :item.t<br />
+and     tdsls045.cuno between :cuno.f and :cuno.t<br />
+and     tdsls045.ddat between :ddat.f and :ddat.t<br />
+and     tdsls045.item refers to tiitm001<br />
+and     tdsls045.cuno refers to tccom010<br />
+and     tiitm001.kitm = tckitm.manufacture<br />
+and     tccom010.ccty = &quot;BAH&quot;<br />
+group by tdsls045.orno<br />
+order by tdsls045.orno<br />
+selectdo<br />
+           further process......<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">23rd April 2005, 15:18</div></div><div class="posttext">Hi,<br />
+<br />
+I also have very often problems with group by  :mad: . So I'm mostly using a &quot;complicate way&quot; without group by.<br />
+<br />
+Example<br />
+<br />
+select	tdsls040.*,<br />
+	tccom010.*<br />
+from	tdsls040,<br />
+	tccom010<br />
+where	tdsls040._index1 inrange {:orno.f} and {:orno.t}<br />
+and	(tdsls040.orno &lt; 800000 or tdsls040.orno &gt; 899999)<br />
+and     tdsls040.cuno inrange :cuno.f and :cuno.t<br />
+and     tdsls040.cuno  refers to tccom010<br />
+and     tccom010.ccty = &quot;BAH&quot;<br />
+selectdo<br />
+	select  tdsls045.orno,<br />
+		tiitm001.kitm<br />
+	from    tdsls045, <br />
+		tiitm001<br />
+	where   tdsls045._index1 = {:tdsls040.orno}<br />
+	and     tdsls045.item inrange :item.f and :item.t<br />
+	and     tdsls045.ddat inrange :ddat.f and :ddat.t<br />
+	and     tdsls045.item refers to tiitm001<br />
+	and     tiitm001.kitm = tckitm.manufacture<br />
+	as set with 1 rows         | In this case the same result like group by<br />
+	selectdo<br />
+		   further process......<br />
+	endselect<br />
+endselect<br />
+<br />
+<br />
+Maybe a little slower, but easier to handle.<br />
+<br />
+Regards<br />
+csecgn</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

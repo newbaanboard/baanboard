@@ -1,0 +1,200 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Production Batches Completed, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Production Batches Completed AFS/DDC/OLE: Function servers" />
+	
+	<title>Production Batches Completed [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Production Batches Completed</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">howtodo</div><div class="date">25th July 2005, 08:15</div></div><div class="posttext">Hi,<br />
+I am trying to automate the session pspmg0202m000 thru AFS. As i tracked the AFS Log,it gets struck when calling tdilc4113s000.Please find the below<br />
+code.Find the AFS LOG also attached.<br />
+<br />
+*********************<br />
+|* Main table tditw100 Receipts Confirmation(Inbound-Production Orders), Form Type 4<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+<br />
+	table	ttditw100	| Receipts Confirmation(Inbound-Production Orders)<br />
+	table	ttditw010<br />
+	table   tpspmg001<br />
+	extern	domain	tcrcno        	reno.f<br />
+	extern	domain	tcrcno        	reno.t<br />
+	extern	domain	tcitem        	item.f	fixed<br />
+	extern	domain	tcitem        	item.t	fixed<br />
+	extern  domain  tcbool          status<br />
+	extern	string   error.message(132)<br />
+	extern	string	str.orno(10),str1(10)<br />
+	long	count<br />
+	long ret1,ret2,ret3,ret4<br />
+	#pragma used dll ottstpapihand<br />
+	#include &lt;bic_tt&gt;<br />
+<br />
+|****************************** form section **********************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	select tditw010.*<br />
+	from   tditw010<br />
+	selectdo<br />
+	endselect<br />
+	complete.production.batch()<br />
+<br />
+|****************************** field section *********************************<br />
+<br />
+field.reno.f:<br />
+when.field.changes:<br />
+	reno.t = reno.f<br />
+<br />
+field.item.f:<br />
+when.field.changes:<br />
+	item.t = item.f<br />
+<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+	<br />
+function complete.production.batch()<br />
+{<br />
+	db.retry.point()<br />
+	select	tditw100.*<br />
+	from	tditw100 for update<br />
+	where   tditw100._index1 inrange {:reno.f, :item.f}<br />
+	                             and {:reno.t, :item.t}<br />
+	and     tditw100.stat=2<br />
+	order by tditw100._index1<br />
+	selectdo<br />
+		| update set<br />
+		status=false<br />
+		status=complete.production.batch.detail(tditw100.item,tditw100.orno,tditw100.pdat,tditw100.oqua)	<br />
+		if status then<br />
+			tditw100.stat=9			<br />
+		endif<br />
+		db.update(ttditw100, db.retry)<br />
+	endselect<br />
+	<br />
+	commit.transaction()<br />
+}<br />
+<br />
+function domain	tcbool complete.production.batch.detail(domain tcitem item,domain tcorno orno,domain tcdate pdat,domain pspmg.qty1 oqua)<br />
+{<br />
+	stpapi.handle.subproc(&quot;pspmg0202m000&quot;,&quot;pspmg0507m000&quot;,&quot;add&quot;)<br />
+ 	stpapi.handle.subproc(&quot;pspmg0202m000&quot;,&quot;tihra1211s000&quot;,&quot;add&quot;)<br />
+ 	stpapi.handle.subproc(&quot;pspmg0202m000&quot;,&quot;tdilc4207s000&quot;,&quot;add&quot;)<br />
+ 	stpapi.handle.subproc(&quot;pspmg0202m000&quot;,&quot;tdilc4208s000&quot;,&quot;add&quot;)<br />
+ 	stpapi.handle.subproc(&quot;pspmg0202m000&quot;,&quot;tdilc4113s000&quot;,&quot;add&quot;)<br />
+	stpapi.put.field(&quot;pspmg0202m000&quot;,&quot;pspmg001.orno&quot;,str$(orno))<br />
+	message(&quot;ORNo %d&quot;,orno)<br />
+	ret3=stpapi.find(&quot;pspmg0202m000&quot;,error.message)<br />
+	if ret3 then<br />
+		stpapi.put.field(&quot;pspmg0202m000&quot;,&quot;comp.batch.frm&quot;,str$(etol(tcyesno.yes)))<br />
+		stpapi.put.field(&quot;pspmg0202m000&quot;,&quot;cmdt.frm&quot;,str$(pdat))<br />
+		ret4=stpapi.update(&quot;pspmg0202m000&quot;,true,error.message)<br />
+		message(&quot;Update %d&quot;,ret4)<br />
+		message(&quot;Update error message %s&quot;,error.message)<br />
+		if ret4 then<br />
+			stpapi.enum.answer(&quot;pspmg0202m000&quot;,&quot;pspmg010201&quot;,tcyesno.yes)<br />
+			stpapi.enum.answer(&quot;pspmg0202m000&quot;,&quot;pspmgdll400101&quot;,tcyesno.yes)<br />
+			stpapi.enum.answer(&quot;pspmg0202m000&quot;,&quot;pspmgdll400302&quot;,tcyesno.yes)<br />
+			stpapi.set.report(&quot;pspmg0202m000&quot;,&quot;rtihra121001000&quot;,&quot;D&quot;,error.message)<br />
+			stpapi.set.report(&quot;pspmg0202m000&quot;,&quot;rtdilc420102000&quot;,&quot;D&quot;,error.message)<br />
+			stpapi.set.report(&quot;pspmg0202m000&quot;,&quot;rtdilc420201000&quot;,&quot;D&quot;,error.message)<br />
+			stpapi.continue.process(&quot;pspmg0202m000&quot;,error.message)<br />
+			<br />
+			stpapi.put.field(&quot;tdilc4113s000&quot;,&quot;tdilc402.item&quot;,item)<br />
+			stpapi.put.field(&quot;tdilc4113s000&quot;,&quot;tdilc402.clot&quot;,str$(tditw010.clot))<br />
+			stpapi.put.field(&quot;tdilc4113s000&quot;,&quot;tdilc402.date&quot;,str$(pdat))<br />
+			stpapi.put.field(&quot;tdilc4113s000&quot;,&quot;tdilc402.qstr&quot;,str$(oqua))<br />
+			stpapi.put.field(&quot;tdilc4113s000&quot;,&quot;tdilc402.qstc&quot;,str$(oqua))<br />
+			ret3=stpapi.update(&quot;tdilc4113s000&quot;,true,error.message)<br />
+			message(&quot; Insert %s  %d&quot;,error.message,ret3)<br />
+			stpapi.end.session(&quot;tdilc4113s000&quot;,error.message)<br />
+			stpapi.end.session(&quot;tihra1211s000&quot;,error.message)<br />
+			stpapi.end.session(&quot;tdilc4207s000&quot;,error.message)<br />
+			stpapi.end.session(&quot;tdilc4208s000&quot;,error.message)<br />
+			stpapi.end.session(&quot;pspmg0507m000&quot;,error.message)	<br />
+			stpapi.end.session(&quot;pspmg0202m000&quot;,error.message)<br />
+		endif<br />
+	else<br />
+			message(&quot;NOT FOUND %s&quot;,error.message)<br />
+			stpapi.end.session(&quot;tdilc4113s000&quot;,error.message)<br />
+			stpapi.end.session(&quot;pspmg0507m000&quot;,error.message)	<br />
+			stpapi.end.session(&quot;tihra1211s000&quot;,error.message)<br />
+			stpapi.end.session(&quot;tdilc4207s000&quot;,error.message)<br />
+			stpapi.end.session(&quot;tdilc4208s000&quot;,error.message)<br />
+			stpapi.end.session(&quot;pspmg0202m000&quot;,error.message)<br />
+	endif<br />
+	return(0)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th July 2005, 22:39</div></div><div class="posttext">Check this thread (http://www.baanboard.com/baanboard/showthread.php?t=7511&amp;page=3&amp;highlight=tdilc4113s000) out.  It might be relevant to your situation.  Do you have source code?  In some of the later service packs Baan started building in WMS code.  In some cases the code they built in caused problems with normal stpapi code.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">howtodo</div><div class="date">26th July 2005, 07:12</div></div><div class="posttext">Hi Mark,<br />
+Thanks for ur reply. I am using SP17. Can you please give me some examples of boi.call and g.sub.session.<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">howtodo</div><div class="date">26th July 2005, 09:37</div></div><div class="posttext">Hi,<br />
+Can somebody guide me how to incorporate the bio.call for Backflush Material/Hours and Report Orders Completed for Baan Process(pspmg).<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th July 2005, 17:05</div></div><div class="posttext">I am not sure there is a real guide to using boi.call.  I was lucky in the fact that I had some source code to look at - that and using q-key I was able to by-pass problems with tdilc4113s000.  You may want to contact Baan with the issues.  I do know they sent me a patch for tdilc4123s000.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jordimur</div><div class="date">26th July 2005, 18:14</div></div><div class="posttext">Try to not close the batch before call tdilc4113<br />
+Here it is my code and it works:<br />
+function report_production_batches()<br />
+{<br />
+	f0202m000.put.Production_Batch( pspmg001.orno )<br />
+	f0202m000.find( )<br />
+	hold.orno = f0202m000.get.Production_Batch( )<br />
+	if hold.orno &lt;&gt; pspmg001.orno then<br />
+		error.fct.msg= &quot;Problemas en session pspmg0202m000 para O.P &quot; &amp; str$(pspmg001.orno)<br />
+		f0202m000.end()<br />
+		error.fct = 1<br />
+	endif<br />
+	f0202m000.put.Quantity_to_Deliver( hold.qstc )<br />
+	f0202m000.handle.sub.process( &quot;tdilc4113s000&quot;, &quot;add&quot; )<br />
+	f0202m000.continue( error.fct.msg )<br />
+	f4113s000.put.tdilc402.qstr( hold.qstr )<br />
+	f4113s000.insert( 1, error.fct.msg )<br />
+	f4113s000.end( )<br />
+	f0202m000.end( )<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">howtodo</div><div class="date">29th July 2005, 13:48</div></div><div class="posttext">Thanks for the code.I managed with boi.call variable.Now i am trying to process the session pspmg0220m000 to backflush,any sample code is available for this?<br />
+<br />
+Thanks</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Change Order on Form Using AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Change Order on Form Using AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>Change Order on Form Using AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Change Order on Form Using AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">6th October 2011, 18:01</div></div><div class="posttext">Hello all,<br />
+<br />
+I have discovered an unusual problem with my Supply Chain Maintain Receipts AFS. Basically it is not 100% guaranteed to work with certain items as the put.field in the sub session does not always find the correct item.<br />
+<br />
+I have discovered that my code is 100% OK if the tdpsc0191s000 session has it's Index key set to the default sort. However the user of the session prefers an alternative sort.<br />
+<br />
+So the options are.<br />
+<br />
+1) Can AFS be used to change the order when the session is started ?<br />
+<br />
+2) Clone the session tdpsc0191s000. I have actually tried this but I get an error and as it's a sub session I can't run it's not easy to see what is going on.<br />
+<br />
+Any ideas greatly appreciated.<br />
+<br />
+Cheers Neal<br />
+<br />
+stpapi.put.field(&quot;tdpsc0191s000&quot;, &quot;tdpsc910.item&quot;, tdpsc971.item) <br />
+	ret = stpapi.find(&quot;tdpsc0191s000&quot;,m_error1) <br />
+	if m_error1 &lt;&gt; &quot;&quot; then<br />
+		message(&quot;Find Error &quot; &amp; m_error1)<br />
+		do.update = false<br />
+	endif<br />
+	<br />
+	stpapi.put.field(&quot;tdpsc0191s000&quot;, &quot;tdpsc910.mark&quot;, str$(1)) <br />
+	stpapi.get.field( &quot;tdpsc0191s000&quot;, &quot;tdpsc910.item&quot;, m_item )</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th October 2011, 21:06</div></div><div class="posttext">(1) My first thought was clone the session - not the scripts, forms or reports.  Those can stay the same.  On the new session, just remove the order by option.  Set the default to the option you need and use it instead of the real session.  You would have to give users access to the session, but you do not have to put it on the menu or in the dem flow.  One way to avoid this issue.<br />
+<br />
+(2) My second thought was if they change the order by what does the find button fields look like.  I am thinking you could use the field you have item(assuming it is the key primary index field) - do a select on the database to find the item first.  Then put ALL the field you need for a find no matter which index is in use.  In theory the find should work at this point.  I do not have a test system to try something like this on.  Not sure if this is making sense to you or not.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th October 2011, 21:24</div></div><div class="posttext">Found an example for #2 above.  So lets say my API program is going to update the item master.  I will always be fed the item to run the update.  Now one of my purchasing customers who will use the update like the item master sorted by search key 1 - which is index two.  What I could do in the program is take the item, do a select with it, get item and search key 1, put both fields on the form, then do the find.  Then no matter which index 1 or index 2 the customer has saved it should work.  I could do the same for the other indexes on the item master also, but just picked the first two as an example.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">7th October 2011, 12:36</div></div><div class="posttext">Cheers Mark you're a lifesaver got it going now.<br />
+<br />
+I did a select on tdpsc910 and then put field tdpsc910.ddtb which is the key I need to use. The put on the item field now always returns the correct record. Full code posted below.<br />
+<br />
+Many thanks Neal<br />
+<br />
+functions:<br />
+<br />
+function receipt()<br />
+{<br />
+	string m_dat(8) <br />
+	m_dat = dte$() <br />
+<br />
+	select tdpsc963.sera from tdpsc963<br />
+	selectdo<br />
+		m_sera = strip$(str$(tdpsc963.sera))<br />
+	endselect<br />
+<br />
+	message(&quot;receipt&quot;)<br />
+	<br />
+	do.update=true<br />
+	m_error1=&quot;&quot;<br />
+	| Start creating a receipt <br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.reno&quot;, m_sera) <br />
+<br />
+	|* Handle question tdpur41206 yes <br />
+	ret=stpapi.enum.answer( &quot;tdpur4120m000&quot;, &quot;tdpur41206&quot;, tcyesno.yes ) <br />
+<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;form.dino&quot;, m_pack) <br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.suno&quot;, tdpsc971.suno) <br />
+<br />
+	|* Handle question tdpur41207 no <br />
+	ret=stpapi.enum.answer( &quot;tdpur4120m000&quot;, &quot;tdpur41207&quot;, tcyesno.no ) <br />
+<br />
+	|* Activate sub process <br />
+	stpapi.handle.subproc(&quot;tdpur4120m000&quot;, &quot;tdpsc0191s000&quot;, &quot;add&quot;) 	<br />
+	ret = stpapi.change.view(&quot;tdpur4120m000&quot;,m_error1) <br />
+	if m_error1 &lt;&gt; &quot;&quot; then<br />
+		message(&quot;Change View &quot; &amp; m_error1)<br />
+		do.update = false<br />
+	endif<br />
+	<br />
+	select tdpsc910.item,tdpsc910.suno from tdpsc910<br />
+	where tdpsc910.item = :tdpsc971.item and tdpsc910.suno = :tdpsc971.suno<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		message(&quot;found&quot;)<br />
+		message(str$(tdpsc910.ddtb))<br />
+		stpapi.put.field(&quot;tdpsc0191s000&quot;, &quot;tdpsc910.ddtb&quot;, str$(tdpsc910.ddtb)) <br />
+		stpapi.put.field(&quot;tdpsc0191s000&quot;, &quot;tdpsc910.item&quot;, tdpsc971.item) <br />
+	endselect<br />
+	<br />
+	ret = stpapi.find(&quot;tdpsc0191s000&quot;,m_error1) <br />
+	if m_error1 &lt;&gt; &quot;&quot; then<br />
+		message(&quot;Find Error &quot; &amp; m_error1)<br />
+		do.update = false<br />
+	endif<br />
+	<br />
+	stpapi.put.field(&quot;tdpsc0191s000&quot;, &quot;tdpsc910.mark&quot;, str$(1)) <br />
+	stpapi.get.field( &quot;tdpsc0191s000&quot;, &quot;tdpsc910.item&quot;, m_item ) <br />
+	<br />
+	|* Check tdpsc971 item found<br />
+	if strip$(m_item) &lt;&gt; strip$(tdpsc971.item) then<br />
+		stpapi.end.session(&quot;tdpsc0191s000&quot;) <br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		m_error2 = &quot;NO SCHEDULE FOR ITEM&quot;	<br />
+		message(m_item &amp; tdpsc971.item)	<br />
+	else<br />
+		ret=( stpapi.update( &quot;tdpsc0191s000&quot;, do.update, m_error1 ) )<br />
+		if m_error1 &lt;&gt; &quot;&quot; then<br />
+			message(&quot;Update Error &quot; &amp; m_error1)<br />
+		endif<br />
+		<br />
+		stpapi.continue.process(&quot;tdpsc0191s000&quot;,m_error1) <br />
+		if m_error1 &lt;&gt; &quot;&quot; then<br />
+			message(&quot;Cont Process &quot; &amp; m_error1)<br />
+		endif<br />
+		<br />
+		stpapi.end.session(&quot;tdpsc0191s000&quot;) <br />
+<br />
+		if strip$(m_error1) = &quot;&quot; then<br />
+			stpapi.get.field( &quot;tdpur4120m000&quot;, &quot;tdpur045.orno&quot;, m_orno ) <br />
+			stpapi.get.field( &quot;tdpur4120m000&quot;, &quot;tdpur045.pono&quot;, m_pono ) <br />
+			stpapi.get.field( &quot;tdpur4120m000&quot;, &quot;tdpur045.item&quot;, m_item ) <br />
+<br />
+			message(&quot;orno &quot; &amp; m_orno) <br />
+			message(&quot;pono &quot; &amp; m_pono) <br />
+			message(&quot;item &quot; &amp; m_item) <br />
+		<br />
+			stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.orno&quot;, strip$(m_orno))<br />
+			stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.pono&quot;, strip$(m_pono))<br />
+			stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.item&quot;, strip$(m_item))<br />
+			stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.diqu&quot;, str$(tdpsc971.qty1))<br />
+			stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.dqua&quot;, str$(tdpsc971.qty1))<br />
+	<br />
+			ret=( stpapi.update( &quot;tdpur4120m000&quot;, do.update, m_error1 ) )<br />
+			if m_error1 &lt;&gt; &quot;&quot; then<br />
+				message(&quot;Update Error &quot; &amp; m_error1)<br />
+			endif<br />
+		endif<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+	endif<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

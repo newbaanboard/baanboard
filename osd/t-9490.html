@@ -1,0 +1,100 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Rollback in Oracle, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Rollback in Oracle Operating Systems &amp; Databases" />
+	
+	<title>Rollback in Oracle [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Rollback in Oracle</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">sanjayroongta</div><div class="date">3rd April 2003, 12:36</div></div><div class="posttext">we have around 20 rollback segments with 100 mb each but still in some reports we are getting error ora-2555.<br />
+<br />
+Is it possible to assign particular session in particular rollback segment so that we can make that segment private with large space.<br />
+<br />
+Sanjay</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">MarioS</div><div class="date">3rd April 2003, 12:51</div></div><div class="posttext">Hello Sanjay,<br />
+<br />
+I had problems with error 2555 in some sessions allthough the RBS was 4G and more in size.<br />
+What solved the problem was, to reconfigure the RBS in that way, that the critical transaction could be handeled in the space of MIN_EXTENTS. Even though the MAXEXTENTS-Parameter was set to unlimited, Baan (or Oracle, I couldn´t figure out who was responsible for that) didn´t use the the possible available space .<br />
+<br />
+Maybe that would be worth a try for you.<br />
+<br />
+Bye,<br />
+<br />
+Mario#</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">3rd April 2003, 13:00</div></div><div class="posttext">Have a look at this thread: http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=7622</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">4th April 2003, 10:09</div></div><div class="posttext">Some suggestions:<br />
+- make segments small e.g. 5 Mb and take care that optimal is set to the same value. So when having a large transaction that rollback segment can grow much more than upto 100Mb (assuming 2 Gb of rollback and 20 rollback segments).<br />
+- If the point above is not enough, it is advised to check why this error occured. In most situations it can be prevented in the application by:<br />
+   * specifying &quot;AS PREPARED SET&quot; when selecting table(s) that will not be updated<br />
+   * Restart the main query after e.g. 10.000 rows on a logical point. Example:<br />
+<br />
+<br />
+completed = false<br />
+repeat<br />
+	db.retry.point()<br />
+	counter = 0<br />
+	select	*<br />
+	from	&lt;table&gt; for update<br />
+	|* Read from previous point onwards<br />
+	where	table._index1 &gt; {:hold.field1}<br />
+	|* Sort by on index to prevent problems<br />
+	order 	by table._index1 with retry repeat last row<br />
+	|* Speed up transfer of data<br />
+	hint use array fetching<br />
+	and buffer 100 rows<br />
+	and array size 100<br />
+	selectdo<br />
+		update.other.tables()<br />
+		|* Commit once a 50 rows<br />
+		counter = counter + 1<br />
+		if counter\50 = 0 then<br />
+			commit.transaction()<br />
+			|* When  query is open longer than 10.000<br />
+			|* records, than restart query<br />
+			if counter &gt; 10000 then<br />
+				|* Set all index 1 fields<br />
+				hold.field1 = table.field1<br />
+				break<br />
+			endif<br />
+		endif<br />
+	selectempty<br />
+		completed = true<br />
+	selecteos<br />
+		commit.transaction()<br />
+		completed = true<br />
+	endselect<br />
+|* Only complete when complete flag has been set<br />
+until completed<br />
+<br />
+Hopefully Baan support can help you to change the code when you are real sure that the problem can not be solved in the database anymore.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sanjayroongta</div><div class="date">5th April 2003, 07:44</div></div><div class="posttext">Thanks to all for your support.<br />
+<br />
+rgds<br />
+Sanjay</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

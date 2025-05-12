@@ -1,0 +1,245 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Another custom report: SFC, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Another custom report: SFC Tools Development" />
+	
+	<title>Another custom report: SFC [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Another custom report: SFC</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">pbenven</div><div class="date">23rd October 2013, 22:52</div></div><div class="posttext">MK 8.1 (very similar to IVc4); BISAM DB; HP-UX; no source.<br />
+<br />
+I have a bit of a strange report requirement for an SFC order packet. Using one of the shop floor order reports (I am playing with tisfc040811000), find run times for each operation of each subcomponent: link tisfc001.mitm to tibom010.mitm and then tibom010.sitm to tirou020.mitm, and return all routing records for each subcomponent.<br />
+<br />
+The report should look like:<br />
+<br />
+Header<br />
+-------<br />
+Sucomponent; Net Qty * Plan Qty<br />
+-------------<br />
+Operation number; task; work center; set up time; run time<br />
+<br />
+What is coming out is:<br />
+<br />
+Header<br />
+-------<br />
+Sub1<br />
+Sub2<br />
+Sub3<br />
+-------<br />
+Details for Sub3<br />
+<br />
+I could post some code but honestly I have tried so many different ways - placing counts; layout.again; etc in different sections - that I don't know if any of it is valuable.<br />
+<br />
+Without source am I fighting a losing battle?<br />
+<br />
+EDIT: I should elaborate that I can't use one of the ticst001-based reports (Material list, Material issue note) because the subcomponents I am looking for are phantoms in the tibom010 table.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th October 2013, 00:38</div></div><div class="posttext">Well if tisfc001.mitm makes it to the report then you should be able to do it.  Just so show that you can do it.  Create an after.report layout section - you really do not need  anything in the layout.  In the script just put a simple select:<br />
+<br />
+<br />
+after.report.1:<br />
+after.layout:<br />
+     select tibom010.* <br />
+     from tibom010<br />
+     where tibom010._index1 = {:tisfc001.mitm}<br />
+	spool.pr.line = tab$(5) &amp; tibom010.mitm &amp; tab$(5) &amp; tibom010.sitm<br />
+	spool.line()<br />
+     endselect<br />
+<br />
+<br />
+It will not be pretty, but it should at least list all the subitems. Making it pretty can come later.  I did this off the top of my head and I really hope you are not trying to explode a multi-level bom.  That becomes something different.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pbenven</div><div class="date">1st November 2013, 17:32</div></div><div class="posttext">Is my deduction correct that if a field is being used in the program script that reusing that field for another purpose on the same report will be futile?<br />
+<br />
+You see in my example above that I am trying to link tibom010.sitm with tirou020.mitm, when I'm quite certain that the program script has already established that tisfc001.mitm is what links tirou020.mitm.<br />
+<br />
+I decided to create a query where I link tisfc001 and tisfc010 by pdno. Then, in the report script of that query, I make my other links. It works great, but I would have preferred to have this an optional report when running &quot;print order documents&quot; rather than a stand alone query.<br />
+<br />
+FYI, here is the report script:<br />
+<br />
+<br />
+declaration:<br />
+<br />
+long	noop<br />
+long	count<br />
+long	qtp<br />
+double	purt<br />
+extern domain tcmcs.str50 vksbarcode<br />
+<br />
+header.1:<br />
+before.layout:<br />
+<br />
+	select<br />
+		tiitm001.item,<br />
+		tiitm001.csel,<br />
+		tiitm001.seak,<br />
+		tiitm001.dsca,<br />
+		tiitm001.csig,<br />
+		tiitm001.dscd<br />
+<br />
+	from <br />
+		tiitm001<br />
+<br />
+	where <br />
+		tiitm001.item = :tisfc001.mitm<br />
+	<br />
+	selectdo<br />
+	endselect<br />
+<br />
+	select<br />
+<br />
+		tcmcs003.dsca<br />
+<br />
+	from<br />
+		tcmcs003<br />
+<br />
+	where<br />
+		tcmcs003.cwar = :tisfc001.cwar<br />
+<br />
+	selectdo<br />
+	endselect<br />
+<br />
+	select<br />
+		tiecc030.revt<br />
+<br />
+	from<br />
+		tiecc030<br />
+	<br />
+	where <br />
+		tiecc030.item = :tisfc001.mitm and<br />
+		tiecc030.revn = :tisfc001.revn <br />
+<br />
+	selectdo<br />
+	endselect<br />
+<br />
+	select<br />
+		tiecc010.dsca<br />
+<br />
+	from<br />
+		tiecc010<br />
+<br />
+	where<br />
+		tiecc010.ectp = :tiecc030.revt<br />
+<br />
+	selectdo<br />
+	endselect<br />
+<br />
+	select<br />
+		tcmcs022.dsca<br />
+<br />
+	from<br />
+		tcmcs022<br />
+<br />
+	where <br />
+		tcmcs022.csel = :tiitm001.csel<br />
+<br />
+	selectdo<br />
+	endselect<br />
+<br />
+before.tisfc010.opno.1:<br />
+before.layout:<br />
+<br />
+	select 	count(*):count<br />
+<br />
+	from    tirou020,<br />
+		tibom010<br />
+<br />
+	where	tibom010.mitm = :tisfc001.mitm and<br />
+		tibom010.cpha = tcyesno.yes and<br />
+		tirou020.mitm = tibom010.sitm and<br />
+		tirou020.opno = :tisfc010.opno <br />
+<br />
+	selectdo<br />
+	endselect<br />
+<br />
+	if count = 0 then<br />
+	noop = 1<br />
+	else noop = 0<br />
+	endif<br />
+<br />
+detail.10:<br />
+before.layout:<br />
+<br />
+	select  <br />
+		tirou020.*,<br />
+		tibom010.*,<br />
+		tirou003.*,<br />
+		tirou001<br />
+<br />
+	from    tirou020<br />
+		tibom010<br />
+<br />
+	where	tibom010.mitm = :tisfc001.mitm and<br />
+		tibom010.cpha = tcyesno.yes and<br />
+		tirou020.mitm = tibom010.sitm and<br />
+		tirou020.opno = :tisfc010.opno and<br />
+		tirou003.tano = :tisfc010.tano and<br />
+		tirou001.cwoc = :tisfc010.cwoc<br />
+<br />
+	order by tibom010.sitm desc <br />
+	as set with :count rows	<br />
+	selectdo<br />
+	endselect<br />
+<br />
+<br />
+qtp = tisfc001.qutp * tibom010.qana<br />
+<br />
+purt = qtp * tirou020.rutm<br />
+<br />
+vksbarcode = &quot;=0=1=&quot; &amp; str$(tisfc001.pdno) &amp; &quot;=3=&quot; &amp; str$(qtp) &amp; &quot;=3=&quot; &amp; str$(purt) &amp; &quot;=3=&quot; &amp; str$(tirou020.sutm) &amp; &quot;=&quot;<br />
+<br />
+after.layout:<br />
+<br />
+	count = count -1<br />
+	if count &gt; 0 then<br />
+	layout.again()<br />
+	endif<br />
+<br />
+detail.20:<br />
+before.layout:<br />
+<br />
+	select <br />
+		tirou020.*,<br />
+		tirou003.*,<br />
+		tirou001.*<br />
+<br />
+	from <br />
+		tirou020,<br />
+		tirou003,<br />
+		tirou001<br />
+<br />
+	where <br />
+		tirou020.mitm = :tisfc001.mitm and<br />
+		tirou020.opno = :tisfc010.opno and<br />
+		tirou003.tano = :tisfc010.tano and<br />
+		tirou001.cwoc = :tisfc010.cwoc<br />
+	<br />
+	selectdo<br />
+	endselect<br />
+<br />
+qtp = tisfc001.qutp<br />
+<br />
+purt = qtp * tirou020.rutm<br />
+<br />
+vksbarcode = &quot;=0=1=&quot; &amp; str$(tisfc001.pdno) &amp; &quot;=3=&quot; &amp; str$(qtp) &amp; &quot;=3=&quot; &amp; str$(purt) &amp; &quot;=3=&quot; &amp; str$(tirou020.sutm) &amp; &quot;=&quot;<br />
+<br />
+<br />
+Detail 10 is conditional on noop = 0 and Detail 20 on noop = 1. The vksbarcode is a variable that contains production info and some control characters that are used to create a barcode that when scanned, populates a form in another application.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

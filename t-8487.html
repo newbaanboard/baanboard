@@ -1,0 +1,110 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="CODE: Removing unwanted items from Baan, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] CODE: Removing unwanted items from Baan Code &amp; Utilities" />
+	
+	<title>CODE: Removing unwanted items from Baan [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Code &amp; Utilities</a> &gt; CODE: Removing unwanted items from Baan</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">17th January 2003, 20:42</div></div><div class="posttext">I said it a million times, items with usage can NOT be removed.<br />
+<br />
+Well...until we ran into a problem where duplicate items (some using capitals, some not) were causing all kinds of havoc on our system.<br />
+<br />
+I ended up with a list of 19 items, that simply HAD to go.<br />
+As you all know, before any record can be removed in a relational database, you have to get rid of all the references first...and thei references....and THEIR references...etc.<br />
+<br />
+Easier said than done. The first item took me close to 6 hours.<br />
+<br />
+So I had to come up with a better plan, and build me a little script to take the guess work out of locating references to the item.<br />
+<br />
+I used the shell script below  to recursively determine all references and build an SQL script for me (I always get a kick out of being able to apply recursion. Is that just me?)<br />
+<br />
+<br />
+#!/bin/ksh<br />
+# **************************************************************************<br />
+# * File      : remitem.ksh<br />
+# * Usage     : remitem.ksh &lt;item&gt;<br />
+# * Purpose   : Remove an existing item from Baan. (USE WISELY)<br />
+# * Author    : Francesco Frentrop<br />
+**************************************************************************<br />
+<br />
+full_usage()<br />
+{<br />
+        echo 'USAGE:'<br />
+        echo '  remitem.ksh &lt;item&gt;'<br />
+}<br />
+<br />
+if [ $# -lt 1 ] ;then<br />
+        full_usage<br />
+        exit 1<br />
+fi<br />
+<br />
+DDPATH=/opt/apps/baan/5.0b/dict/ddb50obprd<br />
+ITEM=$1<br />
+<br />
+function findrefs {<br />
+        TABLE=d$1<br />
+        TABDEF=$(print $TABLE | cut -c1-6)<br />
+        NO_REFS=$(grep REF $DDPATH/$TABDEF/$TABLE | grep item | wc -l)<br />
+        if (($NO_REFS &gt; 0))<br />
+        then<br />
+                for CHILD in $(grep REF $DDPATH/$TABDEF/$TABLE | grep item | cut -c7-14)<br />
+                do<br />
+                        # test if child already in table list<br />
+                        if grep $CHILD /tmp/remitem.tables &gt; /dev/null<br />
+                        then<br />
+                                print $CHILD<br />
+                        else<br />
+                                # add table to table list<br />
+                                print $CHILD &gt;&gt; /tmp/remitem.tables<br />
+                                findrefs $CHILD<br />
+                        fi<br />
+                done<br />
+        fi<br />
+}<br />
+<br />
+print tcibd001 &gt; /tmp/remitem.tables<br />
+findrefs tcibd001<br />
+<br />
+# build sql<br />
+((LENGTH=${#ITEM}+1))<br />
+touch remitem.sql<br />
+print spool remitem &gt; remitem.sql<br />
+for TABLE in $(cat /tmp/remitem.tables)<br />
+do<br />
+        print &quot;select '${TABLE}', count(0) from t${TABLE}100 a where substr(a.t\$item,10,${LENGTH})='$1 ';&quot; &gt;&gt; remitem.sql<br />
+done<br />
+print spool off &gt;&gt; remitem.sql<br />
+<br />
+<br />
+After the SQL file is created, I go into SQLPlus and run @remitem.<br />
+This creates the file remitem.lst, containing all the occurrences of the item number that I am after.<br />
+<br />
+Finally, I use cat remitem.lst | grep &quot;   [1-9]&quot; to single out the tables that actually contain references.<br />
+<br />
+That list can then be used to delete records (starting from the bottom of the list), using GTM or (for tripple digit occurrences) SQL.<br />
+<br />
+As far as I can see, there are no financial consequences to this procedure, but you need to make sure that there is NO inventory present at the time of deletion. Cycle count any existing inventory out first.<br />
+<br />
+The scripts leave room for improvement, combination and automation, but as they are they reduced my 120 hr job to an 8 hr job (including writing the script. lol).<br />
+<br />
+I also like the manual aspect of it, because it gives me an (unjust) feeling of safety and control. The script can be easily modified to create SQL code that will remove all occurrences instantly.<br />
+BewaaaaaAAAAre!!!!<br />
+<br />
+enjoy.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

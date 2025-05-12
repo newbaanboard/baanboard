@@ -1,0 +1,256 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="text.write issues, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] text.write issues Tools Development" />
+	
+	<title>text.write issues [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; text.write issues</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">SandraDiehl</div><div class="date">6th February 2012, 22:00</div></div><div class="posttext">NOTE:  our environment is windows not UNIX and this company having issues uses notepad rather than the baan text editor.<br />
+<br />
+I have this custom program that reads input from a file, and is suppose to read the routing table based on the routing item and operation then update the routing text or create a routing text adding the last value from the input file.<br />
+I have performed this in both companies where one uses the BaaN text editor and the one that uses notepad.  The company that uses BaaN text editor seems to be fine, the company that uses notepad I have ran into some quirky stuff<br />
+<br />
+This company has two text groups that is being used:<br />
+small (2, 3, 31 x 23)<br />
+standard (2, 3, 80 x 23)<br />
+<br />
+Observation of issue:<br />
+I have starting text that will be two lines, after I run my update that is adding a single line such &quot;Required Tooling: JFF1234&quot; and I will end up with a text file that has more than 3 lines, some I find has more than 1600 lines with them all being blank.<br />
+<br />
+I need to see if there is something wrong with my code that I am not seeing, or is this an issue within BaaN using windows/notepad?  Any suggestion would be helpful.<br />
+<br />
+Source code:<br />
+<br />
+function process.notes()<br />
+{<br />
+	domain	tcmcs.str6	buf.cprj<br />
+	domain	tcitem		temp.item<br />
+	<br />
+	repeat<br />
+		ret = seq.gets(buf, 200, in.fp)<br />
+		ret = string.scan(buf, &quot;%s|%d|%s|%s&quot;, buf.mitm, buf.opno, buf.sitm, buf.cust)<br />
+		ret = tt.align.according.domain(buf.sitm, align.sitm, &quot;tcitem&quot;)<br />
+		if buf.cust = &quot;Y&quot; then<br />
+			buf.cprj = buf.mitm(1;6)<br />
+			temp.item = buf.mitm(8;16)<br />
+			ret = tt.align.according.domain(temp.item, align.mitm, &quot;tcitem&quot;)<br />
+			ret = tt.align.according.domain(buf.cprj, align.cprj, &quot;tccprj&quot;)<br />
+			update.cus.routing.notes()<br />
+		else<br />
+			ret = tt.align.according.domain(buf.mitm, align.mitm, &quot;tcitem&quot;)<br />
+			update.std.routing.notes()<br />
+		endif<br />
+		<br />
+	until seq.eof(in.fp)<br />
+}<br />
+<br />
+function update.std.routing.notes()<br />
+{<br />
+	string	text.buffer(60, 900)<br />
+	string	temp.file.name(100)<br />
+	string	temp.text.line(4096)<br />
+	string	tgroup(8)<br />
+	string	edit_opt(15)<br />
+	long	temp.file.numb<br />
+	long	text.buffer.lines<br />
+	long	curr.line<br />
+	<br />
+	db.retry.point()<br />
+	<br />
+	select	tirou102.*<br />
+	from	tirou102 for update<br />
+	where	tirou102._index1 = {:align.mitm}<br />
+	and	tirou102.opno = :buf.opno<br />
+	selectdo<br />
+		ret = text.to.buf(&quot;tirou102.txta&quot;, &quot;2&quot;, 900, text.buffer)<br />
+		text.buffer.lines = ret<br />
+		<br />
+		if ret &lt;&gt; 0 then<br />
+			ret = text.defaults(&quot;tirou102.txta&quot;, tgroup, edit_opt)<br />
+		endif<br />
+		<br />
+		temp.file.name = creat.tmp.file$(bse.tmp.dir$())<br />
+		temp.file.name = strip$(temp.file.name)<br />
+		temp.file.numb = seq.open(temp.file.name, &quot;w+&quot;)<br />
+		<br />
+		if text.buffer.lines &gt; 0 then<br />
+			for curr.line = 1 to text.buffer.lines<br />
+				temp.text.line(1;60) = text.buffer(1, curr.line)<br />
+				ret = seq.puts(temp.text.line, temp.file.numb)<br />
+			endfor<br />
+		endif<br />
+		<br />
+		temp.text.line = &quot;Tooling Required: &quot; &amp; align.sitm<br />
+		ret = seq.puts(temp.text.line, temp.file.numb)<br />
+		ret = seq.close(temp.file.numb)<br />
+		<br />
+		if ret = 0 then<br />
+			if tirou102.txta = 0 then<br />
+				ret = text.write(&quot;tirou102.txta&quot;, &quot;2&quot;, &quot;Operation Text&quot;, align.mitm, &quot;Operation&quot; &amp; str$(tirou102.opno),<br />
+					&quot;&quot;, &quot;standard&quot;, &quot;standard&quot;, temp.file.name)<br />
+			else<br />
+				ret = text.rewrite(&quot;tirou102.txta&quot;, &quot;2&quot;, &quot;Operation Text&quot;, align.mitm, &quot;Operation&quot; &amp; str$(tirou102.opno),<br />
+					&quot;&quot;, tgroup, tgroup, temp.file.name)<br />
+			endif<br />
+		endif<br />
+		db.update(ttirou102, db.retry)<br />
+	endselect<br />
+	<br />
+	commit.transaction()<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th February 2012, 15:46</div></div><div class="posttext">We use UNIX and it looks like your OS is windows.  We do not have this problem, but we write 2 files then cat them together into one file and write that file back into the text.  The question I have is - Are the text.buffer.lines coming back correctly?  What happens in debug mode after the seq.close?  Can you look at the temp file to see if those extra lines are there?  It looks like this should work.<br />
+<br />
+I am also just wondering if you could write the text straight to the temp file(using text.read) and open it with &quot;a&quot; parameter seq.open.  Then  just append your text with the seq.puts.  Not sure how that works on windows.<br />
+<br />
+Included some old code from one of our sessions - in this case we actually append two separate texts together into one.  We have other sessions kind of like yours.<br />
+<br />
+function append.text(domain tcmcs.str16 some.field)<br />
+{<br />
+	string	temp.file1(500), temp.file2(500), cmd(1024)<br />
+	string	kw1(17),kw2(17),kw3(17),kw4(17),tgrp(8),eopt(15)<br />
+	long	write.return, ret.code<br />
+<br />
+	temp.file1 = creat.tmp.file$(bse.tmp.dir$())<br />
+	temp.file1 = strip$(temp.file1)<br />
+	write.return = text.read(&quot;tdudi010.txtn&quot;, &quot;2&quot;, kw1, kw2, kw3, kw4, tgrp, eopt, temp.file1, 0)<br />
+<br />
+	temp.file2 = creat.tmp.file$(bse.tmp.dir$())<br />
+	temp.file2 = strip$(temp.file2)<br />
+	write.return = text.read(some.field, &quot;2&quot;, kw1, kw2, kw3, kw4, tgrp, eopt, temp.file2, 0)<br />
+	<br />
+	cmd = sprintf$(&quot;cat %s&gt;&gt;%s&quot;, temp.file1 , temp.file2)<br />
+	ret.code = shell(cmd, SHELL_NO_OUTPUT)<br />
+	<br />
+	write.return = text.rewrite(some.field, &quot;2&quot;, kw1, kw2, kw3, kw4, tgrp, &quot;&quot;, temp.file2)<br />
+	commit.transaction()<br />
+	ret.code = seq.unlink(temp.file1)<br />
+	ret.code = seq.unlink(temp.file2)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">SandraDiehl</div><div class="date">7th February 2012, 20:42</div></div><div class="posttext">Thanks Mark for the reply...after a terrible night dreaming this code I had a thought that went back to the fact we have two main text groups with both of different sizes.<br />
+Recall I stated we had one that was 31X23 and the other 80X23.  My code originally was just dealing with the group that was 80X23, so what it ended up doing is attempting to slam 80 characters into the text that had the text group defined at 31X23.<br />
+<br />
+Got the confirmation of my dream by doing debug and seen that the temp lines at the point of the seq.put was correct, the temp file on the network didn't show any additonal lines, it was when it was actually in the text file in BaaN.<br />
+<br />
+function update.std.routing.notes()<br />
+{<br />
+	string	text.buffer(80, 900)<br />
+	string	tmp.file(80)<br />
+	string	temp.file.name(100)<br />
+	string	temp.text.line(80)<br />
+	string	tmp.small.line(31)<br />
+	string 	tmp.line(80)<br />
+	string	tgroup(8)<br />
+	string	edit_opt(15)<br />
+	string	kw1(17)<br />
+	string 	kw2(17)<br />
+	string	kw3(17)<br />
+	string	kw4(17)<br />
+	long	temp.file.numb<br />
+	long	text.buffer.lines<br />
+	long	curr.line<br />
+	long	no.lines<br />
+	long	tmp.len<br />
+	<br />
+	db.retry.point()<br />
+	<br />
+	select	tirou102.*<br />
+	from	tirou102 for update<br />
+	where	tirou102._index1 = {:align.mitm}<br />
+	and	tirou102.opno = :buf.opno<br />
+	selectdo<br />
+		tmp.small.line = &quot;&quot;<br />
+		temp.text.line = &quot;&quot;<br />
+		text.buffer(80,900) = &quot;&quot;<br />
+		tmp.line = &quot;&quot;<br />
+		ret = text.to.buf(&quot;tirou102.txta&quot;, &quot;2&quot;, 900, text.buffer)<br />
+		no.lines = text.read(&quot;tirou102.txta&quot;, &quot;2&quot;, attr.textkw1$, attr.textkw2$, attr.textkw3$, attr.textkw4$, tgroup, edit_opt, tmp.file, 0)<br />
+		if ret &gt; 0 then  | Save the original text default values.<br />
+			text.buffer.lines = ret<br />
+			kw1 = attr.textkw1$<br />
+			kw2 = attr.textkw2$<br />
+			kw3 = attr.textkw3$<br />
+			kw4 = attr.textkw4$<br />
+		else<br />
+			kw1 = &quot;Operation Text&quot;<br />
+			kw2 = align.mitm<br />
+			kw3 = &quot;Operation&quot; &amp; str$(tirou102.opno)<br />
+			kw4 = &quot;&quot;<br />
+			tgroup = &quot;standard&quot;<br />
+			edit_opt = &quot;standard&quot;<br />
+		endif<br />
+		<br />
+		temp.file.name = creat.tmp.file$(bse.tmp.dir$())<br />
+		temp.file.name = strip$(temp.file.name)<br />
+		temp.file.numb = seq.open(temp.file.name, &quot;w+&quot;)<br />
+		<br />
+		if trim$(tgroup) = &quot;small&quot; then<br />
+			if text.buffer.lines &gt; 0 then<br />
+				for curr.line = 1 to text.buffer.lines<br />
+					tmp.small.line(1;31) = text.buffer(1, curr.line)<br />
+					ret = seq.puts(tmp.small.line, temp.file.numb)<br />
+				endfor<br />
+			endif<br />
+			tmp.line = &quot;Tooling Required: &quot; &amp; trim$(align.sitm)<br />
+			tmp.len = len(trim$(tmp.line))  <br />
+			if tmp.len &gt; 31 then  | Need this check to break up the new line if it's bigger than the text default size.<br />
+				tmp.small.line = &quot;Tooling Required: &quot;<br />
+				ret = seq.puts(tmp.small.line, temp.file.numb)<br />
+				tmp.small.line = trim$(align.sitm)<br />
+				ret = seq.puts(tmp.small.line, temp.file.numb)<br />
+			else<br />
+				ret = seq.puts(tmp.line, temp.file.numb)<br />
+			endif<br />
+			ret = seq.close(temp.file.numb)<br />
+		else<br />
+			if text.buffer.lines &gt; 0 then<br />
+				for curr.line = 1 to text.buffer.lines<br />
+					temp.text.line(1;80) = text.buffer(1, curr.line)<br />
+					ret = seq.puts(temp.text.line, temp.file.numb)<br />
+				endfor<br />
+			endif<br />
+			temp.text.line = &quot;Tooling Required: &quot; &amp; align.sitm<br />
+			ret = seq.puts(temp.text.line, temp.file.numb)<br />
+			ret = seq.close(temp.file.numb)<br />
+		endif<br />
+		<br />
+		<br />
+		if ret = 0 then<br />
+			if tirou102.txta = 0 then<br />
+				ret = text.write(&quot;tirou102.txta&quot;, &quot;2&quot;, kw1, kw2, kw3, kw4, tgroup, edit_opt, temp.file.name)<br />
+			else<br />
+				ret = text.rewrite(&quot;tirou102.txta&quot;, &quot;2&quot;, kw1, kw2, kw3, kw4, tgroup, edit_opt, temp.file.name)<br />
+			endif<br />
+		endif<br />
+		db.update(ttirou102, db.retry)<br />
+	endselect<br />
+	<br />
+	commit.transaction()<br />
+}<br />
+<br />
+For those curious of what I had to do this is my final code and it seems to now be working updating over 19,000 text records without adding a bunch of blank lines:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th February 2012, 21:04</div></div><div class="posttext">Thanks for posting the solution.  We use different text groups, but I think they are all defined the same.  <br />
+<br />
+Now if you could just dream the numbers for the lottery for me. :)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Doubts with AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Doubts with AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>Doubts with AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Doubts with AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">petguego</div><div class="date">5th January 2006, 23:12</div></div><div class="posttext">Hello friends, I have a doubt with the function stpapi.get.mess.code(), in the manual appears that this function has 2 arguments &quot;string stpapi.get.mess.code(string session [, ref string err.mesg ])&quot;, but in the compiler it accepts single one to me.  I am occupying it of the following way:<br />
+<br />
+<br />
+function extern void fsls4102m000.ingresar.detalle.ov(<br />
+const domain tcseak seab.p,<br />
+const domain tcqsl1 oqua.p,<br />
+const domain tcpric pric.p,<br />
+const domain tccwar cwar.p)<br />
+{ <br />
+domain tcmcs.str100 err.msg <br />
+domain tcdsca error.code<br />
+<br />
+stpapi.put.field(&quot;tdsls4102s000&quot;, &quot;codbarr.o&quot;, seab.p) <br />
+stpapi.put.field(&quot;tdsls4102s000&quot;, &quot;tdsls041.oqua&quot;, str$(oqua.p))<br />
+error.code = stpapi.get.mess.code(&quot;tdsls4102s000&quot;)  &lt;--Here I obtain the error that corresponds when there is no stock, shows a message and despues shows menu  <br />
+if error.code = &quot;tdsls11086&quot; then <br />
+stpapi.zoom.option(&quot;tdsls4102s000&quot;, 1, &quot;tdsls4801s000&quot;, err.msg)<br />
+endif <br />
+stpapi.put.field(&quot;tdsls4102s000&quot;, &quot;tdsls041.pric&quot;, str$(pric.p))<br />
+stpapi.put.field(&quot;tdsls4102s000&quot;, &quot;tdsls041.cwar&quot;, cwar.p)<br />
+stpapi.insert(&quot;tdsls4102s000&quot;, true, err.msg)<br />
+|stpapi.save(&quot;tdsls4102s000&quot;, err.msg)<br />
+}<br />
+<br />
+The problem is that in the indicated point it does not give back no error and when the function is executed stpapi.insert the program is hung, please to indicate if this good to me programmed the instructions stpapi.get.mess.code and stpapi.zoom.option  <br />
+<br />
+<br />
+Thanks<br />
+Atte<br />
+PGG</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">5th January 2006, 23:27</div></div><div class="posttext">This is a fun problem.  Here's a related post to try.  I never got it working, but had a work around before the more interesting suggestions came onto the post.<br />
+<br />
+Link for Sales Order Lines api discussion (http://www.baanboard.com/baanboard/showthread.php?t=5833&amp;highlight=api+tdsls4102) <br />
+<br />
+Good luck</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">petguego</div><div class="date">5th January 2006, 23:34</div></div><div class="posttext">Lnk is for BaaN V and I work with BaaN IV, do not throw error to me in the session, remain in delay,  Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">5th January 2006, 23:48</div></div><div class="posttext">The last 1/2 of the post - Francesco's version, is Baan IV and he appears to have it working, and there is extensive discussion on how to handle the Insufficient Inventory error, which is a common problem in Baan IV and V.  The error is not an error, it's a message, and directly you go into the field level zoom and you are hung.  So there is not a place to get the message before handling the zoom.  You need to just handle the zoom directly, and the message is ignored, you may be able to retrieve it still if you get the menu zoom working right first.  If you do not get the menu zoom working right, it will hang before you can retrieve any messages.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th January 2006, 00:11</div></div><div class="posttext">This is actual code in my production environment and should work on 4c4.<br />
+<br />
+		error_code = stpapi.get.mess.code(&quot;tdilc4113s000&quot;,msg)<br />
+		if strip$(error_code) = &quot;tdilc40062&quot; then<br />
+			msg = &quot;&quot;<br />
+		endif<br />
+<br />
+You may want to make sure you have the lastest stpapi objects and tools version if this does not work.  This session was developed under 4c3 and converted to 4c4.  This piece of code worked in both versions.  For your problem I do not think this will work - basically you put two fields and then check for an error.  There was no action on the session itself (save, update, insert) so I have to defer to Lisa and Francesco's posts on how to use these sales sessions(we do not use this module).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Holger R</div><div class="date">10th January 2006, 09:47</div></div><div class="posttext">Hello Petguego,<br />
+all the messges of the sessions are in a stack. You can get them after the insert call, because the check.fields are executed after a cont.process or update db.<br />
+You can get all the messages, when you make a while loop until the error message is empty. The latest message is the first.<br />
+The right call is &quot;stpapi.get.mess.code(string session, ref string error message)<br />
+<br />
+Greetings,<br />
+Holger</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">petguego</div><div class="date">13th January 2006, 01:59</div></div><div class="posttext">I have another doubt, which happens is that the instruction stpapi.end.session does not work with the session tdsls4102s000 to me, in program is left patch, since I can make to solve this?<br />
+<br />
+Thanks<br />
+Peter</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Holger R</div><div class="date">13th January 2006, 11:39</div></div><div class="posttext">Do you checked the afs-log if there are sessions started from tdsls4102s000 which you don't handle with the afs commands? <br />
+<br />
+Holger</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">petguego</div><div class="date">13th January 2006, 14:27</div></div><div class="posttext">Yes, I verified that the program executes 3 sessions:  tdsls4101m000, tdsls402s000 and tdsls4503s000, I execute to commando stpapi.end.session for these three sessions but the program when finalizing is hung the session tdsls402s000.  Thank you very much</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Holger R</div><div class="date">16th January 2006, 19:23</div></div><div class="posttext">Do you made a stpapi.handle.subproc for the session tdsls4503s000 before executing tdsls4102s000? You need a handle for sub sessions to send stpapi - commands to them.<br />
+<br />
+Greetings,<br />
+Holger</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">petguego</div><div class="date">19th January 2006, 15:25</div></div><div class="posttext">I am not using the session directly tdsls4503s000, but like the active one, treatment to close it.  My real problem is that not like handling in the program the message that gives the system when there is no stock, and the other is that when closing the session tdsls412s000 elprograma is left patch.  <br />
+<br />
+Thank you very much <br />
+petguego</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">19th January 2006, 15:54</div></div><div class="posttext">petguego,<br />
+<br />
+We too used to get a menu prompting action on insert of lines in sales order.<br />
+<br />
+We inserted  following code before stpapi.insert , and the menu was hadled proeprly.<br />
+<br />
+<br />
+stpapi.handle.subproc(&quot;tdsls4102s000&quot;,&quot;mtdsls000090451&quot;,&quot;10&quot;)<br />
+<br />
+<br />
+U dont need to close tdsls4503s000 .It's closed automatically with close of tdssl4102s000 .<br />
+<br />
+The 2nd problem is still not clear . Can u elaborate.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">veyant</div><div class="date">3rd March 2006, 14:12</div></div><div class="posttext">Actually, if stock is not aavilable then it pops up with the menu option and there are 2 types of menus. on the basis of some values, it will popup a menu with 10 items or it will popup a new with 12 items and in both menu's you willbe having &quot;No Action&quot; at respective 10th or 12th position.<br />
+<br />
+As hitesh suggested but &quot;10&quot; in third argument and if doesn't work then try for &quot;12&quot; as third argument.<br />
+<br />
+<br />
+thanks</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

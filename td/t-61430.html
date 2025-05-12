@@ -1,0 +1,168 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to retrieve a file via FTP in 4GL Script, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to retrieve a file via FTP in 4GL Script Tools Development" />
+	
+	<title>How to retrieve a file via FTP in 4GL Script [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; How to retrieve a file via FTP in 4GL Script</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">4th November 2011, 14:38</div></div><div class="posttext">Hi<br />
+<br />
+This relates to Baan Vb running on AS400.  I need to create the functionality to 'get' a file (flat text for instance) from a remote server (rather than the platform that Baan is currently running on) and 'put' it in a location on the current server.  I am developing this as a Baan 4GL script.<br />
+<br />
+Can anyone offer any assistance with this?<br />
+<br />
+I have considered running a shell script for this (although my shell scripting is more than a little rusty nowadays!), but would prefer to be able to do it solely in the 4GL script.<br />
+<br />
+Any help would be appreciated!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th November 2011, 15:29</div></div><div class="posttext">Have you tried searching this forum?  I know this topic has come up before, but the only way I recall it being solved was with a script.  I know that is how we solved it and actually we run the scripts outside of baan in a cron job. That was sufficient for us.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">4th November 2011, 16:21</div></div><div class="posttext">Hi Mark<br />
+<br />
+Yes, I searched the forum before I posted, but couldn't find anything.  I'll have another look around, if there's no obvious method that I've missed. Thanks for responding.<br />
+Andy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th November 2011, 17:05</div></div><div class="posttext">http://www.baanboard.com/baanboard/showthread.php?t=53937&amp; and search on ftp script(see sample by Ralph) and maybe file.mv(I did not try this one).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">7th November 2011, 15:12</div></div><div class="posttext">Thanks a lot Mark - this worked a treat!  I must admit that I had not come across these commands before.  Here is a snapshot of my solution to share:<br />
+<br />
+              extern	domain	tcmcs.str20	remote.system<br />
+	extern	domain	tcmcs.str20	remote.user.login<br />
+	extern	domain	tcmcs.str20	remote.user.pwd<br />
+			long		ret_val, rv<br />
+			long		remote.connection<br />
+			string		response(500)<br />
+<br />
+function ftp.connect.get.and.put.example()<br />
+{<br />
+	|## Function 'ftp.init' needs to be called before any other FTP function, otherwise others will fail<br />
+	|#<br />
+	ret_val = ftp.init()<br />
+<br />
+	|## Open a connection to the remote host<br />
+	|#<br />
+	if	(ret_val = 0) then<br />
+		ret_val = ftp.connect(strip$(remote.system), remote.connection)<br />
+	endif<br />
+	if	(ret_val = 0) then<br />
+		ret_val = ftp.login(strip$(remote.user.login), strip$(remote.user.pwd), remote.connection)<br />
+	endif<br />
+	if	(ret_val = 0) then<br />
+		ret_val = ftp.last.response(remote.connection, response)<br />
+	else<br />
+		rv = ftp.last.response(remote.connection, response)<br />
+		message(strip$(response))<br />
+	endif<br />
+<br />
+	|## Change CURRENT directory on the remote server<br />
+	|#<br />
+	if	(ret_val = 0) then<br />
+		ret_val = ftp.chdir(&quot;/home/user1/received&quot;, remote.connection)<br />
+		rv = ftp.last.response(remote.connection, response)<br />
+	endif<br />
+<br />
+	|## GET a file from the remote server (sourcef) and direct it to a specific<br />
+	|## location on the current server ('TARGET', 'SOURCE')<br />
+	|#<br />
+	if	(ret_val = 0) then<br />
+		|** ftp.get(&quot;TARGET ON LOCAL&quot;, &quot;SOURCE ON REMOTE&quot;, FTP_BINARY, remote.connection)<br />
+		ret_val = ftp.get(&quot;/home/user1/newfile.txt&quot;, &quot;sourcef&quot;, FTP_BINARY, remote.connection)<br />
+		rv = ftp.last.response(remote.connection, response)<br />
+	endif<br />
+<br />
+	|## Optionally PUT a file in the CURRENT directory on the remote server from a specific location<br />
+	|## on the current server ('SOURCE', 'TARGET')<br />
+	|## Remember that the current directory must be set with 'chdir' (above) and that<br />
+	|## the source file must exist on the local server<br />
+	|#<br />
+	if	(ret_val = 0) then<br />
+		|** ftp.put(&quot;SOURCE ON LOCAL&quot;, &quot;TARGET ON REMOTE&quot;, FTP_BINARY, remote.connection)<br />
+		ret_val = ftp.put(&quot;/home/user1/forsending/filetosend.txt&quot;,<br />
+				&quot;ftpd.from.&quot; &amp; strip$(hostname$()) &amp; &quot;.txt&quot;, FTP_BINARY, remote.connection)<br />
+		rv = ftp.last.response(remote.connection, response)<br />
+	endif<br />
+<br />
+	ret_val = ftp.quit(remote.connection)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">blanchap</div><div class="date">8th November 2011, 17:03</div></div><div class="posttext">Hi,<br />
+<br />
+one thing you could do also is create an script in unix that will do your ftp and just call a shell command in your baan script.<br />
+<br />
+That's what we did and it's working.<br />
+<br />
+PB</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">9th November 2011, 18:36</div></div><div class="posttext">Yes - thanks for that tip. This is what I initially considered (see earlier in thread) and I imagine a Unix shell script would work in my case, as the platform is AS400. I have developed this as a 4GL solution and it does everything that it's supposed to, but I would be interested to see your solution and consider as an alternative.<br />
+ <br />
+Would you possibly be able to share the shell script solution that you developed?<br />
+ <br />
+Thanks for your contribution to this thread</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">blanchap</div><div class="date">9th November 2011, 21:41</div></div><div class="posttext">Nothing really complicated.<br />
+<br />
+i've created a file in unix:  get_file<br />
+<br />
+in that file, i do my ftp.<br />
+<br />
+**********************<br />
+echo<br />
+echo Retrieving  data<br />
+echo<br />
+<br />
+cd /baan4/traffic/data<br />
+<br />
+ftp -i -n xxx.xxx.xxx.xxx &gt; /baan4/traffic/ftp.log &lt;&lt; -EOF<br />
+        user login password<br />
+        ascii<br />
+        mget W*.CSV<br />
+        bye<br />
+EOF<br />
+***********************************<br />
+<br />
+the owner of the file as to be bsp<br />
+<br />
+In my Baan script, i call my shell commande.<br />
+<br />
+choice.cont.process:<br />
+before.choice:<br />
+       ret = shell(&quot;/wri/get_file&quot;, 0)<br />
+<br />
+After that i read and process the data found in the cvs file.<br />
+<br />
+Regards.<br />
+<br />
+PB</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">10th November 2011, 19:44</div></div><div class="posttext">Thanks again for that.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">18th November 2011, 16:16</div></div><div class="posttext">You can also use the FTP functionality of 'CURL' to perform single line FTP actions that you can build on the fly in the 4gl script.  Google &quot;CURL&quot; to see how this slick utility can be used for flexible FTP and to get files from URLs in UNIX.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">21st November 2011, 10:22</div></div><div class="posttext">Thanks for your contribution - I'll try this out!</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

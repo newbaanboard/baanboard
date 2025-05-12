@@ -1,0 +1,161 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Problem with starting baan job from OS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Problem with starting baan job from OS Tools Administration &amp; Installation" />
+	
+	<title>Problem with starting baan job from OS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Problem with starting baan job from OS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">baanfin06</div><div class="date">15th September 2006, 01:06</div></div><div class="posttext">hello ,<br />
+<br />
+I have to run a job on ecedi7201m000 every 5 minutes to generate outbound EDI messages. Here are the steps that I did<br />
+<br />
+1. In ecedi7201m000, I selected &quot;make job..&quot; and then linked it to a job, scheduled the job to 1 minute<br />
+2. In my server I have 3 batch files. When the first file executes it calls the second batch with the Baan Job to be executed. <br />
+3. The second batch files starts the baan job <br />
+4. The first batch files checks if there are any files sent out by baan job and if there are any , calls the 3rd batch file to move them to the middleware server.<br />
+<br />
+It so happens that 2nd batch file does not start the baan job at all. <br />
+What might be the problem.<br />
+We are on Windows server.<br />
+<br />
+1st batch<br />
+<br />
+@echo on<br />
+set ediSdir = e:\baanerp\edi\100\extnet\appl_from\<br />
+<br />
+set datetime=%date:~10,4%%date:~4,2%%date:~7,2%%time:~0,2%%time:~3,2%%time:~6,2%<br />
+if %datetime:~8,2% LSS 10 set datetime=%datetime:~0,8%0%datetime:~9,5%<br />
+<br />
+set ediLogfile= e:\baanerp\edi\100\extnet\log\810log%datetime%.txt<br />
+<br />
+:start810<br />
+(echo *** start Generate EDI Messages -  ***) &gt;&gt; %ediLogfile%<br />
+call %bse%\edi\edibat\edi100.bat 810SOU<br />
+(echo.) &gt;&gt; %ediLogfile%<br />
+echo 810Start<br />
+goto end<br />
+<br />
+if exist %ediSdir%edi810*.txt goto move810<br />
+goto no810files<br />
+<br />
+:move810<br />
+(echo *** Move 810 files to Inovis ***) &gt;&gt; %ediLogfile%<br />
+call %bse%\edi\edibat\move_810_inovis.bat <br />
+(echo.) &gt;&gt; %ediLogfile%<br />
+goto end<br />
+<br />
+<br />
+:no810files<br />
+(echo *** no810files - No edi messages to be generated ***) &gt;&gt; %ediLogfile%<br />
+(echo.) &gt;&gt; %ediLogfile%<br />
+rem echo No edi files<br />
+goto end<br />
+ <br />
+:end<br />
+(echo *** end of program ***) &gt;&gt; %ediLogfile%<br />
+(echo Current date and time is &amp; date /t &amp; time /t) &gt;&gt; %ediLogfile%<br />
+rem echo This is the end<br />
+exit<br />
+<br />
+2nd Batch <br />
+<br />
+@echo off<br />
+<br />
+if &quot;%1&quot; == &quot;&quot; goto argerror<br />
+<br />
+start %bse%\bin\bw edi100.bwc -- -set BSH_JOB=%1 ttaad5203m000<br />
+goto end<br />
+<br />
+:argerror<br />
+echo Usage: startjob name-of-job-to-start <br />
+goto end<br />
+<br />
+:end<br />
+<br />
+3rd Batch file<br />
+<br />
+@echo on<br />
+set ediTdir=\\edi-server\EDI_Data\Edi\Prod\b810Prod\<br />
+set ediSdir = e:\baanerp\edi\100\extnet\appl_from\<br />
+set ediHist = e:\baanerp\edi\100\extnet\store_sent\<br />
+<br />
+set datetime=%date:~10,4%%date:~4,2%%date:~7,2%%time:~0,2%%time:~3,2%%time:~6,2%<br />
+if %datetime:~8,2% LSS 10 set datetime=%datetime:~0,8%0%datetime:~9,5%<br />
+<br />
+<br />
+set logfile= ediLogfile= e:\baanerp\edi\100\extnet\810_process_log\log_%datetime%.txt<br />
+<br />
+<br />
+:checkfile<br />
+if exist %edifilesource%810*.txt goto copyfiles810<br />
+echo filenotfound &gt;&gt; %logfile% <br />
+goto end<br />
+<br />
+:copyfiles810<br />
+echo copyfile810<br />
+copy %ediSdir%810S.txt %ediTdir%810S%datetime% &gt;&gt; %logfile%<br />
+<br />
+:archivefile810<br />
+echo moving to store_sent &gt;&gt; %logfile%<br />
+<br />
+move  %ediSdir%810S.txt %ediHist%810_%datetime%.txt<br />
+echo moved to store_sent &gt;&gt; %logfile%<br />
+<br />
+:end<br />
+exit<br />
+<br />
+NOTE : MY MANAGER SAID THAT SOME TIME BACK WE WERE ABLE TO RUN BAAN JOBS FROM SCHEDULED TASKS, BUT THEN THEY INSTALLED A NEW BWC AND AFTER THAT IT STOPPED RUNNING.<br />
+<br />
+Thanks<br />
+Vasavi</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pokitlok</div><div class="date">15th September 2006, 04:54</div></div><div class="posttext">1. Have you had manual test run batch file 2? Does it work probably?<br />
+2. Have you had manual test run batch file 1? Does it really call batch file 2?<br />
+3. If both above are ok, setup schedule job and execute it in Baan client. The job may uphold due to not completing the previous job<br />
+<br />
+Of course, u have to make sure u have enough license coz the startjob consumes at least one user license as running.<br />
+<br />
+Hope help u identify the problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mostrightfuture</div><div class="date">15th September 2006, 12:47</div></div><div class="posttext">hi baanfin06,<br />
+<br />
+Problem is fixed or still open? Baan is running on windows or Unix?<br />
+<br />
+MRF</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanfin06</div><div class="date">16th September 2006, 01:10</div></div><div class="posttext">Hello,<br />
+Batch 1 runs properly.<br />
+It tries to call Batch 2<br />
+Batch 2 does not execute even individually.<br />
+I don't understand what might be the reason.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mostrightfuture</div><div class="date">18th September 2006, 10:56</div></div><div class="posttext">Hi <br />
+<br />
+May be you can try the &quot;Call&quot; statement instead of &quot;start&quot; keyword with statment <br />
+<br />
+start %bse%\bin\bw edi100.bwc -- -set BSH_JOB=%1 ttaad5203m000<br />
+<br />
+in Batch 2.<br />
+<br />
+MRF.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,332 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Session Settings, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Session Settings Tools Development" />
+	
+	<title>Session Settings [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Session Settings</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">18th July 2002, 10:52</div></div><div class="posttext">Hi guys...<br />
+<br />
+As many of you are probably now aware (due to all of you helping me!)  I have been writing a new session.  I am glad to say that with all your help it went very well, however I am having a few extra problems.<br />
+<br />
+On the session I have set up a first free number scenario, on inserting a new record a first free number table is looked at and there fore a unique number assigned to the record.<br />
+<br />
+When I copy a record so that all the user has to do is change 1 field , it will not work.<br />
+<br />
+Here is the code that gets the first free number...<br />
+|**************** main table i/o section ***************<br />
+<br />
+main.table.io:<br />
+before.write:<br />
+	get.first.free.number()<br />
+before.rewrite:<br />
+	get.first.free.number()<br />
+<br />
+|****************  function section  *******************<br />
+<br />
+function get.first.free.number()<br />
+{<br />
+	db.retry.point()<br />
+	select tdsls900.*<br />
+	from tdsls900 for update<br />
+	where tdsls900.constant = 1<br />
+	selectdo<br />
+		tdsls901.bncdr = tdsls900.number + 1<br />
+		tdsls900.number = tdsls900.number + 1<br />
+		db.update(ttdsls900, db.retry)<br />
+		commit.transaction()<br />
+	endselect<br />
+}<br />
+<br />
+**************************************************<br />
+The function works great on a new record, but doesn't if I copy the record, modify a copy of lines and then try to save it.<br />
+:confused: <br />
+<br />
+Can anyone help?<br />
+<br />
+Cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">klesch</div><div class="date">18th July 2002, 11:06</div></div><div class="posttext">I'm not sure if this is going to help, but I used to experience difficulties when I used commit.transaction() in main.table.io section.<br />
+<br />
+Try to skip it. Transactions are going to be commited anyway as a result of commiting changes to the main table. I think...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">18th July 2002, 11:07</div></div><div class="posttext">You are in the main.table.io section, where the db.retry point is set in the STP, also the commit.transaction is handled in the STP. So you should not call a function where you usedb.update(ttdsls900, db.retry) <br />
+commit.transaction() <br />
+endselect<br />
+<br />
+See also: BAAN Tools Main Index (ttindex) &gt; Programmer's Information (ttprog0005) &gt; 4GL Language Features (ttprog0015) &gt; [Relations] &gt; Flow of Standard Program (ttprog0015sf0020) &gt; * Update Database:before.update.db<br />
+db.retry.point()<br />
+for all occurrences<br />
+    before.write / before.rewrite / before.delete<br />
+    if not skip then<br />
+       write / rewrite / delete record<br />
+       after.write / after.rewrite / after.delete<br />
+    else<br />
+       after.skip.write / after.skip.rewrite / after.skip.delete<br />
+    endif<br />
+endfor<br />
+back.to.old.key<br />
+after.update.db<br />
+commit.transaction()<br />
+after.update.db.commit<br />
+So in that case the before.update.db section might fit.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">18th July 2002, 11:19</div></div><div class="posttext">Hi thanks for this,<br />
+<br />
+I am not too sure what u mean....<br />
+<br />
+So where should I use before.update.db section  and in place of what?<br />
+<br />
+<br />
+Cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">18th July 2002, 11:53</div></div><div class="posttext">What I meant:<br />
+if you need to use the commit.transaction then you need to keep your transaction outside of the transaction in the main.table.io section.<br />
+<br />
+But you do not want to store a number and later run the risk that that stored number is never going to be used (because of the main.table.io action aborts for example).<br />
+<br />
+So in that case use the transaction of the main.table.io.<br />
+<br />
+Also. Always keep the db.retry() and commit.transaction() in the same level. This means: no commit.transaction in a function without a db.retry point and vv. If you later decide to call a function twice or in another setting your (halfway) transaction may mess up things. A good programming practice is (in case you program a db.retry and commit in a function) to show this in the name of the function. You can use any fancy coding, but stick to the code.function commit.ffno.selection()<br />
+{<br />
+db.retry.point()<br />
+...<br />
+db.update(..., db.retry)<br />
+...<br />
+commit.transaction()<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">18th July 2002, 12:54</div></div><div class="posttext">Im sorry if I sound stupid, but if this is my code, how am I changing it?<br />
+|********** main table i/o section ****************<br />
+<br />
+main.table.io:<br />
+before.write:<br />
+	get.first.free.number()<br />
+<br />
+|*********** function section ******************<br />
+<br />
+function get.first.free.number()<br />
+{<br />
+	db.retry.point()<br />
+	select tdsls900.*<br />
+	from tdsls900 for update<br />
+	where tdsls900.constant = 1<br />
+	selectdo<br />
+		tdsls901.bncdr = tdsls900.number + 1<br />
+		tdsls900.number = tdsls900.number + 1<br />
+		db.update(ttdsls900, db.retry)<br />
+		commit.transaction()<br />
+	endselect<br />
+}<br />
+Could you show me where I am making my changes?<br />
+<br />
+should I be using this instead.....<br />
+|********** main table i/o section ****************<br />
+<br />
+main.table.io:<br />
+before.write:<br />
+	db.retry.point()<br />
+	select tdsls900.*<br />
+	from tdsls900 for update<br />
+	where tdsls900.constant = 1<br />
+	selectdo<br />
+		tdsls901.bncdr = tdsls900.number + 1<br />
+		tdsls900.number = tdsls900.number + 1<br />
+		db.update(ttdsls900, db.retry)<br />
+		commit.transaction()<br />
+	endselect<br />
+<br />
+**********************************************<br />
+Cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">18th July 2002, 14:30</div></div><div class="posttext">before.update.db:<br />
+db.retry.point() | from STP: it is not in your script but added by std_gen6.1<br />
+for all occurrences<br />
+    before.write:<br />
+        get.first.free.number() = <br />
+        db.retry.point()<br />
+        select tdsls900.* ...<br />
+        db.update(ttdsls900, db.retry) <br />
+        commit.transaction()<br />
+    before.rewrite:<br />
+        get.first.free.number() = <br />
+        db.retry.point()<br />
+        select tdsls900.* ...<br />
+        db.update(ttdsls900, db.retry) <br />
+        commit.transaction()<br />
+    before.delete:<br />
+    if not skip then<br />
+       write / rewrite / delete record<br />
+       after.write: / after.rewrite: / after.delete:<br />
+    else<br />
+       after.skip.write: / after.skip.rewrite: / after.skip.delete:<br />
+    endif<br />
+endfor<br />
+back.to.old.key<br />
+after.update.db:<br />
+commit.transaction() | from STP: it is not in your script but added by std_gen6.1<br />
+after.update.db.commit:This is what you propose: but in that case:<br />
+what is going to be committed in your commit.transaction() (in the function).<br />
+Where to jump to when the write / rewrite fails? There are 2 db.retry.point()s. What is committed then?<br />
+<br />
+Proposal would be: skip the commit.transaction and the db.retry.point in your function.<br />
+<br />
+At first I thought you only used a commit.transaction() in the function without db.retry.point() which is not correct...<br />
+even then you can imagine that your function as is leaves an open transaction when there is no record found... then the commit.transaction is not passed. You can expect errors like &quot;Transaction is on&quot; to happen...<br />
+<br />
+Errors with nested retry.points and commit.transactions can be shown when tested in debug (Capital C) and started with -- -set TEST_RETRY=2. In that case the program will start looping. With capital C you can see that happen.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">18th July 2002, 16:24</div></div><div class="posttext">the db.retry and commit.transaction are for the first free number table, basically it is so that if another uses accesses that table without the commit.transaction happening from the first use then it stops there being a clash of the first free number by the 2 users.<br />
+<br />
+I don't think I should remove these unless what you have proposed covers this.<br />
+<br />
+Cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">18th July 2002, 16:25</div></div><div class="posttext">Also...<br />
+<br />
+the code that yyou have proposed should I be putting this in the main table i/o section?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">18th July 2002, 17:26</div></div><div class="posttext">Let's think some senarios over:<br />
+<br />
+1) When this update on the main table fails, do you want to loose a ffno, yes or no? <br />
+- If yes, then you may use the db.retry.point / commit.transaction construction in the function BUT see A) below<br />
+- If no, then you may not use the db.retry.point / commit.transaction construction in the function AND see B) below<br />
+<br />
+2) When two users access the same table at the same time, what does happen? You did select the &quot;for update&quot; option, so you use delayed locking. So if a read is done after the db.update, and someone else tries to do the same session, also performs a db.update, he will encounter a lock and his transaction will be rolled back. So no problem there, but also see A) below<br />
+<br />
+A) When you test your session with -- -set TEST_RETRY=2, then all actions that may cause the database to jump to the db.retry.point(). Now in the main.table.io section a hidden (shown in the Flow of STP) db.retry.point is passed. In your function a second one is passed. When something in between is updated (in the STP or in your session) then TEST_RETRY will force a go to db.retry.point(1) in STP. The second time it will do the same, the third time it will pass (TEST_RETRY=2), then your action will occurr. And again TEST_RETRY=2 will force to jump to the first db.retry.point(1) of STP. Then the first database action will be done twice and then the update un your function will trigger a fail again. Again it will jump to the db.retry.point(1) etc... a loop.<br />
+<br />
+Resume: constructions with nested transactions is asking for problems. Sometimes it is no problem, because of no transactions are done in between. But better: avoid problems.<br />
+<br />
+When in the main.table.io section separate transactions are needed, you must do them in the before.update.db section. There you are not in the main transaction from STP. You can consider another separate transaction in the after.update.db.commit section, to revert the action in the before.update.db section in case it should not have been done. This will go wrong if some one else did pick a number in between....<br />
+<br />
+B) The best option is to just use the single transaction of the main transaction. This will allow you to pick a number when the transaction succeeds, and to roll back in case something fails. In that case all is like as if it never happened.<br />
+<br />
+It is complex matter, this transaction handling. And even some Baan sessions cannot run correct with the TEST_RETRY=2 option, because of nested transactions (also think of the &quot;Transaction is on&quot; error - search the knowledge base on it,...:p Keyword search on &quot;transaction is on&quot; yields 130 hits!!!).<br />
+<br />
+The most impotant message here:<br />
+1) Never nest transactions<br />
+2) There is a huge transaction going on around all the main table io sections except for the before.update.db and the after.update.db.commit sections<br />
+<br />
+Lesser important ones:<br />
+3) Keep start / end transactions on the same level<br />
+4) Name of functions with a commit should show this<br />
+5) NO user interaction or any other thinks (like messaging) in the transaction itself. Keep the transactions short in time.<br />
+<br />
+There is more to the picture, but that is for the course advanced programming. You can opt for that - see www.profuse.nl :D</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">18th July 2002, 17:58</div></div><div class="posttext">Hi<br />
+<br />
+Thank you for that.  If I am honest, I had the Baan development 3 day course 2 weeks ago, and being a web developer, this is where my scripting knowledge comes from.<br />
+<br />
+I think that what you have explained goes a little deeper than I am yet ready to dive to....<br />
+<br />
+I have made some changes and it is now working, here is the code for your interest...<br />
+|************field section**************<br />
+field.tdsls901.bncdr:<br />
+before.input:<br />
+if update.status = add.set then<br />
+	attr.input = false<br />
+endif<br />
+check.input:<br />
+check.first.free.number() <br />
+<br />
+|***********function section************<br />
+functions:<br />
+<br />
+function check.first.free.number()<br />
+{<br />
+	db.retry.point()<br />
+	select tdsls901.bncdr<br />
+	from tdsls901<br />
+	where tdsls901.bncdr = :tdsls901.bncdr<br />
+	selectdo<br />
+		tdsls901.bncdr = tdsls900.number + 1<br />
+		tdsls900.number = tdsls900.number + 1<br />
+		commit.transaction()<br />
+	endselect<br />
+<br />
+}<br />
+<br />
+************************************<br />
+This seems to be doing the trick, I think it goes against what you have advised, but maybe my lack of experiece is stopping me from fully  understanding.<br />
+<br />
+What you have said about nested transactions makes sense, but to be honest I am not sure how else I could go about it.<br />
+<br />
+How does the code that is working look to you?<br />
+<br />
+<br />
+Thank you for all your help on this.<br />
+<br />
+Cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">18th July 2002, 18:07</div></div><div class="posttext">Ok then,<br />
+<br />
+Some final remarks.<br />
+1) If you input on the tdsls901.bncdr, change the input each time again, you will loose free numbers. If you do not mind, it is ok.<br />
+2) If you left your original coding but leave the db.retry.point() and the commit.transaction() out, it would have done the trick and even better. Because then you would only give a ffno when needed and others would not pick the same number.<br />
+3) Sorry for being too much unclear sometimes. Transaction management is difficult and hard to explain. That is to say, if you must explain it clear enough for a dummy (not to offend you) too.<br />
+4) I hope some others enjoyed the thread too and now understand where this &quot;Transaction is on, can't continue&quot; message came from... At least klesch now knows why this commit in the main.table.io section causes trouble.<br />
+<br />
+as for me, you may close the thread.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">18th July 2002, 18:16</div></div><div class="posttext">I think I understand what you mean, the user cannot change the .bncdr field, it is automatic, so there should be no number loose as such.<br />
+<br />
+In other words do you mean that if the user picks the wrong number a free number can become unusable?<br />
+<br />
+In that case, I can see what you mean by not using the db.retry or transaction.commit because the update of the numbers is done on the field.<br />
+<br />
+<br />
+I hope that other users like me - fairly new to baan scripting - have a look at this post because it has been very helpfull, it takes a bit of close reading to get your head round though, I guess as it comes up more it becomes second nature eventually.<br />
+<br />
+Thank you for all your help it has been very usefull.<br />
+<br />
+Cheers:p</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">18th July 2002, 18:21</div></div><div class="posttext">Take a glance at the &quot;normal&quot; scripts to see how the tcmcs047 table is handled...<br />
+<br />
+If you do not have sources... try this: do make a .../ptdpur/ppur41200 file and a .../ptcmcs/pmcs01470 file (&lt;&gt; 0 bytes) before you install updates on those sessions....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">18th July 2002, 18:29</div></div><div class="posttext">will this give me access to those scripts even i do not have source then?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">18th July 2002, 18:48</div></div><div class="posttext">Just try and see what happens :D<br />
+If you have doubts... read the section about sources in the SP installation booklet.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">outra9e</div><div class="date">18th July 2002, 18:54</div></div><div class="posttext">wicked<br />
+<br />
+well thanks for all your help, no doubt I shall speak to you again in the future<br />
+<br />
+cheers</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

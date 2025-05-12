@@ -1,0 +1,549 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="tfacp9202m000 Fatal Error, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] tfacp9202m000 Fatal Error Finance, Invoicing and Integration" />
+	
+	<title>tfacp9202m000 Fatal Error [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Finance, Invoicing and Integration</a> &gt; tfacp9202m000 Fatal Error</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">marwest98</div><div class="date">25th July 2008, 22:39</div></div><div class="posttext">A user is getting a Fatal error message on Tfcap9202m000 - Create Auto Invoice  I have not been able to figure out why.<br />
+<br />
+I have attached a copy of the error message she is receiving.  I have not been able to recreate it, the session does not create the invoices either.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Andreas</div><div class="date">28th July 2008, 09:28</div></div><div class="posttext">Hi,<br />
+as your profile says you 're on 5.0c. There is no standard Session tfacp9209m000 at least in my environment.<br />
+Is this a cutomized Session?<br />
+<br />
+Andreas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">marwest98</div><div class="date">29th July 2008, 21:01</div></div><div class="posttext">The issue is with one of the Baan standard sessions called by this script.  they are tfgld1101m000 and tfacp1120s000.  We think it is in one of the API calls.<br />
+<br />
+Here is the script<br />
+|******************************************************************************<br />
+|* tfacp9202  0  VRC B50C c  ptst<br />
+|* Create Auto Invoice<br />
+|* pcraven<br />
+|* 07-14-06 [12:00]<br />
+|******************************************************************************<br />
+|******************************************************************************<br />
+|* Main table tfgld100 Batch Status, Form Type 4<br />
+|******************************************************************************<br />
+                                                                                <br />
+<br />
+|******************************************************************************<br />
+|* Script Type: 4<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** DECLARATION SECTION ***************************<br />
+<br />
+declaration:<br />
+<br />
+	extern	domain	tfgld.btno	btno.f<br />
+	extern	domain	tfgld.btno	btno.t<br />
+	extern	domain	tfgld.long	seqn.f<br />
+	extern	domain	tfgld.long	seqn.t<br />
+	extern	domain	tcyesno		post.based.invd<br />
+	extern	domain	tfgld.date	trans.entry.date<br />
+	extern	domain	tcmcs.str40	batch.desc<br />
+	extern	domain	tfgld.btno	zoom.btno<br />
+	extern	domain	tfgld.long	zoom.seqn<br />
+<br />
+<br />
+	extern	domain	tcmcs.str100		error.message<br />
+			domain	tfgld.year	tax.year<br />
+			domain	tfgld.prod	tax.period<br />
+			domain	tfgld.year	fiscal.year<br />
+			domain	tfgld.prod	fiscal.period<br />
+			domain	tfgld.year	report.year<br />
+			domain	tfgld.prod	report.period<br />
+			domain	tfgld.amnt	temp.namt<br />
+			domain	tcbool		first.time<br />
+<br />
+<br />
+		domain	tcncmp		t.comp.num<br />
+		domain	tfgld.btno	t.batch.num<br />
+		domain	tfgld.ttyp	t.trans.type<br />
+		domain	tfgld.docn	t.doc.num |, t.doc.num2<br />
+		domain	tfgld.lino	t.line.num |, t.line.num2<br />
+		domain	tfgld.serl	t.seq.num<br />
+		domain	tfgld.srno	t.back.seq.num<br />
+		domain	tfgld.year	t.fiscal.year<br />
+		domain	tfgld.prod	t.fiscal.period<br />
+		domain	tfgld.year	t.report.year<br />
+		domain	tfgld.prod	t.report.period<br />
+<br />
+<br />
+<br />
+			string	doc.num(10)<br />
+			long	ret, count, invoice.count, err.ret, series<br />
+			string	batch.num(10)<br />
+			string	line.num(6)<br />
+			string	seq.num(6)<br />
+			string	back.seq.num(6)<br />
+			string	fisc.year(4)<br />
+			string	tran.type(4)<br />
+			string	trans.type(4)<br />
+			string	ledger(6)<br />
+			string	comp.num(4)<br />
+			string	bank(3)<br />
+<br />
+	#include        &lt;bic_tt&gt;<br />
+	#pragma used dll ottstpapihand	|Baan API handler<br />
+<br />
+	table 	ttfgld100		| Batch Status<br />
+	table 	ttfgld006		| End Dates by Year<br />
+	table	ttfgld008		| Chart of Accounts<br />
+	table	ttfgld011		| Transaction Types<br />
+	table	ttfgld014		| Last used batch<br />
+	table 	ttfgld102		| Transactions<br />
+	table	ttfcmg903		| Route, Vendor<br />
+	table	ttfacp900		| Auto Invoice parameters<br />
+	table	ttfacp901		| Auto Invoice details<br />
+	table	ttfgld005		| Periods<br />
+	table	ttccom100		| Business Partners<br />
+	table	ttccom122		| Invoice-From Business Partners<br />
+	table	ttccom124		| Pay-To Business Partners<br />
+	table	ttccom125		| Banks by Pay-to BP<br />
+	table	ttfacp200		| Open Items (Purchase Invoices and Payments<br />
+	<br />
+|****************************** form section **********************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	display.all()<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.user.0:<br />
+on.choice:<br />
+	first.time = true<br />
+	read.auto.invoice.parameters()<br />
+	get.default.order.series()<br />
+	read.records.from.tfacp901.table()<br />
+<br />
+|****************************** field section *********************************<br />
+<br />
+field.btno.f:<br />
+after.zoom:<br />
+	btno.f = zoom.btno<br />
+	seqn.f = zoom.seqn<br />
+after.input:<br />
+	btno.t = btno.f<br />
+<br />
+field.btno.t:<br />
+after.zoom:<br />
+	btno.t = zoom.btno<br />
+	seqn.t = zoom.seqn<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function read.auto.invoice.parameters()<br />
+{<br />
+	select	tfacp900.*<br />
+	from		tfacp900<br />
+	where		tfacp900.sern = 1<br />
+	selectdo<br />
+	endselect <br />
+}<br />
+<br />
+function read.records.from.tfacp901.table()<br />
+{<br />
+	invoice.count = 0<br />
+	count = 0<br />
+<br />
+	db.retry.point()<br />
+<br />
+	select	tfacp901.*<br />
+	from		tfacp901 for update<br />
+	where		tfacp901._index1 inrange {:btno.f, :seqn.f} and {:btno.t, :seqn.t} and<br />
+			tfacp901.aist = 1 and<br />
+			tfacp901.namt &lt; 0.0<br />
+	selectdo<br />
+			if not read.tfcmg903() then<br />
+				tfacp901.aist = tfacp.aist.errn<br />
+				tfacp901.emsg = &quot;Routing code mapping not found!&quot;<br />
+				db.update(ttfacp901, db.retry)<br />
+			else<br />
+				if not valid.ledger() then<br />
+					tfacp901.aist = tfacp.aist.errn<br />
+					tfacp901.emsg = &quot;Ledger mapping not found!&quot;<br />
+					db.update(ttfacp901, db.retry)<br />
+				else<br />
+					if not valid.business.partner() then<br />
+						tfacp901.aist = tfacp.aist.errn<br />
+						db.update(ttfacp901, db.retry)<br />
+					else<br />
+						maintain.invoices.tfgld1101m000()<br />
+						commit.transaction()<br />
+					endif<br />
+				endif<br />
+			endif <br />
+	endselect<br />
+ <br />
+	select	tfacp901.*<br />
+	from		tfacp901 for update<br />
+	where		tfacp901._index1 inrange {:btno.f, :seqn.f} and {:btno.t, :seqn.t} and<br />
+			tfacp901.aist = 1 and<br />
+			tfacp901.namt &gt; 0.0<br />
+	selectdo<br />
+			if not read.tfcmg903() then<br />
+				tfacp901.aist = tfacp.aist.errn<br />
+				tfacp901.emsg = &quot;Routing code mapping not found!&quot;<br />
+				db.update(ttfacp901, db.retry)<br />
+			else<br />
+				if not valid.ledger() then<br />
+					tfacp901.aist = tfacp.aist.errn<br />
+					tfacp901.emsg = &quot;Ledger mapping not found!&quot;<br />
+					db.update(ttfacp901, db.retry)<br />
+				else<br />
+					if not valid.business.partner() then<br />
+						tfacp901.aist = tfacp.aist.errn<br />
+						db.update(ttfacp901, db.retry)<br />
+					else<br />
+						maintain.invoices.tfgld1101m000()<br />
+						commit.transaction()<br />
+					endif<br />
+				endif<br />
+			endif <br />
+	selectempty<br />
+	endselect <br />
+<br />
+	stpapi.end.session( &quot;tfacp1110s000&quot; )<br />
+	stpapi.end.session( &quot;tfgld1101m000&quot; )	<br />
+<br />
+	message(&quot;%s invoices processed with batch %s&quot;, invoice.count,batch.num)<br />
+<br />
+	execute(end.program)<br />
+}<br />
+<br />
+|******************************************************************************************************************|<br />
+function maintain.invoices.tfgld1101m000()<br />
+|******************************************************************************************************************|<br />
+{<br />
+	if first.time then<br />
+		create.tfgld1101.transaction()<br />
+	endif<br />
+	create.purchase.invoices()<br />
+	create.purchase.invoice.lines()<br />
+}<br />
+<br />
+|****************************************** TRANSACTIONS **********************************************************|<br />
+function create.tfgld1101.transaction()<br />
+{<br />
+	first.time = false<br />
+<br />
+	stpapi.put.field( &quot;tfgld1101m000&quot;, &quot;tedt.f&quot;, str$(trans.entry.date) )<br />
+<br />
+	stpapi.put.field( &quot;tfgld1101m000&quot;, &quot;bref.f&quot;, batch.desc )<br />
+<br />
+	ret = stpapi.change.view(&quot;tfgld1101m000&quot;, error.message)<br />
+<br />
+	stpapi.put.field( &quot;tfgld1101m000&quot;, &quot;tfgld101.ttyp&quot;, tfacp900.pitt )<br />
+<br />
+	ret = stpapi.insert( &quot;tfgld1101m000&quot;, 1, error.message) <br />
+<br />
+	stpapi.get.field( &quot;tfgld1101m000&quot;, &quot;tfgld101.year&quot;, fisc.year )<br />
+	stpapi.get.field( &quot;tfgld1101m000&quot;, &quot;tfgld101.btno&quot;, batch.num )<br />
+	stpapi.get.field( &quot;tfgld1101m000&quot;, &quot;tfgld101.ttyp&quot;, tran.type )<br />
+<br />
+	ret = stpapi.mark( &quot;tfgld1101m000&quot;, error.message) <br />
+<br />
+	if ret = 1 then<br />
+		stpapi.handle.subproc( &quot;tfgld1101m000&quot;, &quot;tfacp1110s000&quot;, &quot;add&quot; )<br />
+	endif<br />
+	stpapi.form.command( &quot;tfgld1101m000&quot;, 5, &quot;exec.cont.process&quot;, error.message )<br />
+}<br />
+<br />
+|****************************************** PURCHASE INVOICES *****************************************************|<br />
+function create.purchase.invoices()<br />
+{<br />
+|	stpapi.put.field( &quot;tfacp1110s000&quot;, &quot;tfacp200.ninv&quot;, &quot;60&quot; )<br />
+	stpapi.put.field( &quot;tfacp1110s000&quot;, &quot;tfacp200.ninv&quot;, str$(series) )<br />
+<br />
+	stpapi.put.field( &quot;tfacp1110s000&quot;, &quot;tfacp200.docd&quot;, str$(tfacp901.invd) )<br />
+<br />
+	stpapi.put.field( &quot;tfacp1110s000&quot;, &quot;tfacp200.ifbp&quot;, tfcmg903.vcod )<br />
+<br />
+	if post.based.invd = tcyesno.yes then<br />
+		get.tax.year.and.period()<br />
+		stpapi.put.field( &quot;tfacp1110s000&quot;, &quot;tfacp200.vaty&quot;, str$(tax.year) )		| invoice tax year<br />
+		stpapi.put.field( &quot;tfacp1110s000&quot;, &quot;tfacp200.vatp&quot;, str$(tax.period) )		| invoice tax period<br />
+	endif<br />
+<br />
+	temp.namt = tfacp901.namt * -1<br />
+	stpapi.put.field( &quot;tfacp1110s000&quot;, &quot;screen.amnt&quot;, str$(temp.namt) )<br />
+	stpapi.put.field( &quot;tfacp1110s000&quot;, &quot;tfacp200.reas&quot;, &quot;ACH&quot; )<br />
+<br />
+	ret = stpapi.insert( &quot;tfacp1110s000&quot;, 0, error.message) <br />
+	ret = stpapi.save( &quot;tfacp1110s000&quot;, error.message )<br />
+<br />
+	stpapi.get.field( &quot;tfacp1110s000&quot;, &quot;tfacp200.ninv&quot;, doc.num )<br />
+<br />
+	get.default.bank()<br />
+<br />
+	if post.based.invd = tcyesno.yes then<br />
+		ret = stpapi.find( &quot;tfacp1110s000&quot; )<br />
+		stpapi.put.field( &quot;tfacp1110s000&quot;, &quot;tfacp200.vatp&quot;, str$(tax.period) )		| tax period<br />
+		stpapi.put.field( &quot;tfacp1110s000&quot;, &quot;tfacp200.bank&quot;, bank )<br />
+		ret = stpapi.update( &quot;tfacp1110s000&quot;, true, error.message )<br />
+		ret = stpapi.save( &quot;tfacp1110s000&quot;, error.message )<br />
+	else<br />
+		ret = stpapi.find( &quot;tfacp1110s000&quot; )<br />
+		stpapi.put.field( &quot;tfacp1110s000&quot;, &quot;tfacp200.bank&quot;, bank )<br />
+		ret = stpapi.update( &quot;tfacp1110s000&quot;, true, error.message )<br />
+		ret = stpapi.save( &quot;tfacp1110s000&quot;, error.message )<br />
+	endif<br />
+<br />
+	stpapi.handle.subproc( &quot;tfacp1110s000&quot;, &quot;tfacp1120s000&quot;, &quot;add&quot; )<br />
+	stpapi.form.command( &quot;tfacp1110s000&quot;, 5, &quot;exec.cont.process&quot;, error.message )<br />
+}<br />
+<br />
+|****************************************** PURCHASE INVOICE LINES ***********************************************|<br />
+function create.purchase.invoice.lines()<br />
+{<br />
+	stpapi.put.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.leac&quot;, tfcmg903.leac )<br />
+<br />
+<br />
+|	if post.based.invd = tcyesno.yes then<br />
+|		get.fiscal.year.and.period()<br />
+|		stpapi.put.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.fyer&quot;, str$(fiscal.year) )		| financial year<br />
+|		stpapi.put.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.fprd&quot;, str$(fiscal.period) )	| financial period<br />
+|		get.report.year.and.period()<br />
+|		stpapi.put.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.ryer&quot;, str$(report.year) )		| report year<br />
+|		stpapi.put.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.rprd&quot;, str$(report.period) )	| report period<br />
+|	endif<br />
+<br />
+<br />
+	ret = stpapi.insert( &quot;tfacp1120s000&quot;, 1, error.message )<br />
+	ret = stpapi.save( &quot;tfacp1120s000&quot;, error.message )<br />
+<br />
+	if post.based.invd = tcyesno.yes then<br />
+		db.retry.point()<br />
+		ret = stpapi.find( &quot;tfacp1120s000&quot; )<br />
+		get.fiscal.year.and.period()<br />
+		get.report.year.and.period()<br />
+		stpapi.get.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.tcom&quot;, comp.num )		| Company<br />
+		stpapi.get.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.leac&quot;, ledger )		| Ledger Account<br />
+		stpapi.get.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.btno&quot;, batch.num )		| Batch<br />
+		stpapi.get.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.ttyp&quot;, trans.type )	| Transaction Type<br />
+		stpapi.get.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.docn&quot;, doc.num )		| Document Number<br />
+		stpapi.get.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.lino&quot;, line.num )		| Line number<br />
+		stpapi.get.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.serl&quot;, seq.num )		| Sequence Number<br />
+		stpapi.get.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.srno&quot;, back.seq.num )	| Background sequence number<br />
+		<br />
+<br />
+<br />
+		t.comp.num = val(comp.num)<br />
+		t.batch.num = val(batch.num)<br />
+		t.trans.type = trans.type<br />
+		t.doc.num = val(doc.num)<br />
+		t.line.num = val(line.num)<br />
+		t.seq.num = val(seq.num)<br />
+		t.back.seq.num = val(back.seq.num)<br />
+		t.fiscal.year = fiscal.year<br />
+		t.fiscal.period = fiscal.period<br />
+		t.report.year = report.year<br />
+		t.report.period = report.period<br />
+<br />
+		select	tfgld102.*<br />
+		from	tfgld102 for update<br />
+		where	tfgld102._index1 = {:t.comp.num, :t.fiscal.year, :t.batch.num, :t.trans.type, :t.doc.num, :t.line.num, :t.seq.num, :t.back.seq.num}<br />
+		selectdo<br />
+			tfgld102.fprd = t.fiscal.period<br />
+			tfgld102.back = tfgld.back.yes<br />
+			tfgld102.rprd = t.report.period<br />
+			tfgld102.ryer = t.report.year<br />
+			db.update(ttfgld102, db.retry, err.ret)<br />
+			count = count + 1<br />
+<br />
+|			commit.transaction()<br />
+		endselect<br />
+<br />
+|		stpapi.put.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.tcom&quot;, comp.num )		| Company<br />
+|		stpapi.put.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.fyer&quot;, str$(fiscal.year) )		| financial year<br />
+|		stpapi.put.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.btno&quot;, batch.num )		| Batch<br />
+|		stpapi.put.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.ttyp&quot;, trans.type )	| Transaction Type<br />
+|		stpapi.put.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.docn&quot;, doc.num )		| Document Number<br />
+|		stpapi.put.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.lino&quot;, line.num )		| Line number<br />
+|		stpapi.put.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.serl&quot;, seq.num )		| Sequence Number<br />
+|		stpapi.put.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.srno&quot;, back.seq.num )	| Background sequence number<br />
+|		stpapi.put.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.fprd&quot;, str$(fiscal.period) )	| financial period<br />
+|		stpapi.put.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.ryer&quot;, str$(report.year) )		| report year<br />
+|		stpapi.put.field( &quot;tfacp1120s000&quot;, &quot;tfgld102.rprd&quot;, str$(report.period) )	| report period<br />
+|		ret = stpapi.insert( &quot;tfacp1120s000&quot;, 1, error.message )<br />
+|		ret = stpapi.save( &quot;tfacp1120s000&quot;, error.message )<br />
+	endif<br />
+<br />
+	if error.message = &quot;&quot; then<br />
+		tfacp901.aist = tfacp.aist.proc<br />
+		if tfacp901.namt &gt; 0.0 then<br />
+			tfacp901.ttyp = tfacp900.pctt<br />
+		else<br />
+			tfacp901.ttyp = tfacp900.pitt<br />
+		endif	<br />
+		tfacp901.docn = lval(doc.num)<br />
+<br />
+		db.update(ttfacp901, db.retry)<br />
+<br />
+		invoice.count = invoice.count + 1<br />
+		count = count + 1<br />
+		if count &gt; 50 then<br />
+|			commit.transaction()<br />
+			count = 0<br />
+		endif<br />
+	endif<br />
+<br />
+	stpapi.end.session( &quot;tfacp1120s000&quot; )<br />
+}<br />
+<br />
+function domain tcbool read.tfcmg903()<br />
+{<br />
+	select	tfcmg903.*<br />
+	from		tfcmg903<br />
+	where		tfcmg903._index1 = {:tfacp901.rnum}<br />
+	selectdo<br />
+	selectempty<br />
+			return(false)<br />
+	endselect<br />
+	return(true)<br />
+}<br />
+<br />
+function domain tcbool valid.ledger()<br />
+{<br />
+	tfacp901.emsg = &quot;&quot;<br />
+	select	tfgld008.*<br />
+	from		tfgld008<br />
+	where		tfgld008._index1 = {:tfcmg903.leac}<br />
+	selectdo<br />
+			return(true)<br />
+	selectempty<br />
+			return(false)<br />
+	endselect<br />
+	return(false)<br />
+}<br />
+<br />
+function domain tcbool valid.business.partner()<br />
+{<br />
+	select	tccom100.*<br />
+	from		tccom100<br />
+	where		tccom100._index1 = {:tfcmg903.vcod}<br />
+	selectdo	<br />
+	selectempty<br />
+			tfacp901.emsg = &quot;Business Partner &quot; &amp; strip$(tfcmg903.vcod) &amp; &quot; not found!&quot;<br />
+			return(false)<br />
+	endselect<br />
+<br />
+	select	tccom122.*<br />
+	from		tccom122<br />
+	where		tccom122._index1 = {:tfcmg903.vcod}<br />
+	selectdo	<br />
+	selectempty<br />
+			tfacp901.emsg = &quot;Invoice-From Business Partner &quot; &amp; strip$(tfcmg903.vcod) &amp; &quot; not found!&quot;<br />
+			return(false)<br />
+	endselect<br />
+<br />
+	select	tccom124.*<br />
+	from		tccom124<br />
+	where		tccom124._index1 = {:tfcmg903.vcod}<br />
+	selectdo	<br />
+	selectempty<br />
+			tfacp901.emsg = &quot;Pay-To Business Partner &quot; &amp; strip$(tfcmg903.vcod) &amp; &quot; not found!&quot;<br />
+			return(false)<br />
+	endselect<br />
+	return(true)<br />
+}<br />
+<br />
+function get.tax.year.and.period()<br />
+{<br />
+	select	tfgld005.*<br />
+	from	tfgld005<br />
+	where	tfgld005.ptyp = tfgld.ptyp.vat and<br />
+		tfgld005.stdt &lt;= :tfacp901.invd<br />
+	order by tfgld005.stdt desc<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		tax.year = tfgld005.year<br />
+		tax.period = tfgld005.prno<br />
+	selectempty<br />
+		tax.year = 0<br />
+		tax.period = 0<br />
+	endselect<br />
+}<br />
+<br />
+function get.fiscal.year.and.period()<br />
+{<br />
+	select	tfgld005.*<br />
+	from	tfgld005<br />
+	where	tfgld005.ptyp = tfgld.ptyp.financial and<br />
+		tfgld005.stdt &lt;= :tfacp901.invd<br />
+	order by tfgld005.stdt desc<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		fiscal.year = tfgld005.year<br />
+		fiscal.period = tfgld005.prno<br />
+	selectempty<br />
+		fiscal.year = 0<br />
+		fiscal.period = 0<br />
+	endselect<br />
+}<br />
+<br />
+function get.report.year.and.period()<br />
+{<br />
+	select	tfgld005.*<br />
+	from	tfgld005<br />
+	where	tfgld005.ptyp = tfgld.ptyp.reporting and<br />
+		tfgld005.stdt &lt;= :tfacp901.invd<br />
+	order by tfgld005.stdt desc<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		report.year = tfgld005.year<br />
+		report.period = tfgld005.prno<br />
+	selectempty<br />
+		report.year = 0<br />
+		report.period = 0<br />
+	endselect<br />
+}<br />
+<br />
+function get.default.bank()<br />
+{<br />
+	select	tccom125.*<br />
+	from	tccom125<br />
+	where	tccom125._index1 = {:tfcmg903.vcod}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		bank = tccom125.cban<br />
+	endselect<br />
+}<br />
+<br />
+function get.default.order.series()<br />
+{<br />
+	select	tfgld011.*<br />
+	from	tfgld011<br />
+	where	tfgld011.ttyp = :tfacp900.pitt<br />
+	selectdo<br />
+		series = tfgld011.dsrn<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">marwest98</div><div class="date">30th July 2008, 02:45</div></div><div class="posttext">We have determined that the problem is in a stpapi call.  These are supposed to be somewhere under tools in Baan 5c.  They work under Unix/Oracle, do they have to be changed for SQLServer2005/Windows2003?</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

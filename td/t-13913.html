@@ -1,0 +1,131 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Storing login value on record creation, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Storing login value on record creation Tools Development" />
+	
+	<title>Storing login value on record creation [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Storing login value on record creation</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">surinder</div><div class="date">10th December 2003, 23:50</div></div><div class="posttext">I am trying to store login id of the user who creates the new record.<br />
+<br />
+I added a new logn field in the table. Created a read only field on the session.<br />
+<br />
+Now what is the best way to populate the login id value in the database on the new record creation behind the scenes.<br />
+<br />
+Which is better form default, UI script , DAL ( we dont have the source code), sql triggers ...  etc<br />
+<br />
+Any ideas?<br />
+<br />
+Thanks,<br />
+Surinder</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">r_nagu</div><div class="date">11th December 2003, 04:56</div></div><div class="posttext">Surinder,<br />
+	I am not sure if you can do this via form defaults but writing triggers is one option. But if you write triggers on the oracle side, someone has to maintain them (if you change the table def. And reorg you will have to re-compile the triggers)<br />
+<br />
+The best way I found so far if you dont have source code is to download the RUSH dll (which works like Qkey) from baanboard, and add the required code in main.table.io: before.write or before.rewrite section.<br />
+<br />
+Thanks,<br />
+NS</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nneilitz</div><div class="date">15th January 2004, 16:28</div></div><div class="posttext">Surinder<br />
+<br />
+I had a similar situation in a purchasing manager wanting a better auditting of pos/polines than provided by BaaN's audit. (Audit logs are require text searching and it is painfully slow to find info)  I created some custom tables to hold the audit records (including creates, deletes) and added Oracle triggers.   It works great.  The user can display or report quickly and easily on what was changed.  <br />
+<br />
+In a second case I had the triggers create a custom record based on a installation moving between locations.  This doesn't work as well.   I periodically have to re-org since the indexes are corrupted by adding the records through the backend.<br />
+<br />
+In summary my recommendation<br />
+    Use triggers to track changes but store results in separate  table.   If you really need to store user id in same table you should investigate other methods of populating the user field.<br />
+<br />
+I can share some of the trigger code if you would like</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">15th January 2004, 17:29</div></div><div class="posttext">I have several tables that I track who created or last modified the record.  All I do is in the table IO section is set the field name to the users UNIX login.  Nothing complex as triggers or real field tracking, but it does give me a clue as to who did what.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vishbaan</div><div class="date">12th June 2006, 19:29</div></div><div class="posttext">Dear fnds and Neilitz,<br />
+<br />
+I wanted the same way, creating records of user ID in another custom table when ever there are changes in selected item master fields.<br />
+<br />
+I did a SQL trigger (SQL2000), it works fine when an item is modified, but fails if item master table is updated say from sales order lines; or Inventory Transactions.<br />
+<br />
+Can you help me if you can pls. Here is my trigger:<br />
+<br />
+/-- ITEM_CHANGED is a table to hold item code of changed items<br />
+<br />
+USE baandb<br />
+<br />
+DROP TRIGGER  trg_item<br />
+GO<br />
+CREATE TRIGGER trg_item ON ttiitm001999<br />
+FOR UPDATE AS<br />
+<br />
+   IF (COLUMNS_UPDATED()&amp; 2) &gt; 0 <br />
+   	insert into ITEM_CHANGED (item, chcl) <br />
+	SELECT ins.t_item, 2 from inserted ins<br />
+GO<br />
+<br />
+/--<br />
+<br />
+Thanks in advance.<br />
+<br />
+Vish</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vishbaan</div><div class="date">12th June 2006, 19:47</div></div><div class="posttext">hi guys<br />
+<br />
+the trigger I posted,<br />
+ <br />
+it was tracking changes on the Item table and inserting the Item Code in a new table ITEM_CHANGED for the changed item.<br />
+<br />
+when I change item description from Maintain Item Data or using GTM, this trigger works fine and inserts the item code in the ITEM_CHANGED table. But when I goto sales order lines and use this item, while saving the line, it fails with error message (BW error) as below.<br />
+=====<br />
+Fatal error:Error 1000(bdb_errno 520) on tdinv001999 in SELECT<br />
+Fatal error:Cannot continue in session tdsls4105s000 in DLL : otcmcsdll0100()<br />
+Error:tdsls4105s000: A not terminated transaction is aborted<br />
+=====<br />
+<br />
+if you get an idea on this problem, it will help.<br />
+<br />
+Thanks friends<br />
+<br />
+Vish</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jp.aalders</div><div class="date">13th June 2006, 08:13</div></div><div class="posttext">Just add a field to the specific table ( string, 14  ), the current user ID can be retrieved using the standard Baan variable logname$ which can be stored in the new tablefield. To make the audit complete you should think about adding 2 additional fields to store the creation date and time.<br />
+<br />
+JP</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nneilitz</div><div class="date">20th July 2006, 05:21</div></div><div class="posttext">Vishbaan.<br />
+<br />
+Sorry I didn't reply earlier on this one.<br />
+<br />
+If it is customized session you can write code in the session, if not you have to use triggers.<br />
+<br />
+Most likely you are having some kind of duplicate key record when the trigger runs.  If you only have it unique by item for example it will die when it tries to add a new record (on update ) right?<br />
+<br />
+(1) Check to see if there is a log specific to sql server errors (ie for oracle this is log.oracle8.<br />
+<br />
+(2)  Make sure your primary keys in the &quot;audit&quot; table to include date and time and/or modify your trigger to search for an existing record first before insert the audit record.<br />
+<br />
+Let me know how it goes.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

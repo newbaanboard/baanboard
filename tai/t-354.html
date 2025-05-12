@@ -1,0 +1,108 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Error Message when running PST, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Error Message when running PST Tools Administration &amp; Installation" />
+	
+	<title>Error Message when running PST [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Error Message when running PST</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">sturla</div><div class="date">2nd November 2001, 13:54</div></div><div class="posttext">I get an error message when I try to uppdate Purchase Statistics (running tdpst0201m000, full update on actual supplier data).  It's on Baan IVc4, SP 6. The BW message say:<br />
+process 323 - Fatal error: Error 2555 (bdb_errno2555) on Select<br />
+process 323 - Fatal error: Can not continue in tdpst0201m000 ()<br />
+process 334 - Can't read session or object (bye)<br />
+<br />
+I need to know what the reason is an what to do to avoid the message.<br />
+<br />
+Sturla</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">2nd November 2001, 14:16</div></div><div class="posttext">Sturla,<br />
+<br />
+This the famous 'snapshot too old' message:<br />
+<br />
+01555, 00000, &quot;snapshot too old: rollback segment number %s with name \&quot;%s\&quot; too small&quot;<br />
+// *Cause: rollback records needed by a reader for consistent read are<br />
+//         overwritten by other writers<br />
+// *Action: Use larger rollback segments<br />
+To understand the cause of the problem you must understand the mechanism of how Oracle provides rollback for your Baan transactions. Since Oracle does not allow dirty reads (show records *while* they are being updated by another process), it needs to keep a copy of the 'old' data in a storage area, ie. a rollback segment. However, rollback segments are limited in size and a transaction can never go across rollback segments. For that reason, updates are logged in a round-robin fashion in each rollback segment so that when a long running transaction comes to the 'end' of the rollback segment, it 'wraps around' to the beginning of it. Possibly it will start overwriting information that was stored by the same transaction earlier on.<br />
+<br />
+Then comes your problem: you are trying to run a report on the same data but because Oracle *must* show you the data as it was before the other transaction started, the database needs to retrieve the data from the rollback segment. And bingo, there is some stuff missing because the other transaction has 'wrapped around' already in the rollback segment. Then you will get: snapshot too old.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sturla</div><div class="date">2nd November 2001, 15:18</div></div><div class="posttext">Patrick,<br />
+<br />
+Thankyou!<br />
+<br />
+How do I force Baan to use another, larger rollback segment? Do I have to put the small Rollback segments offline?<br />
+<br />
+I'm not a technical guy, Pat, can you give me some more ideas about how to get around my problem.<br />
+<br />
+Sturla</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">2nd November 2001, 15:31</div></div><div class="posttext">Well Sturla,<br />
+<br />
+There is a couple of things you can keep in mind:<br />
+<br />
+1. schedule your batch jobs properly: if you are encountering the snapshot problem because another user if running a long job at the same time whilst he/she should be really running that job at night or off-peak hours, then revise this.<br />
+<br />
+2. use larger and more rollback segments:<br />
+increasing the initial extents might prove useful if your storage values are pretty small now. You must put them offline, drop and recreate them.<br />
+<br />
+You cannot force a transaction to run against a particular rollback segment because Baan does not support it (Oracle does). However, if you know that a particular batch job is going to execute at a particular time and you are afraid of encountering this problem then you could consider creating 1 *very* large rollback segment and putting all your normal ones offline. After the batch job is finished you put or drop the big rollback segment and re-enable the normal ones for daily use.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">2nd November 2001, 16:15</div></div><div class="posttext">Of course it's also possible to solve this by changing the script. If you use a 'as prepared set' Baan will write the select into a qp file in the tmp directory.<br />
+<br />
+Rgrds,<br />
+Han</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">2nd November 2001, 16:29</div></div><div class="posttext">Han,<br />
+<br />
+I am not very familiar with the qptool. How would changing the script avoid this problem? Will it not execute the same SELECT statement(s) and return the same data?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">2nd November 2001, 18:17</div></div><div class="posttext">Pat,<br />
+<br />
+Changing the script and using a 'as prepared set' has nothing to do with qptool. The prepared set will read the data into a qp&lt;number&gt; file and work with the data that is selected and written into that file. That's the way the euro conversion software works if you turn the fourth parameter on. That will prevent the 'snapshot to old' error.<br />
+<br />
+The qptool is usefull to extract data from the database without using a session/bshell etc, testing sql statements.<br />
+<br />
+Have a nice weekend,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">2nd November 2001, 22:24</div></div><div class="posttext">Han,<br />
+<br />
+Thanks for enlighting me. I can see the advantage of the 'as prepared set' now. :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sturla</div><div class="date">3rd November 2001, 12:11</div></div><div class="posttext">Pat and Han,<br />
+<br />
+Thankyou for a lot of information. I still can't do the job myself, but I have got a lot of useful information that helps me to hire a technical consultant.<br />
+I'm running a one man company (started some weeks ago), but have some partners that can do this job for me, and it makes it easier for me to explain the problem after getting all this information from you.<br />
+<br />
+Have a nice weekend, both of you.<br />
+<br />
+Best regards<br />
+<br />
+Sturla</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">5th November 2001, 10:45</div></div><div class="posttext">Never been there, I like the scandinavian Countries so if you need any help I would be more than glad to help you ....</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

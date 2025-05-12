@@ -1,0 +1,129 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="save data / dal / commit.transaction, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] save data / dal / commit.transaction Tools Development" />
+	
+	<title>save data / dal / commit.transaction [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; save data / dal / commit.transaction</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">baanconsultant</div><div class="date">12th October 2005, 14:38</div></div><div class="posttext">Hello,<br />
+<br />
+We have an interface to an external system. Every change on the customer table and its related tables (Baan V) are to be posted to the interface-table, with a new sequencenumber.<br />
+<br />
+In the DAL of tccom112, in the after.save, we made sure data is written in the interface.<br />
+<br />
+The problem is the following:<br />
+DAL tdsls400 (sales order headers) makes update to tccom112 (when for instance the discount perc. is changed). tccom112 calls the interface dll. The interface routine generated a first free number (tcmcs.dll0050....).<br />
+Because the first free number generation routine causes a commit.transaction, the lock on tdsls400 is removed, causing an error 206 (record not locked) after the before.save.object hook of tdsls400.<br />
+<br />
+I had the idea, of writing all business partner numbers in an array and save them at the moment the dal tccom112 is terminated. But what event (hook)should I use? Since the tcmcs0050 uses a &quot;normal&quot; commit.transaction, the after.commit.transaction hook of tccom112 is not called. After.program is not recognised in a dal. I need the counterpart of before.open.object.set!! (or the hook for after.program)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">12th October 2005, 19:39</div></div><div class="posttext">Did you try to use - <br />
+<br />
+after.update.db.commit:<br />
+Use this section to program actions that must be executed immediately after a commit.transaction() call, if the database is updated.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanconsultant</div><div class="date">12th October 2005, 20:40</div></div><div class="posttext">after.update.db.commit is for use in a programmscript, I am talking about the DAL.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">v_chandra</div><div class="date">13th October 2005, 08:56</div></div><div class="posttext">May be this can help you <br />
+<br />
+Syntax<br />
+<br />
+function extern void after.commit.transaction()<br />
+<br />
+Description<br />
+<br />
+Use this to update other database tables after an update of the current table has been committed to the database. <br />
+This object hook replaces the after.update.db.commit event section in a UI script. If there is a DAL for an object set, this hook is called to perform the required actions. Any after.update.db.commit sections in the UI script are ignored. So, if a UI script contains a after.update.db.commit section for the main table, you must replace it by an after.commit.transaction() hooks in the DAL. <br />
+<br />
+This hook is called only by the STP and CDAS. It is not called by Data Access Methods or commit.transaction().</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Evert-Jan Bosch</div><div class="date">13th October 2005, 10:03</div></div><div class="posttext">tcmcsdll0050 does not use commit.transaction itself. It uses a separate 3gl program (tcmcs0250) to update and commit the first free number. Locks in the main process (such as the lock on tdsls400) are not removed with this construction.<br />
+<br />
+My conclusion is that dll tcmcsdll0050 is not causing the error 206.<br />
+The problems is somewhere else.<br />
+May be you can post your code?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanconsultant</div><div class="date">13th October 2005, 11:29</div></div><div class="posttext">I use the Function tcmcs.dll0050.check.and.generate.order.number. This calls tcmcs.dll0050.fix.default.number, which makes a commit.transaction.<br />
+<br />
+Or should I use another function in tcmcs.dll0050? rewrite.first.free.number? Perhaps the external script you referred to is only used when using cached first free numbers?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanconsultant</div><div class="date">13th October 2005, 11:35</div></div><div class="posttext">@v_chandra: as you wrote:<br />
+&quot;This hook is called only by the STP and CDAS. It is not called by Data Access Methods or commit.transaction().&quot;<br />
+<br />
+That's the problem...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Evert-Jan Bosch</div><div class="date">13th October 2005, 11:49</div></div><div class="posttext">Perhaps the external script you referred to is only used when using cached first free numbers?<br />
+Indeed, that's true.<br />
+However, when not using the cached first free numbers, only a db.update on tcmcs050 is done. NO commit.transaction in the dll!<br />
+<br />
+The problem is somewhere else.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Evert-Jan Bosch</div><div class="date">13th October 2005, 12:04</div></div><div class="posttext">I searched a moment how tdsls400 updates tccom112.<br />
+In dal tdsls400 - before.save.object, tdsls.dll4000.rewrite.bp.balance is called.<br />
+That dll calls dal of tccom113 to update the customer balance.<br />
+In dal tccom113, tccom112 is updated (field tccom112.hcru).<br />
+<br />
+In this whole process, no commit.transaction is used.<br />
+Instead, the 4GL engine handles the commits.<br />
+<br />
+By the way: why are you using an array, to store all the changes. Why not directly update, the interface table?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanconsultant</div><div class="date">13th October 2005, 14:24</div></div><div class="posttext">It is correct the way you describe it. The modification I made, is in DAL tccom112. In this DAL, in after.save.object, the modifications are written to the interface. The interface uses a table with a sequencenumber, which is generated using tcmcs.dll0050. As described previously, tcmcs.dll0050 makes a commit, and this commit also commits any changes to tdsls400 and removes the lock, causing the (stp) commit.transaction on tdsls400 to try to update a Record that is not locked anymore:<br />
+<br />
+Data changed in tdsls400 with Gen.Table.Maint. =&gt; Changes made to data in tccom113 by DAL-Functionality =&gt; Changes made to data in tccom112 by DAL-Functionality =&gt; tccom112 after.save=&gt; [Customising] write to interface =&gt; tcmcs0050.check.and.generate.order.number(..) =&gt; calls tcmcs.dll0050.fix.default.number(..) which commits(!) [end customizing] =&gt; tdsls400.after.save =&gt; after leaving tdsls400 after.save, the error occurs.<br />
+<br />
+Thanks for your quick replies!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanconsultant</div><div class="date">13th October 2005, 14:26</div></div><div class="posttext">The array I used, was because it would help if I could write the interface table at the moment tccom112 DAL is being closed, because then the commit does not interfere with the tdsls400 commit. But I do not know the correct event for this. It was a workaround I tried, but without success.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Evert-Jan Bosch</div><div class="date">13th October 2005, 14:29</div></div><div class="posttext">I'm confused. :(<br />
+did you add a commit.transaction to tcmcs.dll0050?<br />
+Can you give the code where the commit is done?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Evert-Jan Bosch</div><div class="date">13th October 2005, 14:35</div></div><div class="posttext">Let me add something.<br />
+<br />
+In multiple dal's (tdsls400, tdpur400 etc. etc.), in before.save.object, the same call to tcmcsdll0050 is used. And that is working fine for years already.<br />
+<br />
+You use the same construction. So, it should be possible to use that dll. Furthermore, I searched for a commit.transaction in the dll. But there is no one.<br />
+<br />
+So, that's why I think the problem is not in dll tcmcsdll0050.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanconsultant</div><div class="date">13th October 2005, 15:24</div></div><div class="posttext">I'm not supprised you are confused, so am I right now...<br />
+<br />
+I relooked at the code, and noticed that I am entering tcmcs0050.check.and.generate.order.number with action=check.and.generate, NOT with generate only. In this case, as you said, no commit is being done, where &quot;only.generate&quot; makes a commit in fix.default.number.<br />
+So the problem, as you stated previously, is definitely not in the first free number part, I'll have to look into the rest of the interface to see what's going on there. It  must be something in the interface, since as I removed the call to write interface data, no problem occurred.<br />
+<br />
+Thank's for your help, I'll get back to it when I located the problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">14th October 2005, 10:01</div></div><div class="posttext">How about you post us your code; like this we all can have a look and maybe help locating the error.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

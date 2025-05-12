@@ -1,0 +1,288 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Report Percentages, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Report Percentages Tools Development" />
+	
+	<title>Report Percentages [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Report Percentages</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">dhowells</div><div class="date">10th June 2002, 16:50</div></div><div class="posttext">Does anyone have any slick code (or variables like total..n/count..n) for percentages in reports.  I am getting increased requests to have these appear on some custom reports. <br />
+<br />
+An example would be a report for sales by order type by month.  For each month they want a percentage of the sales by order type.  I typically use the report to do the sorting, summing and totalling.  Because of this I do not know what my total count is at the time the data is being written to the report to do the math.  I am basically trying to keep from looping through the data twice.<br />
+<br />
+Thanks for any input,<br />
+Dan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th June 2002, 17:16</div></div><div class="posttext">I do not have any slick code, but the way I usually handle this(at least now) is with the report script.  Early on I used the total..n type variables and then every time the user changed the reports I had to redo all the calculations.  So I avoid using those now.<br />
+<br />
+If you have to do some type of reporting on every page, you can always read through the data file before the report starts.  You could use file.stat or something like it to get the total number of records. Let me find the post for reading the input file prior to print the report. <br />
+<br />
+Here is the link (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=1908).  Not sure if this helpful, but it may give you some ideas.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dbinderbr</div><div class="date">23rd August 2002, 22:43</div></div><div class="posttext">Hello,<br />
+<br />
+This is an example of using percentages in a report. I hope it can help you.<br />
+It makes the report run slowly, but it's a solution.<br />
+|******************************************************************************<br />
+|* tssmao401  0  VRC B40O c4 sfp0<br />
+|* Print Total Used Hours by Cost Center<br />
+|* Daniel C Binder<br />
+|* 25/07/02 [15:38]<br />
+|******************************************************************************<br />
+|* Script Type: 4<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** DECLARATION SECTION ***************************<br />
+<br />
+declaration:<br />
+<br />
+	table	ttssma301<br />
+	table	ttssma310<br />
+	table	ttfgld422<br />
+	table	ttfgld010<br />
+	table	ttssma986<br />
+<br />
+	extern	domain	tcdate		date.f, date.t<br />
+	extern	domain	tfgld.dimx	dimx.f, dimx.t<br />
+	extern	domain	tcacap		qthr.o, tot.hours<br />
+	extern	domain	tcperc		perc.r<br />
+<br />
+			string		dimx.o(6,200)<br />
+		domain	tcacap		hour.o(200), perc.o(200)<br />
+		domain 	tcbool		found<br />
+<br />
+	#define MAX 200<br />
+<br />
+|****************************** FORM	     SECTION ***************************<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+|****************************** CHOICE      SECTION ***************************<br />
+choice.cont.process:<br />
+on.choice:<br />
+	execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+	read.tssma986()<br />
+<br />
+	if rprt_open() then<br />
+		status.mess(&quot;Imprimindo...&quot;)<br />
+		read.main.table()<br />
+		rprt_close()<br />
+		status.del()<br />
+		message(&quot;Impressão Finalizada.&quot;)<br />
+	endif<br />
+<br />
+|****************************** FIELD       SECTION ***************************<br />
+field.date.f:<br />
+when.field.changes:<br />
+	date.t = date.f<br />
+<br />
+field.dimx.f:<br />
+when.field.changes:<br />
+	dimx.t = dimx.f<br />
+<br />
+|****************************** FUNCTION    SECTION ***************************<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{<br />
+	set.mem(perc.o, 0)<br />
+	set.mem(hour.o, 0)<br />
+	set.mem(dimx.o, &quot;&quot;)<br />
+<br />
+	calculate.percentages()<br />
+<br />
+	|# Any modifications made in the selection below have to<br />
+	|# be done into the function calculate percentages.<br />
+<br />
+	select	tssma310.*<br />
+	from	tssma310<br />
+	where	tssma310.date inrange :date.f and :date.t<br />
+	and	tssma310.tcst = tssma.tcst.worktime<br />
+	order by tssma310._index1<br />
+	selectdo<br />
+		select	tssma301.*<br />
+		from	tssma301<br />
+		where	tssma301._index1 = {:tssma310.orno}<br />
+		and	(tssma301.swor = tssma.swor.costed<br />
+		or	 tssma301.swor = tssma.swor.history)<br />
+		as set with 1 rows<br />
+		selectdo<br />
+			if dimx.is.ok() then<br />
+				qthr.o = tssma310.qana<br />
+				print.dimx.percentage()			<br />
+				rprt_send()<br />
+			endif<br />
+		endselect<br />
+	endselect<br />
+}<br />
+<br />
+function long dimx.is.ok()<br />
+{<br />
+	select	tfgld422.*<br />
+	from	tfgld422<br />
+	where	tfgld422._index1 = {:tssma986.inel.o, 1, 1}<br />
+	and	tfgld422.svf1 &lt;= :tssma301.cins<br />
+	and	tfgld422.svt1 &gt;= :tssma301.cins<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		select	tfgld010.desc<br />
+		from	tfgld010<br />
+		where	tfgld010._index1 = {1, :tfgld422.dimx}<br />
+		as set with 1 rows<br />
+		selectdo<br />
+			if strip$(tfgld422.dimx) &gt;= dimx.f and strip$(tfgld422.dimx) &lt;= dimx.t then<br />
+				return(true)<br />
+			endif<br />
+		endselect<br />
+	endselect<br />
+<br />
+	return(false)<br />
+}<br />
+<br />
+function calculate.percentages()<br />
+{<br />
+<br />
+	select	tssma310.*<br />
+	from	tssma310<br />
+	where	tssma310.date inrange :date.f and :date.t<br />
+	and	tssma310.tcst = tssma.tcst.worktime<br />
+	order by tssma310._index1<br />
+	selectdo<br />
+		select	tssma301.*<br />
+		from	tssma301<br />
+		where	tssma301._index1 = {:tssma310.orno}<br />
+		and	(tssma301.swor = tssma.swor.costed<br />
+		or	 tssma301.swor = tssma.swor.history)<br />
+		selectdo<br />
+			if dimx.is.ok() then<br />
+				qthr.o = tssma310.qana 		<br />
+				fill.arrays()<br />
+			endif<br />
+		endselect<br />
+	endselect<br />
+<br />
+	calculate.total.hours()<br />
+	calculate.dimx.percentages()<br />
+}<br />
+<br />
+function fill.arrays()<br />
+{<br />
+	long h.elem<br />
+<br />
+	h.elem = find.dimx.in.array()<br />
+<br />
+	if found then<br />
+		hour.o(h.elem)   = hour.o(h.elem) + qthr.o<br />
+	else<br />
+		dimx.o(1,h.elem) = tfgld422.dimx<br />
+		hour.o(h.elem)   = qthr.o<br />
+	endif<br />
+}<br />
+<br />
+function long find.dimx.in.array()<br />
+{<br />
+	long c<br />
+<br />
+	for c = 1 to MAX<br />
+		if isspace(dimx.o(1,c)) then<br />
+			break<br />
+		endif<br />
+<br />
+		if strip$(dimx.o(1,c)) = strip$(tfgld422.dimx) then<br />
+			found = true<br />
+			return(c)<br />
+		endif<br />
+	endfor<br />
+<br />
+	found = false<br />
+<br />
+	return(c)<br />
+}<br />
+<br />
+function calculate.total.hours()<br />
+{<br />
+	long c<br />
+<br />
+	for c = 1 to MAX<br />
+		if isspace(dimx.o(1,c)) then<br />
+			break<br />
+		endif<br />
+<br />
+		tot.hours = tot.hours + hour.o(c)<br />
+	endfor<br />
+}<br />
+<br />
+function calculate.dimx.percentages()<br />
+{<br />
+	long c<br />
+<br />
+	for c = 1 to MAX<br />
+		if isspace(dimx.o(1,c)) then<br />
+			break<br />
+		endif<br />
+<br />
+		perc.o(c) = (hour.o(c) / tot.hours) * 100<br />
+	endfor<br />
+}<br />
+<br />
+function print.dimx.percentage()<br />
+{<br />
+	long c<br />
+<br />
+	for c = 1 to MAX<br />
+		if isspace(dimx.o(1,c)) then<br />
+			perc.r = 0<br />
+			break<br />
+		endif<br />
+<br />
+		if strip$(dimx.o(1,c)) = strip$(tfgld422.dimx) then<br />
+			perc.r = perc.o(c)<br />
+			break<br />
+		endif<br />
+	endfor<br />
+}<br />
+<br />
+function read.tssma986()<br />
+{<br />
+	select	tssma986.*<br />
+	from	tssma986<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		break<br />
+	selectempty<br />
+		message(&quot;Parameters for Service Reports not found. Use session tssmao101m000.&quot;)<br />
+		choice.again()<br />
+	endselect<br />
+}<br />
+Any doubts about the logic used just ask me.<br />
+<br />
+Best Regards,<br />
+<br />
+Daniel C Binder<br />
+<br />
+:cool:</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

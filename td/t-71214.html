@@ -1,0 +1,188 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Is there a function or codes similar to try()...catch()?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Is there a function or codes similar to try()...catch()? Tools Development" />
+	
+	<title>Is there a function or codes similar to try()...catch()? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Is there a function or codes similar to try()...catch()?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">12th July 2018, 11:18</div></div><div class="posttext">Hi,<br />
+<br />
+As the title says, is there a function or codes similar to try()...catch()?<br />
+I have been using a session to execute things by keeping the session running all the time (infinite loop with timer interval) and just detect when to run a specific part of codes if the conditions are met. However, there are times when something is wrong and the session just crashes and exits by itself.<br />
+I just want to know how to keep it running even though there is an error occur just like try()...catch() in other programming languages nowadays.<br />
+In summary, I want to keep a session running even if there is an error occurred. <br />
+<br />
+Regards,<br />
+Thana</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th July 2018, 20:14</div></div><div class="posttext">Wait for others - what popped into my mind is you could probably write a script or code to check to see if the session is running.  If it is not then kick the session off again.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">13th July 2018, 15:12</div></div><div class="posttext">I am not aware of any exceptions handling capabilities in BaaN/LN programming. But, we do have the return values for each and every transactions also we have the retry points.<br />
+<br />
+You can suppress the crashes and use the variables to detect the errors.<br />
+<br />
+If possible, can you please elaborate with an example?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">13th July 2018, 23:04</div></div><div class="posttext">Wait for others - what popped into my mind is you could probably write a script or code to check to see if the session is running. If it is not then kick the session off again.<br />
+Refer to the threads to check if the Session is in use or not.<br />
+<br />
+Reload this Page CODE: Show which session a user is running  (http://www.baanboard.com/baanboard/showthread.php?t=1936)<br />
+<br />
+ Post 3GL/4GL Script for USER TRACKING! (Windows Version)  (http://www.baanboard.com/baanboard/showthread.php?p=182566#post182566)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">16th July 2018, 05:48</div></div><div class="posttext">Thanks everyone for the suggestions.<br />
+<br />
+@bhushanchanda<br />
+This is an example code snippet: <br />
+************************************<br />
+<br />
+ . . . <br />
+<br />
+before.program:<br />
+old.process.end = true |* check if it is running<br />
+set.timer(500)	|* run choice.interrupt on the interval<br />
+<br />
+choice.interrupt:<br />
+on.choice:<br />
+if old.process.end then<br />
+	old.process.end = false<br />
+	run.main() |* the process that might make a fatal error<br />
+	old.process.end = true<br />
+endif<br />
+<br />
+ . . . <br />
+<br />
+functions:<br />
+<br />
+function run.main()<br />
+{<br />
+	domain	tdcrm.emsg		error.msg<br />
+	error.msg = &quot;&quot;<br />
+	<br />
+	select	tdcrm417.*<br />
+	from	tdcrm417 for update<br />
+	where	tdcrm417.stat = tdcrm.stat.open |* only process for lines that have 'open' status<br />
+	selectdo<br />
+		db.retry.point()<br />
+                update.to.processing() |* set status to 'processing'<br />
+			error.msg = process.afs.header( |* the code that performs AFS (main work)<br />
+				tdcrm417.rqno,<br />
+				tdcrm417.mode,<br />
+				tdcrm417.rcod<br />
+			)<br />
+		if not isspace(error.msg) then<br />
+			update.to.error(error.msg) |* set status to 'error'<br />
+		else<br />
+			update.to.processed() |* set status to 'processed'<br />
+		endif<br />
+		db.update(ttdcrm417, db.retry)<br />
+		commit.transaction()<br />
+	selectempty<br />
+	endselect<br />
+}<br />
+<br />
+function domain tdcrm.emsg process.afs.header(<br />
+	domain	tcrqno		i.tdcrm417.rqno,<br />
+	domain	tcmcs.long	i.tdcrm417.mode,<br />
+	domain	tccdis		i.tdcrm417.rcod<br />
+)<br />
+{<br />
+	string	session.code(13)<br />
+	domain	tdcrm.emsg	error.msg, recov.error.msg<br />
+	long 	ret<br />
+<br />
+	error.msg = &quot;&quot;<br />
+	session.code = M.PURCHASE.REQUISITION.APPROVAL.PROGRESS<br />
+	stpapi.clear(session.code)<br />
+	<br />
+	stpapi.put.field(session.code, &quot;tdpur206.rqno&quot;, str$(i.tdcrm417.rqno))<br />
+	ret = stpapi.change.view(session.code, error.msg)<br />
+	if not isspace(error.msg) then<br />
+		stpapi.end.session(session.code)<br />
+		error.msg = &quot;Cannot change view: &quot; &amp; error.msg<br />
+		return(error.msg)<br />
+	endif<br />
+	stpapi.put.field(session.code, &quot;tdpur206.srno&quot;, &quot;1&quot;)<br />
+	if stpapi.find(session.code, error.msg) &lt;&gt; 1 then<br />
+		error.msg = &quot;Cannot find: &quot; &amp; error.msg<br />
+		stpapi.end.session(session.code)<br />
+		return(error.msg)<br />
+	endif<br />
+	if stpapi.mark(session.code, error.msg) &lt;&gt; 1 then<br />
+		error.msg = &quot;Cannot mark: &quot; &amp; error.msg<br />
+		stpapi.end.session(session.code)<br />
+		return(error.msg)<br />
+	endif<br />
+	if i.tdcrm417.mode = 0 then<br />
+		stpapi.form.command(session.code, 5, &quot;approve.requisition&quot;, error.msg)<br />
+		if not isspace(error.msg) then<br />
+			error.msg = &quot;Cannot Approve: &quot; &amp; error.msg<br />
+			stpapi.end.session(session.code)<br />
+			return(error.msg)<br />
+		endif<br />
+	endif<br />
+	if i.tdcrm417.mode = 1 then<br />
+		stpapi.form.command(session.code, 5, &quot;reject.requisition&quot;, error.msg)<br />
+		if not isspace(error.msg) then<br />
+			error.msg = &quot;Cannot Reject: &quot; &amp; error.msg<br />
+			stpapi.end.session(session.code)<br />
+			return(error.msg)<br />
+		endif<br />
+	endif<br />
+	stpapi.end.session(session.code)<br />
+	return(error.msg)<br />
+}<br />
+<br />
+ . . .<br />
+<br />
+************************************<br />
+The code works just fine most of the time, but sometimes it just crashes by itself from locking problem or sometimes with system bugs that happen from installing new solutions by the admin. I want it to be able to continue to process by the interval even if the previous round caused fatal errors or something similar that forces it to exit its process.<br />
+<br />
+@mark_h, @NPRao<br />
+I will have a look at the Windows version because we are using Windows, and if it fits the case that I am having then I will try it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">16th July 2018, 20:45</div></div><div class="posttext">The code works just fine most of the time, but sometimes it just crashes by itself from locking problem or sometimes with system bugs that happen from installing new solutions by the admin. <br />
+- I don't think my utility will help you out in this situation since this is a  function call in your main program.<br />
+- You can make your core program into a 3-GL and use activate() (http://www.baanboard.com/programmers_manual_baanerp_help_functions_processes_activate) and pstat() (http://www.baanboard.com/programmers_manual_baanerp_help_functions_processes_pstat) to check its still running, if not call activate() again.<br />
+<br />
+- Also, it is expected all the users and batch jobs are offline when installing the PMC solutions, Porting Set, Create/Convert process so that the Shared Memory and Data Dictionary can be refreshed. So you need an option to shut your process down gracefully.<br />
+<br />
+- You have to investigate why the fatal errors are generated and find work-around.<br />
+<br />
+- Locking issues can be genuine and sometimes need a DBA level privilege to detect and kill them. You can mitigate some issues by using ora_timeout or msql_timeout. You can also research if you can use the options with predefined variable error.bypass and check for the 107 error and send an email alert.<br />
+New functions to support error bypass functionality:<br />
+db.set.error.bypass.on() <br />
+db.get.error.bypass() <br />
+db.set.error.bypass.off() <br />
+<br />
+<br />
+- You cannot code for every possible scenario (Application, Server, Database failures etc.).<br />
+<br />
+I think you have to revisit the Solution Design.<br />
+<br />
+Please use the code tags to make it easy for us to read it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">17th July 2018, 05:43</div></div><div class="posttext">Thanks NPRao. I will try what you suggested.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

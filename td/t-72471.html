@@ -1,0 +1,575 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Error recursion not possible, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Error recursion not possible Tools Development" />
+	
+	<title>Error recursion not possible [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Error recursion not possible</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">martin.f</div><div class="date">6th December 2019, 09:00</div></div><div class="posttext">Hello,<br />
+I've written a function which recursivly calculates the weight of an article by looking at the BOM and so on.<br />
+However when I run this code, I get an error: Fatal Error : Function 'calculate.weight': recursion not possible; refcount=2. <br />
+<br />
+This is my code:<br />
+<br />
+<br />
+function domain tcwght calculate.weight(domain tcitem i.item)<br />
+{<br />
+|get all BOM positions of item i.item<br />
+        select  tibom010.*<br />
+        from    tibom010<br />
+        where   tibom010.mitm = :i.item<br />
+        selectdo<br />
+                select  tibom010.*<br />
+                from    tibom010<br />
+                where   tibom010.mitm = :tibom010.mitm<br />
+                selectdo<br />
+                        |recursion: article tibom010.mitm has BOM itself<br />
+                        weight = weight + calculate.weight(tibom010.mitm)<br />
+                selectempty<br />
+                        |base case: stop recursion<br />
+                        select  tcibd001.wght<br />
+                        from    tcibd001<br />
+                        selectdo<br />
+                                weight = weight + tcibd001.wght<br />
+                        selectempty<br />
+                                weight = weight + 0<br />
+                        endselect<br />
+                endselect<br />
+        selectempty<br />
+        |do nothing<br />
+        endselect<br />
+                <br />
+return (weight)<br />
+}<br />
+<br />
+<br />
+Are recursions not supported in Baan/LN 4GL programming?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">6th December 2019, 09:37</div></div><div class="posttext">Hello Martin.<br />
+<br />
+Recursion is possible, but limited: No arguments to recursive functions.<br />
+<br />
+Please note that the standard BOM explosion functions are handled without recursion. For that, you have to handle a stack on your own.<br />
+<br />
+Regards<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">martin.f</div><div class="date">6th December 2019, 09:43</div></div><div class="posttext">Hello Günther,<br />
+thanks for the info.<br />
+When doing this without passing arguments and using global variables, I get this error message:<br />
+Process 12 - Fatal Error : Number of Function calls exceeds maximum of 500 stack entries <br />
+<br />
+<br />
+What do you mean with standard BOM explosion functions?<br />
+Are there already predefined functions I can use, do you know a possibility how to calculate the weight of an article with nested BOM?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">6th December 2019, 10:19</div></div><div class="posttext">When doing this without passing arguments and using global variables, I get this error message:<br />
+Process 12 - Fatal Error : Number of Function calls exceeds maximum of 500 stack entries <br />
+<br />
+This looks like your function goes into a very long recursion or it just never reaches the base case, hence stack overflow.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">martin.f</div><div class="date">6th December 2019, 11:11</div></div><div class="posttext">Yes, there was a bug in the code.<br />
+<br />
+Now I have written it like this:<br />
+<br />
+<br />
+function domain tcwght calculate.weight()<br />
+{<br />
+|get all BOM positions of item i.item<br />
+        select  tibom010.*<br />
+        from    tibom010 <br />
+        where   tibom010.mitm = :item.w<br />
+        selectdo<br />
+                item.w = tibom010.sitm<br />
+                select  tibom010.*<br />
+                from    tibom010 <br />
+                where   tibom010.mitm = :item.w<br />
+                selectdo<br />
+                        |recursion: article tibom010.mitm has BOM itself<br />
+                        |message(str$(item.w))<br />
+                        item.w = tibom010.mitm<br />
+                        weight = weight + calculate.weight()<br />
+                selectempty<br />
+                        |base case: stop recursion<br />
+                        select  tcibd001.wght<br />
+                        from    tcibd001<br />
+                        where   tcibd001.item = :item.w<br />
+                        selectdo<br />
+                                message(str$(weight))<br />
+                                weight = weight + tcibd001.wght<br />
+                        selectempty<br />
+                        endselect<br />
+                endselect<br />
+        selectempty<br />
+        |do nothing<br />
+        endselect<br />
+                <br />
+return (weight)<br />
+}<br />
+<br />
+<br />
+<br />
+Now I get this error:<br />
+Process 15 - Error : SQLState HY010: Function sequence error - Fetch called out of sequence (calculate.weight() in object otxesscpr2210ma.dbg)<br />
+<br />
+When I use the debugger, I see that the recursion is going down to the leaf node.<br />
+However, after a return the execution is not jumping back to line which is underlined + bold.<br />
+But this is how a recursion should work.<br />
+<br />
+What am I doing wrong?<br />
+<br />
+Thanks!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th December 2019, 16:15</div></div><div class="posttext">Seems to me in 4c4 I had problems with using something like this:<br />
+<br />
+        select  tibom010.*<br />
+        from    tibom010 <br />
+        where   tibom010.mitm = :item.w<br />
+        selectdo<br />
+                item.w = tibom010.sitm<br />
+                select  tibom010.*<br />
+                from    tibom010 <br />
+                where   tibom010.mitm = :item.w<br />
+                selectdo<br />
+                        |recursion: article tibom010.mitm has BOM itself<br />
+                        |message(str$(item.w))<br />
+                        item.w = tibom010.mitm<br />
+<br />
+<br />
+I am wondering if would be possible to use an alias on the second query against tibom010?  Not even sure that would solve the issue.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">6th December 2019, 20:32</div></div><div class="posttext">Mark,<br />
+<br />
+ I am wondering if would be possible to use an alias on the second query against tibom010? Not even sure that would solve the issue. <br />
+<br />
+Did you try using - on.main.table() (http://www.baanboard.com/programmers_manual_baanerp_help_functions_db_operations_on_main_table)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th December 2019, 21:02</div></div><div class="posttext">I did not know about that command at that time.  But Martin should give it a try.  In my case I was not doing recursion like this - so an alias was a quick solution.  From that point forward whenever I did something like this I started using aliases.  And back in the good old days when we did baan we never really got a chance to go back and fix somethings.  If it wasn't broke we did not fix.  Speaking of which we had 1 program running for a good 10 years with a bug in it :) - they discovered it this year and I did get to fix it.  Whoohoo. :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">martin.f</div><div class="date">7th December 2019, 12:15</div></div><div class="posttext">Thanks guys. I will try the on.main.table() command.<br />
+So you mean doing the recursive call like this:<br />
+<br />
+weight = weight + on.main.table(calculate.weight())<br />
+<br />
+<br />
+What will do the on.main.table() function? I do not really understand the manual entry for this function.<br />
+<br />
+What I will also try is solving this by a stack based algorithm (see comment #3):<br />
+<br />
+http://www.baanboard.com/baanboard/showthread.php?t=64488</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">9th December 2019, 11:18</div></div><div class="posttext">Hallo everyone,<br />
+Sometime back I had to find a solution for the same recursion problem. I chose the path of Using dynamic SQL and created a very usefull DLL down below. I offer this as a present to all Baan programmers.  :)<br />
+<br />
+Here an example of how you can use the DLL to solve your weight problem:<br />
+<br />
+|******************************************************************************<br />
+|* tixbo990<br />
+|* Test BOM dll<br />
+|* H.Vahdani<br />
+|* 21.12.12 [22:50]<br />
+|******************************************************************************<br />
+|* Script Type: 0<br />
+|******************************************************************************<br />
+extern	domain	tcitem		g.components(1)		based<br />
+extern	domain	tcqiv1		g.quantity(1)		based<br />
+extern		long		g.componets.count<br />
+<br />
+#pragma used dll otixbodll0010<br />
+<br />
+function main()<br />
+{<br />
+	domain	tcitem	l.mitm fixed<br />
+		long	i<br />
+	domain	tcwght	l.total.weight<br />
+<br />
+	l.mitm(10) = &quot;TESTITEM01&quot;<br />
+<br />
+<br />
+	tixbodll0010.explode.multilevel.bom(l.mitm)<br />
+<br />
+	g.componets.count = g.componets.count<br />
+<br />
+	|Following to get your total weight<br />
+	l.total.weight = 0<br />
+	for i = 1 to g.componets.count<br />
+		l.total.weight = l.total.weight +<br />
+			g.quantity(i) * weight.of(g.components(1,i))<br />
+<br />
+	endfor<br />
+<br />
+	l.total.weight = l.total.weight<br />
+}<br />
+<br />
+function domain tcwght weight.of(domain tcitem i.item)<br />
+{<br />
+	..... calculate and return weight of one unit of i.item<br />
+}<br />
+<br />
+<br />
+And now the masterpiece itself:  :cool:<br />
+<br />
+|******************************************************************************<br />
+|* tixbodll0010<br />
+|* Explode multilevel BOM<br />
+|* H.Vahdani<br />
+|* 21.12.12 [21:16]<br />
+|******************************************************************************<br />
+|* Script Type: Library<br />
+|******************************************************************************<br />
+	table	ttibom010<br />
+<br />
+|Internal usage variables<br />
+	domain	tcitem		g.mitm.stack(1) 	based<br />
+	domain	tcqiv1		g.qana.stack(1)		based<br />
+ 	domain	tcqiv1		g.excl.stack(1)		based<br />
+   		long		g.query.ids(1)		based<br />
+		long		g.level<br />
+		long		g.stack.size<br />
+		long		g.components.array.size<br />
+		long		g.item.len<br />
+<br />
+|Results:<br />
+extern	domain	tcitem		g.components(1)		based<br />
+extern	domain	tcqiv1		g.quantity(1)		based<br />
+extern	domain	tcmcs.long	g.exclusivity(1)	based<br />
+extern		long		g.componets.count<br />
+<br />
+<br />
+#define	ALLOC_DELTA	50<br />
+#include &lt;bic_dam&gt;<br />
+#include &quot;itcmcs2000&quot;	|RETIFNOK,...<br />
+	  		                                                                              <br />
+function extern long tixbodll0010.explode.multilevel.bom(domain	tcitem	i.mitm)<br />
+{<br />
+	domain	tcitem	l.mitm	fixed<br />
+	domain	tcitem	l.sitm	fixed<br />
+	domain	tcqiv1	l.qana, l.mitm.qana, l.sitm.qana<br />
+		double	l.unom<br />
+	domain	tckitm	l.kitm<br />
+		long	l.query.id<br />
+		long	l.ret<br />
+	domain	tcdate	l.as.of.date<br />
+	string		l.query.string(500)<br />
+		long	l.convert<br />
+		long	l.parent.exclusivity<br />
+		long	l.exclusivity<br />
+<br />
+	free.mem(g.mitm.stack)<br />
+	free.mem(g.qana.stack)<br />
+	free.mem(g.excl.stack)<br />
+	free.mem(g.query.ids)<br />
+	free.mem(g.components)<br />
+	free.mem(g.quantity)<br />
+	free.mem(g.exclusivity)<br />
+	<br />
+	rdi.domain.string(&quot;tcitem&quot;, g.item.len, l.convert)<br />
+<br />
+	l.as.of.date = utc.num()<br />
+	<br />
+	l.query.string = <br />
+		&quot;select tibom010.sitm:1, &quot; &amp;<br />
+			&quot;tibom010.qana:2, &quot; &amp;<br />
+			&quot;tiipd001.unom:3, &quot; &amp;<br />
+			&quot;tcibd001.kitm:4 &quot;  &amp;<br />
+		&quot;from tibom010, tcibd001, tiipd001 &quot; &amp;<br />
+		&quot;where tibom010.mitm = :5 &quot; &amp;<br />
+		&quot;and tibom010.indt &lt;= :6 &quot; &amp;<br />
+		&quot;and (tibom010.exdt = 0 or tibom010.exdt &gt;= :7) &quot; &amp;<br />
+		&quot;and tiipd001.item = tibom010.mitm &quot; &amp;<br />
+		&quot;and tcibd001.item = tibom010.sitm &quot;<br />
+<br />
+	g.level = 1<br />
+	g.stack.size = 0<br />
+	g.componets.count = 0<br />
+	g.components.array.size = 0<br />
+	l.parent.exclusivity = 1<br />
+<br />
+	RETIFNOK(store.in.stack(i.mitm, 1.0, 1))<br />
+<br />
+	repeat	<br />
+		|pop stack values<br />
+		l.query.id = g.query.ids(g.level)<br />
+		l.mitm = g.mitm.stack(1, g.level)<br />
+		l.mitm.qana = g.qana.stack(g.level)<br />
+		l.parent.exclusivity = g.excl.stack(g.level)<br />
+		if l.query.id = 0 then<br />
+			l.query.id = sql.parse(l.query.string)<br />
+			g.query.ids(g.level) = l.query.id<br />
+			sql.select.bind(l.query.id, 1, l.sitm) <br />
+			sql.select.bind(l.query.id, 2, l.qana) <br />
+			sql.select.bind(l.query.id, 3, l.unom) <br />
+			sql.select.bind(l.query.id, 4, l.kitm) <br />
+			sql.where.bind(l.query.id, 5, l.mitm) <br />
+			sql.where.bind(l.query.id, 6, l.as.of.date) <br />
+			sql.where.bind(l.query.id, 7, l.as.of.date) <br />
+			sql.exec(l.query.id)<br />
+		endif<br />
+		l.ret = sql.fetch(l.query.id)<br />
+		on case l.ret<br />
+		case 0:	|Next record is fetched<br />
+			l.sitm.qana = l.qana/l.unom * l.mitm.qana<br />
+			l.exclusivity = get.exclusivity(l.sitm) * l.parent.exclusivity<br />
+			RETIFNOK(register.item.quantity(l.sitm, l.sitm.qana, l.exclusivity))<br />
+			if l.kitm = tckitm.manufacture then<br />
+				|go one level deeper:<br />
+				g.level = g.level + 1<br />
+				|push stack values<br />
+				l.parent.exclusivity = l.exclusivity<br />
+				RETIFNOK(store.in.stack(l.sitm, l.sitm.qana, l.exclusivity)) <br />
+				RETIFNOK(check.for.cycle())<br />
+				|search next bom level<br />
+			endif<br />
+			break<br />
+		case eendfile:<br />
+		case enorec:<br />
+			|Done searching this level.<br />
+			|First close sql for this level <br />
+			sql.close(l.query.id)<br />
+			g.query.ids(g.level) = 0<br />
+			|Go back one level and continue search<br />
+			g.level = g.level - 1<br />
+			break<br />
+		endcase<br />
+	until g.level = 0<br />
+	<br />
+	free.mem(g.mitm.stack)<br />
+	free.mem(g.qana.stack)<br />
+	free.mem(g.excl.stack)<br />
+	free.mem(g.query.ids)<br />
+<br />
+	return(0)<br />
+}<br />
+<br />
+function long register.item.quantity(	domain	tcitem	i.item,<br />
+					domain	tcqiv1	i.quan,<br />
+					long		i.excl)<br />
+{<br />
+	domain	tcitem	l.item	fixed<br />
+		long	i, l.ret<br />
+		boolean	l.registered<br />
+	<br />
+	l.registered = false<br />
+<br />
+	if g.components.array.size &gt;= 1 then<br />
+		for i = 1 to g.components.array.size<br />
+			l.item	= g.components(1, i)<br />
+			if l.item = i.item then<br />
+				g.quantity(i) = g.quantity(i) + i.quan<br />
+				l.registered = true<br />
+				break<br />
+			else<br />
+				if isspace(l.item) then<br />
+					g.components(1, i) = i.item<br />
+					g.quantity(i) =  i.quan<br />
+					g.exclusivity(i) = i.excl<br />
+					g.componets.count = g.componets.count + 1<br />
+					l.registered = true<br />
+					break<br />
+				endif<br />
+			endif<br />
+		endfor<br />
+	endif<br />
+	<br />
+	if not l.registered then<br />
+		|max stack size is reached<br />
+		g.components.array.size = g.components.array.size + ALLOC_DELTA<br />
+		l.ret = alloc.mem( g.components, g.item.len, g.components.array.size)<br />
+		if l.ret &lt; 0 then <br />
+			dal.set.error.message(&quot;tcfins0001&quot;)<br />
+			|Not enough memory.<br />
+			return(DALHOOKERROR)<br />
+		endif <br />
+		l.ret = alloc.mem( g.quantity, g.components.array.size)<br />
+		if l.ret &lt; 0 then <br />
+			dal.set.error.message(&quot;tcfins0001&quot;)<br />
+			|Not enough memory.<br />
+			return(DALHOOKERROR)<br />
+		endif<br />
+		l.ret = alloc.mem( g.exclusivity, g.components.array.size)<br />
+		if l.ret &lt; 0 then <br />
+			dal.set.error.message(&quot;tcfins0001&quot;)<br />
+			|Not enough memory.<br />
+			return(DALHOOKERROR)<br />
+		endif<br />
+		g.componets.count = g.componets.count + 1<br />
+		g.components(1, g.componets.count) = i.item<br />
+		g.quantity(g.componets.count) = i.quan<br />
+		g.exclusivity(g.componets.count) = i.excl<br />
+	endif		<br />
+		<br />
+	return(0)<br />
+}<br />
+<br />
+function long check.for.cycle()<br />
+{<br />
+	long	i<br />
+	domain	tcitem	l.actual.mitm	fixed<br />
+<br />
+	l.actual.mitm = g.mitm.stack(1, g.level)<br />
+<br />
+	for i = 1 to (g.level-1)<br />
+		if g.mitm.stack(1, i) = l.actual.mitm then<br />
+			dal.set.error.message(&quot;tiboms10000&quot;, l.actual.mitm)<br />
+			|Loop(s) detected in BOM of %1$s:<br />
+			return(DALHOOKERROR)<br />
+		endif<br />
+	endfor<br />
+	<br />
+	return(0)<br />
+}<br />
+<br />
+function long store.in.stack(	domain	tcitem	i.mitm,<br />
+				domain	tcqiv1	i.qana,<br />
+				long		i.excl)<br />
+{<br />
+	long	l.ret<br />
+<br />
+	if g.stack.size &lt; g.level then<br />
+		g.stack.size = g.stack.size + ALLOC_DELTA<br />
+		l.ret = alloc.mem( g.mitm.stack, g.item.len, g.stack.size)<br />
+		if l.ret &lt; 0 then <br />
+			dal.set.error.message(&quot;tcfins0001&quot;)<br />
+			|Not enough memory.<br />
+			return(DALHOOKERROR)<br />
+		endif<br />
+		l.ret = alloc.mem( g.qana.stack, g.stack.size)<br />
+		if l.ret &lt; 0 then <br />
+			dal.set.error.message(&quot;tcfins0001&quot;)<br />
+			|Not enough memory.<br />
+			return(DALHOOKERROR)<br />
+		endif<br />
+		l.ret = alloc.mem( g.excl.stack, g.stack.size)<br />
+		if l.ret &lt; 0 then <br />
+			dal.set.error.message(&quot;tcfins0001&quot;)<br />
+			|Not enough memory.<br />
+			return(DALHOOKERROR)<br />
+		endif<br />
+		l.ret = alloc.mem( g.query.ids, g.stack.size)<br />
+		if l.ret &lt; 0 then <br />
+			dal.set.error.message(&quot;tcfins0001&quot;)<br />
+			|Not enough memory.<br />
+			return(DALHOOKERROR)<br />
+		endif<br />
+	endif<br />
+	g.mitm.stack(1, g.level) = i.mitm<br />
+	g.qana.stack(g.level) = i.qana<br />
+	g.excl.stack(g.level) = i.excl<br />
+	return(0)<br />
+}<br />
+<br />
+function long get.exclusivity(domain tcitem i.sitm)<br />
+{<br />
+	|This function returns the number of BOMs in which this<br />
+	|Item is used as a component<br />
+	long		l.exclusivity<br />
+	domain	tcitem	l.mitm fixed<br />
+	domain	tcdate	l.as.of.date<br />
+<br />
+	l.as.of.date = utc.num()<br />
+<br />
+	l.exclusivity = 0<br />
+<br />
+	l.mitm = tibom010.mitm	|Save<br />
+<br />
+	select	tibom010.mitm<br />
+	from	tibom010<br />
+	where	tibom010.sitm = :i.sitm<br />
+	and	tibom010.indt &lt;= :l.as.of.date<br />
+	and	(tibom010.exdt = 0 or tibom010.exdt &gt;=:l.as.of.date)<br />
+	group by tibom010.mitm<br />
+	selectdo<br />
+		l.exclusivity = l.exclusivity + 1<br />
+	endselect<br />
+	<br />
+	tibom010.mitm = l.mitm	|restore<br />
+	<br />
+	if l.exclusivity &lt; 1 then<br />
+		l.exclusivity = 1<br />
+	endif<br />
+	<br />
+	return(l.exclusivity)<br />
+}	<br />
+|******************************  end of source  *******************************</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">martin.f</div><div class="date">9th December 2019, 11:46</div></div><div class="posttext">Hello vahdani,<br />
+<br />
+thank you for sharing this code.<br />
+I am quite new to LN programming. How can I create a dll on myself?<br />
+Where must it be saved in LN?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">9th December 2019, 14:04</div></div><div class="posttext">Hello Martin,<br />
+<br />
+to define Libraries (DLLs) we use the standard tools program &quot;Program Scripts/Libraries&quot; (ttadv25030m000) You can use any module and DLL-name that you prefer.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">avpatil</div><div class="date">13th January 2020, 18:55</div></div><div class="posttext">Try this.<br />
+<br />
+function read.standard.bom()<br />
+{<br />
+	in.item = stack.item(1,l.count)<br />
+	<br />
+	 l.count = l.count + 1<br />
+<br />
+	sql.x=sql.parse(&quot;select tibom010.sitm, &quot; &amp;<br />
+			&quot;tibom010.pono, &quot; &amp;<br />
+			&quot;tibom010.indt, &quot; &amp;<br />
+			&quot;tibom010.exdt &quot; &amp;<br />
+			&quot;from	tibom010 &quot; &amp;<br />
+			&quot;where	tibom010._index1 = {:1} &quot; &amp; |  and &quot;  &amp;<br />
+			&quot;as prepared set&quot;)<br />
+	sql.where.bind(sql.x,1,in.item)<br />
+	sql.by.level(l.count) = sql.x<br />
+	sql.exec(sql.x)<br />
+	while	(sql.fetch(sql.x) = 0)<br />
+			stack.item(1,l.count) = tibom010.sitm<br />
+					<br />
+			read.standard.item()<br />
+<br />
+endwhile<br />
+}<br />
+<br />
+function read.standard.item()<br />
+{<br />
+	select	tcibd001.item,tcibd001.cpva,tcibd001.opts,tcibd001.kitm,<br />
+		tcibd001.zwth,tcibd001.hand,tcibd001.ctyp,tcibd001.cpln<br />
+	from	tcibd001<br />
+	where	tcibd001._index1 = {:in.item}<br />
+	and     tcibd001._compnr = :bom.comp<br />
+	<br />
+	as prepared set<br />
+	hint no hints<br />
+	selectdo<br />
+	if sitm.kitm = tckitm.manufacture then<br />
+			read.standard.bom()<br />
+	<br />
+        endif<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

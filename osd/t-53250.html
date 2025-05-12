@@ -1,0 +1,229 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="10g and Performance Issues, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] 10g and Performance Issues Operating Systems &amp; Databases" />
+	
+	<title>10g and Performance Issues [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; 10g and Performance Issues</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th August 2008, 16:38</div></div><div class="posttext">We have placed a call with Baan.  We have been testing a SP upgrade for months and now we are having performance issues.   We will be upgrading to SP24, porting set, client and to 10g. Lotsa fun! We are looking at solution #166049.<br />
+<br />
+One specific session is tpcin9280m000(Create Billable Cost Report) - runs for days now for some of our ranges.  We know for a fact this session is a patched session, but without source we can not really see if it is the session or the database.  We did some more digging and seems like run times can be normal one time and then long the next time.  Any other recommendations for things to look at???</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">6th August 2008, 17:55</div></div><div class="posttext">10g gives you access to awr reports<br />
+<br />
+sqlplus<br />
+@?/rdbms/admin/awrrpt<br />
+<br />
+<br />
+it should be running hourly by default with 10g, so just compare an hour when this was running.<br />
+<br />
+you'll get the SQL that's gone to hell.  (along with a lot of other info)<br />
+<br />
+<br />
+Then do an explain plan on that and see what the heck.<br />
+<br />
+Most likely there's something in 166049 to address it.<br />
+<br />
+Also - you DID updated statistics via dbms_stats.gather_schema_stats once you upgraded.. right? and , you did set the proper 10g parameters in your spfile and aren't sitting on old 9i/8i/7 parameters.... right?<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th August 2008, 18:25</div></div><div class="posttext">Thanks Dave.  Trying to find some answers from DBA and Sys Admins to your questions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th August 2008, 19:17</div></div><div class="posttext">In 10g, we have Oracle set to run statistics as Oracle deems necessary, due to data changes on the tables.  I can manually run dbms_stats.gather_schema_stats on the entire schema, however, Oracle recommends you don't do this in 10g.  However, I just kicked it off.<br />
+<br />
+While I kept the Baan recommended parameters in our init.ora file (which transforms to an spfile in 10g), I did get rid of all obsolete parameters.  Oracle 10g will not let you start the database with obsolete parameters.  However, Baan's note, 166049, recommends setting obsolete parameters in 10g, which you can't do.<br />
+<br />
+Above are some answers I received.  At this point I can not determine if it is Oracle, baan or the hardware.  Seems like everything ran okay up until the last couple of weeks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">6th August 2008, 19:44</div></div><div class="posttext">Just as starters I would ignore any idea of the HW being the reason. <br />
+<br />
+Your system runs in principle, so even if you double all resources, you will just gain half the runtime, which is most likely still not good.<br />
+<br />
+So experience shows, that as you describe it, Oracle is doing either an unlucky join or a full table scan or both combined. So I also suggest to follow Daves lead and look at the trace and the statistics.<br />
+<br />
+The right fresh statistics will get the optimizer to choose a better execution plan and after this certain parameters of oracle kick in. Obviously there is no parameter called &quot;ora_run_fast=true&quot;, but there are parameters in regards to star transformations and costs of certain joins and these might help you.<br />
+<br />
+The trace might give indicators, what to search for. But any performance topic of this kind is a tough nut to crack.<br />
+<br />
+Good luck,<br />
+<br />
+Markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">6th August 2008, 19:53</div></div><div class="posttext">In 10g, we have Oracle set to run statistics as Oracle deems necessary, due to data changes on the tables.  I can manually run dbms_stats.gather_schema_stats on the entire schema, however, Oracle recommends you don't do this in 10g.  However, I just kicked it off.<br />
+<br />
+Oracle's auto-statistics are frequently buggy. Some people have so many problems with them that they have to generate and then lock the statistics.<br />
+<br />
+<br />
+While I kept the Baan recommended parameters in our init.ora file (which transforms to an spfile in 10g), I did get rid of all obsolete parameters.  Oracle 10g will not let you start the database with obsolete parameters.  However, Baan's note, 166049, recommends setting obsolete parameters in 10g, which you can't do.<br />
+<br />
+Any examples on that? I think 166049 was meant for 10g most of the parameters can be set, they just might take some finesse to get 'em in<br />
+<br />
+<br />
+Above are some answers I received.  At this point I can not determine if it is Oracle, baan or the hardware.  Seems like everything ran okay up until the last couple of weeks.<br />
+<br />
+The traces will tell the tail here.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">6th August 2008, 20:18</div></div><div class="posttext">Just wanted to be clear - since i've heard the argument about &quot;obsolete&quot; parameters in 10g before... they're certainly hidden, and you need to be careful when you set them, but it can be done and they may even help!<br />
+<br />
+There is 1 parameter in 166049 that you can't set though -  <br />
+The rest set just fine.<br />
+<br />
+<br />
+<br />
+SQL*Plus: Release 10.2.0.4.0 - Production on Wed Aug 6 10:09:48 2008<br />
+<br />
+Copyright (c) 1982, 2007, Oracle.  All Rights Reserved.<br />
+<br />
+Enter user-name: / as sysdba<br />
+<br />
+Connected to:<br />
+Oracle Database 10g Enterprise Edition Release 10.2.0.4.0 - 64bit Production<br />
+With the Partitioning, OLAP, Data Mining and Real Application Testing options<br />
+<br />
+SQL&gt; host cat params.sql<br />
+alter system set optimizer_index_caching=10   scope=spfile;<br />
+alter system set optimizer_index_caching=0 scope=spfile;<br />
+alter system set optimizer_index_cost_adj=10  scope=spfile;<br />
+alter system set &quot;_always_anti_join&quot;=nested_loops  scope=spfile;<br />
+alter system set &quot;_always_semi_join&quot;=nested_loops  scope=spfile;<br />
+alter system set &quot;_b_tree_bitmap&quot;=FALSE  scope=spfile;<br />
+alter system set &quot;_hash_join_enabled&quot;=FALSE  scope=spfile;<br />
+alter system set &quot;_optim_peek_user_binds&quot;=FALSE  scope=spfile;<br />
+alter system set &quot;_parallel_broadcast_enabled&quot;=FALSE  scope=spfile;<br />
+alter system set &quot;_push_join_predicate&quot;=FALSE  scope=spfile;<br />
+alter system set &quot;_push_join_union_view&quot;=FALSE  scope=spfile;<br />
+alter system set &quot;_right_outer_hash_enable&quot;=FALSE  scope=spfile;<br />
+alter system set &quot;_sort_elimination_cost_ratio&quot;=5  scope=spfile;<br />
+alter system set &quot;_unnest_subquery&quot;=FALSE  scope=spfile;<br />
+<br />
+<br />
+<br />
+SQL&gt; @params<br />
+<br />
+System altered.<br />
+<br />
+<br />
+System altered.<br />
+<br />
+<br />
+System altered.<br />
+<br />
+<br />
+System altered.<br />
+<br />
+<br />
+System altered.<br />
+<br />
+alter system set &quot;_b_tree_bitmap&quot;=FALSE  scope=spfile<br />
+                 *<br />
+ERROR at line 1:<br />
+ORA-02065: illegal option for ALTER SYSTEM<br />
+<br />
+<br />
+<br />
+System altered.<br />
+<br />
+<br />
+System altered.<br />
+<br />
+<br />
+System altered.<br />
+<br />
+<br />
+System altered.<br />
+<br />
+<br />
+System altered.<br />
+<br />
+<br />
+System altered.<br />
+<br />
+<br />
+System altered.<br />
+<br />
+<br />
+System altered.<br />
+<br />
+SQL&gt; shutdown immediate;<br />
+Database closed.<br />
+Database dismounted.<br />
+ORACLE instance shut down.<br />
+<br />
+SQL&gt; startup;<br />
+ORACLE instance started.<br />
+<br />
+Total System Global Area  452984832 bytes<br />
+Fixed Size                  2041304 bytes<br />
+Variable Size             369105448 bytes<br />
+Database Buffers           75497472 bytes<br />
+Redo Buffers                6340608 bytes<br />
+Database mounted.<br />
+Database opened.<br />
+SQL&gt;</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">3rd September 2008, 09:52</div></div><div class="posttext">Hi all,<br />
+How should sys/system table -statistics be run for good statistics?<br />
+How to monitor them?<br />
+Should they be locked (some of them) like Infor perf. doc is suggesting?<br />
+How about histograms?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">3rd September 2008, 17:08</div></div><div class="posttext">At this point I can not determine if it is Oracle, baan or the hardware.  Seems like everything ran okay up until the last couple of weeks.<br />
+<br />
+Mark,<br />
+<br />
+We are now 3 weeks later any new on this?<br />
+<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">3rd September 2008, 17:41</div></div><div class="posttext">Hi all,<br />
+How should sys/system table -statistics be run for good statistics?<br />
+How to monitor them?<br />
+Should they be locked (some of them) like Infor perf. doc is suggesting?<br />
+How about histograms?<br />
+<br />
+Here's how i'd do it :<br />
+<br />
+8i - run analyze table / analyze index regularly<br />
+9i - run dbms_stats.gather_schema_stats regularly<br />
+10g - run dbms_stats once let 10g autogather from there on out.<br />
+<br />
+If you set the parameters in my previous post you don't need to lock statistics. If you don't set them then you may need to lock them and play with stored outlines, etc.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">4th September 2008, 17:25</div></div><div class="posttext">Assuming that everything else is working fine (you do not mention any other sessions running slow), and assuming this refers to this other discussion on the same session ...<br />
+http://www.baanboard.com/baanboard/showthread.php?t=53425<br />
+<br />
+I would suspect a bad or incorrect select statement.<br />
+<br />
+In order to study the source code, my suggestion is for you to download ANY recent modification to the session tpcin9280m000(Create Billable Cost Report) [that contains the offending function refered to in the other discussion] from the BAAN support site into a secluded VRC so that you can analyze it. Most of the time, as you know, such patches come with the source code officially.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

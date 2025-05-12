@@ -1,0 +1,184 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="afs problem with tdilc4102s000 out of tdsls4105s000, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] afs problem with tdilc4102s000 out of tdsls4105s000 AFS/DDC/OLE: Function servers" />
+	
+	<title>afs problem with tdilc4102s000 out of tdsls4105s000 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; afs problem with tdilc4102s000 out of tdsls4105s000</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jmawuh</div><div class="date">4th August 2004, 15:20</div></div><div class="posttext">Hi,<br />
+<br />
+I'm having problems with the session tdilc4102s000.<br />
+<br />
+First of all -we are using Baan4c4 with sp 15<br />
+<br />
+first we generate clots in lotcontrol, then we generate sales orders which gets this item on stock. and there is the problem - the session tdilc4102s000 doesent work and the errormessage &quot;Item/serialno does not exist&quot; comes up every time - but when i finish the generated salesorder manually the session tdilc4102s000 works without any problems <br />
+<br />
+- enclused you'll find the part of the code which doesnt work<br />
+<br />
+<br />
+function long create.sls.order(domain tccuno cuno.or, long grno.or, domain tcitem item.or, domain tdltc.clot clot.or, domain tcqsl1 oqua.or)<br />
+{<br />
+		long 		retval<br />
+		string		err_msg(40)<br />
+		string		orno.or(6)<br />
+		string		pono.or(4)<br />
+<br />
+<br />
+		if grno.or = 9 then	| 9 = Nummernkreis für Rücklieferungen<br />
+<br />
+			stpapi.put.field(SornoK, &quot;tdsls040.orno&quot;, str$(grno.or)) |Nummernkreis<br />
+			stpapi.put.field(SornoK, &quot;tdsls040.cuno&quot;, str$(cuno.or)) |Kundennummer<br />
+			stpapi.put.field(SornoK, &quot;tdsls040.cotp&quot;, &quot;RL1&quot;)<br />
+			<br />
+			retval = stpapi.insert(SornoK,true, err_msg)		|DS einfügen<br />
+				if not retval then				| --&gt; Errormessages ausgeben<br />
+					while true<br />
+						stpapi.get.mess.code(SornoK,err_msg)<br />
+						message(err_msg)<br />
+						if isspace(err_msg) then<br />
+							break<br />
+						endif<br />
+						error=1<br />
+					<br />
+					endwhile<br />
+					stpapi.recover(SornoK,err_msg)<br />
+				else<br />
+					|Auftragspositionen anlegen<br />
+					stpapi.handle.subproc(SornoK, SornoF, &quot;add&quot;)		|Handler für Subprog erstellen<br />
+					err_msg = &quot;&quot;<br />
+					stpapi.get.field(SornoK, &quot;tdsls040.orno&quot;, orno.or)<br />
+					|stpapi.application.option(SornoK, 1, 1, err_msg)<br />
+					stpapi.continue.process(SornoK, err_msg)<br />
+<br />
+					stpapi.put.field(SornoF, &quot;tdsls041.orno&quot;, orno.or)<br />
+					stpapi.put.field(SornoF, &quot;tdsls041.pono&quot;, &quot;10&quot;)<br />
+					stpapi.put.field(SornoF, &quot;tdsls041.item&quot;, item.or)	<br />
+					stpapi.put.field(SornoF, &quot;tdsls041.oqua&quot;, str$(oqua.or))<br />
+					stpapi.put.field(SornoF, &quot;tdsls041.clot&quot;, clot.or)<br />
+					<br />
+					retval = stpapi.insert(SornoF,true, err_msg)<br />
+						if not retval then				| --&gt; Errormessages ausgeben<br />
+							while true<br />
+								stpapi.get.mess.code(SornoF,err_msg)<br />
+								message(err_msg)<br />
+								if isspace(err_msg) then<br />
+									break<br />
+								endif<br />
+									error=1<br />
+					<br />
+							endwhile<br />
+							stpapi.recover(SornoF,err_msg)<br />
+							<br />
+						else<br />
+							|Auslagerung mit MINUS Menge erstellen<br />
+							stpapi.handle.subproc(SornoF, SIlc, &quot;add&quot;)		|Handler für Subprog erstellen<br />
+							err_msg = &quot;&quot;<br />
+							stpapi.get.field(SornoF, &quot;tdsls041.pono&quot;, pono.or)<br />
+							stpapi.continue.process(SornoF, err_msg)<br />
+<br />
+							|stpapi.put.field(SIlc, &quot;tdilc401.koor&quot;, str$(tdilc.koob.act.sls))<br />
+							|stpapi.put.field(SIlc, &quot;tdilc401.orno&quot;, orno.or)<br />
+							stpapi.put.field(SIlc, &quot;tdilc401.pono&quot;, pono.or)<br />
+							|stpapi.put.field(SIlc, &quot;tdilc401.sera&quot;, &quot;0&quot;)<br />
+							|stpapi.put.field(SIlc, &quot;tdilc401.serb&quot;, &quot;1&quot;)<br />
+							stpapi.put.field(SIlc, &quot;tdilc401.item&quot;,item.or)	<br />
+							stpapi.put.field(SIlc, &quot;tdilc401.clot&quot;,&quot; clot.or)							<br />
+							stpapi.put.field(SIlc, &quot;tdilc401.qstr&quot;, str$(oqua.or))<br />
+							stpapi.put.field(SIlc, &quot;tdilc401.qsts&quot;, str$(oqua.or))									<br />
+							stpapi.put.field(SIlc, &quot;tdilc401.stun&quot;, &quot;st&quot;)	<br />
+							retval = stpapi.insert(SIlc,true, err_msg)<br />
+							if not retval then				| --&gt; Errormessages ausgeben<br />
+								while true<br />
+									stpapi.get.mess.code(SIlc,err_msg)<br />
+									message(err_msg)<br />
+									if isspace(err_msg) then<br />
+										break<br />
+									endif<br />
+										error=1<br />
+						<br />
+								endwhile								stpapi.recover(SIlc,err_msg)<br />
+							<br />
+							else<br />
+								stpapi.continue.process(SIlc, err_msg)<br />
+							endif	<br />
+						<br />
+						endif<br />
+					<br />
+				endif<br />
+				stpapi.end.session(&quot;tdilc4513s000&quot;)			<br />
+				stpapi.end.session(SIlc, err_msg)<br />
+				stpapi.handle.subproc(SornoF, SIlc, &quot;kill&quot;)<br />
+				stpapi.end.session(SornoF, err_msg)		| Subsession schliessen<br />
+				stpapi.handle.subproc(SornoK, SornoF, &quot;kill&quot;)	| Handler für Subsession zerstören<br />
+			<br />
+			<br />
+			stpapi.end.session(SornoK, err_msg)			| Session schliessen<br />
+			<br />
+		endif	<br />
+<br />
+	return(retval)<br />
+}<br />
+<br />
+<br />
+sorry, but all formating has been lost, when i copied the code !!!<br />
+<br />
+Thanx alot<br />
+<br />
+June</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th August 2004, 23:06</div></div><div class="posttext">We do not use these session, but I have some questions - When running the session manually and tdilc4102s000 comes up you insert the data.  Do you get this same error message(&quot;Item/serialno does not exist&quot;)?  If you do then - what do you do manually?  I am wondering if you can just ignore this error in the function server and continue.  <br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jmawuh</div><div class="date">5th August 2004, 07:46</div></div><div class="posttext">Hi and thanks for your reply - the error doesn't come up when i manually use the session - this error only comes up if i use a wrong clot - but the generating of the clots works well.<br />
+<br />
+regards <br />
+<br />
+June</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th August 2004, 15:43</div></div><div class="posttext">When this session comes up does it come up in insert or modify mode?  I am not sure if this is the case, but one of our function servers just started getting an error every time you ran it.  The sub-session started in insert mode, what I did was put a stpapi.save right after the sub-session started.  This cleared the error and the code started working again.  One thing to try.  Also you may need to get an update of your object and stpapi libraries - thought I would mention this.  Do you have source code that you could compile in debug mode?<br />
+<br />
+Also what is in the lot after the insert?  Something could be resetting it.  Other things to try include retval = stpapi.insert(SornoF,false, err_msg) followed by a save.  You may also have to re-input the lot after the insert.  You can also try save or update instead of insert. These are some things I have had to do in the past.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jmawuh</div><div class="date">5th August 2004, 15:46</div></div><div class="posttext">hey mark_h - thanks - will try all your hints tomorrow....<br />
+<br />
+regards<br />
+<br />
+Jmawuh</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jmawuh</div><div class="date">19th August 2004, 10:47</div></div><div class="posttext">after alot of testing i decided to use the session tdilc1120m000 and tdilc1121m000 to get the items on stock and now it works  :)  . <br />
+<br />
+I've also generated sales orders for this items with afs and it worked fine, but now i have the problem, that sometimes the user has to change something in this sales order (tdsls4101m000 or tdsls4101s000) - i've tried to use zoom.to  - the session opens, but i think this sessions cant import order number- so is there a chance to open with afs - find record and then show the session <br />
+<br />
+ciao<br />
+<br />
+June</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">19th August 2004, 15:30</div></div><div class="posttext">There is not a method to open the session with AFS - then pop it up on the screen.  As far as I know if you set the correct fields then the zoom.to on the tdsls4101s000 session usually should work.<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

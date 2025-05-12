@@ -1,0 +1,458 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Different Records In Same Tables but different companies, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Different Records In Same Tables but different companies Tools Development" />
+	
+	<title>Different Records In Same Tables but different companies [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Different Records In Same Tables but different companies</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">afierro</div><div class="date">18th September 2006, 20:29</div></div><div class="posttext">Hello, <br />
+<br />
+I want to send to a report the records in table A (Company 121) that are not in table A (Company 122). Which is the best way to acomplish this?<br />
+<br />
+I made something like this:<br />
+<br />
+switch.to.company(121)<br />
+select a.field<br />
+from   a<br />
+selectdo<br />
+           switch.to.company(121)<br />
+           temp = a.field<br />
+           switch.to.company(122)<br />
+           select a.*<br />
+           from   a<br />
+           where a._index1 = {:temp}<br />
+           selectempty<br />
+                     rprt_send()<br />
+           endselect<br />
+endselect<br />
+      <br />
+this prints all the records that exist in table a (company 121) but not in a(company 122) and it works! <br />
+<br />
+The question is: <br />
+How can I improve this method :confused: ? Because there are like 3 million records in both tables and it takes a whole day to do this :( .<br />
+<br />
+Thank you very much.....<br />
+<br />
+Alex</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">18th September 2006, 20:58</div></div><div class="posttext">I would think - use the 'where exists' clause.  You can put the company number directly into embedded sql.  I have not tried this specifically, but something like this should work:<br />
+<br />
+<br />
+select *<br />
+from   a<br />
+where a._compnr = 121<br />
+and    not exists (<br />
+                         select a.field<br />
+                         from   a<br />
+                         where a._index1 = {a.indexfield1, a.indexfield2 etc}<br />
+                         and a._compnr = 122<br />
+                       )<br />
+selectdo<br />
+        rprt_send()<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">afierro</div><div class="date">19th September 2006, 03:53</div></div><div class="posttext">Hi Ibencic thanks for answering....<br />
+I tryied what you just told me and it didn't work at all.. :o <br />
+it returns all the records from the first table, the code looks like this:<br />
+<br />
+   select    tdsls913.* <br />
+   from      tdsls913 <br />
+   where    tdsls913._compnr = &quot;121&quot;<br />
+   and     not exists (select  tdsls913.item<br />
+                            from    tdsls913<br />
+                            where  tdsls913._index1 = {:tdsls913.item}<br />
+                            and tdsls913._compnr = &quot;921&quot;<br />
+                           )<br />
+   selectdo  <br />
+            rprt_send()<br />
+   endselect<br />
+<br />
+thanks a lot, hope you can help me :) <br />
+<br />
+Alex</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">19th September 2006, 05:39</div></div><div class="posttext">Couple things to try.<br />
+- Need to look into when to use a colon and when not to.  Check the syntax for the SQL Where clause.  In this case, do not use a colon in the 'where exists' part, because you want to check for values from the 'record set' you are getting (not a value from outside the sql...)<br />
+ - comnr is not a string, it's a long.<br />
+<br />
+Try<br />
+<br />
+<br />
+select tdsls913.* <br />
+from tdsls913 <br />
+where tdsls913._compnr = 121<br />
+and not exists (select tdsls913.item          | or try select *<br />
+                     from tdsls913<br />
+                      where tdsls913._index1 = {tdsls913.item}<br />
+                      and tdsls913._compnr = 921)<br />
+selectdo <br />
+rprt_send()<br />
+endselect<br />
+<br />
+<br />
+lemme know</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">19th September 2006, 12:47</div></div><div class="posttext">Yeah, I think Lisa's suggestion should work like a charm</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">afierro</div><div class="date">19th September 2006, 19:39</div></div><div class="posttext">Hello again:<br />
+<br />
+unfortunately it's still not working :(<br />
+<br />
+I tryed this code:<br />
+<br />
+<br />
+function read.main.table()<br />
+	{<br />
+		select 	tdsls913.* <br />
+		from 	tdsls913 <br />
+		where 	tdsls913._compnr = 121<br />
+		and not exists (select tdsls913.*          | or try select *<br />
+				from tdsls913<br />
+				where tdsls913._index1 = {tdsls913.item}<br />
+				and tdsls913._compnr = 921)<br />
+		selectdo<br />
+			rprt_send()<br />
+		endselect<br />
+	}<br />
+<br />
+it didn't work neither with a colon or without it<br />
+<br />
+<br />
+And this code works!!<br />
+<br />
+<br />
+function read.main.table()<br />
+	{<br />
+		domain tcmcs.str1 temp.item<br />
+		<br />
+		select 	tdsls913.* <br />
+		from 	tdsls913 <br />
+		where 	tdsls913._compnr = 121			<br />
+		selectdo<br />
+			temp.item = tdsls913.item<br />
+			select tdsls913.*         <br />
+			from tdsls913<br />
+			where tdsls913._index1 = {:temp.item}<br />
+			      and tdsls913._compnr = 921<br />
+			selectempty<br />
+				rprt_send()<br />
+			endselect<br />
+		endselect<br />
+	}<br />
+<br />
+<br />
+The second one returns all the records that exists in company 121 and not on company 921, and the first code returns all the records that exist only in table 121<br />
+<br />
+The question is:<br />
+<br />
+Do you think that using the clause EXISTS in the first code would considerably improve the entire process? or is it better to keep the second code? considering that it is already working<br />
+<br />
+Thanks Lisa for your help....<br />
+Alex</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">19th September 2006, 19:49</div></div><div class="posttext">ok, I see.  I bet it's a little faster without the switch.to.companies - but not where you want it.  It is confused on which tdsls913.item we mean - the one in the main select or the one in the Where Exists select.<br />
+<br />
+I have not played much with Aliases, but I think this would be the next thing to try.  Search the help for 'alias', but there are few full examples.  Try something like (off roading now..)<br />
+<br />
+<br />
+select 	tdsls913.* <br />
+from 	tdsls913 a<br />
+where 	tdsls913._compnr = 121<br />
+and not exists (select *<br />
+	        from tdsls913<br />
+	        where tdsls913._index1 = {a.item}<br />
+	         and tdsls913._compnr = 921)<br />
+selectdo<br />
+	rprt_send()<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">afierro</div><div class="date">19th September 2006, 20:15</div></div><div class="posttext">I tryied with aliases before and it also doesn't work, the thing here is that when I use aliases the report is generated with data duplicated (it prints me two records for each in the 121 company:confused: :confused: :confused: ) <br />
+<br />
+could it be the fact that I'm using INFORMIX???<br />
+<br />
+I think it's not as easy as I tought it would be<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">20th September 2006, 10:26</div></div><div class="posttext">Hi all,<br />
+<br />
+I.M.H.O. the alias should be on the subselect as the table fields of the main select are used in the report:<br />
+<br />
+<br />
+select 	tdsls913.* <br />
+from 	tdsls913<br />
+where 	tdsls913._compnr = 121<br />
+and not exists (select *<br />
+	        from tdsls913 a<br />
+	        where a._index1 = {tdsls913.item}<br />
+	         and a._compnr = 921)<br />
+selectdo<br />
+	rprt_send()<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">20th September 2006, 10:36</div></div><div class="posttext">I think Lisa placed the aliases not everywhere correctly. The code should have been:select 	tdsls913.* <br />
+from 	tdsls913<br />
+where 	tdsls913._compnr = 121<br />
+and not exists (select *<br />
+	        from tdsls913 sls913<br />
+	        where sls913._index1 = {tdsls913.item}<br />
+	         and sls913._compnr = 921)<br />
+selectdo<br />
+	rprt_send()<br />
+endselect<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">20th September 2006, 10:38</div></div><div class="posttext">Sorry, I started the reply and did not see that vahdani suggested the same  when I was typing.<br />
+<br />
+At least it seems we are on the same track ;)<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">afierro</div><div class="date">20th September 2006, 18:00</div></div><div class="posttext">Guess What?<br />
+<br />
+It worked!!!!<br />
+<br />
+Thank you Lisa, Dick and vahdani for all your pacience and help.<br />
+<br />
+I know now why you're called gurus.....<br />
+<br />
+Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Bender</div><div class="date">3rd January 2007, 17:12</div></div><div class="posttext">cool, ehm but how to do this dynamicly?<br />
+<br />
+Imagine you have two tables from diff Companys.<br />
+<br />
+The Select looks like this:<br />
+<br />
+sql.source.select=sprintf$(&quot;select %s from %s where %s._compnr = %d<br />
+ and not exists ( select * from %s where %s._compnr = %d)&quot;<br />
+  ,strip$(shiftl$(str.source.select.columns))<br />
+  ,source.table, source.table, sourcecompnr<br />
+  ,target.table,  target.table, targetcompnr)<br />
+sql_id.source.tbl=sql.parse(sql.source.select)<br />
+<br />
+This one works, but ... same result as in first post,<br />
+i always get all records from source, no matter, if they are <br />
+already in the target table.<br />
+<br />
+<br />
+My other suggestion was:<br />
+<br />
+sql.source.select=sprintf$(&quot;select %s from %s where %s._compnr = %d<br />
+ and not exists ( select %s from %s where %s._compnr = %d)&quot;<br />
+  ,strip$(shiftl$(str.source.select.columns))<br />
+  ,source.table, source.table, sourcecompnr<br />
+  ,strip$(shiftl$(str.source.select.columns))<br />
+  ,target.table,  target.table, targetcompnr)<br />
+sql_id.source.tbl=sql.parse(sql.source.select)<br />
+<br />
+This one should be correct, but i get an SyntaxError on this one.<br />
+<br />
+... Anyone???</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">3rd January 2007, 17:26</div></div><div class="posttext">I miss the part where we join the tables and the correct syntax in the NOT EXISTS:<br />
+<br />
+where sls913._index1 = {tdsls913.item}<br />
+<br />
+This part you have to make dinamic as well e.g. <br />
+<br />
+sql.source.select=sprintf$(&quot;<br />
+select %s <br />
+from %s <br />
+where %s._compnr = %d<br />
+and not exists ( <br />
+        select * from %s a <br />
+        where a._index1 = %s._index1 <br />
+        and a._compnr = %d)&quot;,.......<br />
+<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Bender</div><div class="date">3rd January 2007, 18:37</div></div><div class="posttext">ah sure the index, right ;)<br />
+<br />
+sql.source.select=sprintf$(&quot;select %s from %s where %s._compnr = %d &quot;<br />
+&amp; &quot;and not exists ( select * from %s a where a._compnr = %d and a._index1 = %s)&quot;<br />
+            ,strip$(shiftl$(str.source.select.columns))<br />
+            ,source.table, source.table, sourcecompnr<br />
+            ,target.table, targetcompnr, str.index)<br />
+<br />
+this select works, but still same result. Both tables have the same<br />
+records, but this select still tells me to insert all again :( grrrr<br />
+<br />
+<br />
+Freakin Problem with the count select for the same Problem:<br />
+This select should give me the count of the records to insert.<br />
+<br />
+sql.source.cnt.select=<br />
+sprintf$(&quot;select %s, count(%s):1 from %s where %s._compnr = %d &quot;<br />
+ &amp; &quot;and not exists ( select * from %s a where a._compnr = %d and<br />
+  a._index1 = %s) &quot;<br />
+ &amp; &quot;group by %s &quot;<br />
+                ,str.cnt.column, str.cnt.column<br />
+                ,source.table, source.table, sourcecompnr<br />
+                ,target.table, targetcompnr, str.index<br />
+                ,str.cnt.column)<br />
+<br />
+<br />
+But when i call fetch, i get the Message:<br />
+ &quot;Error 1979 (bdb_errno 1979) on Select&quot;<br />
+ &quot;can not continue...&quot;<br />
+<br />
+Can anyone help me out here ???<br />
+Greetz Bender</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd January 2007, 20:42</div></div><div class="posttext">For grins and giggles could you try this:<br />
+<br />
+sql.source.select=sprintf$(&quot;<br />
+select *<br />
+from %s <br />
+where %s._compnr = %d<br />
+and not exists ( <br />
+        select * from %s a <br />
+        where a._index1 = %s._index1 <br />
+        and a._compnr = %d)&quot;,.......<br />
+<br />
+It seems to me a ran into something like this once when I was playing with not exists.  It seems to me I had to have the &quot;*&quot; in both parts of the select.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">4th January 2007, 09:21</div></div><div class="posttext">BaanBoard is to help not to do everything for you. Please read over the posts before more careful than you see that it should be something like:<br />
+<br />
+sql.source.select=sprintf$(&quot;select %s from %s where %s._compnr = %d &quot;<br />
+&amp; &quot;and not exists ( select * from %s a where a._compnr = %d and a._index1 = %s._index1)&quot;<br />
+,strip$(shiftl$(str.source.select.columns))<br />
+,source.table, source.table, sourcecompnr<br />
+,target.table, targetcompnr, source.table)<br />
+<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Bender</div><div class="date">4th January 2007, 10:22</div></div><div class="posttext">BaanBoard is to help not to do everything for you. Please read over the posts before more careful than you see that it should be something like:<br />
+<br />
+sql.source.select=sprintf$(&quot;select %s from %s where %s._compnr = %d &quot;<br />
+&amp; &quot;and not exists ( select * from %s a where a._compnr = %d and a._index1 = %s._index1)&quot;<br />
+,strip$(shiftl$(str.source.select.columns))<br />
+,source.table, source.table, sourcecompnr<br />
+,target.table, targetcompnr, source.table)<br />
+<br />
+Kind regards,<br />
+Dick<br />
+<br />
+Yeah right, but this change to the code is making it static, <br />
+not dynamic anymore, because in my way i can decide wich index i'm using.<br />
+<br />
+<br />
+I don't need baanboard to help me with all, i just need help on a specific problem, so ... thanks in advance</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Bender</div><div class="date">4th January 2007, 10:26</div></div><div class="posttext">sure, the select * would help i think, but i'm using the result set for an insert so i cannot select the refcnt fields an so on.<br />
+Maybe its just not possible with baansql? thats sad man :(</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th January 2007, 16:49</div></div><div class="posttext">You can always break it up into two different selects and without knowing enough about your tables and stuff it is impossible to know which is better.  I am not sure I understand the part about &quot;cannot select refcnt fields&quot;.  <br />
+<br />
+Also I never could figure out why I had to &quot;*&quot; in that one query I did. Made me think of another question - does your select %s return all the fields needed for the a._index1 = %s._index1?  Is it possible to try using the column fields for the index versus the index.  I never really used the exists and not exists in code.<br />
+<br />
+Me personally I would break it up into a outer select and an inner select. The inner select would see if it exists in the other company - using the index and as set with 1 rows.  If it exists skip the the insert. How many rows are we talking?  And what is the real goal - syncing up two tables in different companies?  Is this going to be a user based script or session?  Maybe some more info might help others make suggestions to solve the problem in a different way.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">4th January 2007, 17:57</div></div><div class="posttext">Mark,<br />
+<br />
+As far as I remember the inner database will not return any field at all whatever the SELECT says. So you can specify &quot;*&quot; or a bunch of fields, but the database optimizer will optimize this. Of course only when you use Level 2.<br />
+<br />
+Regarding an inner join and using this EXISTS: I prefer the later as it puts all logic in the database and it results in a significant less of execs and fetches. I think the total performance gain is more than 50%. So, in my opinion it is worth to use the EXISTS. Again only when Level 2 is involved.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th January 2007, 19:19</div></div><div class="posttext">Hey - is there a place I can see if we are running at level 2?  Tried searching to see where it gets set, but not luck.  Also I do not have access to our db servers only the app servers.  Kind of curious on this.<br />
+<br />
+I agree with the concept, but I just do not understand how the actual exists or not exists works.  Like I stated above I was just doing a quick query - using the same table in two companies.  I could not get it to work unless I put the &quot;*&quot; in the first select.  I wish I could find it so I knew what table it was, but it was one of those quick SQL queries I forget about.  So why did it need the * in the select?  Are there rules when you use the query with something like exists?  I never could find any good documentation on that.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">5th January 2007, 15:18</div></div><div class="posttext">Mark,<br />
+<br />
+To find out if you run on Level 1 or Level 2 you better contact the one who installed the software. He/she should know. Variables in the db_resource and/or tabledef can indicate so. If noting indicates Level 1, it is most likely level 2 (unless you run AS400).<br />
+<br />
+How the exists works: it checks for every row if the second query gives 1 or more rows.<br />
+<br />
+Simple example:<br />
+select  tcmcs010._index1<br />
+from    tcmcs010<br />
+where   tcmcs010._compnr = 300<br />
+and not exists (<br />
+        select a._index1<br />
+        from    tcmcs010 a<br />
+        where   a._index1 =  tcmcs010._index1<br />
+        and     a._compnr = 310)<br />
+<br />
+<br />
+Shows all countries that exist in company 300 and not in 310. As you see the original query does not need a * also one or more fields can be used.<br />
+<br />
+Test the query above compared to something like:<br />
+select  tcmcs010._index1<br />
+from    tcmcs010<br />
+where   tcmcs010._compnr = 300<br />
+selectdo<br />
+        select a._index1<br />
+        from    tcmcs010 a<br />
+        where   a._index1 =  :tcmcs010._index1<br />
+        and     a._compnr = 310<br />
+        selectdo<br />
+        endselect<br />
+endselect<br />
+<br />
+Measure the time for both. You wil see the difference is significant. The small (ridicules) test I attached showed me a difference more than a factor 50. It proves that the database is much better doing the work than doing these things in the bshell.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th January 2007, 16:48</div></div><div class="posttext">I think you missed the part - I certainly agree with you on the database does these things better than the bshell.  No doubt about it.  My real question is how does it determine between the selects if a row is a match.  The query you posted makes since.  This is just an example - but lets say I am using the item master tiitm001 and tdinv001.  Both tables have item and warehouse - I want to know which item, warehouse combination on tiitm001 does not exist in tdinv001.  So I actually tried this:<br />
+<br />
+select tiitm001.item, tiitm001.cwar<br />
+from tiitm001<br />
+where not exists (<br />
+        select  *<br />
+        from    tdinv001<br />
+        where   tdinv001.item = tiitm001.item)<br />
+<br />
+This looks like it only compares item number and not item and warehouse. I get 4 pages of differences where I should really get 100's of pages.  So does the comparison only work on index fields?  That is where I am getting confused.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

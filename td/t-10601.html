@@ -1,0 +1,264 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="can't write file from server to baan table, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] can't write file from server to baan table Tools Development" />
+	
+	<title>can't write file from server to baan table [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; can't write file from server to baan table</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">2nd July 2003, 20:55</div></div><div class="posttext">I am trying to upload a file from our UNIX server to a baan table using a session update script. I can get the file into baan, but there are end of line characters messing up the data entry.<br />
+<br />
+The first line inserted is blank<br />
+The second line inserted has a unrecognized charachter at the end.(end of line, then a new line character)<br />
+<br />
+The file is created in Unix by ls * &gt; listing.txt<br />
+<br />
+<br />
+before.program:<br />
+	<br />
+	path = &quot;/apps/baan/bse/edi/logs/listing.txt&quot;<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{<br />
+	db.retry.point()<br />
+	<br />
+	select	wtedi011.*<br />
+	from	wtedi011 for update<br />
+	selectdo<br />
+ 	fp = seq.open(path,&quot;rt&quot;)<br />
+	<br />
+	if fp &lt; 1 then <br />
+		message(&quot;Error, cannot open file&quot;)<br />
+		endif<br />
+	if fp &gt;= 1 then<br />
+	while seq.EOF(fp) = 0<br />
+		seq.read(reln,18,fp)<br />
+		wtedi011.reln = reln<br />
+		<br />
+	db.insert(twtedi011, db.retry)<br />
+	|			endif<br />
+	|			endif<br />
+		<br />
+		endwhile<br />
+		endif<br />
+	seq.close(fp)<br />
+	commit.transaction()<br />
+	endselect<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">2nd July 2003, 21:08</div></div><div class="posttext">Change your code to -<br />
+<br />
+	fp = seq.open(fname, &quot;r&quot;)<br />
+	if	fp &lt; 0 then<br />
+		mess(&quot;zmadms0010&quot;, 1)<br />
+		|* File Handling Errors<br />
+		return<br />
+	endif<br />
+	while  not seq.gets(buffer, 1024, fp)<br />
+		do.something()<br />
+	endwhile<br />
+<br />
+<br />
+Refer to the link - seq.gets() (http://www.baanboard.com/programmers_manual_baanerp_help_functions_directory_file_operations_seq_gets) <br />
+<br />
+You can choose different mode options -<br />
+<br />
+mode<br />
+ Use this optional argument to specify the read mode for seq.gets(). Possible values are: <br />
+ <br />
+GETS_NORMAL<br />
+<br />
+ <br />
+ The function continues reading characters until either the buffer (line) is full, a new line character is read, or EOF is reached. <br />
+<br />
+If the buffer is full, any remaining characters on the line being read are discarded. <br />
+<br />
+This is the default mode.<br />
+ <br />
+ <br />
+ GETS_ALL_CHARS<br />
+ The function continues reading characters until either the buffer (line) is full, a new line character is read, or EOF is reached. <br />
+<br />
+If the buffer is full, the next seq.gets() call starts reading at the point where the current seq.gets() finished. The use of this mode ensures that all characters available in input file are eventually returned.<br />
+ <br />
+ <br />
+ GETS_SKIP_ALL<br />
+ This is the same as GETS_NORMAL, except that if the last line in the file does not end with a new line character, that line is discarded completely and EOF is returned.<br />
+ <br />
+there.was.more<br />
+ When characters are discarded in GETS_NORMAL or GETS_SKIP_ALL mode, or when more characters are available in the line (but the buffer is full) in GETS_ALL_CHARS mode, this argument is set to 1. Otherwise, the argument returns 0.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">2nd July 2003, 22:35</div></div><div class="posttext">I had 5 lines in the file,only the second line got loaded?<br />
+I made the following changes:<br />
+<br />
+<br />
+before.program:<br />
+	<br />
+	path = &quot;/apps/baan/bse/edi/logs/listing.txt&quot;<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{<br />
+	db.retry.point()<br />
+	string buffer(256)<br />
+	<br />
+	<br />
+ 	fp = seq.open(path, &quot;rt&quot;)<br />
+	<br />
+	if fp &lt; 0 then <br />
+		message(&quot;Error, cannot open file&quot;)<br />
+	<br />
+		return<br />
+	endif<br />
+	<br />
+		<br />
+	while  not seq.gets(buffer, 1024, fp)<br />
+		select	wtedi011.*<br />
+	from	wtedi011 for update<br />
+	selectdo<br />
+	seq.gets(reln,18,fp)<br />
+	wtedi011.reln = reln<br />
+	db.insert(twtedi011, db.retry)<br />
+		<br />
+	endselect<br />
+	seq.close(fp)<br />
+	endwhile<br />
+	commit.transaction()<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">2nd July 2003, 22:43</div></div><div class="posttext">You're reading two lines in the first iteration, and then closing it before the next iteration!<br />
+<br />
+while not seq.gets(buffer, 1024, fp) | read first line<br />
+   select wtedi011.*<br />
+   from wtedi011 for update<br />
+   selectdo<br />
+      seq.gets(reln,18,fp) | read second line<br />
+      wtedi011.reln = reln<br />
+      db.insert(twtedi011, db.retry)<br />
+    endselect<br />
+    seq.close(fp) | close the file<br />
+endwhile<br />
+<br />
+Change it to:<br />
+<br />
+while not seq.gets(buffer, 1024, fp)<br />
+    select wtedi011.*<br />
+    from wtedi011 for update<br />
+    selectdo<br />
+      wtedi011.reln = buffer(1;18)<br />
+      db.insert(twtedi011, db.retry)<br />
+    endselect<br />
+endwhile<br />
+seq.close(fp)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">2nd July 2003, 23:38</div></div><div class="posttext">It worked with some minor tweeking.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">4th July 2003, 17:27</div></div><div class="posttext">I can upload the file to a table, but only if the table has at least one record in it. <br />
+<br />
+I need to send a db.clear.table first, and then load the table from a file.<br />
+Why can't I load the data if the table is empty?<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	clear.table()<br />
+	read.main.table()<br />
+	remove.file()<br />
+<br />
+|****************************** function section ****<br />
+<br />
+before.program:<br />
+	<br />
+	path = &quot;/apps/baan/bse/edi/logs/listing.txt&quot;<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{<br />
+	db.retry.point()<br />
+	string buffer(256)<br />
+	<br />
+	<br />
+ 	fp = seq.open(path, &quot;rt&quot;)<br />
+	<br />
+	if fp &lt; 0 then <br />
+		message(&quot;Error, cannot open file&quot;)<br />
+	<br />
+		return<br />
+	endif<br />
+		select	wtedi011.*<br />
+	from	wtedi011 for update<br />
+	selectdo<br />
+		<br />
+	while  not seq.gets(buffer, 1024, fp)<br />
+	<br />
+	wtedi011.reln = buffer(1;17)<br />
+	db.insert(twtedi011, db.retry)<br />
+		<br />
+	commit.transaction()<br />
+	endwhile<br />
+	endselect<br />
+	seq.close(fp)<br />
+	<br />
+<br />
+	seq.close(fp)<br />
+<br />
+		message(&quot;Files Update&quot;)<br />
+}<br />
+<br />
+function remove.file()<br />
+<br />
+{<br />
+<br />
+        file.rm(&quot;/apps/baan/bse/edi/logs/listing.txt&quot;)	<br />
+   <br />
+<br />
+}<br />
+<br />
+<br />
+function clear.table()<br />
+<br />
+{<br />
+	db.clear.table(twtedi011,0,210)<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">4th July 2003, 17:32</div></div><div class="posttext">The reason is that the enclosing select statement returns &quot;false&quot;.<br />
+<br />
+Change the code to:<br />
+<br />
+<br />
+db.clear.table(...)<br />
+select ...<br />
+where ...<br />
+selectdo<br />
+selectempty<br />
+   while ...<br />
+   endwhile<br />
+endselect</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

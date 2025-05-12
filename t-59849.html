@@ -1,0 +1,189 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Programm stuck after stpapi.delete, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Programm stuck after stpapi.delete AFS/DDC/OLE: Function servers" />
+	
+	<title>Programm stuck after stpapi.delete [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Programm stuck after stpapi.delete</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">deviceofmisery</div><div class="date">13th January 2011, 09:52</div></div><div class="posttext">Hello,<br />
+<br />
+I try to control some Baan sessions from a .Net application, but I'm new in all that stuff.<br />
+When I try to delete a project the software stucks in the next BaanIVObj.ParseExecFunction I call. <br />
+Can anybody help?<br />
+<br />
+Here the Code from the c# project:<br />
+<br />
+{... some Code to get the right record ...}<br />
+BaanIVObj.ParseExecFunction(&quot;ottstpapihand&quot;, string.Format(&quot;stpapi.mark(\&quot;{0}\&quot;, \&quot;{1}\&quot;)&quot;, sessionMaintainProjects, ret));<br />
+BaanIVObj.ParseExecFunction(&quot;ottstpapihand&quot;, string.Format(&quot;stpapi.delete(\&quot;{0}\&quot;, 1, \&quot;{1}\&quot;)&quot;, sessionMaintainProjects, ret));<br />
+IN THE FOLLOWING LINE THE PROGRAMM GET STUCK<br />
+BaanIVObj.ParseExecFunction(&quot;ottstpapihand&quot;, string.Format(&quot;stpapi.enum.answer(\&quot;{0}\&quot;, \&quot;{1}\&quot;, 1)&quot;, sessionMaintainProjects, &quot;tipcs21013&quot;));<br />
+BaanIVObj.ParseExecFunction(&quot;ottstpapihand&quot;, string.Format(&quot;stpapi.end.session(\&quot;{0}\&quot;)&quot;, &quot;ttstpsplopen&quot;));<br />
+\BaanIVObj.ParseExecFunction(&quot;ottstpapihand&quot;, string.Format(&quot;stpapi.enum.answer(\&quot;{0}\&quot;, \&quot;{1}\&quot;, 1)&quot;, sessionMaintainProjects, &quot;ttstpq0100&quot;));<br />
+BaanIVObj.ParseExecFunction(&quot;ottstpapihand&quot;, string.Format(&quot;stpapi.continue.process(\&quot;{0}\&quot;, \&quot;{1}\&quot;)&quot;, sessionMaintainProjects, ret));</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">anthony peiris</div><div class="date">13th January 2011, 11:21</div></div><div class="posttext">Set a breakpoint at the line immediately after the creation of baan4 object, and when the BaaN options dialog comes up, set runtime options 'show messages', 'output to console','output to file' .<br />
+<br />
+also set a break point immediately before the baan4 object is destroyed. examine the console messages for dsnError code !=0 .<br />
+(The console will show messages from spawned internal function calls too..).<br />
+<br />
+That should give you a fairly good idea of what is going on under the hood.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th January 2011, 15:36</div></div><div class="posttext">Your stpapi code is confusing.  I would expect stpapi.find, stpapi.mark(not always needed), stpapi.enum.answer(all of them), stpapi.delete, stpapi.end.session.  On our system tipcs21013 is delete project - so this should be answered before the stpapi.delete.  The same is true for ttstpq0100 - I can't remember what that question is, but it should also be before the delete.  Also why are you ending ttstpsplopen? Typically this session is never under api control.<br />
+<br />
+Sample code:<br />
+<br />
+function extern delete_outbound_seqn(	domain	tcmcs.str12	runnumber,<br />
+					domain  tdilc.kooa	order.type,<br />
+					domain	tcorno		order.number,<br />
+					domain	tcpono		order.position,<br />
+					domain	tcmcs.long	order.serb,<br />
+					ref     string          msg())<br />
+{<br />
+	msg = &quot;&quot;<br />
+	stpapi.handle.subproc(&quot;tdilc4101m000&quot;,&quot;tdilc4102s000&quot;,&quot;add&quot;)<br />
+	stpapi.put.field(&quot;tdilc4101m000&quot;,&quot;runnumber&quot;,runnumber)<br />
+	stpapi.put.field(&quot;tdilc4101m000&quot;,&quot;k.o.order&quot;,str$(order.type))<br />
+	stpapi.put.field(&quot;tdilc4101m000&quot;,&quot;ordernr&quot;,str$(order.number))<br />
+	stpapi.continue.process(&quot;tdilc4101m000&quot;,msg)<br />
+	if not isspace(msg) then<br />
+		stpapi.end.session(&quot;tdilc4101m000&quot;)<br />
+		return<br />
+	endif<br />
+	stpapi.enum.answer(&quot;tdilc4102s000&quot;,&quot;ttstpq0100&quot;,tcyesno.yes)<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.koor&quot;,str$(order.type))<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.orno&quot;,str$(order.number))<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.pono&quot;,str$(order.position))<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.sera&quot;,&quot;0&quot;)<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.serb&quot;,str$(order.serb))<br />
+	rc = stpapi.find(&quot;tdilc4102s000&quot;,msg)<br />
+	if rc = 1 then<br />
+		stpapi.delete(&quot;tdilc4102s000&quot;,true,msg)<br />
+	else<br />
+		msg = &quot;Position not found on tdilc4101m000 for delete.&quot;<br />
+	endif<br />
+	stpapi.end.session(&quot;tdilc4513s000&quot;)<br />
+	stpapi.end.session(&quot;tdilc4102s000&quot;)<br />
+	stpapi.end.session(&quot;tdilc4101m000&quot;)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">deviceofmisery</div><div class="date">14th January 2011, 04:12</div></div><div class="posttext">Hi you all,<br />
+<br />
+@anthony: Thanks, great advice. That can help me alot!<br />
+<br />
+@mark:<br />
+first: sry for the confusing code! <br />
+great, i didn't know that i have to answer the questions before the stpapi.delete(), now i changed that. but nevertheless, after the delete command the program stuck in the next command. i tried it with stpapi.end.session() and stpapi.continue.process().<br />
+<br />
+Code now:<br />
+<br />
+BaanIVObj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.find(\&quot;tipcs2101m000\&quot;, ret)&quot;);<br />
+BaanIVObj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.mark(\&quot;tipcs2101m000\&quot;, ret)&quot;);<br />
+BaanIVObj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.enum.answer(\&quot;tipcs2101m000\&quot;, \&quot;tipcs21013\&quot;, true)&quot;);<br />
+BaanIVObj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.enum.answer(\&quot;tipcs2101m000\&quot;, \&quot;ttstpq0100\&quot;, true)&quot;);<br />
+BaanIVObj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.delete(\&quot;tipcs2101m000\&quot;, 1, ret)&quot;);<br />
+BaanIVObj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.end.session(\&quot;tipcs2101m000\&quot;)&quot;);</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">deviceofmisery</div><div class="date">14th January 2011, 06:13</div></div><div class="posttext">After some minutes the 'BW Message' pops up saying:<br />
+1: message_loop_nesting error, nesting level = 2(should be 1) 00459CB0<br />
+2: message_loop_nesting error, nesting level = 2(should be 1) 00459CB0<br />
+3: message_loop_nesting error, nesting level = 2(should be 1) 00459CB0<br />
+4: message_loop_nesting error, nesting level = 2(should be 1) 00459CB0<br />
+5: message_loop_nesting error, nesting level = 2(should be 1) 00459CB0<br />
+6: message_loop_nesting error, nesting level = 2(should be 1) 00459CB0<br />
+7: message_loop_nesting error, nesting level = 2(should be 1) 00459CB0<br />
+8: message_loop_nesting error, nesting level = 2(should be 1) 00459CB0<br />
+...<br />
+...<br />
+23: message_loop_nesting error, nesting level = 2(should be 1) 00459CB0</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th January 2011, 15:41</div></div><div class="posttext">No problem about the code - I just could not figure out if you were trying to do two different things or just delete a record.  So here is how I figure out what code to run. First I run the session manually.  I document what I do step by step in this case it looked like:<br />
+<br />
+(1) Hit find button<br />
+(2) enter project - record found<br />
+(3) Hit delete<br />
+(4) question tipcs21013 - delete project answer yes<br />
+(5) session tipcs2270s000 opens<br />
+(6) enter printer device<br />
+(7) test project just created so report says no data found<br />
+(8) ttstpq0100 -delete record - answer yes<br />
+(9) project deleted<br />
+<br />
+This translates into this code - and yes it worked on my system<br />
+<br />
+<br />
+function dele.project()<br />
+{<br />
+	spool.device = &quot;ASCIF&quot;<br />
+	spool.fileout = creat.tmp.file$(bse.tmp.dir$())	<br />
+	stpapi.put.field(&quot;tipcs2101m000&quot;,&quot;tipcs020.cprj&quot;, &quot;MARKT1&quot;)<br />
+	stpapi.find(&quot;tipcs2101m000&quot;, err)<br />
+	stpapi.enum.answer(&quot;tipcs2101m000&quot;, &quot;tipcs21013&quot;, tcyesno.yes)<br />
+	stpapi.enum.answer(&quot;tipcs2101m000&quot;, &quot;ttstpq0100&quot;, tcyesno.yes)<br />
+	stpapi.handle.subproc(&quot;tipcs2101m000&quot;, &quot;tipcs2270s000&quot;, &quot;ADD&quot;)<br />
+	stpapi.set.report(&quot;tipcs2270s000&quot;, &quot;rtipcs227001000&quot;,spool.device, err)<br />
+	stpapi.delete(&quot;tipcs2101m000&quot;, 1, err)<br />
+	stpapi.end.session(&quot;tipcs2270s000&quot;)<br />
+	stpapi.end.session(&quot;tipcs2101m000&quot;)<br />
+}<br />
+<br />
+<br />
+So from the documentation(and lots of practice :) ) I know to answer the questions first, to use stpapi.handle for the subsession, endsubsession first and then main session. It took about 15 minutes to write this code - luckily we use this session and I could test. Man I miss writing code. :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th January 2011, 15:44</div></div><div class="posttext">Ooops - another hit cause I made a mistake in the code.  I ended tipcs2770s000 instead of tipcs2270s000.  If you look at the option dialog box, you can hit start shell.  Then do a ps and a return.  This shows you the processes still running.  You can watch them come and go as you debug code.  This helps also. Hope the code works for you.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">deviceofmisery</div><div class="date">17th January 2011, 04:16</div></div><div class="posttext">He mark, thanks for all your help!<br />
+<br />
+... it still don't work. <br />
+Now alter line<br />
+BaanIVObj.ParseExecFunction(&quot;ottstpapihand&quot;, string.Format(&quot;stpapi.set.report(\&quot;{0}\&quot;, \&quot;{1}\&quot;, \&quot;{2}\&quot;, \&quot;{3}\&quot;)&quot;, &quot;tipcs2270s000&quot;, &quot;rtipcs227001000&quot;, &quot;spool.device&quot;, ret));<br />
+the software says &quot;Session not available&quot;. Is it because of the 'spool.device'? What is it? I think for OLE I need to replace it, like I replaced 'tcyesno.yes' with 'true' to make it work.<br />
+<br />
+2nd thing: <br />
+after the stpapi.delete(...) command it says &quot;Update canceled&quot;, even though the project status is on 'free', so it should be possible! And that he still get stuck in some kind of loop (nesting_loop)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th January 2011, 15:53</div></div><div class="posttext">I tested this and this also works on our system.  I think we are on like SP26 along with the current stpapi libraries and tools patches.  This eliminates the need for spool.device and the project markt1 gets deleted.  I do not get any error message from stpapi.delete.  Just make sure you are finding the correct project.<br />
+<br />
+	stpapi.put.field(&quot;tipcs2101m000&quot;,&quot;tipcs020.cprj&quot;, &quot;MARKT1&quot;)<br />
+	rc = stpapi.find(&quot;tipcs2101m000&quot;, err)<br />
+	if rc = 1 then<br />
+		stpapi.enum.answer(&quot;tipcs2101m000&quot;, &quot;tipcs21013&quot;, tcyesno.yes)<br />
+		stpapi.enum.answer(&quot;tipcs2101m000&quot;, &quot;ttstpq0100&quot;, tcyesno.yes)<br />
+		stpapi.handle.subproc(&quot;tipcs2101m000&quot;, &quot;tipcs2270s000&quot;, &quot;END&quot;)<br />
+		stpapi.delete(&quot;tipcs2101m000&quot;, 1, err)<br />
+	endif<br />
+	stpapi.end.session(&quot;tipcs2101m000&quot;)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">deviceofmisery</div><div class="date">18th January 2011, 03:10</div></div><div class="posttext">ok, maybe its on the stpapi. Where can I look which version i have. And in case, where can I easiely and fast get the newes?<br />
+<br />
+Thanks!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th January 2011, 15:25</div></div><div class="posttext">ALways infor support is your best solution.  The question I have is can you test the baan code directly in baan itself?</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

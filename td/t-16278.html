@@ -1,0 +1,156 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How do I update another table in a custom maintain session, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How do I update another table in a custom maintain session Tools Development" />
+	
+	<title>How do I update another table in a custom maintain session [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; How do I update another table in a custom maintain session</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">chjagge</div><div class="date">13th August 2004, 22:03</div></div><div class="posttext">I have a maintain session with the primary table tdsls997.  After updating a field in this session I want to update another table tdsls998.  I've been getting either &quot;Transaction is on;&quot; or Error 206 Record is not locked. Any ideas on how I can do this?<br />
+<br />
+I tried - <br />
+field.tdsls997.status:<br />
+when.field.changes:<br />
+             db.retry.point()<br />
+	select	tdsls998.*<br />
+	from	tdsls998 for update<br />
+	where	tdsls998._index1 = {:tdsls997.orno, :tdsls997.pono}<br />
+	order by tdsls998._index1<br />
+	selectdo<br />
+		tdsls998.lockcd = tdsls997.lockcd<br />
+		db.update(ttdsls998, db.retry)<br />
+                          commit.transaction()<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">SriksAdi</div><div class="date">14th August 2004, 08:57</div></div><div class="posttext">Hi,<br />
+It not advisible in writing the script for update in the when.field.changes.<br />
+Make use of main.table.io section.<br />
+<br />
+main.table.io:<br />
+before.rewrite:<br />
+<br />
+select tdsls998.*<br />
+from tdsls998 for update<br />
+where tdsls998._index1 = {:tdsls997.orno, :tdsls997.pono}<br />
+order by tdsls998._index1<br />
+selectdo<br />
+tdsls998.lockcd = tdsls997.lockcd<br />
+db.update(ttdsls998, db.retry)<br />
+endselect<br />
+<br />
+Note:<br />
+There is no need to write db.retry and commit.transaction()<br />
+<br />
+<br />
+regards<br />
+Sriks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lauras</div><div class="date">17th September 2004, 18:03</div></div><div class="posttext">What if you have marked records and you need to update the other table for each marked record in addition to the main table?  Just putting in the main.io would only do the last record.  We can't put the logic in the choice.mark.occur, because that doesn't allow the user any time to change his mind.<br />
+<br />
+Any help would be greatly appreciated.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">SriksAdi</div><div class="date">20th September 2004, 08:31</div></div><div class="posttext">Hi,<br />
+Sections, under main.table.io are executed for each record updated, inserted, deleted.<br />
+<br />
+regards<br />
+Sriks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">learner</div><div class="date">20th September 2004, 12:29</div></div><div class="posttext">Hi,<br />
+<br />
+just a thought , i too have encountered the same problem like &quot;Transaction is ON&quot; and wrote the code in <br />
+<br />
+<br />
+after.update.db.commit:<br />
+<br />
+<br />
+and that solved my purpose, but seing your post as u suggested we should not use db.retry and commit.transaction in before.rewrite sub-section..... do u mean to say that could have been the reason for the the message &quot;Transaction is ON&quot; ???<br />
+<br />
+Right now I am not on BaaN System, as soon as I get one , i will try this out.<br />
+<br />
+<br />
+Waiting for your reply.<br />
+<br />
+Regards<br />
+<br />
+Learner</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">SriksAdi</div><div class="date">20th September 2004, 13:24</div></div><div class="posttext">Hi,<br />
+As per Baan Help, The actions in this subsection are executed just after a commit.transaction(), if the database is updated.<br />
+<br />
+Even if multiple records are updated in a session, the script under this section is executed only once.<br />
+<br />
+As per the error Transaction is On is considered, yes, I believe that's the reason. Baan standard program (ttstp) generates db.retry() in the before.write / before.rewrite / before.delete and commit.transaction() is generated in after.write / after.rewrite / after.delete.<br />
+<br />
+Using db.retry() in before.write, would try to start a new database transaction, which is not supported in Baan. Hence the error &quot;Transaction is On&quot;<br />
+<br />
+<br />
+regards<br />
+Sriks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">chjagge</div><div class="date">20th September 2004, 15:59</div></div><div class="posttext">Thanks to all who replied. I tried Sri's solution and it worked. This is what I did.<br />
+<br />
+declaration:<br />
+	table	ttdsls041	| Sales Order Lines<br />
+	table	ttdsls997	| Sales Order Line Function Server Table<br />
+	table	ttctkn833	| Log Table<br />
+<br />
+<br />
+<br />
+|****************************** main table section ****************************<br />
+main.table.io:<br />
+before.rewrite:	<br />
+	<br />
+	select	tdsls041.*<br />
+	from	tdsls041 for update<br />
+	where	tdsls041._index1 = {:tdsls997.orno, :tdsls997.pono}<br />
+	order by tdsls041._index1<br />
+	selectdo<br />
+		tdsls041.lockcd = tdsls997.lockcd<br />
+		db.update(ttdsls041, db.retry)<br />
+		update.lines()<br />
+	endselect<br />
+	<br />
+<br />
+|***************************** function section ******************************<br />
+functions:<br />
+function update.lines()<br />
+{<br />
+	domain tcmcs.str12 dte.str<br />
+	dte.str = dte$()<br />
+	select tctkn833.*<br />
+	from tctkn833 for update<br />
+	where tctkn833._index1 = {:tdsls997.orno, :tdsls997.pono, :dte.str}<br />
+	selectempty<br />
+		tctkn833.orno = tdsls997.orno<br />
+		tctkn833.pono = tdsls997.pono<br />
+		tctkn833.dtme = dte.str<br />
+		tctkn833.user = logname$<br />
+		tctkn833.status = tdsls997.status<br />
+		tctkn833.ttyp = ttyname$()<br />
+		tctkn833.trid = tdsls997.trid<br />
+		tctkn833.dumm = &quot;&quot;<br />
+		db.insert(ttctkn833, db.retry)<br />
+	endselect<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

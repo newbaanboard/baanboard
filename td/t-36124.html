@@ -1,0 +1,117 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="problem of hanging while selecting a record, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] problem of hanging while selecting a record Tools Development" />
+	
+	<title>problem of hanging while selecting a record [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; problem of hanging while selecting a record</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">kuldeepsharma</div><div class="date">22nd May 2007, 06:53</div></div><div class="posttext">Dear All,<br />
+<br />
+please see the following code. in this script I have debugged it. As sson as select statement is encountered it hangs. then I have changed my script to the IInd option it is working fine. I want to know where i was going wrong in the Ist script.<br />
+<br />
+I want to use the First one because it uses index and it will be faster.<br />
+tfgld106 is a standard table and has index5 as tfgld106.dim2, tfgld106.leac,coo2 {which is combined field for document nos etc}<br />
+<br />
+Ist Script.<br />
+<br />
+extern  domain  tfgld.dimx	dim2.f, dim2.t<br />
+<br />
+function get.op.bal()<br />
+{<br />
+ 	select tfgld106.*<br />
+	from tfgld106<br />
+	where tfgld106._index5 inrange {:dim2.f,:tfgld008.leac} and  {:dim.t,:tfgld008.leac}<br />
+	and tfgld106.trun &gt; 0 <br />
+	and tfgld106.dcdt &lt; :date.f<br />
+	and tfgld106.oyer = :i.year<br />
+	selectdo<br />
+		if tfgld106.dbcr = tfgld.dbcr.debit then<br />
+			run.amnt = run.amnt + tfgld106.amnt<br />
+		else<br />
+			run.amnt = run.amnt - tfgld106.amnt<br />
+		endif<br />
+	endselect<br />
+	calculate.bal.amnt()<br />
+}<br />
+<br />
+IInd Script<br />
+<br />
+extern  domain  tfgld.dimx	dim2.f, dim2.t<br />
+<br />
+function get.op.bal()<br />
+{<br />
+ 	select tfgld106.*<br />
+	from tfgld106<br />
+	where tfgld106._index3 inrange {:tfgld008.leac} and {:tfgld00.leac}<br />
+	and tfgld106.dim2 &gt;= :dim2.f and tfgld106.dim2 &lt;= :dim2.t<br />
+	and tfgld106.trun &gt; 0 <br />
+	and tfgld106.dcdt &lt; :date.f<br />
+	and tfgld106.oyer = :i.year<br />
+	selectdo<br />
+		if tfgld106.dbcr = tfgld.dbcr.debit then<br />
+			run.amnt = run.amnt + tfgld106.amnt<br />
+		else<br />
+			run.amnt = run.amnt - tfgld106.amnt<br />
+		endif<br />
+	endselect<br />
+	calculate.bal.amnt()<br />
+}<br />
+<br />
+<br />
+Thanks and regards to all in advance<br />
+<br />
+:confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bigjack</div><div class="date">22nd May 2007, 07:04</div></div><div class="posttext">Hi,<br />
+<br />
+What are the values of dim2.f &amp; dim2.t which are passed to the program? Are you sure they are not full range ? If they span the full range, then the query will surely take a lot of time to return the records.In such cases its is better not to use a index which uses these values but to go for alternate index like in your second query.<br />
+<br />
+Bye</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">22nd May 2007, 14:47</div></div><div class="posttext">I don't know what your answer is to Bigjack's comment, but he is for sure right; if your ledger account2 selection is a full range, then it makes sense that the session is very slow in performance (thus not hanging like you suggested, just extremely slow) for it will have to perform a full table scan. The table tfgld106 is one of the very large tables in BaaN.<br />
+<br />
+Another remark, just to verify: in your first example you write <br />
+	where tfgld106._index5 inrange {:dim2.f,:tfgld008.leac} and  {:dim.t,:tfgld008.leac}<br />
+I assume you mean dim2.t rather than dim.t...?<br />
+<br />
+Regards,<br />
+Eli Nager</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kuldeepsharma</div><div class="date">23rd May 2007, 07:08</div></div><div class="posttext">Thanks Sir,<br />
+Yes I Was using it for full range and I have waited for ouer 5 hours. where as the iind case gives output within seconds.<br />
+<br />
+But this means my session will become slow. because i can't use the index5.<br />
+<br />
+Thanks again.<br />
+Kuldeep Sharma</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">23rd May 2007, 16:43</div></div><div class="posttext">Just an idea<br />
+<br />
+Try a order by index5 in the first sql. For my experience the baan optimizer sometimes is crazy and gives a hint to index3 because all your where clauses are in index3 also and the index number is lower... . In your case the result would be a full table scan. <br />
+Sometimes the order by-clause helps.<br />
+<br />
+hth<br />
+<br />
+Regards<br />
+Christof</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

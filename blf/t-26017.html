@@ -1,0 +1,100 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Sudas con AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Sudas con AFS Forum español" />
+	
+	<title>Sudas con AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">BB Language Forums</a> &gt; <a href="../index.html">Forum español</a> &gt; Sudas con AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">petguego</div><div class="date">5th January 2006, 22:59</div></div><div class="posttext">hola amigos, tengo una duda con la función stpapi.get.mess.code(), en el manual aparece que esta función tiene 2 argumentos &quot;string stpapi.get.mess.code(string session [, ref string err.mesg])&quot;, pero en el compilador me acepta solo uno.   <br />
+<br />
+Lo estoy ocupando de la siguiente forma:<br />
+<br />
+function extern	void  fsls4102m000.ingresar.detalle.ov(<br />
+							const domain tcseak seab.p,<br />
+							const domain tcqsl1 oqua.p,<br />
+							const domain tcpric pric.p,<br />
+							const domain tccwar cwar.p)<br />
+{	<br />
+domain	tcmcs.str100	err.msg <br />
+domain	tcdsca		error.code<br />
+<br />
+	stpapi.put.field(&quot;tdsls4102s000&quot;, &quot;codbarr.o&quot;, seab.p) <br />
+	stpapi.put.field(&quot;tdsls4102s000&quot;, &quot;tdsls041.oqua&quot;, str$(oqua.p))<br />
+	error.code = stpapi.get.mess.code(&quot;tdsls4102s000&quot;) &lt;-- Aqui obtengo el error que corresponde cuando no hay stock, muestra un mensaje y despues muestra un menu <br />
+	if error.code = &quot;tdsls11086&quot; then <br />
+		stpapi.zoom.option(&quot;tdsls4102s000&quot;, 1, &quot;tdsls4801s000&quot;, err.msg)<br />
+	endif <br />
+	stpapi.put.field(&quot;tdsls4102s000&quot;, &quot;tdsls041.pric&quot;, str$(pric.p))<br />
+	stpapi.put.field(&quot;tdsls4102s000&quot;, &quot;tdsls041.cwar&quot;, cwar.p)<br />
+	stpapi.insert(&quot;tdsls4102s000&quot;, true, err.msg)<br />
+	|stpapi.save(&quot;tdsls4102s000&quot;, err.msg)<br />
+}<br />
+<br />
+El problema es que en el punto indicado no devuelve nincun error y cuando se ejecuta la funcion stpapi.insert el programa queda colgado, por favor indicarme si esta bien programadas las instrucciones stpapi.get.mess.code y stpapi.zoom.option  <br />
+<br />
+<br />
+Gracias<br />
+Atte<br />
+PGG</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">petguego</div><div class="date">12th January 2006, 19:51</div></div><div class="posttext">Nadie me ayuda con esto????</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dorleta</div><div class="date">18th January 2006, 10:43</div></div><div class="posttext">Pues mira, así a primera vista puedes tener los siguientes problemas.<br />
+<br />
+<br />
+Estás intentando manejar una sesión que no es principal ( subsesión ) que en condiciones normales sería llamada desde la sesión de mantener cabeceras de órdenes. <br />
+<br />
+¿que deberías hacer?<br />
+<br />
+primero crear la api de cabeceras, donde tendrás que hacer un insert o un find dependiendo si tienes o no creada ya la cabecera y después simular el continuar.<br />
+<br />
+Más o menos sería algo así:<br />
+<br />
+stpapi.put.field(&quot;tdsls4101m000&quot;, &quot;tdsls040.orno&quot;, str$(orno))<br />
+ret = stpapi.find(&quot;tdsls4101m000&quot;, error.msg)<br />
+if ret = 1 then		<br />
+       stpapi.handle.subproc(&quot;tdsls4102s000&quot;, &quot;tdsls4101m000&quot;, &quot;add&quot;)<br />
+       stpapi.continue.process(&quot;tdsls4101m000&quot;, error.msg)<br />
+<br />
+***     <br />
+<br />
+endif<br />
+<br />
+<br />
+<br />
+En los asteriscos iría tú código. De todas formas cuando hagas un insert no está demás añadir algo como:<br />
+<br />
+	retval = stpapi.insert(&quot;tdsls4102s000&quot;, true, o.mess)	<br />
+	if not retval then<br />
+	      retval = stpapi.recover(&quot;tdsls4102s000&quot;, dummy.msg)		endif<br />
+	stpapi.end.session(&quot;tdsls4102s000&quot;)				<br />
+	return(isspace(o.mess))<br />
+<br />
+Por último , algunas instrucciones que contiene ese programa y otros de aspecto similares tales como swutich.to.process, wait.for.switch pueden desactivarse mediante la variaple api.mode (true si estamos manejando la sesión en via api ).<br />
+<br />
+Suerte.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">petguego</div><div class="date">19th January 2006, 15:16</div></div><div class="posttext">Gacias dorleta , muy amable!!! lo intentare denuevo,   ya estaba desechando la idea de usar AFS, pero me pesa por que es demasiado útil.<br />
+<br />
+Atte<br />
+petguego</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

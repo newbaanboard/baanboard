@@ -1,0 +1,260 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Enterprise Performance Manager, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Enterprise Performance Manager DEM &amp; Workflow" />
+	
+	<title>Enterprise Performance Manager [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">DEM &amp; Workflow</a> &gt; Enterprise Performance Manager</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jroberts</div><div class="date">16th November 2001, 20:01</div></div><div class="posttext">Is any-one using this module ?<br />
+I have seen a semi-working model that Baan was using in it's sales cycles(3 years ago), but there is very little documentation / examples on this module.<br />
+<br />
+Does any-one have performance metrics scripts ?  The help details how to write one, but it would be tough to figure out from ground zero.<br />
+<br />
+John</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">p.cole</div><div class="date">18th November 2001, 11:17</div></div><div class="posttext">Yes, we use the tgeis module.  Not particularly nice to maintain, no use for ad-hoc queries, but for well defined performance indicators it works.  I can post some simple example scripts if you wish.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jroberts</div><div class="date">19th November 2001, 14:54</div></div><div class="posttext">Samples of what the scripts look like would be great.<br />
+Thanks,<br />
+John</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">p.cole</div><div class="date">20th November 2001, 09:50</div></div><div class="posttext">This is a simple indicator to count and email  the number of suppliers with missing or invalid fax numbers.  The utility DLL otgeisuserlib need tidying a little before publishing.<br />
+<br />
+|**************************************************************************<br />
+|* PI CCBADFAX<br />
+|* Phillip Cole 26/04/2001<br />
+|*<br />
+|* Check and warn for number of bad purchase fax and BACS reminder numbers<br />
+|*<br />
+|* Calculates performance indicators<br />
+|*  - CCBADFAX - Number of supplier with bad fax numbers<br />
+|*************************************************************************<br />
+<br />
+	table	ttccom020			| Suppliers<br />
+<br />
+        domain  tgeis.valu      no.supps	| number of bad suppliers<br />
+	domain	tcmcs.str80	datestamp	| Last calculated datestamp<br />
+<br />
+	domain	tcbool		send.emails	| Send emails today?<br />
+	domain	tcbool		email.started	| True if email created but<br />
+						| not yet sent<br />
+	long			fp		| Email temporary file ptr<br />
+	string			tmpfile(255)	| Email file<br />
+<br />
+	domain	tcdate		start.date<br />
+	domain	tcdate		end.date<br />
+<br />
+OPEN.PI.LOG(perf.ind)<br />
+|INITIALIZE.TEXT.FILES()<br />
+GET.DATES.OF.PERIOD(perf.ind,<br />
+		    yrno.to.process, yrpt.to.process, pern.to.process,<br />
+		    start.date, end.date)<br />
+<br />
+#define	EMAILTO		&quot;uk_acc_payable@uk.coltgroup.com&quot;<br />
+|#define	EMAILTO		&quot;phillip.cole@uk.coltgroup.com&quot;<br />
+#define QT		chr$(34)<br />
+<br />
+#include	&quot;itcclt0001&quot;			| Overnight run handling<br />
+<br />
+#pragma used dll &quot;otgeisuserlib&quot;<br />
+<br />
+no.supps = 0.0<br />
+email.started = false<br />
+<br />
+|*<br />
+|* Only send emails on the mornings Sun to Thursday, and makes sure emails<br />
+|* are only sent for the previous period (i.e. not today)<br />
+|*<br />
+if tcclt0001.send.mails(date.num(), &quot;AM&quot;) and<br />
+   end.date = date.num() then<br />
+	send.emails = true<br />
+else<br />
+	send.emails = false<br />
+endif<br />
+<br />
+|send.emails = false	| For testing<br />
+<br />
+|write.report.header()<br />
+write.email.header()<br />
+<br />
+select	tccom020.suno,<br />
+	tccom020.nama,<br />
+	tccom020.tefx,		| Purchase Reminder Fax number<br />
+	tccom020.telx,		| Central BACS fax number<br />
+	tccom020.paym		| Payment method<br />
+from	tccom020<br />
+where	tccom020.tefx &lt;&gt; &quot;&quot;<br />
+or	tccom020.telx &lt;&gt; &quot;&quot;<br />
+or	tccom020.paym = &quot; B1&quot;<br />
+selectdo<br />
+	if not (ok.tel(tccom020.tefx) and ok.tel(tccom020.telx)) or<br />
+	   (tccom020.paym = &quot; B1&quot; and isspace(tccom020.telx)) then<br />
+		no.supps = no.supps + 1<br />
+<br />
+		|write.report.detail()<br />
+		write.email.detail()<br />
+	endif<br />
+endselect<br />
+<br />
+if no.supps &gt; 0 and send.emails then<br />
+	send.email()<br />
+endif<br />
+<br />
+UPDATE.VALUE(&quot;CCBADFAX&quot;, no.supps, 0)<br />
+|UPDATE.TEXT.FILES()<br />
+CLOSE.PI.LOG()<br />
+<br />
+|******************************** FUNCTIONS **********************************<br />
+<br />
+function write.report.header()<br />
+{<br />
+	domain	tcmcs.str80 	rprt.hdr(5)<br />
+	domain	tcbool		rprt.hdr.no<br />
+<br />
+	datestamp = &quot;Last calculated: &quot; &amp; GET.DATE.STAMP(date.num(), time.num())<br />
+<br />
+	rprt.hdr(1, 1) = &quot;SUPPLIERS WITH INVALID FAX NUMBERS&quot;<br />
+	rprt.hdr(1, 2) = string.set$(&quot;=&quot;, len(strip$(rprt.hdr(1, 1))))<br />
+	rprt.hdr(1, 1) = strip$(rprt.hdr(1, 1)) &amp; &quot;     &quot; &amp; datestamp<br />
+	rprt.hdr(1, 3) = &quot;&quot;<br />
+	rprt.hdr(1, 4) = &quot;Suppl.|Description                        |Purchase Fax   |BACS Fax       &quot;<br />
+	rprt.hdr(1, 5) = &quot;------+-----------------------------------+---------------+---------------&quot;<br />
+	rprt.hdr.no = 5<br />
+<br />
+	HEADER.TEXT.FILE(&quot;CCBADFAX&quot;, rprt.hdr, rprt.hdr.no)<br />
+}<br />
+<br />
+function write.report.detail()<br />
+{<br />
+	domain	tcmcs.str80	rprt.line<br />
+<br />
+	rprt.line = sprintf$(&quot;%6s|%35s|%15s|%15s&quot;,<br />
+		tccom020.suno, tccom020.nama, tccom020.tefx, tccom020.telx)<br />
+<br />
+	WRITE.LINE.TEXT.FILE(&quot;CCBADFAX&quot;, rprt.line, 1)<br />
+}<br />
+<br />
+function write.email.header()<br />
+{<br />
+	tmpfile = creat.tmp.file$(bse.tmp.dir$())<br />
+	fp = seq.open(tmpfile, &quot;w&quot;)<br />
+	WRITE.EMAIL(fp, &quot;To: &quot; &amp; EMAILTO)<br />
+	WRITE.EMAIL(fp, &quot;Bcc: phillip.cole@uk.coltgroup.com&quot;)	| Testing<br />
+	WRITE.EMAIL(fp, &quot;Reply-To: phillip.cole@uk.coltgroup.com&quot;)<br />
+	WRITE.EMAIL(fp, &quot;Subject: Bad Fax Numbers&quot;)<br />
+	WRITE.EMAIL(fp, &quot;Content-Type: text/html; charset=&quot; &amp;<br />
+		        QT &amp; &quot;iso-8859-1&quot; &amp; QT)<br />
+	WRITE.EMAIL(fp, &quot;&quot;)<br />
+	WRITE.EMAIL(fp, &quot;&lt;html&gt;&quot;)<br />
+	WRITE.EMAIL(fp, &quot;&lt;body&gt;&quot;)<br />
+	WRITE.EMAIL(fp, &quot;&quot;)<br />
+|	WRITE.EMAIL(fp, &quot;&lt;p&gt;Yrno-to-process: &quot; &amp; str$(yrno.to.process) &amp; &quot;&lt;br&gt;&quot;)<br />
+|	WRITE.EMAIL(fp, &quot;&lt;p&gt;Yrpt-to-process: &quot; &amp; str$(yrpt.to.process) &amp; &quot;&lt;br&gt;&quot;)<br />
+|	WRITE.EMAIL(fp, &quot;&lt;p&gt;Pern-to-process: &quot; &amp; str$(pern.to.process) &amp; &quot;&lt;/p&gt;&quot;)<br />
+	WRITE.EMAIL(fp, &quot;&lt;p&gt;The following suppliers have fax numbers &quot;)<br />
+	WRITE.EMAIL(fp, &quot;containing invalid characters, or are BACS &quot;)<br />
+	WRITE.EMAIL(fp, &quot;suppliers without BACS fax numbers.&lt;/p&gt;&quot;)<br />
+	WRITE.EMAIL(fp, &quot;&quot;)<br />
+	WRITE.EMAIL(fp, &quot;&lt;pre&gt;&quot;)<br />
+	WRITE.EMAIL(fp, &quot;Suppl.|Description                        |Purchase Fax   |BACS Fax       &quot;)<br />
+}<br />
+<br />
+function write.email.detail()<br />
+{<br />
+	domain	tcmcs.str80	rprt.line<br />
+<br />
+	rprt.line = sprintf$(&quot;%6s|%35s|%15s|%15s&quot;,<br />
+		tccom020.suno, tccom020.nama, tccom020.tefx, tccom020.telx)<br />
+	WRITE.EMAIL(fp, rprt.line)<br />
+}<br />
+<br />
+function send.email()<br />
+{<br />
+	WRITE.EMAIL(fp, &quot;&lt;/pre&gt;&quot;)<br />
+	WRITE.EMAIL(fp, &quot;&lt;p&gt;Please correct the problematic fax numbers &quot;)<br />
+	WRITE.EMAIL(fp, &quot;to prevent this email being repeatedly sent. &quot;)<br />
+	WRITE.EMAIL(fp, &quot;Valid fax numbers can contain only numbers and &quot;)<br />
+	WRITE.EMAIL(fp, &quot;spaces.&lt;/p&gt;&quot;)<br />
+	WRITE.EMAIL(fp, &quot;&lt;address&gt;Baan System Administrator&lt;/address&gt;&quot;)<br />
+|	WRITE.EMAIL(fp, &quot;&lt;address&gt;Phil Cole&lt;/address&gt;&quot;)<br />
+	WRITE.EMAIL(fp, &quot;&lt;p&gt;&lt;small&gt;&quot; &amp; datestamp &amp; &quot;&lt;/small&gt;&lt;/p&gt;&quot;)<br />
+	WRITE.EMAIL(fp, &quot;&lt;/body&gt;&lt;/html&gt;&quot;)<br />
+	seq.close(fp)<br />
+	shell(&quot;cat &quot; &amp; tmpfile &amp; &quot; | sendmail -t&quot;, 0)<br />
+	seq.unlink(tmpfile)<br />
+}<br />
+<br />
+function WRITE.EMAIL(long filepointer, string s(80))<br />
+{<br />
+	e = seq.puts(s, filepointer)<br />
+}<br />
+<br />
+function domain tcbool ok.tel(domain tctelp number)<br />
+{<br />
+	long	loop<br />
+<br />
+	for loop = 1 to len(number)<br />
+		if pos(&quot; 1234567890&quot;, number(loop;1)) = 0 then<br />
+			return(false)<br />
+		endif<br />
+	endfor<br />
+	return(true)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">b.v.dj</div><div class="date">22nd July 2003, 18:02</div></div><div class="posttext">Hi,<br />
+<br />
+I'm currently setting up an Ishikawa diagram with the Enterprise performance mananger.  Defining the diagram en programming the performance indicators goes well, but I'm having difficulties with defining the charts. I can't figure out where to define permissions.<br />
+<br />
+Can anyone give me hints on this?<br />
+<br />
+Thanks in advance<br />
+<br />
+Dirk</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Jaap Roos</div><div class="date">3rd September 2003, 11:16</div></div><div class="posttext">Hi,<br />
+<br />
+I implemented that module at a large customer of mine.<br />
+<br />
+There is not a lot of documentation of that module.<br />
+<br />
+The functionality is simple but programming Performance Indicators is less simple.<br />
+<br />
+First it is important that you define clear Performance Indicators (PI).<br />
+Second the diagram must be set up and the Performance Indicators must be worked out in an functional description.<br />
+The third step is that these PI must be programmed and tested.<br />
+<br />
+If this is ready the EIS module must be implemented.<br />
+It is very important that the users of this module know exactly where the PIs stand for.<br />
+My experience is that they learn this only in practice.<br />
+<br />
+The EIS module is less flexibile. <br />
+<br />
+If you have other questions please ask me.<br />
+<br />
+In the tools module you are able to modify the chart settings. Have a look at this, than you can do more.<br />
+<br />
+With Regards,<br />
+Jaap Roos<br />
+0031 6 51 13 65 99</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

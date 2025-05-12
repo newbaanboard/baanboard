@@ -1,0 +1,576 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS and ttstpapi, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS and ttstpapi AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS and ttstpapi [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS and ttstpapi</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">5th March 2002, 00:55</div></div><div class="posttext">Hi All,<br />
+<br />
+I am trying my hands at the function server and api stuffs.<br />
+<br />
+I use the ttstpcreatdll and got the dll generated. I then made a new 3-gl program which uses that dll and it should start the session with the form fields assigned to it.<br />
+<br />
+I am trying to trace it in debuggers I see that the session is not shown in foreground and also that it seems running forever and I have to kill the processes. <br />
+<br />
+Here is the 3-GL code -<br />
+	#pragma	used dll	ozmadm9203m000f<br />
+	#pragma used dll 	ottstpapihand<br />
+<br />
+function main()<br />
+{<br />
+string	error(80)<br />
+<br />
+stpapi.put.field(&quot;zmadm9203m000&quot;, &quot;cpac.f&quot;, &quot;  &quot;)<br />
+stpapi.put.field(&quot;zmadm9203m000&quot;, &quot;cpac.t&quot;, &quot;zz&quot;)<br />
+stpapi.put.field(&quot;zmadm9203m000&quot;, &quot;cmod.f&quot;, &quot;   &quot;)<br />
+stpapi.put.field(&quot;zmadm9203m000&quot;, &quot;cmod.t&quot;, &quot;zzz&quot;)<br />
+stpapi.put.field(&quot;zmadm9203m000&quot;, &quot;script.f&quot;, &quot;   &quot;)<br />
+stpapi.put.field(&quot;zmadm9203m000&quot;, &quot;script.t&quot;, &quot;zzzzzzzzz&quot;)<br />
+stpapi.put.field(&quot;zmadm9203m000&quot;, &quot;vwie.yn&quot;, &quot;zmyeno.no&quot;)<br />
+<br />
+zmadm9203m000f.exec.cont.process(error)<br />
+zmadm9203m000f.end( )<br />
+}<br />
+Anyone has clues ???<br />
+<br />
+Thanks!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">popeye</div><div class="date">5th March 2002, 02:26</div></div><div class="posttext">Hi NPRao,<br />
+    You are not using the created DLL i.e. ozmadm9203m000f<br />
+<br />
+    Instead of using stpapi.put.field (&quot;zmadm9203m000&quot;, &quot;cpac.f&quot;, &quot; &quot;) use the corresponding function in the created Function Server. <br />
+<br />
+   Open the created Function Server (in ur case zmadm9203m000f)<br />
+   It'll have functions like zmadm9203m000f.put.Package (...) etc<br />
+   Use them directly.<br />
+<br />
+   The standard naming convention for Function Server DLLs is<br />
+   package + module + &quot;f&quot; + session code<br />
+   In your case zmadmf9203m000<br />
+<br />
+   Also ... if u have your session (zmadm9203m000) in the debug mode, u'll be able to trace it.<br />
+<br />
+   Hope this helps.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">5th March 2002, 02:41</div></div><div class="posttext">Hi Popeye,<br />
+<br />
+thanks for the tip. <br />
+<br />
+My function server dll name is ozmadm9203m000f <br />
+<br />
+I have 7 form fields but I could not find any put functions in that dll... I dont know why so I used them in my test 3 gl session explicitly as -<br />
+stpapi.put.field(&quot;zmadm9203m000&quot;, &quot;cpac.f&quot;, &quot; &quot;) <br />
+stpapi.put.field(&quot;zmadm9203m000&quot;, &quot;cpac.t&quot;, &quot;zz&quot;) <br />
+stpapi.put.field(&quot;zmadm9203m000&quot;, &quot;cmod.f&quot;, &quot; &quot;) <br />
+stpapi.put.field(&quot;zmadm9203m000&quot;, &quot;cmod.t&quot;, &quot;zzz&quot;) <br />
+stpapi.put.field(&quot;zmadm9203m000&quot;, &quot;script.f&quot;, &quot; &quot;) <br />
+stpapi.put.field(&quot;zmadm9203m000&quot;, &quot;script.t&quot;, &quot;zzzzzzzzz&quot;) <br />
+stpapi.put.field(&quot;zmadm9203m000&quot;, &quot;vwie.yn&quot;, &quot;zmyeno.no&quot;) <br />
+I also added the statement for the api.mode, from the other posting on the board.<br />
+group.1:<br />
+init.group:<br />
+	if not api.mode then<br />
+		get.screen.defaults()<br />
+	endif<br />
+<br />
+Tracing through the debugger I found why my session was hanging -<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+<br />
+	if spool.open(&quot;&quot;,&quot;&quot;,1) then<br />
+		start.process()<br />
+		spool.close()<br />
+	else<br />
+		choice.again()<br />
+	endif<br />
+The spool session did not start and ask me for a device, and it went to the choice.again() section and I guess thats a reason why it seems hanging or showing running.<br />
+<br />
+Do you have an idea how to fix this ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">popeye</div><div class="date">5th March 2002, 02:49</div></div><div class="posttext">Hi NPRao,<br />
+   I have never used a Function Server for a Print Session.<br />
+   Here is what I found in the documentation.<br />
+   Take a look at it.<br />
+<br />
+   Just curious .... Why would you want to use Function Servers for print sessions ?<br />
+<br />
+   Hope this helps.<br />
+<br />
+<br />
+   3.14	Set Session Report Parameters<br />
+SYNTAX<br />
+void stpapi.set.report(string session, string reportname, string device, string err.mesg)<br />
+ARGUMENTS<br />
+session			Name of the session this command is executed on.<br />
+reportname		Valid Baan report code for desired report <br />
+device				Valid Baan device code for desired device.<br />
+err.mesg				This parameter will contain the text of the error message if the function cannot complete normally.<br />
+DESCRIPTION<br />
+This selects the report to be printed and the device to be printed to when the stpapi.print.report() is called.<br />
+RETURN VALUES<br />
+None<br />
+3.15	Send Print Command to Session<br />
+SYNTAX<br />
+void stpapi.print.report(string session, ref string err.mesg)<br />
+ARGUMENTS<br />
+session			Name of the session this command is executed on.<br />
+err.mesg				This parameter will contain the text of the error message if the function cannot complete normally.<br />
+DESCRIPTION<br />
+This causes the choice option print.data to be executed in the specified session.  The function stpapi.set.report() must be called prior to this to configure the report printing.<br />
+RETURN VALUES<br />
+None</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">5th March 2002, 02:57</div></div><div class="posttext">Hi Popeye,<br />
+<br />
+the previous session was a process session zmadm9203m000.<br />
+<br />
+I have now tried with a print session with this code -<br />
+<br />
+stpapi.put.field(&quot;zmadm9400m000&quot;, &quot;user.f&quot;, &quot;   &quot;)<br />
+stpapi.put.field(&quot;zmadm9400m000&quot;, &quot;user.t&quot;, &quot;zzzzzzzzz&quot;)<br />
+stpapi.put.field(&quot;zmadm9400m000&quot;, &quot;vwie.yn&quot;, &quot;zmyeno.no&quot;)<br />
+stpapi.set.report(&quot;zmadm9400m000&quot;, &quot;zmadm940300000&quot;, &quot;D&quot;, error)<br />
+zmadm9400m000f.print( error )<br />
+zmadm9400m000f.end( )<br />
+Even this seems to be hanging.<br />
+<br />
+I think I am missing something...<br />
+<br />
+also I think that the get.screen.defaults() function might over write the put field values if we do not use <br />
+group.1: <br />
+init.group: <br />
+if not api.mode then <br />
+get.screen.defaults() <br />
+endif <br />
+The documentation you sent describes how to create the function server dll and the functions created by the ttstpcreatdll and an example is provided.<br />
+<br />
+But the actual implementation script example is not provided there.<br />
+<br />
+Any more clues ?<br />
+<br />
+Thanks!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th March 2002, 15:00</div></div><div class="posttext">&quot;zmadm940300000&quot; should be &quot;rzmadm940300000&quot;. It does expect the &quot;r&quot; infront of the report name. Here is a sample from some of my code.<br />
+	stpapi.set.report(&quot;tppss9269m00b&quot;,&quot;rtppss92690100b&quot;,spool.device,errmsg)<br />
+f9269m00b.put.cprj.f(first.project)<br />
+f9269m00b.put.cprj.t(last.project)<br />
+f9269m00b.put.From_Production_Order(0)<br />
+f9269m00b.put.orno.t(999999)<br />
+f9269m00b.put.Project_Group(project.group)<br />
+f9269m00b.put.ccot.t(project.group)<br />
+f9269m00b.continue( errmsg)<br />
+Notice that I use the continue command, you do not always need the stpapi.print.report command.  I did have one case where this locked up the session and another where it did nothing. So try setting the report and using the continue command, that may work.<br />
+<br />
+Good Luck!<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">6th March 2002, 01:30</div></div><div class="posttext">Hi Mark,<br />
+<br />
+I have used that r in the beginning of the report code. It didnt still work.<br />
+<br />
+seeing on the processes, i can see the session's debugger, but I wonder why the invoked session is not visible. Do all the sessions, invoked by the ttstpapi and AFS run in background/hidden mode???</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th March 2002, 14:20</div></div><div class="posttext">Yes - they do run in the background, with your FS session as the parent ID.  If you compile the FS in debug mode and the source session in debug mode then you can step through the code to see what is going on.  The first time you do a stpapi.put.field you should see the session come up.  Just so happens I was debugging one this morning.  Attached are a few screen prints.<br />
+<br />
+When you do your first put.field on the zmadm9400m000 session, is it coming up in the background? Is this a session you developed?  Because I am really suprised the ttstpcreatdll did not create put functions.  I use ttstpcreatdll just so I see what functions are available in a session, and for some reason it does not think a put function is available.<br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">26th June 2002, 01:31</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Its been a long time that I got back on this AFS issue.<br />
+<br />
+I tried to execute my old scripts and suddenly they worked fine. Maybe due to the BaaN-5.2 GA and earlier we were on the Alpha/LA. Thanks for the tips...<br />
+<br />
+Now I made few more AFS dlls now and I am facing this issue -<br />
+<br />
+I found another problem in a process session at these statements -<br />
+<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	if spool.open(&quot;&quot;,&quot;&quot;,1) then<br />
+		start.process()<br />
+		spool.close()<br />
+	else<br />
+		choice.again()<br />
+	endif<br />
+<br />
+<br />
+Checking in debuggers the error value is &quot;Device not found&quot; in the statement -<br />
+<br />
+zmadm9203m000f.exec.cont.process(error)<br />
+<br />
+Is there a way that I can set the display &quot;D&quot; in the spool functions, I tried spool.device = &quot;D&quot;. It still didnt work.<br />
+<br />
+I couldnt find the option in these postings, how can we get the AFS log file? Also, can I generate the AFS on tools sessions and use them ?<br />
+<br />
+Thanks!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">trchandra</div><div class="date">26th June 2002, 08:52</div></div><div class="posttext">Hi Prashant,<br />
+    You can get log file by setting -- -set AFSLOG=1 in the bwc file.  A file with name afs.log will be created (in unix it will be user home directory).  You can generate AFS on tools sessions using stpapi.* commands directly instead of generating dll using ttstpcreatdll.<br />
+<br />
+good luck</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th June 2002, 18:51</div></div><div class="posttext">According to the help on spool.open command when the device and report are blank it is opening the previous report and device. So even though this is a process session you probably need to do a set report.  Which session is it?  I have had problems with a couple of sessions when creating function servers on them.<br />
+<br />
+Also I could not create DLL's on tools sessions because the ttstpcreatdll session defaulted to the tt package and as far as I know nobody is allowed to develop there but Baan.  So for tools sessions you have to use the actual stpapi commands.<br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">26th June 2002, 19:30</div></div><div class="posttext">Mark,<br />
+<br />
+I have created a few utilities/tools for system checks etc... which do not need the BaaN standard reports, hence I use the spool functions to shows the results on the display browser, or we can redirect the log file outputs to any device.<br />
+<br />
+To explore more about AFS/API and use them in automated job process, I was trying to make function servers dlls and I trace the problem that I couldnt set the device in that spool.open() functional call.<br />
+<br />
+Any ideas about how to set the device in the spool.open? :confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th June 2002, 20:09</div></div><div class="posttext">I understand now - I was wondering why Baan would have a session with spool.open(), but I put nothing past them. I wonder if stpapi.set.report(&quot;sessionname&quot;, &quot;&quot;, &quot;D&quot;, error) would work?  Notice the report name is empty. I am not sure if this is possible.<br />
+<br />
+Also if the session is in debug mode and you do spool.device=&quot;D&quot; in the DLL, does the session actually have the spool.device set? I guess what I am asking is if you run the DLL and have the session in debug mode can you see that the spool.device is &quot;D&quot;?  I think the answer would be yes, but thought I would check.<br />
+<br />
+The only other solutions I could think of would require that the session be modified. For example you could check the api.mode and if it is true then do a spool.open(&quot;&quot;,spool.device,0). Or maybe try attaching a dummy report to the session and then try stpapi.set.report.  Not sure which would work or what is best. <br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">26th June 2002, 21:00</div></div><div class="posttext">In the past, I've experienced many problems with API's that call reports. I have found that the API Handler library functions only work with rprt.*() functions found in the 4GL choice.print.data section. I have not been able to get reports to run that are invoked with brp.*() or spool.*() function calls.<br />
+<br />
+In each case, I've worked with Baan Support and they have come back saying that they will have to modify the script, because it was not API compliant.<br />
+<br />
+If you have the source code, you may want to modify the code using the standard rprt.*() calls in the choice.print.data section.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">26th June 2002, 21:10</div></div><div class="posttext">Hi Mark ,<br />
+<br />
+Here is my current situation tracing the problems in debugs.<br />
+<br />
+Gordon,<br />
+<br />
+I have created a few utilities/tools for system checks etc... which do not need the BaaN standard reports, hence I use the spool functions to shows the results on the display browser, or we can redirect the log file outputs to any device. I dont see a reason to create a report layouts... with just a line of text of 80-256 characters.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">26th June 2002, 22:27</div></div><div class="posttext">More issues when using the AFS/API on the TT sessions -<br />
+<br />
+Any clues ??? :confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th June 2002, 23:44</div></div><div class="posttext">Hi NPR,<br />
+<br />
+I am afraid Gordon may be right.  I have not had this exact problem because most of my sessions use rprt_open(). I have not created a FS on one that uses brp.open or spool.open. I can not think of any other solution if something like spool.open(&quot;&quot;,&quot;D&quot;,0) did not work.  It sounds like Gordon is correct. The only thing else I can think of is to import spool.device into the session from your DLL, but I think even that will fail when it hits the spool.open(&quot;&quot;,spool.device,0) command. I can not think of any other solution.<br />
+<br />
+<br />
+Are you sure it is stpapi.form.command or is that the same as stpapi.continue.process?  Everything else looks fine. Also could it be a case of something on the form did not change so it does not think it has to create RDD?  I have run into this before.  Since day one problems crop up in create/convert to rdd, so I am not sure if this is a good session to make a FS on.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">27th June 2002, 20:55</div></div><div class="posttext">Mark,<br />
+<br />
+I am still trying to make an AFS for the session, ttadv5214m000, as thats our requirement.<br />
+<br />
+reading more documentation, exploring, changing code etc,<br />
+<br />
+I used this command -<br />
+<br />
+stpapi.continue.process(&quot;ttadv5214m000&quot;, error)<br />
+|stpapi.form.command( &quot;ttadv5214m000&quot;, 5, &quot;exec.cont.process&quot;, error )<br />
+<br />
+<br />
+Checking in debugger the error has the value &quot;Command Disabled&quot;. This doesnt give me any clue, whats wrong and how to make it work. :confused:<br />
+<br />
+Here are the contents of the afs.log -<br />
+<br />
+&lt;ttadv5214m000<br />
+&gt;ttadv5214m000 continue.process<br />
+69-&gt;cont.process<br />
+69&lt;-cont.process^A1<br />
+&lt;ttadv5214m000 Command disabled<br />
+&gt;ttadv5214m000 end.session<br />
+69-&gt;end.program<br />
+69&lt;-end.program^A0</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">28th June 2002, 00:23</div></div><div class="posttext">I am just not sure. It sounds like what you had the first time was the correct(stpapi.form.command).  So I am not sure why the create RDD is not working. I am just not sure anymore. I will look at it some more tomorrow, but right now I do not have a clue about the tools session.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd July 2002, 21:13</div></div><div class="posttext">Did you find a solution? I can not think of one that does not involve having the source code to see what happens on the continue. This way you could see what was actually being generated or skipped.  <br />
+<br />
+One thing you could try is to delete the data dictionary for the session then run this script to see if the RDD is created.  If that does not work then maybe you could try the ttadv5200m000 (Convert RDD Forms and Menus). I am not sure if that is a option.  Sorry, but those are the best I can come up with.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">trchandra</div><div class="date">2nd July 2002, 23:26</div></div><div class="posttext">Prashant,<br />
+      I wrote the AFS for the session you are trying and it is perferctly working for me!.<br />
+<br />
+     Here is the code....<br />
+     <br />
+#pragma used dll  ottstpapihand<br />
+<br />
+<br />
+function main()<br />
+{<br />
+   string   single.sess(15)<br />
+   string   err.mes(1024)<br />
+   single.sess = &quot;ttadv5214m000&quot;<br />
+   stpapi.put.field(single.sess,&quot;cpac.f&quot;, &quot;cr&quot;)<br />
+   stpapi.put.field(single.sess,&quot;cpac.t&quot;, &quot;cr&quot;)<br />
+   stpapi.put.field(single.sess,&quot;vers.f&quot;, &quot;B50C&quot;)<br />
+   stpapi.put.field(single.sess,&quot;vers.t&quot;, &quot;B50C&quot;)<br />
+   stpapi.put.field(single.sess,&quot;rele.f&quot;, &quot;c &quot;)<br />
+   stpapi.put.field(single.sess,&quot;rele.t&quot;, &quot;c &quot;)<br />
+   stpapi.put.field(single.sess,&quot;cust.f&quot;, &quot;prod&quot;)<br />
+   stpapi.put.field(single.sess,&quot;cust.t&quot;, &quot;prod&quot;)<br />
+   stpapi.form.command(single.sess,5,&quot;exec.cont.process&quot;, err.mes)<br />
+   if not isspace(err.mes) then<br />
+         message(err.mes)<br />
+   endif<br />
+   stpapi.end.session(single.sess)<br />
+<br />
+}<br />
+<br />
+<br />
+best of luck!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">3rd July 2002, 00:10</div></div><div class="posttext">Ravi,<br />
+<br />
+This is my code, which gave me those error messages -<br />
+<br />
+<br />
+<br />
+#pragma used dll 	ottstpapihand<br />
+<br />
+function main()<br />
+{<br />
+string	error(80)<br />
+<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;cpac.f&quot;, &quot;zm&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;cpac.t&quot;, &quot;zm&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;vers.f&quot;, &quot;B52U&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;vers.t&quot;, &quot;B52U&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;rele.f&quot;, &quot;a&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;rele.t&quot;, &quot;a&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;cust.f&quot;, &quot;abcd&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;cust.t&quot;, &quot;abcd&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;clan.f&quot;, &quot;2&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;clan.t&quot;, &quot;2&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;form.f&quot;, &quot;adm9203m000d.&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;form.t&quot;, &quot;adm9203m000d&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;forms&quot;, &quot;ttyeno.yes&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;menus&quot;, &quot;ttyeno.no&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;error.report&quot;, &quot;ttyeno.no&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;multi.level&quot;, &quot;ttyeno.no&quot;)<br />
+|stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;flag.dump&quot;, &quot;ttadv.create.formmenu&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;flag.dump&quot;, &quot;1&quot;)<br />
+stpapi.set.report(&quot;ttadv5214m000&quot;, &quot;rttadv521401000&quot;, &quot;D&quot;, error)<br />
+if isspace(error) then<br />
+        stpapi.continue.process(&quot;ttadv5214m000&quot;, error)<br />
+endif<br />
+|stpapi.continue.process(&quot;ttadv5214m000&quot;, error)<br />
+|stpapi.print.report(&quot;ttadv5214m000&quot;, error)<br />
+|stpapi.form.command( &quot;ttadv5214m000&quot;, 5, &quot;exec.cont.process&quot;, error )<br />
+stpapi.end.session(&quot;ttadv5214m000&quot;)<br />
+}<br />
+<br />
+<br />
+checking in debugger, I found error is &quot;Command Disabled&quot;. Any clues :confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">3rd July 2002, 00:16</div></div><div class="posttext">More findings... I changed my code to similar to yours -<br />
+<br />
+<br />
+#pragma used dll 	ottstpapihand<br />
+function main()<br />
+{<br />
+string	error(80)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;cpac.f&quot;, &quot;zm&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;cpac.t&quot;, &quot;zm&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;vers.f&quot;, &quot;B52U&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;vers.t&quot;, &quot;B52U&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;rele.f&quot;, &quot;a&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;rele.t&quot;, &quot;a&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;cust.f&quot;, &quot;abcd&quot;)<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;cust.t&quot;, &quot;abcd&quot;)<br />
+stpapi.form.command( &quot;ttadv5214m000&quot;, 5, &quot;exec.cont.process&quot;, error )<br />
+stpapi.end.session(&quot;ttadv5214m000&quot;)<br />
+}<br />
+<br />
+<br />
+checking in debugger, I found error is &quot;Device not found&quot;. <br />
+<br />
+Any clues :confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">alejandro</div><div class="date">3rd July 2002, 00:20</div></div><div class="posttext">Not sure about this because you are in ERP, I c4.<br />
+<br />
+¿Has your session check fields?<br />
+I cannot see in your script stapi.put for these selection fields.<br />
+<br />
+¿So maybe command disabled maybe means nothing to do? <br />
+<br />
+Not sure but...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">3rd July 2002, 00:44</div></div><div class="posttext">NPRao,<br />
+<br />
+From your previous post, I noticed you had coded in the following:<br />
+stpapi.put.field(&quot;ttadv5214m000&quot;, &quot;error.report&quot;, &quot;ttyeno.no&quot;)<br />
+<br />
+leading me to believe that you have set your user defaults while running this session. You should add this line back into your new script so you don't have to worry about setting the default report device. Careful coding API's where the default session action is defined as &quot;User Defaults&quot;, or &quot;User Defaults&quot; is executed in the before.program section. You should supply an stpapi.put.field() call for every input field on the form, making sure you know what's in every field, so this won't occur.<br />
+<br />
+Also, you shouldn't use the device &quot;D&quot;, for display, in background API programs. There isn't any user interaction in API's.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">3rd July 2002, 01:41</div></div><div class="posttext">Thanks for the tips Ravi and Gordon, :p<br />
+<br />
+I got the session working now.<br />
+<br />
+I guess the tools sessions, calls the init.form/group sections and statements and then pass the variables we are sending with the put functions.<br />
+<br />
+I have my user defaults and it had the print report on, maybe thats why it was expecting the output to be redirected to a device.<br />
+<br />
+So I removed my user defaults using, ttstpdeldeflt and then executing my 3-GL it worked and all the files on the systems have the new time stamping.<br />
+<br />
+I think this can be avoided in the sessions we develop by using -<br />
+<br />
+<br />
+group.1:<br />
+init.group:<br />
+	if not (api.mode or job.process or background) then<br />
+		get.screen.defaults()<br />
+	endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">TheBurniou</div><div class="date">6th August 2002, 17:11</div></div><div class="posttext">Hi popeye,<br />
+<br />
+I am very interested in syntax of stpapi functions, can U attach the doc file U talk about ?<br />
+<br />
+Thanks<br />
+<br />
+<br />
+Originally posted by popeye <br />
+Hi NPRao,<br />
+   I have never used a Function Server for a Print Session.<br />
+   Here is what I found in the documentation.<br />
+   Take a look at it.<br />
+<br />
+   Just curious .... Why would you want to use Function Servers for print sessions ?<br />
+<br />
+   Hope this helps.<br />
+<br />
+<br />
+   3.14	Set Session Report Parameters<br />
+SYNTAX<br />
+void stpapi.set.report(string session, string reportname, string device, string err.mesg)<br />
+ARGUMENTS<br />
+session			Name of the session this command is executed on.<br />
+reportname		Valid Baan report code for desired report <br />
+device				Valid Baan device code for desired device.<br />
+err.mesg				This parameter will contain the text of the error message if the function cannot complete normally.<br />
+DESCRIPTION<br />
+This selects the report to be printed and the device to be printed to when the stpapi.print.report() is called.<br />
+RETURN VALUES<br />
+None<br />
+3.15	Send Print Command to Session<br />
+SYNTAX<br />
+void stpapi.print.report(string session, ref string err.mesg)<br />
+ARGUMENTS<br />
+session			Name of the session this command is executed on.<br />
+err.mesg				This parameter will contain the text of the error message if the function cannot complete normally.<br />
+DESCRIPTION<br />
+This causes the choice option print.data to be executed in the specified session.  The function stpapi.set.report() must be called prior to this to configure the report printing.<br />
+RETURN VALUES<br />
+None</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">popeye</div><div class="date">6th August 2002, 19:39</div></div><div class="posttext">doc # 1</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">popeye</div><div class="date">6th August 2002, 19:41</div></div><div class="posttext">doc # 2<br />
+<br />
+BTW ... how do i attach multiple files ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">6th August 2002, 20:03</div></div><div class="posttext">For the moment, you cannot attach multiple files in 1 post. You need to make separate posts for each attachment.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">6th August 2002, 23:25</div></div><div class="posttext">Put them both in a zipped file...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">TheBurniou</div><div class="date">7th August 2002, 10:49</div></div><div class="posttext">Thank U popeye. This doc will help a lot !:D</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Satish Nandeti</div><div class="date">9th August 2002, 11:25</div></div><div class="posttext">Hi NPRao,<br />
+<br />
+to set the reportname &amp; device name, you try using the following statement.<br />
+<br />
+stpapi.set.report(&quot;zmadm9400m000&quot;, &quot;rzmadm940300000&quot;, &quot;D&quot;, error)<br />
+<br />
+It means that there should be 'r' before the report name.<br />
+<br />
+Suppose if your report name is : zmadm940300000 then the way you specify it in the AFS will be like this : rzmadm940300000 i.e there should be 'r' before the report name.<br />
+<br />
+If the device type 'D' does n't work.. then try writing the report into a file like this,<br />
+<br />
+stpapi.set.report(&quot;zmadm9400m000&quot;,&quot;rzmadm940300000&quot;, &quot;ASCIF&quot;, error)<br />
+<br />
+stpapi.put.field(&quot;zmadm9400m000&quot;,&quot;spool.fileout&quot;, &quot;MY_Report_Name&quot;)<br />
+<br />
+and then use <br />
+<br />
+ stpapi.continue.process(&quot;zmadm9400m000&quot;,error)<br />
+<br />
+please let me know if this solution works fine..<br />
+<br />
+Regards,<br />
+Satish Nandeti</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">9th October 2004, 00:46</div></div><div class="posttext">Solution: 133995<br />
+<br />
+SITUATION IDENTIFIED IN: <br />
+&quot;Select Device&quot; (ttstpsplopen) <br />
+<br />
+SITUATION DESCRIPTION: <br />
+Print to display is present in some program scripts. When the sessions using these program scripts are run in the function server, print to display was skipped. This was not only done when no user interface is present, but also when this script was run from another session in the function server.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

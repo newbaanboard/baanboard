@@ -1,0 +1,137 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS on Maintain Production Order, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS on Maintain Production Order AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS on Maintain Production Order [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS on Maintain Production Order</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jp.aalders</div><div class="date">22nd December 2004, 13:00</div></div><div class="posttext">Hi all <br />
+<br />
+I'm currently developing an AFS session to maintain the delivery date in maintain production orders [tisfc0101m000]. AFS is working fine but the tisfc0101m000 session is executing the session tisfc0505m000 autmatically.  When AFS is finished these tisfc0505m000 sessions are not closed which results in a lot of running tisfc0505m000 sessions.  I've tried to close down these sessions using stpapi.end.session(tisfc0505m000) and the stpapi.handle.subproc but none of these closes down the tisfc0505m000 sessions.  Any ideas about closing down the sessions would be very helpful.<br />
+<br />
+Thanks and a merry x-mas to all of you :D</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kbartelds</div><div class="date">22nd December 2004, 14:53</div></div><div class="posttext">stpapi.handle.subproc(&quot;tisfc0101m000&quot;,&quot;tisfc0501s000&quot;, kill) might solve the problem. I have made some afs scripts on sfc (including changing delivery date) and don't bother about the subsessions involved and it works fine. So maybe trying to close this subsession is causing the problem.<br />
+<br />
+Klaas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">22nd December 2004, 15:14</div></div><div class="posttext">Hi jp.alders!<br />
+<br />
+I toned down the size on your original post.  It almost blinded me when I first pulled it up - not a good thing this early in the morning. :)<br />
+<br />
+Also, if what Klaas posted does not work, maybe you could post your code.  That might help someone else see where to insert the stpapi.handle.subproc.  Once you get control of the session then stpapi.end should work.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jp.aalders</div><div class="date">23rd December 2004, 09:33</div></div><div class="posttext">Hi Klaas and Mark,<br />
+<br />
+Both thanks for your reply. Below you'll find the part of the source which causes the tisfc0505m000 session open.  Be aware that not tisfc0505s000 remains open but tisfc0505m000.  I've tried  to close this session both using the stpapi.handle.subproc(&quot;tisfc0101m000&quot;,&quot;tisfc0505s000&quot;,&quot;kill&quot;), stpapi.handle.subproc(&quot;tisfc0101m000&quot;,&quot;tisfc0505m000&quot;,&quot;kill&quot;) and stpapi.end.session(&quot;tisfc0505m000&quot;) but in all cases the tisfc0505m000 session is not killed. As many updates are executed a lot of the tisfc0505m000 sessions stay open. <br />
+<br />
+Any ideas would be welcome.  <br />
+<br />
+Thanks in advance,<br />
+<br />
+JP<br />
+<br />
+<br />
+<br />
+|* Search productionordernumber for rescheduling message<br />
+<br />
+<br />
+	stpapi.put.field(&quot;tisfc0101m000&quot;,&quot;tisfc001.pdno&quot;,str$(afs.pdno))<br />
+	stpapi.get.field(&quot;tisfc0101m000&quot;,&quot;tisfc001.pdno&quot;,pdno.found) <br />
+<br />
+	retval_fnd = stpapi.find(&quot;tisfc0101m000&quot;,error.msg.find)<br />
+<br />
+	|* If found, change delivery date ( tisfc010.dldt ).<br />
+<br />
+	IF   retval_fnd = 1<br />
+	THEN<br />
+	     |* Check production order date.<br />
+<br />
+	     IF     timrp030.date &lt; tisfc001.prdt<br />
+	     THEN<br />
+                    stpapi.put.field(&quot;tisfc0101m000&quot;,&quot;tisfc001.prdt&quot;,str$(new.prdt))<br />
+	     ENDIF <br />
+	    <br />
+             stpapi.put.field(&quot;tisfc0101m000&quot;,&quot;tisfc001.dldt&quot;,str$(timrp030.date))<br />
+<br />
+	     retval_upd = stpapi.update(&quot;tisfc0101m000&quot;,1,error.msg.upd) <br />
+<br />
+	     stpapi.handle.subproc(&quot;tisfc0101m000&quot;,&quot;tisfc0505s000&quot;,&quot;kill&quot;)<br />
+|	     stpapi.end.session(&quot;tisfc0505m000&quot;)          |&lt; has no result<br />
+	     stpapi.end.session(&quot;tisfc0101m000&quot;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kbartelds</div><div class="date">23rd December 2004, 10:58</div></div><div class="posttext">If you debug your script, can you see in afs.log when the subsession (tisfc0505m000 or tisfc0505s000) is activated?<br />
+<br />
+According to your script:<br />
+stpapi.put.field<br />
+stpapi.get.field<br />
+stpapi.find<br />
+<br />
+This should be:<br />
+stpapi.put.field<br />
+stpapi.find<br />
+stpapi.get.field to check the ordernumber found<br />
+<br />
+Also missing are the stpapi.recover actions in case the find or update doesn't succeed.<br />
+<br />
+This is the script I  use:<br />
+function	update.delivery.date()<br />
+{<br />
+	stpapi.put.field(&quot;tisfc0101m000&quot;,&quot;tisfc001.pdno&quot;,str$(tisfc001.pdno))<br />
+	retval1 = stpapi.find(&quot;tisfc0101m000&quot;,find.mess)<br />
+	if retval1 then<br />
+		stpapi.enum.answer(&quot;tisfc0101m000&quot;,&quot;tisfc01016&quot;,tcyesno.no)<br />
+		stpapi.put.field(&quot;tisfc0101m000&quot;,&quot;tisfc001.dldt&quot;,str$(new.dldt))<br />
+		if new.prdt &lt;&gt; 0 then<br />
+			stpapi.put.field(&quot;tisfc0101m000&quot;,&quot;tisfc001.prdt&quot;,str$(new.prdt))<br />
+		endif<br />
+		retval2 = stpapi.update(&quot;tisfc0101m000&quot;,true, update.mess)<br />
+		if not retval2 then<br />
+			retval3 = stpapi.recover(&quot;tisfc0101m000&quot;,recover.mess)<br />
+		endif<br />
+	else<br />
+		stpapi.recover(&quot;tisfc0101m000&quot;,recover.mess)<br />
+	endif<br />
+	stpapi.end.session(&quot;tisfc0101m000&quot;,end.sess.mess)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jp.aalders</div><div class="date">23rd December 2004, 13:30</div></div><div class="posttext">Hi Klaas, <br />
+<br />
+Thanks for your assistance again. You're right about the &quot;put&quot; and &quot;get&quot; sequences so I changed them. Futhermore I've executed the session with an AFS log but the only thing about tisfc0505m000 that occured in the log is the handle.sub.proc. as set up in the script. <br />
+<br />
+I've also run the AFS session in debug mode and checked when the tisfc0505m000 session is started using the BW option-dialog.  ( ps ). It occured that the tisfc0505m000 session is directly started as soon as the order is searched in AFS ( stpapi.find ).   Closing down the tisfc0505m000 session using handle.sub.proc or stpapi.end.session does not result in stopping the session. In the meanwhile I discovered that there the script for tisfc0101m000 is customer specific ( Atos Origin development ) and so I strongly suspect this to be the cause of the trouble.<br />
+<br />
+Ant other ideas are off course very welcome!<br />
+<br />
+Regards,<br />
+<br />
+JP</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kbartelds</div><div class="date">23rd December 2004, 13:40</div></div><div class="posttext">If you want, you can call me so we can see if we can work this one out, at the office 073 5441234<br />
+<br />
+Klaas</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

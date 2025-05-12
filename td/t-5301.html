@@ -1,0 +1,144 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to show the current VRC on a form?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to show the current VRC on a form? Tools Development" />
+	
+	<title>How to show the current VRC on a form? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; How to show the current VRC on a form?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">timb25</div><div class="date">24th May 2002, 17:09</div></div><div class="posttext">Is there a way to use a variable that will show the current vrc on the Form, Report other than hardcoding it in the layout?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">24th May 2002, 17:28</div></div><div class="posttext">You can select the data from ttaad121 (Packages in Package Combination) using the curr.pacc$ (current package combination) and the current package as indices.  You can then put the three fields you desire on the form.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">24th May 2002, 18:33</div></div><div class="posttext">Hi Ed,<br />
+<br />
+the solution you mentioned gets the Package-VRC of a particular package combination, which is not the right result if you have multiple package VRC authorizations.<br />
+<br />
+So, if we like to get the current P-VRC of a user -<br />
+<br />
+you can write a function, which based on the user returns the current PVRC -<br />
+<br />
+<br />
+function long	get.cpvrc(<br />
+ref domain ttadv.cpac	cpac, <br />
+ref domain ttadv.vers	vers, <br />
+ref domain ttadv.rele	rele, <br />
+ref domain ttadv.cust	cust ) <br />
+{<br />
+long	flag<br />
+select	ttadv040.*<br />
+from	ttadv040<br />
+where	ttadv040.user = :logname$<br />
+order by ttadv040._index1<br />
+as set with 1 rows<br />
+selectdo<br />
+	flag = 1<br />
+|* Current package vrc found<br />
+selectempty<br />
+	flag = 0<br />
+|* Current package vrc not found, maybe its a new login <br />
+|* and a pvrc has to be assigned yet.<br />
+endselect<br />
+return(flag)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">24th May 2002, 23:53</div></div><div class="posttext">My impression was that he wanted to display the VRC on a form or a report when a session was run.  In that case, we really don't care about the current PVRC, since this might not have any correlation to  the package combination in which the session is run.  I could have misinterpreted it though.<br />
+<br />
+I guess the route to choose depends on exactly what timb is trying to accomplish:D .<br />
+<br />
+Now that I think about it, my solution would only tell you the highest level VRC for that package combination.  You might need to walk through the VRC hierarchy to find the one that actually contains the form (or report) object being used.  Perhaps you could utilize the 'explode' functionality as well.<br />
+<br />
+Fun, fun, fun...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">~Vamsi</div><div class="date">25th May 2002, 00:35</div></div><div class="posttext">Well we will have to wait for timb to reply back. I am inclined to go with Ed on this one. Usually ttadv040 has records only for users who are developing code.<br />
+<br />
+Ed, an alternative to using explode is the bunch of functions in the dll ttdllvrcsearch. This has the advantage of returning any component and not just the executable object :).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">timb25</div><div class="date">28th May 2002, 18:39</div></div><div class="posttext">Here is a scenerio.  We have customized reports and on each report we have a variable called  prog.name$ on all report headings.  This variable shows the report code of the current report that is run.  <br />
+<br />
+Likewise, I want a variable that will do the same sort of thing showing the current vrc of the object used.  Right now we use two vrc customizations.. tst0 and obg0.   For any report or form, I want to know which one is being used.  And, in theory, by inserting a variable on the form or report, I will see which customization is currently running.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">28th May 2002, 19:59</div></div><div class="posttext">Tim,<br />
+<br />
+I dont think there is any predefined variables for doing that.<br />
+<br />
+You might need to do some coding, and you can use this function -<br />
+<br />
+<br />
+vrc_search_repobj<br />
+long vrc_search_repobj( domain ttaad.clan clan, domain ttadv.cpac cpac,<br />
+domain ttadv.cmod cmod, domain ttadv.crep crep, long tdep,<br />
+ref domain ttadv.vers tver() fixed, ref domain ttadv.rele trel() fixed,<br />
+ref domain ttadv.cust tcus() fixed )<br />
+ <br />
+<br />
+  Pre:	-<br />
+ Post:	if return &lt;&gt; 0 then current record of ttadv336 has been set.<br />
+  Ret:	&lt; 0	found report object is expired<br />
+	0	report object not found<br />
+	&gt; 0	report object found, position of newest object within VRC-tree <br />
+                is returned<br />
+ Desc:	Search for the newest report object belonging to the given report,<br />
+        based on the specified VRC-tree.<br />
+   In:	clan, cpac, cmod, crep identifies the report to search for<br />
+   	tdep contains the depth of the vrc search tree<br />
+   	tver, trel, tcus contains the vrc search tree<br />
+   	Usually, the VRC-tree can be obtained from the ttadv111 record and <br />
+        depends on the package of the component and<br />
+        whether this information is needed during runtime or development time<br />
+<br />
+<br />
+Use #pragma used dll ottdllvrcsearch<br />
+<br />
+Good Luck... :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gentercz</div><div class="date">29th May 2002, 15:40</div></div><div class="posttext">@NPRao,<br />
+<br />
+when i try to invoke the function you decribed i get the error message &quot;illegal number of subscripts&quot; for variables tver, trel, tcus.<br />
+<br />
+how do i define them ???<br />
+<br />
+Thanks for your help,<br />
+jochen</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">29th May 2002, 20:06</div></div><div class="posttext">Hi JoChen,<br />
+<br />
+those 3 arguments are 2-dimensional arrays.<br />
+<br />
+you have to get the package VRC and the vrc structure by using a select statement on table ttadv111.<br />
+<br />
+As mentioned in the DLL usage -<br />
+<br />
+Desc:	Search for the newest report object belonging to the given report, based on the specified VRC-tree.<br />
+   In:	clan, cpac, cmod, crep identifies the report to search for tdep contains the depth of the vrc search tree tver, trel, tcus contains the vrc search tree Usually, the VRC-tree can be obtained from the    ttadv111 record and depends on the package of the component and whether this information is needed during runtime or development time<br />
+<br />
+<br />
+if vrc_search_repobj( ttadv330.clan, ttadv330.cpac, ttadv330.cmod, ttadv330.crep, <br />
+ttadv111.tdep, ttadv111.tver, ttadv111.trel, ttadv111.tcus ) &lt; 1 then<br />
+.....<br />
+|* missing report object<br />
+endif</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

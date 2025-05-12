@@ -1,0 +1,152 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Using Multiple Indices in a same query, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Using Multiple Indices in a same query Tools Development" />
+	
+	<title>Using Multiple Indices in a same query [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Using Multiple Indices in a same query</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">shaboo</div><div class="date">13th January 2005, 22:35</div></div><div class="posttext">Hello Everybody,<br />
+<br />
+On one of our custom report we were facing some problem and we found out that it was due to the fact that in our select statement we were using index1 in the where clause but in the order by clause we were using index2. By making them both the same our report worked just fine.<br />
+<br />
+I am curious get your feed back on if we can use <br />
+<br />
+a) different index in where clause and a different in order by? <br />
+<br />
+b) multiple different indices in our select statement?<br />
+<br />
+c) multiple different indices in our select statment  with another index in order by?<br />
+<br />
+In my opinion if we use an index in a where clause then our order by should use the same index or just field name(s) for sorting. <br />
+<br />
+What do you guys think?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">chjagge</div><div class="date">13th January 2005, 22:49</div></div><div class="posttext">We do it all the time. _indexA in the where part and _indexB in the order by - Never casued a problem.  However using two index on the same table in the where part of the clause is not recommended. Can't remember the exact reason but you should use the most efficient index and complete the where part by using fields.  for example<br />
+<br />
+<br />
+select	tdinv150.*<br />
+	from	tdinv150 for update<br />
+	where	tdinv150._index1 &gt;= {tckoor.pcs.sfc,:curr.orno,:curr.kotr,<br />
+				:curr.pono,:curr.ponb }<br />
+	and 	tdinv150._index1 &lt;= {tckoor.pcs.wrh }<br />
+	and 	tdinv150.cprj inrange :cprj.f and :cprj.t<br />
+	order by tdinv150._index1<br />
+<br />
+<br />
+Why not use index5 in tdinv150 (and tdind150._index5 inrange {:cprj.f and :cprj.t}? The actual field tdinv150.cprj was used instead. Probably someone remembers the reason why you don't.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">13th January 2005, 22:57</div></div><div class="posttext">Refer to the link for more info - Index Hint (http://www.baanboard.com/programmers_manual_baanerp_help_functions_query_hints_index_hint)<br />
+<br />
+Table tccom100 must be accessed using index 2 in descending order. With one index hint you can hint more than 1 index for the table. There is a maximum of 10 indexes you can specify per index hint. If you specify more than one index hint the query processor may use one of these indexes to scan the table or it may use a combination of the indexes. Consider for example the following query:<br />
+<br />
+select  iscn, bpid<br />
+from    tccom100<br />
+where   (iscn = 570 or cadr = 'J10000001') and nama &gt;= 'A'<br />
+hint    use index 1,2 on tccom100<br />
+<br />
+Assume index 1 is on column iscn and index 2 is on column cadr, furthermore assume there is an index 3 on column nama. By hinting on both index 1 and index 2 this query can be solved by firing two index scans.<br />
+<br />
+Found more info in the SSA_ERP_LN-6.1 manual -<br />
+<br />
+SSA ERP LN 6.1 Programmer's Guide<br />
+<br />
+ 42I45 - Multiple index hints specified on table<br />
+--------------------------------------------------------------------------------<br />
+An SQL statement contains a HINT clause that contains more than one index hint on the same table.<br />
+<br />
+Example<br />
+select *<br />
+from   dbtst120<br />
+where  empno &gt; 10<br />
+and    workdept = &quot;A01&quot;<br />
+hint   use index 1 on dbtst120<br />
+and    use index 2 on dbtst120<br />
+You can only specify one index per table. This query will cause the errror:<br />
+<br />
+SQLState 42I45: Multiple index hints specified on table 'dbtst120' <br />
+<br />
+You can use one index hint to specify multiple indexes.<br />
+<br />
+select *<br />
+from   dbtst120<br />
+where  empno &gt; 10<br />
+and    workdept = &quot;A01&quot;<br />
+hint   use index 1,2 on dbtst120</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">14th January 2005, 12:30</div></div><div class="posttext">What u observed is correct. It's because the way the bshell interprets the queries <br />
+communicates with database driver . When it's order by indexA , it's always preferred to<br />
+use indexA only in where clause.<br />
+<br />
+Also the style of writing the indices in where clause makes drastic difference. e.g.<br />
+ppmmmAAA._index1 = ppmmmBBB._index2 may be much more efficient than ppmmmBBB._index2 =<br />
+ppmmmAAA._index1 . The table with smaller number of total records in table and records to <br />
+be retruned for query should appear on left side.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">5th May 2005, 22:59</div></div><div class="posttext">More Info - <br />
+BaanERP Application Software Engineering Guides<br />
+<br />
+Nested queries<br />
+--------------------------------------------------------------------------------<br />
+Problem<br />
+Nesting queries can reduce performance dramatically.<br />
+<br />
+Example<br />
+Nested query:<br />
+<br />
+select	orders.ordernumber, orders.fld1, ...<br />
+from	orders<br />
+where	orders.ordernumber inrange :order.f and :order.t<br />
+and	orders.status = released<br />
+selectdo<br />
+	select orderlines.fld1, orderlines.fld2, ...<br />
+	from orderlines<br />
+	where orderlines.ordernumber = :orders.ordernumber<br />
+	selectdo<br />
+<br />
+Solution: Join nested queries into one -more complex- query.<br />
+<br />
+select	orderlines.fld1, orderlines.fld2, ...,<br />
+	orders.ordernumber, orders.fld1, ...<br />
+from	orderlines, orders <br />
+where	orderlines.ordernumber inrange :order.f and :order.t<br />
+and	orders.ordernumber = orderlines.ordernumber<br />
+and	orders.status = released<br />
+selectdo<br />
+Note: <br />
+There are some attention points. <br />
+<br />
+The higher the number of records at a high level in relation to the number of records at lower level, the better is the joined way of implementation. <br />
+The higher the number of selected fields (and its length is related) at a high level in relation to the number at lower level, the better the nested way of implementation. <br />
+Using the above example:<br />
+<br />
+Number of orders is X, number of fields in orders is A.<br />
+Number of order lines is Y, number of fields in order lines is B.<br />
+<br />
+If A is much higher than B, it is preferable to implement the nested way.<br />
+If B is much higher than A, it is preferable to implement the joined way.<br />
+<br />
+If X is much higher than Y, it is preferable to implement the joined way.<br />
+If Y is much higher than X, the joined as well the nested way can be implemented.<br />
+<br />
+As can be concluded, one cannot always say for sure which construction is the best.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

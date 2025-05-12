@@ -1,0 +1,144 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="refresh a session from another session, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] refresh a session from another session Tools Development" />
+	
+	<title>refresh a session from another session [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; refresh a session from another session</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">shuzheng</div><div class="date">15th December 2005, 04:16</div></div><div class="posttext">:confused:  :( hi:<br />
+   lg: when I start a session B from a session A,and in session B , I have update the session A's data in database directly. then ,I want to refresh session A's data in view by trigger a event in session B or after session B is exit. How can I bring it to pass!<br />
+    thanks everybody</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">v_chandra</div><div class="date">15th December 2005, 05:44</div></div><div class="posttext">Hi<br />
+<br />
+Does your control goes back to Session A, if yes then may be you can use refresh(). Or even we have used execute(find.data) this will refresh current records in session A with the index key value available.<br />
+<br />
+Note: if you have any code written in choice.find.data: then you will have to check that also.<br />
+<br />
+Thanks &amp; Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Youp2001</div><div class="date">15th December 2005, 14:46</div></div><div class="posttext">Hi, <br />
+<br />
+If you want to have your session A updated before session B ends, you could try to use the bms functions. I used this for a little different situation (Session A is an overview session; B is the single occ. session (sessions are synchronized) and from B I started a session C that changed data for B and thus for A (in my case the original record was replaced by another record with different key in session C. In session B this record was displayed after C had ended and I wanted to have A in sync with B)). <br />
+<br />
+This is what I did:<br />
+<br />
+In session A:<br />
+<br />
+before.program:<br />
+	set.synchronized.dialog(&quot;tdalx3100s000&quot;)<br />
+	bms.add.mask(&quot;mm.parent.refresh&quot;)<br />
+choice.bms:<br />
+before.choice:<br />
+	event.bucket = bms.receive$()<br />
+	string.scan(event.bucket, <br />
+		    &quot;%s^%s^%s&quot;, <br />
+		    new.cwar,<br />
+		    new.sopi,<br />
+		    new.sopn)<br />
+	read.new.record.after.transfer()<br />
+	execute(find.data)<br />
+	refresh()<br />
+after.choice:<br />
+	synchronize.child.session()<br />
+<br />
+function synchronize.child.session()	<br />
+{<br />
+	long	event(EVTMAXSIZE)<br />
+<br />
+	evt.type(event) = EVTBUCKETMESSAGE<br />
+	evt.bms.sender(event) = pid<br />
+	bms.send(&quot;&quot;, event, &quot;mm.child.refresh&quot;, 0)<br />
+<br />
+<br />
+In sessoin B:<br />
+before.program:<br />
+             bms.add.mask(&quot;mm.child.refresh&quot;)<br />
+<br />
+choice.bms:<br />
+before.choice:<br />
+	event.bucket = bms.receive$()<br />
+	execute(find.data)<br />
+	enable.disable.fields()<br />
+<br />
+In session B, just after session C is called (so executed after session C has ended):<br />
+<br />
+	e.message = concat$(&quot;^&quot;, tdalx300.cwar, tdalx300.sopi, tdalx300.sopn)<br />
+	evt.type(event) = EVTBUCKETMESSAGE<br />
+	evt.bms.sender(event) = pid<br />
+	bms.send(e.message, event, &quot;mm.parent.refresh&quot;, parent)<br />
+<br />
+Hope this helps,<br />
+<br />
+Youp</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">16th December 2005, 02:32</div></div><div class="posttext">Please use the search for already discussed topics -<br />
+<br />
+synchronizing different occurrences on parent session from child (http://www.baanboard.com/baanboard/showthread.php?t=6419&amp;highlight=refresh.parent) <br />
+<br />
+Synchronize parent (http://www.baanboard.com/baanboard/showthread.php?t=24920&amp;highlight=refresh.parent)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Rita Kotecha</div><div class="date">26th December 2005, 07:22</div></div><div class="posttext">Hi<br />
+<br />
+1. in Session - A<br />
+<br />
+a. extern	domain	tcbool		new.record.entered<br />
+b. function	extern	new.record()<br />
+   {<br />
+	new.record.entered = true<br />
+	export(&quot;new.record.entered&quot;,new.record.entered)<br />
+	execute(end.program)<br />
+   }<br />
+   function refresh.SesionB()					<br />
+   {<br />
+	long event(EVTMAXSIZE)<br />
+<br />
+	evt.bms.command(event) = PRTCL<br />
+	evt.bms.argument(event) = PRTCL.EXECUTE<br />
+	bms.send(&quot;7&quot;,event, &quot;&quot;, parent)<br />
+    }<br />
+c. choice.end.program:<br />
+    before.choice:<br />
+	refresh.SesionB()	<br />
+<br />
+<br />
+2. in Session B<br />
+a. extern	domain	tcbool		new.record.entered<br />
+b. before.program:<br />
+	new.record.entered = false<br />
+c. before.display.object:					<br />
+	suspend(3)						<br />
+	import(&quot;new.record.entered&quot;,new.record.entered)<br />
+	if new.record.entered = true then<br />
+		new.record.entered = false<br />
+		execute(add.set)<br />
+	endif<br />
+		<br />
+<br />
+This is what we have used to insert a new record and refresh the details of the new record in the parent-display session.<br />
+<br />
+Hope this helps.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shuzheng</div><div class="date">30th December 2005, 04:53</div></div><div class="posttext">happy new year,everybody!</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="[Extension] How to limit the number of rows in Extension Modeler -&gt; Query Extension ?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] [Extension] How to limit the number of rows in Extension Modeler -&gt; Query Extension ? Tools Development" />
+	
+	<title>[Extension] How to limit the number of rows in Extension Modeler -&gt; Query Extension ? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; [Extension] How to limit the number of rows in Extension Modeler -&gt; Query Extension ?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">27th March 2019, 05:31</div></div><div class="posttext">I am using Session Extension.<br />
+I created a calculated field to query a field from a table using Query Extension. It is a very simple query.<br />
+<br />
+select tfcmg101.plan<br />
+from tfcmg101<br />
+where tfcmg101.btno = :tfcmg109.btno<br />
+as set with 1 rows<br />
+<br />
+The select, from, and where are fine. It works just fine.<br />
+The only part in question is how can I provide the part &quot;as set with 1 rows&quot; to the Query Extension?<br />
+I tried putting it in the &quot;where&quot; part but it gave me errors.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">29th March 2019, 11:54</div></div><div class="posttext">Why don't you use Calculated field Function type to complete this reqirement? You can use as set with 1 rows there</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">1st April 2019, 04:40</div></div><div class="posttext">It needs to be able to filter the column, which Calculated Field does not provide the required functionality.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">1st April 2019, 14:18</div></div><div class="posttext">I mean you can use Calculated Field of Expression Type Function and in that function you can query the selected record<br />
+<br />
+<br />
+<br />
+function extern void ext.batch.plan.calculate()<br />
+{<br />
+	<br />
+        domain  tfgld.date	ext.batch.plan<br />
+		<br />
+	ext.batch.plan  = 0<br />
+	<br />
+	select tfcmg101.plan:ext.batch.plan <br />
+        from tfcmg101<br />
+        where tfcmg101.btno = :tfcmg109.btno<br />
+        as set with 1 rows<br />
+        selectdo<br />
+	 <br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">2nd April 2019, 04:34</div></div><div class="posttext">I mean this filter. And that Calculated Field of Expression Type Function does not have the ability to make that.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">23rd April 2019, 10:53</div></div><div class="posttext">You can use something like<br />
+<br />
+<br />
+query.extend.select(&quot;select tfcmg101.plan&quot;)<br />
+query.extend.from(&quot;tfcmg101&quot;)<br />
+query.extend.where(&quot;tfcmg101.btno = :tfcmg109.btno and tfcmg101.btno<br />
+in (select min(t101.btno) from tfcmg101 t101 where t101.btno = :tfcmg109.btno)&quot;)<br />
+<br />
+<br />
+In this case it will select the minimum most Batch Number.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">23rd April 2019, 14:02</div></div><div class="posttext">You can use something like<br />
+<br />
+<br />
+query.extend.select(&quot;select tfcmg101.plan&quot;)<br />
+query.extend.from(&quot;tfcmg101&quot;)<br />
+query.extend.where(&quot;tfcmg101.btno = :tfcmg109.btno and tfcmg101.btno<br />
+in (select min(t101.btno) from tfcmg101 t101 where t101.btno = :tfcmg109.btno)&quot;)<br />
+<br />
+<br />
+In this case it will select the minimum most Batch Number.<br />
+<br />
+It doesn't work. It's behavior is weird too. <br />
+At first, every record has the same value, which is the value from the first record displayed on the screen. After some scrolling, records are hidden until nothing shows on the screen -- only an empty session.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">23rd April 2019, 16:00</div></div><div class="posttext">Whats the Main table for your session? Its a Maintain Session right??</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">24th April 2019, 04:43</div></div><div class="posttext">Whats the Main table for your session? Its a Maintain Session right??<br />
+<br />
+Its Main Table is tfcmg109 and it is a Maintain Session.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">24th April 2019, 13:06</div></div><div class="posttext">Try this<br />
+<br />
+<br />
+query.extend.where(&quot;exists (select tfcmg101.btno &quot; &amp;<br />
+			  &quot;from tfcmg101 &quot; &amp;<br />
+			  &quot;where tfcmg101._index1 = tfcmg109.btno)&quot;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">26th April 2019, 05:53</div></div><div class="posttext">Try this<br />
+<br />
+<br />
+query.extend.where(&quot;exists (select tfcmg101.btno &quot; &amp;<br />
+			  &quot;from tfcmg101 &quot; &amp;<br />
+			  &quot;where tfcmg101._index1 = tfcmg109.btno)&quot;)<br />
+	<br />
+<br />
+<br />
+The field is empty in every record now.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">26th April 2019, 10:40</div></div><div class="posttext">The field is empty in every record now.<br />
+<br />
+I suppose its  customized session.<br />
+<br />
+What you can do is add the field on Form,tfcmg101.plan<br />
+<br />
+and add this part in the field section<br />
+<br />
+<br />
+field.tfcmg101.plan:<br />
+before.display:<br />
+	select	tfcmg101.plan<br />
+	from	tfcmg101	<br />
+	where	tfcmg101._index1 = {:tfcmg109.btno}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	endselect<br />
+<br />
+<br />
+<br />
+This works for me</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">26th April 2019, 11:01</div></div><div class="posttext">I suppose its  customized session.<br />
+<br />
+What you can do is add the field on Form,tfcmg101.plan<br />
+<br />
+and add this part in the field section<br />
+<br />
+<br />
+field.tfcmg101.plan:<br />
+before.display:<br />
+	select	tfcmg101.plan<br />
+	from	tfcmg101	<br />
+	where	tfcmg101._index1 = {:tfcmg109.btno}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	endselect<br />
+<br />
+<br />
+<br />
+This works for me<br />
+<br />
+It is a standard session, not customized.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">26th April 2019, 11:27</div></div><div class="posttext">So add a calculated field in the Standard Session extension?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">26th April 2019, 11:35</div></div><div class="posttext">That's exactly what I did and described in the question.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">26th April 2019, 12:06</div></div><div class="posttext">I think you can use a calculated field with expression type 'nested select':<br />
+<br />
+select min(tfcmg101.plan) from tfcmg101 where tfcmg101.btno = tfcmg109.btno</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">26th April 2019, 12:40</div></div><div class="posttext">I think you can use a calculated field with expression type 'nested select':<br />
+<br />
+select min(tfcmg101.plan) from tfcmg101 where tfcmg101.btno = tfcmg109.btno<br />
+<br />
+<br />
+This almost makes it work.<br />
+The goal is to get the date from the first Payment Advice Line to display here but your solution picks the minimum date when there are more than 1 lines.<br />
+<br />
+I tried extending what you suggested by editing out the min() and adding as set with 1 rows. It gave me empty value in the field.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">26th April 2019, 12:58</div></div><div class="posttext">I doubt whether there is a clear definition of 'first Payment Advice Line' in this table, because of the fields in the index...<br />
+Alternative is to have a CDF in tfcmg109 with the date field and fill it at the moment the first tfcmg101 record is created for the batch.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">26th April 2019, 13:07</div></div><div class="posttext">I doubt whether there is a clear definition of 'first Payment Advice Line' in this table, because of the fields in the index...<br />
+Alternative is to have a CDF in tfcmg109 with the date field and fill it at the moment the first tfcmg101 record is created for the batch.<br />
+<br />
+Yeah. The alternative way works.<br />
+But I have to add a custom form command to fill-in the date for existing records, and execute the command once.<br />
+Thanks everyone.<br />
+Case closed.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">26th April 2019, 13:14</div></div><div class="posttext">You can do it through a Combination of Table extension and Session Extension. <br />
+<br />
+In Table Extension, before.open.object.set you can write the query extension and in session, you can add calculated field<br />
+<br />
+<br />
+function extern long before.open.object.set()<br />
+{<br />
+	| hook code<br />
+	query.extend.where(&quot;exists(select t101.btno from tfcmg101 t101 &quot; &amp; <br />
+        &quot;where t101._index1 = {tfcmg109.btno})&quot;,EXTEND_APPEND)<br />
+	<br />
+	<br />
+	return (0)<br />
+}<br />
+<br />
+<br />
+<br />
+But the only drawback would be that the Table extension would be applicable for all the sessions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">selvarajk</div><div class="date">22nd July 2021, 21:38</div></div><div class="posttext">I am also facing the same issue. anyone please guide me.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">selvarajk</div><div class="date">22nd July 2021, 22:40</div></div><div class="posttext">Instead of creating cdf fields, is there any option to filter the records using extensions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ee05220</div><div class="date">26th July 2021, 11:35</div></div><div class="posttext">Instead of creating cdf fields, is there any option to filter the records using extensions.<br />
+<br />
+You can you Extensions and add a Calculated Field using SQL expression types.<br />
+<br />
+Don't use function type.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">selvarajk</div><div class="date">26th July 2021, 17:49</div></div><div class="posttext">Thanks.<br />
+But i need to compare the two tables and fetch the record. I can able to achieve this using function only.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

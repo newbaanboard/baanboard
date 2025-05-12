@@ -1,0 +1,173 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Help with Indexes, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Help with Indexes Tools Development" />
+	
+	<title>Help with Indexes [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Help with Indexes</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">RobertB</div><div class="date">24th September 2003, 12:29</div></div><div class="posttext">Hi all,<br />
+<br />
+I'm beginning to wonder whether I really do know as much about indexes as I thought...<br />
+<br />
+Here's the scenario: I've created a new table whtad999 as follows: table whtad999  <br />
+Temp Table - Accepted/Rejected Deliveries by Supplier<br />
+===========================================================<br />
+         <br />
+Fields:   <br />
+   <br />
+Name            Domain              Description<br />
+-----------------------------------------------------------   <br />
+otbp            tccom.bpid          tccom120.otbp<br />
+adat            tcdate              whinh211.adat<br />
+calw            tcmcs.int2          whtad999.calw<br />
+caly            tcmcs.int2          whtad999.caly<br />
+oorg            whinh.oorg          whinh200.oorg<br />
+orno            tcorno              whinh200.orno<br />
+oset            tcsern              whinh200.oset<br />
+pono            tcpono              tcgen.pono<br />
+seqn            whinh.sern          tcgen.seqno<br />
+sern            tcsern              whinh215.sern<br />
+stka            tcqiv1              whinh210.stka<br />
+stkr            tcqiv1              whinh210.stkr<br />
+<br />
+<br />
+Indexes:<br />
+<br />
+Number  Dupl    Fields<br />
+-----------------------------------------------------------<br />
+1       no      otbp, oorg, adat, orno, oset, pono, seqn, sern<br />
+2       yes     otbp, caly, calw, orno   So far, so good - or so I thought...<br />
+<br />
+Now, I load the table with data from whinh211 and tdpur401 and tdipu010 via the following function: function write.record.to.temp.table(domain tccom.bpid i.otbp, domain tcdate i.adat, <br />
+                                    domain whinh.oorg i.oorg, domain tcorno i.orno, <br />
+                                    domain tcsern i.oset,     domain tcpono i.pono,<br />
+                                    domain whinh.sern i.seqn, domain tcsern i.sern,<br />
+                                    domain tcqiv1 i.stka,     domain tcqiv1 i.stkr)<br />
+{ <br />
+  long      week.day.num, year.day.num, week.num, hours, mins, secs, year.num<br />
+   <br />
+   <br />
+  db.retry.point()<br />
+  select  whtad999.*<br />
+  from    whtad999 for update<br />
+  where   whtad999._index1 = {:i.otbp, :i.oorg, :i.adat, :i.orno, :i.oset, :i.pono, :i.seqn, :i.sern}   <br />
+  as set with 1 rows<br />
+  selectdo      | Item already in temp. table - do update...   <br />
+    <br />
+		message(&quot;Data already in table: &quot;)<br />
+		<br />
+  selectempty   | Item not yet in temp. table - do insert... <br />
+               <br />
+    | Calculate the week......               <br />
+    ret.val = utc.to.week(i.adat, week.day.num, year.day.num, week.num, hours, mins, secs, year.num)           <br />
+                <br />
+    whtad999.otbp = i.otbp   <br />
+    whtad999.adat = i.adat   <br />
+    whtad999.calw = week.num<br />
+    whtad999.caly = year.num<br />
+    whtad999.oorg = i.oorg<br />
+    whtad999.orno = i.orno<br />
+    whtad999.oset = i.oset<br />
+    whtad999.pono = i.pono<br />
+    whtad999.seqn = i.seqn<br />
+    whtad999.sern = i.sern<br />
+    whtad999.stka = i.stka<br />
+    whtad999.stkr = i.stkr<br />
+    db.insert(twhtad999, DB.RETRY)<br />
+      <br />
+  selecterror<br />
+		message(&quot;Error %d occurred&quot;, db.error())<br />
+		break <br />
+		<br />
+	endselect<br />
+<br />
+  commit.transaction()  <br />
+  <br />
+}Here's where the fun starts - although the table is clean to start with (I do a db.clear.table() each time the script starts) and, according to index1, the data are certainly unique (I've checked several times both in the debugger and in SQL Server), the selectdo code runs several times to indicate that the record &quot;already exists&quot;. But it doesn't!! <br />
+<br />
+So, my question here is - is there some subtle relationship existing between the two indexes - ie something perfectly legal, but totally abstruse - which I don't understand, and which could explain this behaviour? Or is there something else going on here which might be explained by the next instalment:<br />
+<br />
+Upon creation of the second index from within Baan, notwithstanding the fact that it is being created with &quot;Dupl&quot; clicked (=&quot;yes, allow duplicates&quot;), the corresponding index created by SQL Server is UNIQUE!!! (I've tried this several times, deleting and re-creating the index within Baan - both with and without data in the table and, yes, l convert to Runtime, Create Table, logout, login...). Here's the tell-tale from SQL Server: index_name                index_description                         index_keys       <br />
+------------------------- ----------------------------------------- ------------- <br />
+Itwhtad999100_1a          clustered, unique located on PRIMARY      hash1<br />
+Itwhtad999100_2a          nonclustered unique located on PRIMARY    hash2Ok - I can play that game too - I can change the index within SQL Server to non-unique: if exists (select name from sysindexes where name = 'Itwhtad999100_2a') <br />
+	drop index dbo.twhtad999100.Itwhtad999100_2a <br />
+	create nonclustered index Itwhtad999100_2a on baandbc.dbo.twhtad999100 (hash2), <br />
+<br />
+with the intended result:<br />
+<br />
+index_name                index_description                         index_keys       <br />
+------------------------- ----------------------------------------- ------------- <br />
+Itwhtad999100_1a          clustered, unique located on PRIMARY      hash1<br />
+Itwhtad999100_2a          nonclustered located on PRIMARY           hash2 But this has no effect when the Baan code is run :mad: .<br />
+<br />
+So (if you've had the patience to get this far!), all you DB gurus out there - what's going on here?<br />
+<br />
+Stumped,<br />
+Robert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Warans</div><div class="date">24th September 2003, 17:12</div></div><div class="posttext">Robert,<br />
+<br />
+We actually do not require 'for update' when only db.insert() is performed on a table.<br />
+<br />
+I know this may not solve your problem...but its better to avoid 'for update' in table select when doing db.insert().<br />
+<br />
+A Tip:  <br />
+Try commit.transaction() immediately after db.insert() in the select empty section...<br />
+<br />
+One other curious thing for me: you have used date as one of the parts in the index, if everything is unique (incl. date) field, I'm sure your other fields like orno, pono, sern (atleast sern) must be unique...right ?<br />
+<br />
+I have faced some problem, when the processing took place so quickly...because of 'date' as part of the index..in a customized session... <br />
+<br />
+Just thought of letting you know....<br />
+<br />
+Well, good luck!!<br />
+<br />
+Warans</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th September 2003, 18:04</div></div><div class="posttext">Are any rows getting added at all? I would expect at least 1 row would get added.  When running the script were there any records in the table?  How are you using the db.clear.table? I have only used it once with the no rollback option.  Maybe you could drop the second index and try again.  I did not see anything wrong while glancing at the code.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertB</div><div class="date">25th September 2003, 08:44</div></div><div class="posttext">Hi guys,<br />
+<br />
+Thanks for the replies<br />
+<br />
+Warans: I included the date field in the index, because items/shipments pertaining to a particular order/oset/pono/seqn are often split and received on different dates and I _think_ that the seqn/sern may well overlap in such cases, so I wanted to make really sure that the data-rows were indeed unique. I'll admit that I didn't inspect all the relevant rows to see if this were indeed the case, so it may be slightly overkill on my part. Better safe than sorry... And, yes, you're perfectly correct on the &quot;for update&quot; - I had copied this chunk of code from another script of mine, where I had needed to do _either_ update _or_ insert. But of course, in this case, I don't need the update...:rolleyes: <br />
+<br />
+Mark: yes, I'm certainly getting data - up to 80% or 90% of the correct data is being written to the temp table. As to the db.clear.table() - I've often used this, and here's how it's being used (and, yes, it really does delete all rows): function read.main.table()<br />
+{                                                                          <br />
+               <br />
+  | Delete all records from the temp. Report table on start-up.......                           <br />
+  db.clear.table(twhtad999) <br />
+  commit.transaction()     <br />
+                   <br />
+  get.new.data()   | This calls the write.record.to.temp.table(...) function intermittently.<br />
+  write.data.to.report()  <br />
+<br />
+}OK, I'm going to have to debug this thing on write to see exactly what's being accepted/rejected. Ho hum...<br />
+<br />
+I still don't understand though why SQL Server creates a unique index, where non-unique has been specified. Is this a bug or a feature of the Baan RDBMS driver?<br />
+<br />
+Cheers,<br />
+Robert</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

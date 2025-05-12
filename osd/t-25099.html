@@ -1,0 +1,163 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Ora-1555 two weeks after we moved to Oracle 9, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Ora-1555 two weeks after we moved to Oracle 9 Operating Systems &amp; Databases" />
+	
+	<title>Ora-1555 two weeks after we moved to Oracle 9 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Ora-1555 two weeks after we moved to Oracle 9</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">alexpreyer</div><div class="date">15th September 2005, 10:58</div></div><div class="posttext">We migrated our Baan Servers to Suse Linux Enterprise 8 and Oracle 9 roughly 10 weeks ago. After 4 weeks running the new system a Ora-1555 error occured in some sessions. We are using the auto undo managment and the undo tablespace growed from 6 GB up to 16 GB. I got a hint to increase the undo_retention value which first was 6000. I increased it up to 10000 and then the session which produced the error runs again. But the next day other sessions started producing this error. 90 percent are produced by a display session when the users scrolling through the data. 3 or 4 times we also got the error in other session, but mainly with this display session which is used by a lot of users.<br />
+I'm really frustrated because I don't know where to search. Our Undo Tablespace is big enough and the system is running well. <br />
+<br />
+Maybe someone has a hint for me<br />
+<br />
+Alex Preyer</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Pierre</div><div class="date">15th September 2005, 12:33</div></div><div class="posttext">I had problems with the RBS in BaaN, there are some huge sessions (like purge/delete financial data or commission calculation) that requires a lot of RBS space for read consistency. At the end I had to create rollback segments with 8 extents of 100M, in total I have 12G of rollback space.<br />
+<br />
+When I migrated to Oracle 9 I preferred to keep the old rollback segment method of managing undo, even though for other applications the automatic undo management is working well and simplifies a lot administration, BaaN is very specific for undo management.<br />
+<br />
+If you use undo management then I suppose undo retention time must be up to a few hours since some baan sessions run for hours.<br />
+<br />
+Rgds,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">15th September 2005, 13:53</div></div><div class="posttext">undo_retention has to be large enough for the full runtime of the process<br />
+(i.e., if MRP takes 10 hours to run.. undo retention should be 10 hours..) <br />
+Fortunatly undo_retention is a dynamic parameter so you can change it for<br />
+long running jobs, and then switch it back.<br />
+Also, if you're going to run that process while people are on the system, it needs to be large enough to handle that.<br />
+<br />
+After all of that, the undo tablespace needs to be large enough to handle that much retention.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">alexpreyer</div><div class="date">15th September 2005, 13:58</div></div><div class="posttext">I'm really sure that my undo_retention value is big enough (12000). Our longest running process only needs 3 hours (our hardware is fast). But the strange thing is that the error occurs not at one of these long running session. It appears in a  normal display session during scrolling. That is the point I don't understand.<br />
+<br />
+Thanks<br />
+<br />
+Alex</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Pierre</div><div class="date">15th September 2005, 14:16</div></div><div class="posttext">I have never had this error in normal display session, and you are right it is hard to imagine a user scrolling down in a display for multiple hours !! Normally this error occur when you open a cursor and keep it open for a very long time, while other people (or worst yourself) I modifying the data of the cursor.<br />
+<br />
+So I have no idea. But since you can have the statement in the log.ora.sql file (and also in the oracle alert file I think) you can investigate if it is the case for that particular statement ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">15th September 2005, 16:30</div></div><div class="posttext">What version of oracle are you on? there are plenty of 1555 related Oracle 9i<br />
+bugs.<br />
+<br />
+For example:<br />
+Dequeue with next message navigation may get ORA-1555 <br />
+fixed in 9.2.0.2<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">alexpreyer</div><div class="date">15th September 2005, 16:35</div></div><div class="posttext">We are on 9.2.0.4<br />
+<br />
+Alex</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">16th September 2005, 08:58</div></div><div class="posttext">it's funny. I think the ORA 1555 is the most painfull and at the time most misunderstood oracle error you get in a Baan system.<br />
+<br />
+I will try to explain the things, as I see them:<br />
+<br />
+Oracle is trying to keep read consistency and therefore uses the rollback segments or undo segments. For a transaction to get read consistency, it does not only need his own rollback segments, but also the rollback segments or the other parallel running transactions. So a small transaction might very well receive ORA-1555, if the undo information of a long running (previously started, but still running) transaction is lost.<br />
+<br />
+In oracle 8 and before, it was impossible to avoid this error completely, but you could make it less likely by defining few (maybe only one) very big rollback segments.<br />
+<br />
+In Oracle 9 and upwards you can in my opinion avoid the error completely, by doing two things:<br />
+<br />
+a) Like Dave said, make the undo retention longer than your longest running transaction.<br />
+<br />
+b) Make your undo tablesspace big enough to keep all the information.<br />
+<br />
+If (b) is not mainatained, than oracle will give up on the specified undo retention  and I think this is the case in you example. As you stated yourself: &quot;Your undo tablespace grew&quot;! As long as it is growing means, that oracle needed more!<br />
+<br />
+Obviously you might also just run into some Oracle bug, even though 9.2.04 seems to be a pretty stable versionto me.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Martin</div><div class="date">16th September 2005, 09:24</div></div><div class="posttext">hmmm,<br />
+<br />
+some tips for Oracle 9i :<br />
+from 9i up it was very important to sepearte long running transactions from short transactions. <br />
+2 years ago when we migrate to 9i i have had the same problem. Long running transaktions over day.<br />
+After we had moved the long running jobs to over-night processing the system runs well with a minimum of space requirement.<br />
+Also i had set the undo_retention as followed :<br />
+<br />
+over day processing : 10800<br />
+over night processing : 38400<br />
+<br />
+and thats works fine with baan.<br />
+I switched the undo_retention time in a cron-job every evening at 6 and every morning at 6.<br />
+Also the system statistics where switched from day to night processing.<br />
+<br />
+greetz<br />
+martin</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Pierre</div><div class="date">16th September 2005, 11:09</div></div><div class="posttext">Interesting but I have two comments<br />
+<br />
+- Why bother decrease the undo_retention during the day ? Once the space is allocated for the undo tbs you will not reuse it during the day for something else I suppose ? Maybe it has another impact I am not aware of.<br />
+<br />
+- Only long running transactions will suffer of the &quot;snapshot too old error&quot;. Because a small transaction don't take a lot time, so the chance that the information has been overwritten in the undo segment is low. <br />
+<br />
+Of course BaaN does not give you the possibility to change the code, but for other applications one way to avoid the error is to decrease the number of commits : because as long as a transaction is not commited it will stay in the rollback segment and hence oracle is able to rebuild the previous state of the data for the long running transactions. This is even more the case if you do commit inside your cursor (this is called commit accross fetches, which is supported by Oracle but not by other DBMS). Of course if you decrease the number of commit you can have the opposite error (unable to extend rollback segment).<br />
+<br />
+Hope this clarify</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">alexpreyer</div><div class="date">16th September 2005, 11:12</div></div><div class="posttext">At the moment the problem seems only appear in one session, a self created display session (we have been using it for 4 years now without problems). The only longtime with this session is, that the users keep them open and from time to time they have a look into it. The shortest period our users had the session open before it crashed was 5 minutes! <br />
+The undo tablespace does not grow anymore. But if he needs to grow he can because the file is autoextend.<br />
+Meanwhile I'm on 38000 with my undo_retention value, but the error still occurs.<br />
+<br />
+Thanks<br />
+<br />
+Alex</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">16th September 2005, 14:26</div></div><div class="posttext">You don't do a select for update in your display session do you? if not, then I think you're getting a bad error or running into an oracle bug. I checked metalink, no more 1555 errrors after 9.2.0.4, but that doesn't necessarily mean too much. <br />
+<br />
+It does sound like it has something to do with the way your session was written though.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">alexpreyer</div><div class="date">16th September 2005, 14:52</div></div><div class="posttext">NO, it is a simple display session.<br />
+Half a hour ago I had an error with a different session (a standard Baan session) - tdilc1513m000.<br />
+The user explained me that, when he moves to fast with the &quot;double arrows&quot; through the data the session (not the baan gui) is closed. When he moves slow, no error appears. The same is it in the self created session, but there the users scrolling with the mouse wheel through the data.<br />
+<br />
+Maybee this helps.<br />
+<br />
+Alex</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Pierre</div><div class="date">16th September 2005, 14:54</div></div><div class="posttext">You have snapshot too old errors with read only queries. It has to do with read consistency. That is when you start your query (i.e. when you open the cursor), oracle build a consistent view of the data as it is at that time. As long as your cursor is open, oracle will show you the data as it was at the start, even if someone else has changed the data in the meantime. For this Oracle use the rollback segment. However sometimes the info in the rbs is not there anymore ==&gt; then you get this error and your query is aborted (because Oracle can not show read consistent data anymore).<br />
+<br />
+Hope this help. BTW there are a lot of article on this issue on metalink</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">alexpreyer</div><div class="date">16th September 2005, 16:01</div></div><div class="posttext">Ok, thanks all for the information so far. There are a lot of hints and hopefully I'll find the reason.<br />
+<br />
+Thanks<br />
+<br />
+Alex</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

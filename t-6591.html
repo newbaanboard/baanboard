@@ -1,0 +1,133 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS - Automating Print Order Document and Release Problem!!!, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS - Automating Print Order Document and Release Problem!!! AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS - Automating Print Order Document and Release Problem!!! [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS - Automating Print Order Document and Release Problem!!!</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">gous99</div><div class="date">6th September 2002, 16:59</div></div><div class="posttext">Hi all,<br />
+<br />
+I am trying to automate the process of creating a production order and then do the print order document and release.<br />
+<br />
+We are on Baan c3 A&amp;D 22b0<br />
+<br />
+Everything goes smooth up until the Print Order Document and Release.<br />
+<br />
+Here is my code for this part,<br />
+<br />
+stpapi.handle.subproc(&quot;tisfc0101m000&quot;, &quot;tisfc0205s000&quot;, &quot;add&quot;)<br />
+stpapi.handle.subproc(&quot;tisfc0205s000&quot;, &quot;tisfc0408s000&quot;, &quot;add&quot;)<br />
+stpapi.zoom.option(&quot;tisfc0101m000&quot;, 1, &quot;tisfc0205s000&quot;, gapi.error.code)<br />
+<br />
+I followed the script with afs.log, here it goes, it handle the process for tisfc0205s000 (wich is only a form with no fields, all the code, zooming to tisfc0408s000 and tisfc0204s000 is in the form.1, init.form event).<br />
+<br />
+Then, in the afs.log we see it does the handle sub process to tisfc0408s000, but (I compiled the script tisfc0205s000 in debug) then without any warning it starts the session tisfc0205s000, and when it gets the zoom.to$ tisfc0408s000 it hangs there forever????<br />
+<br />
+Here is the code from tisfc0205s000,<br />
+<br />
+form.1:                                      |EV#12031-1<br />
+init.form:                                   |EV#12031-1<br />
+     import(&quot;new.order.no&quot;,new.order.no)              <br />
+     export(&quot;new.order.no&quot;,new.order.no)              <br />
+     zoom.to$(&quot;tisfc0408s000&quot;,z.session,&quot;&quot;,&quot;&quot;,0)   zoom.to$(&quot;tisfc0204s000&quot;,z.session,&quot;tisfc0205s000&quot;,&quot;&quot;,0)<br />
+     end()<br />
+<br />
+Any ideas for this problem....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th September 2002, 18:20</div></div><div class="posttext">The way I did this was a little different. I did have a GRP Production order to transfer.  So I confirm, transfer and print.  I used nothing but main sessions - no sub-sessions or zooming.  So you may want to try using tisfc0101m000 to create the production order. Then use tisfc0205m000 to release the production order. Then tisfc0408m000 to print the order documents.  Then you do not have to worry about controlling sub-sessions.<br />
+<br />
+Good Luck!<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th September 2002, 18:23</div></div><div class="posttext">I forgot to add that there have been multiple problems discussed here with sub-sessions that auto start another sub-session.  Plus there also some problems with session that end automatically also.  That is why I suggessted using main sessions versus sub-sessions.  I know it would be easier to start one session and do it all, but the coding is probably about the same using either method.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gous99</div><div class="date">6th September 2002, 20:42</div></div><div class="posttext">Mark,<br />
+<br />
+I did start to work on the main session tisfc0408m000, you seem to mention you created an AFS for it?<br />
+<br />
+I putting my values, but it never prints saying no data within range; hence no action taken, it seems like it doesn't pass my parameter to the session?<br />
+<br />
+After doing my put, I do get on my fields, the value is good, but it does not seem to carry in the actual session?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th September 2002, 20:59</div></div><div class="posttext">I used ttstpcreatdll to generate a library. Here is the code:<br />
+<br />
+function print_production_order()<br />
+{<br />
+	spool.device  = &quot;&quot;<br />
+	spool.fileout = &quot;&quot;<br />
+	sfc.order = val(sfc.order.string)<br />
+| Setup report.<br />
+	rprt.id = spool.open(&quot;rProd. Order&quot;,spool.device,1)<br />
+	if(rprt.id = 0) then<br />
+		mess.3=&quot;Printing Cancelled.&quot;<br />
+		display.all()<br />
+		return<br />
+	endif<br />
+| Put the fields.<br />
+	f0408m000.put.Project_Group_to(&quot;ZZZ&quot;)<br />
+	f0408m000.put.Production_order_from(sfc.order)<br />
+	f0408m000.put.Production_order_to(sfc.order)<br />
+	f0408m000.put.To_Production_Date(tipgc510.psdt)<br />
+	f0408m000.put._Originals(tcyesno.yes)<br />
+	f0408m000.put._Duplicates(tcyesno.yes)<br />
+	f0408m000.put._Modified(tcyesno.yes)<br />
+<br />
+| Set report<br />
+	stpapi.set.report(&quot;tisfc0408m000&quot;,&quot;rtisfc040801000&quot;,spool.device,errmsg)<br />
+	if(strip$(errmsg)&lt;&gt;&quot;&quot;) then<br />
+		message(&quot;Report: &quot;&amp;errmsg)<br />
+	else<br />
+		f0408m000.continue(errmsg)<br />
+		if(strip$(errmsg)&lt;&gt;&quot;&quot;) then<br />
+			message(&quot;Continue: &quot;&amp;errmsg)<br />
+		endif<br />
+		mess.3 = &quot;Production Order Printed.&quot;<br />
+		display.all()<br />
+	endif<br />
+| Close the spooler for the next device and report.<br />
+	spool.close()<br />
+| Kill the session.<br />
+	f0408m000.end()<br />
+}<br />
+<br />
+You probably do not need the project group and you should probably make sure the production date is out far enough. You may also want to post your code that might help someone else see what is wrong.<br />
+<br />
+Mark<br />
+<br />
+(And yes ~Vamsi it still has strip$ in it. I no longer use this code and its Gordons fault anyway. He used it first in his code) :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">6th September 2002, 21:35</div></div><div class="posttext">Mark,<br />
+Leave me out of this! You know you can modify any code you've requisitioned from me... Anyway, I kind of like the word &quot;strip&quot;.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th September 2002, 21:50</div></div><div class="posttext">Your posting off topic. Cut it out. I followed your lead anyway. :) <br />
+<br />
+I wonder if moderators can get away with this. At least on Fridays :)<br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

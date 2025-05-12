@@ -1,0 +1,94 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Password Encryption/Hash Algorithm, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Password Encryption/Hash Algorithm Tools Administration &amp; Installation" />
+	
+	<title>Password Encryption/Hash Algorithm [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Password Encryption/Hash Algorithm</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">scough</div><div class="date">15th October 2012, 17:56</div></div><div class="posttext">For many years we have been using a procedure to copy the BSE directory to a test server and restore a copy of a recent bak of the production database to the test server. <br />
+<br />
+We cannot use that procedure any more and I am wondering if it has something to do with upgrading to the latest porting set and upgrading to MS SQL 2008 R2.<br />
+<br />
+Does anyone have a full understanding of how the password is stored in the msql_users file? Is it just a hash or is it encrypted? <br />
+<br />
+How is the actual authentication completed? Is the string in the msql_users file just passed through to DCERPC and RPC_NET calls?<br />
+<br />
+I am just trying to get back to a point were we can just copy the BSE and restore a bak file and not have to run RDBMS sessions to fix the password so we can log in.<br />
+<br />
+Can anyone advise?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vinceco252</div><div class="date">15th October 2012, 19:22</div></div><div class="posttext">One thing I've seen is losing the relationship between the SQL Login and the database user when restoring the database on a different server.  You may want to make sure that the SQL login still points to the correct database user.  If it doesn't, you can run the following from the baandb: &quot;sp_change_users_login 'Update_One', 'database_user', 'sql_login'&quot; (substitute database_user and sql_login for the actual values).<br />
+<br />
+If that doesn't work, what error do you get when you try to login to the test server?<br />
+<br />
+Vince</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">scough</div><div class="date">15th October 2012, 21:15</div></div><div class="posttext">I know exactly what you are referring to when talking about the loss of link between the SQL Login and the database user.<br />
+<br />
+The exact reason for this is a mismatch of the SIDS for the SQL Logins. When a SQL Login is created on one server it is given a SID. When you create a new user for the database, the user is linked to the SQL Login (having that SID).<br />
+<br />
+When you transfer/restore the database to another server, that server may have a SQL Login that's name exactly matches the name on the other server but the underlying SIDs do not match.<br />
+<br />
+Many use the procedure of removing the &quot;orphaned&quot; database user and recreating that user in the baandb database. <br />
+<br />
+I prefer to recreated the SQL Login with the same SID as the other server so I never have to remove and recreate the baan user.<br />
+<br />
+I just want to understand how the password hash is created and what is it compared against to authorize the connection.<br />
+<br />
+I have run the sessions ttdba0115m000 and ttdba0110m000 and I am sure the passwords are correct (I can log into the server using SQL Server authentication in the MSSMS without issue).<br />
+<br />
+I have to take a wild guess and assume the encryption algorithm takes into account the SQL Login's SID when creating the password hash. But since it also uses something else (maybe the time?) as a salt, I can't test that guess as I have no way to run two password generation sessions at the same exact time on two different servers)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jclju1</div><div class="date">16th October 2012, 16:36</div></div><div class="posttext">Does anyone have a full understanding of how the password is stored in the msql_users file? Is it just a hash or is it encrypted? <br />
+Encrypted.<br />
+You can try encrypt.exe command:<br />
+<br />
+C:\Infor\ERPLN\bse&gt;encrypt 12345456<br />
+l5FJ-Pt[CN(jdd\u&amp;}b&gt;EC^.HWNMSLo0</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">scough</div><div class="date">16th October 2012, 22:52</div></div><div class="posttext">Encrypted.<br />
+You can try encrypt.exe command:<br />
+<br />
+C:\Infor\ERPLN\bse&gt;encrypt 12345456<br />
+l5FJ-Pt[CN(jdd\u&amp;}b&gt;EC^.HWNMSLo0<br />
+<br />
+Thanks but we run IVc4 and this executable does not come with IVc4.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vinceco252</div><div class="date">16th October 2012, 23:01</div></div><div class="posttext">It shouldn't be a Baan IV vs LN issue.  The encrypt.exe binary did not exist for Windows until recently.  There is a solution to download it; unfortunately, I can't seem to pull up any results on the InforXtreme knowledgebase right now, so I can't provide the number.  You should be able to do a search for encrypt and find it on the InforXtreme site.<br />
+<br />
+Vince</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">17th October 2012, 08:56</div></div><div class="posttext">Hi,<br />
+ <br />
+I'm also on IVc4 and on our system there's a encrypt6.1 within the $BSE/bin folder.<br />
+ <br />
+Regards <br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vinceco252</div><div class="date">17th October 2012, 17:26</div></div><div class="posttext">Unix porting sets have always had the encrypt6.x binary available.  encrypt.exe was only made available on Windows relatively recently.<br />
+<br />
+Vince</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

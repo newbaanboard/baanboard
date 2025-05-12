@@ -1,0 +1,251 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Access client environment variables, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Access client environment variables Tools Development" />
+	
+	<title>Access client environment variables [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Access client environment variables</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">baaneur</div><div class="date">24th October 2002, 12:05</div></div><div class="posttext">Hi,<br />
+<br />
+How can I access client environment variables from the BaaN server ?<br />
+I want to transfer information from windows program to a BaaN session using temporary files.<br />
+So my BaaN session creates a temporary on the server using creat.tmp.file ( bse.tmp.dir$() ) and calls the windows program with app.start.<br />
+The windows program generate a tmp file in the BSE_TMP directory of the client.<br />
+Finally I want to transfer the client temporary file into my server temporary file but I can't because I don't know what BSE_TMP is.<br />
+Can anyone help me ?<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th October 2002, 16:01</div></div><div class="posttext">I have never tried this but I wonder if %BSE_TMP% in the filename of the client2server command would work.  <br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nick_rogers</div><div class="date">24th October 2002, 17:05</div></div><div class="posttext">Maybe I do not fully understand youre request, but the get.env$() function can retieve an env var:<br />
+<br />
+getenv$<br />
+NAME getenv$ - function for retrieving environment variables<br />
+SYNOPSIS string     GETENV$( string env_var(256) )<br />
+DESCRIPTION The function GETENV$ returns the value of the specified environment variable of the operating system. If the specified variable is not available an empty string (&quot;&quot;) is returned.<br />
+Example:<br />
+string name(15)<br />
+name = getenv$(&quot;LOGNAME&quot;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th October 2002, 17:13</div></div><div class="posttext">Hi Nick!<br />
+<br />
+getenv$ gets the server side enivironment variable and baaneur is looking for something to get environment variables from the windows client side. I am not sure if there is a baan function for this.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baaneur</div><div class="date">24th October 2002, 17:18</div></div><div class="posttext">Thank you for your replies but it doesn't solve my problem.<br />
+I tried using %BSE_TMP% and %%BSE_TMP%% too but it didn't work.<br />
+getenv$() is used only for the server's environment variables. You can't select client's ones.<br />
+I tried to use create.local.temp.file from ttdllfilehand DLL but I don't understand how this function works and what it must do.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">isimeon</div><div class="date">24th October 2002, 19:49</div></div><div class="posttext">You can run set command on local machine:<br />
+<br />
+app.start(&quot;set BSE_TMP &gt;tmp.txt&quot;,&quot;c:\&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;)<br />
+<br />
+and next read the file tmp.txt on local computer with seq.open.local(...), seq.read.local(...) and seq.close.local(...).<br />
+<br />
+Depending on operating system on the client computer you can use <br />
+<br />
+cmd /C set BSE_TMP &gt;tmp.txt<br />
+<br />
+or <br />
+<br />
+start set BSE_TMP &gt;tmp.txt<br />
+<br />
+and using different switches.<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baaneur</div><div class="date">25th November 2002, 15:11</div></div><div class="posttext">Thanks for your help but I've found the answer !!<br />
+<br />
+It is very simple :<br />
+In all the functions used for local file handling (client2server, remove.local.file, ... see ottdllbw), you can use the baan syntax ${...} in strings to specify env. variables; i.e : if you want to remove the file TOTO in the BSE_TMP local directory, you use the command:<br />
+remove.local.file(&quot;${BSE_TMP}\TOTO&quot;)<br />
+and it's done !!!<br />
+So ${...} works for server and local files handling functions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th November 2002, 15:19</div></div><div class="posttext">Thanks for the update Baaneur.  I am sure this prove useful to others in the future - myself included.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">15th February 2008, 16:03</div></div><div class="posttext">Although this is a quite old thread, the main idea is still actual.<br />
+<br />
+Most of the server2client() examples simply use &quot;C:\temp&quot; and all that stuff and so they will run into problems eg. on citrix clients when their admin does not allow to write to C:\.<br />
+<br />
+So I tried the following (my baan is on unix):<br />
+1. rc = server2client(&quot;.profile&quot;, &quot;C:\temp\test.txt&quot;, true) -- rc=0, works fine.<br />
+2. rc = server2client(&quot;.profile&quot;, &quot;${TEMP}\test.txt&quot;, true) -- rc=0, no file in %TEMP% created.<br />
+3. rc = server2client(&quot;.profile&quot;, &quot;$TEMP\test.txt&quot;, true) -- rc=-1, no file in %TEMP% created.<br />
+4. rc = server2client(&quot;.profile&quot;, &quot;${%TEMP%}\test2.txt&quot;, true) -- dto.<br />
+<br />
+Some other tests:<br />
+5. rc = server2client(&quot;.profile&quot;, &quot;C:\temp\${TERM}.txt&quot;, true) -- rc=0, created a file C:\temp\${TERM}.txt, on unix side TERM is set to vt220, on windows side TERM is not set.<br />
+6. rc = server2client(&quot;.profile&quot;, &quot;${HOMEDRIVE}\test.txt&quot;, true) -- rc=0, created a file X:\test.txt which is okay. HOMEDRIVE is only set on windows side.<br />
+<br />
+@baaneur: Is your baan server on unix or on windows?<br />
+<br />
+@all: Does one of my variants work on your system (unix + baan ivc4)?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">15th February 2008, 17:40</div></div><div class="posttext">Meanwhile, I played with some other WINDOWS env vars.<br />
+<br />
+${HOMEDRIVE} -- okay; X:<br />
+${HOMEDRIVE}\${HOMEPATH} -- okay; X:\<br />
+${HOMESHARE} -- okay; \\&lt;machine&gt;\...<br />
+<br />
+${USERPROFILE} -- No! &quot;C:\Dokumente und Einstellungen\...&quot;; I guess the blanks are the problem (in germany).<br />
+<br />
+${TMP} -- No! &quot;C:\DOKUME~1\...&quot;; I gues the tilde make the problem.<br />
+${TEMP} -- No! identical to ${TMP}<br />
+<br />
+Hints on other countries / language settings appreciated.<br />
+Hints on standard WINDOWS env vars too.<br />
+<br />
+günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">george7a</div><div class="date">16th February 2008, 22:56</div></div><div class="posttext">Hi,<br />
+<br />
+I have also been in this question and found out that if you do not set the full path of the second argument in server2client function, BW will automatically copy the file to its default directory. Example:<br />
+<br />
+rc = server2client(&quot;.profile&quot;, &quot;test.txt&quot;, true) <br />
+This code might copy the file to %TEMP% or to the desktop or...<br />
+So I used this method to copy &amp; activate a VB script that will return the %TEMP% in a text file. After that the Baan script will delete the temp files. <br />
+<br />
+I can share the VB script when I am back in the office on Monday.<br />
+<br />
+- George</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baaneur</div><div class="date">18th February 2008, 10:24</div></div><div class="posttext">@gunther :<br />
+I'm surprised to see that this thread is not dead. Unfortunately, I don't work on baan anymore. Just to reply to your question, our baan server is on Unix.<br />
+Regards,<br />
+<br />
+Baaneur</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">18th February 2008, 11:21</div></div><div class="posttext">rc = server2client(&quot;.profile&quot;, &quot;test.txt&quot;, true) [/code]<br />
+This code might copy the file to %TEMP% or to the desktop or...<br />
+<br />
+Okay, that works (rc=0). But if I try to find that file on the windows side, I don't see. I've tested some directories manually from the explorer.<br />
+<br />
+Some programmed tests:<br />
+1. When I use rc = seq.fstat.local(&quot;test.txt&quot;, size), I get rc=0 (okay) and a size &gt; 0, so the file *must* be on the windows side. <br />
+<br />
+2. When I use a_string = get.local.filename() after the server2client call, a_string is empty atlhough it should contain the last filename. Did you manage to use that function?<br />
+<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">george7a</div><div class="date">18th February 2008, 11:26</div></div><div class="posttext">I did not use get.local.filename before. What I did is that I wrote a VB script that gets %TEMP% and wrote it in a file and then the Baan Tools script read it. Thats how I knew where the &quot;Default Temp&quot; is.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">18th February 2008, 21:11</div></div><div class="posttext">Refer to the link - Accessing Environment Variables (http://www.freeweb.hu/wsh2/ch07c.html)<br />
+<br />
+Alternatively, you can use the Set command <br />
+C:\&gt;set<br />
+ALLUSERSPROFILE=C:\Documents and Settings\All Users<br />
+APPDATA=C:\Documents and Settings\prashanth\Application Data<br />
+BAANHOME=C:\Program Files\Baan\shared<br />
+CLASSPATH=C:\Program Files\Baan\shared\java\com_baan_bclm.jar;C:\Program Files\SSA-TA\Studio 2.6\java\b3devms.jar;C:\Program Files\Java\j2re1.4.2_07\lib\ext\QTJava.zip;C:\Program Files\Infor\Infor Integration\java\ow.jar;C:\Documents and Settings\All Users\Application Data\Infor\Infor Integration\java;C:\Program Files\<br />
+Infor\Infor Integration\java\ow3p.jar;C:\Program Files\Baan\shared\bin;C:\Program Files\Baan\shared\shlib;C:\Program Files\Baan\shared\java\com_baan_bclm.jar;C:\Program Files\SSA-TA\Studio 2.6\java\b3devms.jar;C:\Program Files\Java\j2re1.4.2_07\lib\ext\QTJava.zip;C:\Program Files\Infor\Infor Integration\java\ow.jar;C:\<br />
+Documents and Settings\All Users\Application Data\Infor\Infor Integration\java;C:\Program Files\Infor\Infor Integration\java\ow3p.jar;C:\Program Files\Baan\shared\bin;C:\Program Files\Baan\shared\shlib<br />
+CommonProgramFiles=C:\Program Files\Common Files<br />
+COMPUTERNAME=PFC303502<br />
+ComSpec=C:\WINDOWS\system32\cmd.exe<br />
+FP_NO_HOST_CHECK=NO<br />
+HOMEDRIVE=C:<br />
+HOMEPATH=\Documents and Settings\prashanth<br />
+JAVA_HOME=C:\Program Files\Java\jdk1.5.0_12<br />
+LOGONSERVER=\\CNFQC045<br />
+NUMBER_OF_PROCESSORS=1<br />
+OS=Windows_NT<br />
+Path=C:\Program Files\BMC Software\CONTROL-M EM 6.3.01\Default\SybClient\OCS-12_5\bin;C:\Program Files\Java\jdk1.5.0_12\bin;C:\oracle\ora92\bin;C:\Program Files\Oracle\jre\1.3.1\bin;C:\Program Files\Oracle\jre\1.1.8\bin;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\PROGRA~1\E!TCP;C:\Program Files\UltraEdit;C:\Program Files\Baan\shared\bin;C:\Program Files\Baan\shared\shlib;C:\Program Files\QuickTime\QTSystem\;C:\Program Files\ATI Technologies\ATI Control Panel;C:\PROGRA~1\ATT\Graphviz\bin;C:\Program Files\Infor\Infor Integration\bin;C:\Program Files\Java\jre1.6.0_02\bin\client;C:\Program Files\SLM\bin;C:\Program Files\SLM\shlib<br />
+PATHEXT=.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH<br />
+PROCESSOR_ARCHITECTURE=x86<br />
+PROCESSOR_IDENTIFIER=x86 Family 6 Model 13 Stepping 6, GenuineIntel<br />
+PROCESSOR_LEVEL=6<br />
+PROCESSOR_REVISION=0d06<br />
+ProgramFiles=C:\Program Files<br />
+PROMPT=$P$G<br />
+QTJAVA=C:\Program Files\Java\j2re1.4.2_07\lib\ext\QTJava.zip<br />
+SESSIONNAME=Console<br />
+SLMHOME=C:\Program Files\Baan\shared<br />
+SLM_API_SL=SlmClient<br />
+SystemDrive=C:<br />
+SystemRoot=C:\WINDOWS<br />
+TEMP=C:\DOCUME~1\prashanth\LOCALS~1\Temp<br />
+TMP=C:\DOCUME~1\prashanth\LOCALS~1\Temp<br />
+USERDNSDOMAIN=CNF.PROD.CNF.COM<br />
+USERDOMAIN=CFI<br />
+USERNAME=prashanth<br />
+USERPROFILE=C:\Documents and Settings\prashanth<br />
+WF_RESOURCES=C:\oracle\ora92\WF\RES\WFus.RES<br />
+windir=C:\WINDOWS<br />
+<br />
+C:\&gt; set /?<br />
+Displays, sets, or removes cmd.exe environment variables.<br />
+<br />
+SET [variable=[string]]<br />
+<br />
+  variable  Specifies the environment-variable name.<br />
+  string    Specifies a series of characters to assign to the variable.<br />
+<br />
+Type SET without parameters to display the current environment variables.<br />
+<br />
+If Command Extensions are enabled SET changes as follows:<br />
+<br />
+SET command invoked with just a variable name, no equal sign or value<br />
+will display the value of all variables whose prefix matches the name<br />
+given to the SET command.  For example:<br />
+<br />
+    SET P<br />
+<br />
+would display all variables that begin with the letter 'P'<br />
+<br />
+SET command will set the ERRORLEVEL to 1 if the variable name is not<br />
+found in the current environment.<br />
+<br />
+SET command will not allow an equal sign to be part of the name of<br />
+a variable.<br />
+<br />
+Two new switches have been added to the SET command:<br />
+<br />
+    SET /A expression<br />
+    SET /P variable=[promptString]<br />
+    <br />
+<br />
+C:\&gt;set t<br />
+TEMP=C:\DOCUME~1\prashanth\LOCALS~1\Temp<br />
+TMP=C:\DOCUME~1\prashanth\LOCALS~1\Temp<br />
+<br />
+C:\&gt;set temp<br />
+TEMP=C:\DOCUME~1\prashanth\LOCALS~1\Temp</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

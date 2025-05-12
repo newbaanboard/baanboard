@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Use preselection in DFE field properties, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Use preselection in DFE field properties Tools Development" />
+	
+	<title>Use preselection in DFE field properties [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Use preselection in DFE field properties</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">BaBernd</div><div class="date">11th February 2016, 18:11</div></div><div class="posttext">Hello to All,<br />
+<br />
+I use the Dynamic Forms Editor (DFE) in the worktop to design a print session for a classic report. <br />
+In the DFE I've created a new mask with several fields as shown in the attached screenshots. Especially the fields country (Land) and postal code (Postleitzahl) are important. In the field country I'd like to select a country out of the country-session. Afterwards the zoomed session for the postal code should only show the codes for the preselected country.<br />
+How can I realize it in the DFE zoom-properties? Or do I have to create code in the Program script for this print session? And how should this code looks like (programming example)?<br />
+Thanks in Advance<br />
+<br />
+Best Regards<br />
+Bernd</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">11th February 2016, 20:34</div></div><div class="posttext">Hi,<br />
+<br />
+Yes, you need to add the filtering in your script.<br />
+<br />
+e.g. It I want to display items in tcibd0501m000 for item group &quot;01&quot; only, I can write - <br />
+<br />
+field.item.f:<br />
+before.zoom:<br />
+<br />
+tcibd001.citg = &quot;010&quot;<br />
+<br />
+Or <br />
+<br />
+You can use query extension in your selection.filter<br />
+<br />
+e.g. <br />
+<br />
+selection.filter:<br />
+query.extend.select(&quot;tcibd001.*&quot;)<br />
+query.extend.from(&quot;tcibd001&quot;)<br />
+query.extend.where.in.zoom(&quot;tcibd001.citg = &quot; &amp; &quot;001&quot;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaBernd</div><div class="date">12th February 2016, 10:32</div></div><div class="posttext">Hi Bhushan,<br />
+<br />
+thanks for quick help. I've tried it. And it works fine first. But then I recognized the following:<br />
+<br />
+my field section looks like:<br />
+|********************* field section *********************<br />
+|*** Country *****<br />
+field.ccty.s:<br />
+before.display:<br />
+	ccty.s = &quot;DE&quot;		|Predefinition of the country field<br />
+<br />
+|*** Postal Code *****<br />
+field.pstc.f:<br />
+when.field.changes:<br />
+	pstc.t = pstc.f<br />
+before.zoom:<br />
+tccom136.ccty = ccty.s		|Predefined country variable to Postal Code table<br />
+<br />
+field.pstc.t:<br />
+before.zoom:<br />
+tccom136.ccty = ccty.s		|Predefined country variable to Postal Code table<br />
+<br />
+|*** City *****<br />
+field.cty.f:<br />
+when.field.changes:<br />
+	cty.t = cty.f<br />
+before.zoom:<br />
+tccom130.ccty = ccty.s		|Predefined country variable to address table<br />
+<br />
+field.cty.t:<br />
+before.zoom:<br />
+tccom130.ccty = ccty.s		|Predefined country variable to address table<br />
+<br />
+<br />
+During runtime, when I open the selection mask, and change the ccty.s variable from &quot;DE&quot; to &quot;AT&quot; (German/Austria) then the value was taken correctly to zoom into the postal code table.<br />
+It is the field right behind the country field (you can see it in the screenshots).<br />
+<br />
+But when I try to zoom into the address table for the city field then there will be still taken &quot;DE&quot; as ccty.s and not the new value &quot;AT&quot;.<br />
+<br />
+In other words:<br />
+ccty.s = DE<br />
+tccom136.ccty = DE<br />
+tccom130.ccty = DE<br />
+<br />
+but when changing to AT during runtime:<br />
+ccty.s = AT<br />
+tccom136.ccty = AT<br />
+tccom130.ccty = DE<br />
+<br />
+Have I missed a definition?<br />
+<br />
+Best Regards<br />
+Bernd</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">12th February 2016, 11:15</div></div><div class="posttext">Hi,<br />
+<br />
+You can try this - <br />
+<br />
+field.cty.f:<br />
+when.field.changes:<br />
+	cty.t = cty.f<br />
+before.zoom:<br />
+	query.extend.where.in.zoom(&quot;tccom130.ccty=&quot;&amp;quoted.string(ccty.s))<br />
+<br />
+field.cty.t:<br />
+before.zoom:<br />
+        query.extend.where.in.zoom(&quot;tccom130.ccty=&quot;&amp;quoted.string(ccty.s))</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaBernd</div><div class="date">12th February 2016, 18:40</div></div><div class="posttext">Hi Bhushan,<br />
+<br />
+I've misinterpreted this error/problem.<br />
+the value for tccom130.ccty during runtime was also =&quot;AT&quot;. <br />
+The problem is the &quot;zoom to&quot; session in the field property. I zoomed to session &quot;tccom4530m000&quot;. But within this session the field tccom130.ccty is not changeable (it is fixed with a chain-symbol in the form editor). So I believe that's the reason why I can't change the tccom130.ccty for that session from &quot;DE&quot; to &quot;AT&quot; or another value.<br />
+Now I use the session tccom4539m000 (city by country) as zoom to session.<br />
+<br />
+Thanks a lot again for additional research.<br />
+<br />
+Best Regards<br />
+Bernd</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">13th February 2016, 03:04</div></div><div class="posttext">Hi,<br />
+There will be a problem when you use before.zoom for non-index fields. Hence, in those cases, you need to go with selection filter as shown above.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

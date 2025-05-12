@@ -1,0 +1,119 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS does not end - why?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS does not end - why? AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS does not end - why? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS does not end - why?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">kmcinc</div><div class="date">25th June 2008, 23:13</div></div><div class="posttext">A function I wrote using AFS is going through three sessions: <br />
+1. pspmg0202m000 (Report Production Batches Completed)<br />
+2. pspmg0207s000 (Report End-Items/Containers Completed) using stpapi.handle.proc<br />
+3. tdilc4113s000 (Maintain ILC Receipts) using stpapi.continue.process<br />
+<br />
+All database actions are executed properly but despite my stpapi.end.session calls for those three sessions, they are stil running in the bshell when I do a 'ps'.  The return message is empty and the return code is 1, so everything appears to be ok.<br />
+<br />
+What's preventing the sessions from terminating?  Why isn't the stpapi.end.session call not working?<br />
+<br />
+Thanks for your input,<br />
+-tom</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th June 2008, 15:06</div></div><div class="posttext">Do you have the end sessions in the correct order?  Make sure there is not a hung sub-session that you have not accounted for.  Put everything in debug mode - make sure the sessions get started at the correct time.  I have seen where some subsessions start on their own, then the first stpapi.put starts another process for the sub-session - and it still works.  Then the stpapi.end does not kill both versions.<br />
+<br />
+If you have source code you can debug each session to see if something is causing it to hand.  I have had to use kill to end some subsessions.  I do not know why the will not end and I do not have source code.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kmcinc</div><div class="date">28th June 2008, 05:30</div></div><div class="posttext">Mark,<br />
+<br />
+i don't have source code either so debugging won't work, unfortunately.  there are some other subsessions which pop up in the bshell since i'm using synchronized sessions such as the Report Production Completed session.  I did not execute an 'stpapi.end' command for those because it is my understanding that they will close automatically when I end the 'main' subsession.  I guess I'll have to just try out different combinations...<br />
+<br />
+-tom</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">grzegorz</div><div class="date">28th June 2008, 18:30</div></div><div class="posttext">Maybe stupid, but..<br />
+When you process the same operations manually, session by session, are there any questions popping up? If yes, dont forget to set answers with<br />
+stpapi.enum.answer(..)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kmcinc</div><div class="date">30th June 2008, 16:39</div></div><div class="posttext">Thanks, Grzeforz, for your reply.  There are in fact questions coming up when processing these sessions manually and I do have the 'stpapi.enum.answer' function call in my code.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kmcinc</div><div class="date">2nd July 2008, 22:36</div></div><div class="posttext">I modified the code and took out all subsession function calls.  So here's what's left:<br />
+<br />
+stpapi.put.field(&quot;pspmg0202m000&quot;, &quot;pspmg001.orno&quot;, orno)<br />
+rc  = stpapi.find(&quot;pspmg0202m000&quot;, error.msg)<br />
+stpapi.end.session(&quot;pspmg0507m000&quot;, error.msg)<br />
+stpapi.end.session(&quot;pspmg0202m000&quot;, error.msg)<br />
+<br />
+When I look at the processes in the bshell, I still see 'pspmg0202m000' and 'pspmg0507m000' listed.<br />
+I also tried to add a 'stpapi.handle.subproc(&quot;pspmg0202m000&quot;, &quot;pspmg0507m000&quot;, ignore)' call before the above code but that didn't do anything either.  Any ideas?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kmcinc</div><div class="date">7th July 2008, 23:02</div></div><div class="posttext">here is the afs.log for the above code:<br />
+<br />
+LOGGING STARTED<br />
+07-07-2008<br />
+&gt;pspmg0202m000 handle.subproc pspmg0507m000 ignore<br />
+8dll-&gt;serv (getxml)<br />
+8dll-&gt;serv (startpspmg0202m000100)<br />
+11serv&lt;-4gl (api.child.startedpspmg0202m0008)<br />
+11serv&lt;-4gl (switch12)<br />
+12serv&lt;-4gl (api.child.startedpspmg0507m00011)<br />
+12serv&lt;-4gl (switch11)<br />
+11serv&lt;-4gl (switch12)<br />
+12serv&lt;-4gl (switch11)<br />
+11serv&lt;-4gl (switch12)<br />
+12serv&lt;-4gl (switch11)<br />
+11serv&lt;-4gl (init.ready)<br />
+pspmg0202m000(11)-RUNNING:<br />
+8dll-&gt;serv (handle.subsessionpspmg0507m000411)<br />
+&gt;pspmg0202m000(11) put.field:pspmg001.orno 180428<br />
+&gt;pspmg0202m000 Find<br />
+8dll-&gt;serv (def.find11)<br />
+pspmg0202m000(11)-RUNNING:def.find<br />
+11serv&lt;-4gl (switch12)<br />
+12serv&lt;-4gl (switch11)<br />
+11serv&lt;-4gl (def.find01)<br />
+pspmg0202m000(11)-RUNNING:<br />
+&lt;pspmg0202m000 record found (1)<br />
+&gt;psmpg0202m000 end.session<br />
+8dll-&gt;serv (afsscript: exit(8))</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kmcinc</div><div class="date">7th July 2008, 23:03</div></div><div class="posttext">when I access the session manually, there is no question or prompt coming up of any kind.  I simply open it, find a record and then close the session; no prompt, no message, nothing.  So the AFS code should work properly.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kmcinc</div><div class="date">7th July 2008, 23:43</div></div><div class="posttext">meanwhile, i was able to put the standard Baan session 'pspmg0202m000' into debug mode as well and found that the stpapi.end.session function call did not trigger any of the end.program or abort.program sections!  Why could be the reason for that?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th July 2008, 14:21</div></div><div class="posttext">Do other options work?  Like another find?  How does the session normally end - I mean when using it manually? I notice pspmg0507m000 starts, but I don't see where it is ended before pspmg0202m000.  At one point I had to end the display session prior to ending the main session.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kmcinc</div><div class="date">8th July 2008, 22:34</div></div><div class="posttext">Mark, the other options do work.  When my code calls the stpapi.find function, the pspmg0202 debugger jumps in and lets me walk thru the code.  when my code has control again and i call stpapi.end.session, the debugger does not respond.<br />
+Using the session manually and ending the session triggers the choice.end.program section.<br />
+As far as the pspmg0507 session is concerned, I do end the session prior to ending pspmg0202 ( i edited the code above accordingly).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">9th July 2008, 14:54</div></div><div class="posttext">I can not think of anything else to try - I know one session I had to use the kill command.  I would find the process id then kill that ID, it was the only way for me to get control again.  I do recommend contacting Baan support.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kmcinc</div><div class="date">10th July 2008, 00:04</div></div><div class="posttext">I found the thread with your sample code to find and kill a process which I will try.  Let's see if Infor can help.<br />
+<br />
+Thanks for you help and suggestions!</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

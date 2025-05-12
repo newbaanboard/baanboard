@@ -1,0 +1,147 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Add Time Intervals to Job Calendar, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Add Time Intervals to Job Calendar Tools Development" />
+	
+	<title>Add Time Intervals to Job Calendar [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Add Time Intervals to Job Calendar</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">6th September 2007, 22:58</div></div><div class="posttext">I have an odd problem with a script I wrote to add times by interval to the job calendar.  The idea is to create a calendar that causes a batch job to run every 20 minutes except evenings and weekends.<br />
+ <br />
+The script works like this. The user inputs a date range (say 9/3/2007 - 9/30/2007) and a time range (06:00-18:00), and an interval (20 min). The script adds times to the calenadar:<br />
+ <br />
+9/3/2007 6:00 <br />
+9/3/2007 6:20 <br />
+...<br />
+9/30/2007 17:40<br />
+9/30/2007 18:00<br />
+ <br />
+The problem I have is this: when the last time is on the hour (18:00), this script adds one extra interval (18:20 in this case). If the last time is not on the hour (17:40) the script stops at that time. It doesn't matter what hour it ends on: it always adds one extra interval.<br />
+ <br />
+Any ideas how to fix this?<br />
+ <br />
+Here is the code:<br />
+ <br />
+declaration:<br />
+ table tttaad507 | MRP Calendar<br />
+<br />
+| Form fields<br />
+ extern domain tcmcs.str6 calc  | Name of Job Calendar<br />
+ extern domain tcdate  date.f, date.t  | Date range (e.g. 9/1/2007 - 9/30/2007)<br />
+ extern domain tctmhs time.f, time.t | Time Range (e.g. 6:00 - 18:00)<br />
+ extern domain tcsrnb time.int  | Time interval  (e.g. 20 minutes)<br />
+| end of form fields<br />
+... Form code ... <br />
+function add.to.cal()<br />
+{<br />
+ long cal.time<br />
+ long d, wd, yd, wn, r, t<br />
+ long  loc.sec  <br />
+ long  utc.days<br />
+ long  utc.time<br />
+ long  ret   <br />
+ for d = date.f to date.t step 1<br />
+  r = num.to.week(d, wd, yd, wn, r)<br />
+  if wd &gt;= 2 and wd &lt;=6 then | if Mon - Fri<br />
+   for t = time.f to time.t step time.int<br />
+    | convert entered time to seconds since midnight <br />
+    loc.sec = ((t/ 100) * 3600) + ((t\100)*60) <br />
+    local.to.utc(utc.days, utc.time, d, loc.sec)<br />
+    | utc time is in seconds since midnight. Convert back to time.<br />
+    cal.time = ((utc.time / 3600)*100) + ((utc.time \ 3600) / 60)<br />
+    db.retry.point()<br />
+    select ttaad507.*<br />
+    from ttaad507 for update<br />
+    where   ttaad507._index1 = {:calc, :d, :cal.time}<br />
+    order by ttaad507._index1<br />
+    selectempty<br />
+     ttaad507.calc = calc<br />
+     ttaad507.date = d <br />
+     ttaad507.time = cal.time<br />
+     db.insert(tttaad507, db.retry)<br />
+     commit.transaction()<br />
+    selectdo<br />
+    endselect<br />
+   endfor<br />
+  endif <br />
+ endfor<br />
+}<br />
+<br />
+<br />
+ <br />
+In case you are wondering our service pack (21) uses UTC time for ttaad507, so the local.to.utc conversion is necessary (search for other threads about this table if you are curious). <br />
+ <br />
+I'm guessing the problem has to do with conversion to and from seconds. Probably a rounding issue. But I can't figure out how to fix it.<br />
+ <br />
+Thanks,<br />
+Rob</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th September 2007, 23:50</div></div><div class="posttext">I do not think you can do this &quot;for t = time.f to time.t step time.int&quot;. t is a long - so how does it know that 640 it should become 700?  You should be able to put it in debug mode and step through what t is set to.  Hopefully that will help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">7th September 2007, 02:10</div></div><div class="posttext">I should have been more clear. In the case of my example, time.int = 20. It is a form field. I edited the code in the original post a bit to make it clearer.<br />
+<br />
+It does work right up until the last iteration, and then it only fails if the last time falls right on the hour. I've run the script to add a month of dates to the calendar. It works great right up to the last entry for each date.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">george7a</div><div class="date">7th September 2007, 13:33</div></div><div class="posttext">Hi,<br />
+<br />
+I think I can see the problem and Mark gave a good example. I will expand it:<br />
+<br />
+time.f = 1740<br />
+time.t = 1800<br />
+time.int = 20<br />
+<br />
+In this For<br />
+for t = time.f to time.t step time.int<br />
+|...<br />
+endfor<br />
+first value for t (which is long) is 1740<br />
+then 1760<br />
+then 1780<br />
+then 1800<br />
+<br />
+I think those are the extra runs that your are having. Try to add some debug code (for example message(str$(t))) inside that loop and see for yourself. <br />
+<br />
+However, when time.t = 17:40 there will be no extra runs at the end but you still have many inner extra runs in your range. For example 16:00 to 18:00 you still have 1660 and 1680.<br />
+<br />
+I hope it helps,<br />
+<br />
+- George</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">7th September 2007, 17:10</div></div><div class="posttext">I see what you mean now. Thanks.<br />
+ <br />
+Here is the solution I came up with:<br />
+ <br />
+<br />
+t = time.f<br />
+while t &lt;= time.t<br />
+    ... Add records to table ....<br />
+    if (t + time.int) \ 100 =&gt; 60 then<br />
+        t = t + time.int + 40<br />
+    else<br />
+        t = t + time.int<br />
+    endif<br />
+endwhile<br />
+<br />
+ <br />
+Thanks for your help,<br />
+Rob</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

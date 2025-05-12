@@ -1,0 +1,115 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Fail to run subquery with &quot;Group  by&quot;, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Fail to run subquery with &quot;Group  by&quot; Tools Development" />
+	
+	<title>Fail to run subquery with &quot;Group  by&quot; [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Fail to run subquery with &quot;Group  by&quot;</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">pokitlok</div><div class="date">3rd January 2003, 05:39</div></div><div class="posttext">I got a syntax error: &quot;group&quot; not expected as complie program session.<br />
+My purpose is to join purchase receipt transaction with the latest purchase orders' item prices and suppliers.<br />
+I have several kinds of &quot;group&quot; query but still got the same error.<br />
+Please help. Does &quot;group&quot; not work in subquery? (But, I found an example in some BaaN materials)<br />
+<br />
+Baan code as below:<br />
+<br />
+select 	tdinv700.*, tiitm001.*, tccom020.*, tdpur040.*, tdpur041.*<br />
+from 	tdinv700, tiitm001, tdpur041, tdpur040, tccom020<br />
+where 	tdinv700.trdt between :trdt.f and :trdt.t<br />
+and	tdinv700.cwar between :cwar.f and :cwar.t<br />
+and	tdinv700.kost = :kost		<br />
+and	tdinv700.item between :item.f and :item.t<br />
+and	tdinv700.item refers to tiitm001 <br />
+and	tdpur041 refers to tdpur040<br />
+and	tdpur041.item = tdinv700.item<br />
+and	tdpur041.suno between :suno.f and :suno.t<br />
+and	tdpur040.suno refers to tccom020<br />
+and	tdpur040.odat in <br />
+	(select  m0.odat <br />
+	from  tdpur040 m0, tdpur041 m1 <br />
+	where  m1 refers to m0 <br />
+	and   m1.item = tdpur041.item 	<br />
+	group by m1.item having max(m0.odat))<br />
+selectdo<br />
+	rprt_send()<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">morpheus</div><div class="date">3rd January 2003, 07:22</div></div><div class="posttext">All elements of the &lt;group condition&gt; must be specified in the &lt;select list&gt; of the SELECT clause.<br />
+<br />
+<br />
+Link (http://www.baanboard.com/programmers_manual_baanerp_help_functions_database_handling_group_by)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">3rd January 2003, 09:37</div></div><div class="posttext">May I give some performance hints?<br />
+<br />
+- Only mention the used tablefields (where possible) instead of using table.* in the select clause. This will improve the transport speed from database to bshell. Off course only valid when running in Level 2 mode.<br />
+<br />
+- Use REFERS TO ... UNREF SKIP or '=' where the the releationship between the tables is mandatory. Oracle performs better with an relation ship on EQUALS (&quot;=&quot; ) than on OUTER JOINS with is the default result of a REFERS TO. <br />
+<br />
+Maybe it sounds very technical but I have too few space to describe the whole stuff here :rolleyes: <br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pokitlok</div><div class="date">3rd January 2003, 11:27</div></div><div class="posttext">morpheus:<br />
+<br />
+I have tried several &quot;Group&quot; method like:<br />
+<br />
+Exists<br />
+(select m1.item, max(m0.odat) <br />
+from tdpur040 m0, tdpur041 m1 <br />
+where m1 refers to m0 <br />
+and m1.item = tdpur041.item <br />
+group by m1.item)<br />
+<br />
+or<br />
+<br />
+tdpur040.odat in <br />
+(select max(m0.odat) <br />
+from tdpur040 m0, tdpur041 m1 <br />
+where m1 refers to m0 <br />
+and m1.item = tdpur041.item <br />
+group by m1.item )</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">3rd January 2003, 11:48</div></div><div class="posttext">You want to have the max odat so in your case you need to write:<br />
+<br />
+<br />
+(select max(m0.odat)<br />
+from tdpur040 m0, tdpur041 m1<br />
+where m1 refers to m0<br />
+and m1.item = tdpur041.item )<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">3rd January 2003, 12:09</div></div><div class="posttext">BTW: Are you realy realy sure that you need this construction? Every time your tdpur041 record changes a full tablescan in your subquery will be generated on tdsls041. This can take ages on a huge table! As I don't know the logic I 'don't know if it can be changed.<br />
+<br />
+One thing that can be changed is to change the last line before the subquery from:<br />
+<br />
+and tdpur040.odat in <br />
+<br />
+into:<br />
+<br />
+and tdpur040.odat =<br />
+<br />
+This will probably not improve the performance but makes it better readable.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

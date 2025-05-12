@@ -1,0 +1,125 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="to know records which were skipped for update, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] to know records which were skipped for update Tools Development" />
+	
+	<title>to know records which were skipped for update [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; to know records which were skipped for update</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rajitha</div><div class="date">11th February 2017, 18:23</div></div><div class="posttext">Hi All,<br />
+<br />
+I have a customized table where I need to update two fields if they are empty with the data of another table.<br />
+I want to know which rows are skipped without updating,how to do that<br />
+<br />
+below said &quot;custtable&quot;,also cprj.f cprj.t etc form fields on session where we give inputs through it<br />
+example piece of code is below :<br />
+db.retry.point()<br />
+	<br />
+	select 	custtable.* <br />
+	from 	custtable for update<br />
+	where	custtable.cprj inrange :cprj.f and :cprj.t<br />
+	and     custtable.pfbp inrange :ofbp.f and :ofbp.t<br />
+	and 	custtable.cono = &quot;&quot;<br />
+	and	custtable.cnln = &quot;&quot;<br />
+	and	custtable.cprj &lt;&gt; &quot;&quot;<br />
+	selectdo<br />
+		select tpctm110.cono,tpctm110.cnln<br />
+		from   tpctm110<br />
+		where  tpctm110.cprj = :custtable.cprj<br />
+		and    tpctm110.itbp = :custtable.pfbp<br />
+		as set with 1 rows<br />
+		selectdo<br />
+                         custtable.cono = tpctm110.cono<br />
+                         custtable.cnln = tpctm110.cnln<br />
+                         <br />
+                         l.ret.val = db.update(<br />
+                         		custtable, db.retry, db.skip.dupl)<br />
+                         <br />
+                         if l.ret.val = 0 then<br />
+                         	brp.ready(brp.id.proc)<br />
+                         endif<br />
+		endselect	<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">12th February 2017, 13:02</div></div><div class="posttext">Hi Rajitha<br />
+<br />
+Better use, dal.update, you would know for which records the update did not happen as it would return a Error Message along with it.<br />
+<br />
+<br />
+ dal.update  (string class_name, long object_set, ref long retval, long prop_check [, long mode] [, long eflag])<br />
+<br />
+If retval &lt;&gt; 0 then<br />
+     dal.get.error.message(mess)<br />
+endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">14th February 2017, 11:30</div></div><div class="posttext">if skipped update means failed updates<br />
+<br />
+db.update(custtable, db.retry, db.skip.dupl,db.return.error + db.return.ref.not.exists)   this will return the error while update..  <br />
+<br />
+I am not sure what you are looking for</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manish@erpln</div><div class="date">14th February 2017, 14:41</div></div><div class="posttext">Hi Rajitha,<br />
+<br />
+Try to write your code in the following way :-<br />
+<br />
+db.retry.point()<br />
+	<br />
+        select 	custtable.* <br />
+	from 	custtable for update<br />
+	where	custtable.cprj inrange :cprj.f and :cprj.t<br />
+	and     custtable.pfbp inrange :ofbp.f and :ofbp.t<br />
+	and 	custtable.cono = &quot;&quot;<br />
+	and	custtable.cnln = &quot;&quot;<br />
+	and	custtable.cprj &lt;&gt; &quot;&quot;<br />
+	selectdo<br />
+		select tpctm110.cono,tpctm110.cnln<br />
+		from   tpctm110<br />
+		where  tpctm110.cprj = :custtable.cprj<br />
+		and    tpctm110.itbp = :custtable.pfbp<br />
+		as set with 1 rows<br />
+		selectdo<br />
+                       update.flag = false              | Declare a variable of type tcbool<br />
+                         <br />
+                        if isspace(custtable.cono) then   | if it is a string type<br />
+                             custtable.cono = tpctm110.cono<br />
+                             update.flag = true<br />
+                        endif<br />
+                         if custtable.cnln = 0 then  | if it is a long type<br />
+                                    custtable.cnln = tpctm110.cnln<br />
+                                    update.flag = true<br />
+                          endif<br />
+                         <br />
+                          if update.flag = true then <br />
+                               l.ret.val = db.update(<br />
+                         		    custtable, db.retry, db.skip.dupl)<br />
+                          else<br />
+                          //   if l.ret.val = 0 then<br />
+                         	     brp.ready(brp.id.proc) || it will send all the skipped or not updated records to your report.!!<br />
+                          //    endif<br />
+                         endif<br />
+		endselect	<br />
+	endselect<br />
+<br />
+May be it will be helpful.<br />
+<br />
+Thanks,<br />
+Manish Kumar</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

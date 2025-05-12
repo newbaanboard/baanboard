@@ -1,0 +1,178 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to combine header display session with line display session as one form, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to combine header display session with line display session as one form Tools Development" />
+	
+	<title>How to combine header display session with line display session as one form [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; How to combine header display session with line display session as one form</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mathew</div><div class="date">28th July 2019, 17:00</div></div><div class="posttext">Hi Friends,<br />
+<br />
+Can any body given me suggestion to how to combine header display session(type1 single occurrence) with line display session(used type3) as one form in one session<br />
+<br />
+Regards,<br />
+Mathew :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">29th July 2019, 02:47</div></div><div class="posttext">Not quite sure what you are trying to accomplish, but you could have 1 form for a single line that has header information.  That is just a single occurrence session when you link a line to a header record.  Everything else I picture requires multi-sessions and forms kind of like the standard PO lines sessions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mathew</div><div class="date">29th July 2019, 06:22</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Actually header display session is with header tdsls040 table in the top (already used single occurence),  i need tdsls041 line data(used type3) with multiple form like form1, form 2 in the bottom to displaying multiple lines.<br />
+<br />
+Can you explain how to combine header only once at top and line with multiple forms in the bottom displaying multiple lines<br />
+<br />
+Please find the sample screenshot and header display only once at top, highlighted yellow forms at bottom only for lines<br />
+<br />
+Regards,<br />
+Mathew</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">29th July 2019, 16:20</div></div><div class="posttext">Are you talking like these screen shots.  The top is a single occurrence of header information, then the bottom is the lines with 2 forms.  So the 2 forms on this session have different line information, but the same basic header information.  In my case the session is designed to be zoomed from a calling session, but not mandatory.  I literally build the querys for next view, previous view, etc.  I don't remember all of the ins and outs of why I did what.<br />
+<br />
+I also have another session in this tdexi0110m000 where the header information is at the top, the lines are at the bottom.  But this was an input session.  That is a whole different critter - using sattr.combined bottom and child processes switching back and forth.  It works but was not real pretty like standard baan code.<br />
+<br />
+<br />
+before.program:<br />
+	if background then<br />
+		import(&quot;item.filter&quot;,item.filter)<br />
+		import(&quot;buyer.filter&quot;,buyer.filter)<br />
+		import(&quot;suno.filter&quot;,suno.filter)<br />
+		import(&quot;quote.filter&quot;,quote.filter)<br />
+		import(&quot;date.filter&quot;,date.filter)<br />
+		import(&quot;rfq.filter&quot;,rfq.filter)<br />
+		build.qry.ext()<br />
+	else<br />
+		buyer.filter = 0<br />
+		item.filter = &quot;&quot;<br />
+		suno.filter = &quot;&quot;<br />
+		date.filter = 0<br />
+		rfq.filter = 0<br />
+		quote.filter = empty<br />
+		query.extension = &quot;tdexi060.rfqnum &gt; 0 &quot;<br />
+	endif<br />
+functions:<br />
+function get.next.view()<br />
+{<br />
+<br />
+	hold.rfqnum = tdexi060.rfqnum<br />
+	hold.rfqline = tdexi060.rfqline<br />
+	sql_query =	&quot;select	tdexi060.*, tdexi001.* &quot; &amp;<br />
+			&quot;from	tdexi060, tdexi001 &quot; &amp;<br />
+			&quot;where	tdexi060.rfqnum &gt; 0 &quot; &amp;<br />
+			&quot;and	tdexi001.rfqnum = tdexi060.rfqnum &quot; &amp;<br />
+			&quot;and	tdexi060.rfqnum = &quot; &amp; str$(hold.rfqnum) &amp;&quot; and tdexi060.rfqline &gt; &quot; &amp; str$(hold.rfqline)<br />
+	build.sql.query()<br />
+	sql_query = sql_query &amp; &quot; as set with 1 rows &quot; <br />
+	sql_id = sql.parse(sql_query)<br />
+	sql.exec(sql_id)<br />
+	e = sql.fetch(sql_id)<br />
+	if e = enorec then<br />
+		sql.close(sql_id)<br />
+		| No records<br />
+		sql_query =	&quot;select	tdexi060.*, tdexi001.* &quot; &amp;<br />
+			&quot;from	tdexi060, tdexi001 &quot; &amp;<br />
+			&quot;where	tdexi060.rfqnum &gt; 0 &quot; &amp;<br />
+			&quot;and	tdexi001.rfqnum = tdexi060.rfqnum &quot; &amp;<br />
+			&quot;and	tdexi060.rfqnum &gt; &quot; &amp; str$(hold.rfqnum) &amp;&quot; and tdexi060.rfqline = 1 &quot;<br />
+			build.sql.query()<br />
+		sql_query = sql_query &amp; &quot; as set with 1 rows &quot; <br />
+		sql_id = sql.parse(sql_query)<br />
+		sql.exec(sql_id)<br />
+		e = sql.fetch(sql_id)<br />
+	endif<br />
+	<br />
+| Fetch the first record.<br />
+	<br />
+	sql.close(sql_id)<br />
+}<br />
+function get.prev.view()<br />
+{<br />
+	<br />
+	hold.rfqnum = tdexi060.rfqnum<br />
+	hold.rfqline = tdexi060.rfqline<br />
+	sql_query =	&quot;select	tdexi060.*, tdexi001.* &quot; &amp;<br />
+			&quot;from	tdexi060, tdexi001 &quot; &amp;<br />
+			&quot;where	tdexi060.rfqnum &gt; 0 &quot; &amp;<br />
+			&quot;and	tdexi001.rfqnum = tdexi060.rfqnum &quot; &amp;<br />
+			&quot;and	tdexi060.rfqnum = &quot; &amp; str$(hold.rfqnum) &amp;&quot; and tdexi060.rfqline &lt; &quot; &amp; str$(hold.rfqline)<br />
+	build.sql.query()<br />
+	sql_query = sql_query &amp; &quot; order by tdexi060.rfqnum desc &quot; <br />
+	sql_query = sql_query &amp; &quot; as set with 1 rows &quot; <br />
+	sql_id = sql.parse(sql_query)<br />
+	sql.exec(sql_id)<br />
+	e = sql.fetch(sql_id)<br />
+	if e = enorec or e = eendfile then<br />
+		sql.close(sql_id)<br />
+		| Get max line from previous RFQ Number<br />
+		sql_query =	&quot;select	tdexi060.rfqnum, tdexi060.rfqline &quot; &amp;<br />
+		&quot;from	tdexi060, tdexi001 &quot; &amp;<br />
+		&quot;where	tdexi060.rfqnum &gt; 0 &quot; &amp;<br />
+		&quot;and	tdexi001.rfqnum = tdexi060.rfqnum &quot; &amp;<br />
+		&quot;and	tdexi060.rfqnum &lt; &quot; &amp; str$(hold.rfqnum) <br />
+		build.sql.query()<br />
+		sql_query = sql_query &amp; &quot; order by tdexi060.rfqnum desc, tdexi060.rfqline desc &quot; <br />
+		sql_query = sql_query &amp; &quot; as set with 1 rows &quot; <br />
+		sql_id = sql.parse(sql_query)<br />
+		sql.exec(sql_id)<br />
+		e = sql.fetch(sql_id)<br />
+		max.line  = tdexi060.rfqline<br />
+		sql.close(sql_id)<br />
+		<br />
+		sql_query =	&quot;select	tdexi060.*, tdexi001.* &quot; &amp;<br />
+			&quot;from	tdexi060, tdexi001 &quot; &amp;<br />
+			&quot;where	tdexi060.rfqnum &gt; 0 &quot; &amp;<br />
+			&quot;and	tdexi001.rfqnum = tdexi060.rfqnum &quot; &amp;<br />
+			&quot;and	tdexi060.rfqnum &lt; &quot; &amp; str$(hold.rfqnum) &amp;&quot; and tdexi060.rfqline = &quot; &amp; str$(max.line)<br />
+			build.sql.query()<br />
+		sql_query = sql_query &amp; &quot; order by tdexi060.rfqnum desc &quot; <br />
+		sql_query = sql_query &amp; &quot; as set with 1 rows &quot; <br />
+		sql_id = sql.parse(sql_query)<br />
+		sql.exec(sql_id)<br />
+		e = sql.fetch(sql_id)<br />
+	endif<br />
+}<br />
+function build.sql.query()<br />
+{<br />
+	if(rfq.filter&gt;0) then<br />
+		sql_query = sql_query &amp; &quot; and tdexi060.rfqnum = &quot; &amp; str$(rfq.filter)<br />
+	endif<br />
+	if(item.filter&lt;&gt;&quot;&quot;) then<br />
+		sql_query = sql_query &amp; &quot; and tdexi060.item = &quot; &amp; chr$(34) &amp; item.filter &amp; chr$(34)<br />
+	endif<br />
+	if(suno.filter&lt;&gt;&quot;&quot;) then<br />
+		sql_query = sql_query &amp; &quot; and tdexi060.suno = &quot; &amp; chr$(34) &amp; suno.filter &amp; chr$(34)<br />
+	endif<br />
+	if date.filter &gt; 0 then<br />
+		sql_query = sql_query &amp; &quot; and tdexi060.rtndte = &quot; &amp; str$(date.filter)<br />
+	endif<br />
+	if etol(quote.filter)&gt;0 then<br />
+		sql_query = sql_query &amp; &quot; and tdexi060.quotstat = &quot; &amp; str$(quote.filter)<br />
+	endif<br />
+	if(buyer.filter&lt;&gt;0) then<br />
+		sql_query = sql_query &amp; &quot; and tdexi001.buyer = &quot; &amp; str$(buyer.filter)<br />
+	endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mathew</div><div class="date">4th August 2019, 16:34</div></div><div class="posttext">Sorry Mark now little busy with other work, so will try what you have informed then i do reply to you<br />
+<br />
+Regards,<br />
+Mathew</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

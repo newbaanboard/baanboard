@@ -1,0 +1,390 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="PO lines not uploading..., baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] PO lines not uploading... AFS/DDC/OLE: Function servers" />
+	
+	<title>PO lines not uploading... [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; PO lines not uploading...</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jatin_sanghi</div><div class="date">28th February 2005, 17:50</div></div><div class="posttext">Sir,<br />
+<br />
+I have made an PO upload session...it was working well for direct store purchases as well as central warehouse purchases...<br />
+<br />
+but after adding the dept. loop in my script, the lines stopped to be uploaded..while all other subprocesses are workinh fine...<br />
+<br />
+the scripts doesn't insert tdpur4105s000<br />
+<br />
+and this problem persistes even when i revert back...<br />
+<br />
+plz..help me...<br />
+<br />
+Jatin..<br />
+<br />
+|******************************************************************************<br />
+<br />
+|* tdjub9918mpol  0  VRC B40C c4 jol <br />
+<br />
+|* Upload purchase orders<br />
+<br />
+|* Vivek Bhatt                   <br />
+<br />
+|* 2005-02-17<br />
+<br />
+|******************************************************************************<br />
+<br />
+|* Main table tdjub906 Preffered supplier by item, Form Type 4<br />
+<br />
+|******************************************************************************<br />
+<br />
+                                                                                <br />
+<br />
+|****************************** declaration section ***************************<br />
+<br />
+declaration:<br />
+<br />
+#pragma nowarnings<br />
+#pragma used dll ottstpapihand<br />
+<br />
+<br />
+	table	ttdjub906	| Preffered supplier by item<br />
+<br />
+	table   ttccom020<br />
+	table   ttdpur040<br />
+	table   ttdjub907<br />
+	table   ttcmcs003<br />
+	table   ttdjub983<br />
+	table   ttdjub910<br />
+<br />
+<br />
+<br />
+	extern	domain	tcitem        	item.f	<br />
+<br />
+	extern	domain	tcitem        	item.t	<br />
+	<br />
+	extern  domain  tcsuno		suno.f<br />
+<br />
+	extern  domain  tcsuno		suno.t<br />
+	extern  domain  tcmcs.str10	dept.f<br />
+	extern  domain  tcmcs.str10	dept.t<br />
+<br />
+	string  errmsg(80), morno(6), mpono(4)<br />
+<br />
+	extern  long                    ctr, ret, pono<br />
+	extern  domain  tcyesno		gen.dsp	<br />
+	extern  domain	tcqiv1		oqty<br />
+	extern  domain  tcgrno		series<br />
+<br />
+<br />
+|****************************** form section **********************************<br />
+<br />
+<br />
+<br />
+form.1:<br />
+<br />
+init.form:<br />
+<br />
+	get.screen.defaults()<br />
+<br />
+<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+<br />
+<br />
+choice.cont.process:<br />
+<br />
+on.choice:<br />
+<br />
+	if gen.dsp = tcyesno.no then<br />
+		read.main.table()<br />
+	|	db.clear.table(ttdjub907, 0)<br />
+	else<br />
+		read.main.table1()<br />
+		db.clear.table(ttdjub907, 0)<br />
+	endif<br />
+<br />
+<br />
+|****************************** field section *********************************<br />
+<br />
+<br />
+field.suno.f:<br />
+<br />
+when.field.changes:<br />
+<br />
+	suno.t = suno.f<br />
+<br />
+<br />
+<br />
+field.item.f:<br />
+<br />
+when.field.changes:<br />
+<br />
+	item.t = item.f<br />
+<br />
+<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+<br />
+<br />
+functions:<br />
+<br />
+<br />
+<br />
+function read.main.table()<br />
+<br />
+{<br />
+<br />
+	select	tccom020.*<br />
+	from	tccom020<br />
+	where   tccom020._index1 inrange {:suno.f}<br />
+	                             and {:suno.t}<br />
+	order by tccom020._index1<br />
+	selectdo<br />
+		morno = &quot;      &quot;<br />
+		pono = 0<br />
+		ctr = 1<br />
+		select tdjub983.*<br />
+		from   tdjub983<br />
+		where  tdjub983._index1 inrange {&quot;&quot;, &quot;ATTR2&quot;, :dept.f} and {&quot;ZZZ&quot;, &quot;ATTR2&quot;, :dept.t}<br />
+		order by tdjub983._index1<br />
+		selectdo<br />
+			get.series()<br />
+			select tdjub906.*<br />
+			from tdjub906 for update<br />
+			where tdjub906._index3 inrange {0, :tdjub983.atcd, &quot;&quot;}<br />
+				and  {999999, :tdjub983.atcd, &quot;ZZZZZZZZZZZZZZZZ&quot;}<br />
+				and  tdjub906.suno = :tccom020.suno<br />
+			selectdo<br />
+				<br />
+				oqty = tdjub906.cwh.qty + (tdjub906.kor.qty - tdjub906.aloc.kor) + (tdjub906.jpn.qty - tdjub906.aloc.jpn) + (tdjub906.ind.qty - tdjub906.aloc.ind)		<br />
+				<br />
+				insert_order()<br />
+				stpapi.end.session(&quot;tdind0271s000&quot;)<br />
+				stpapi.end.session(&quot;tdpur4101m000&quot;)<br />
+				<br />
+				oqty = 0<br />
+				tdjub906.orno = lval(morno)<br />
+				tdjub906.odat = date.num()<br />
+				db.update(ttdjub906, db.retry)<br />
+				commit.transaction()<br />
+			endselect<br />
+				stpapi.end.session(&quot;tdpur4105s000&quot;)		<br />
+				stpapi.end.session(&quot;tdpur4101m000&quot;)<br />
+		<br />
+		endselect<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+function read.main.table1()<br />
+<br />
+{<br />
+<br />
+	select	tccom020.*<br />
+	from	tccom020<br />
+	where   tccom020._index1 inrange {:suno.f}<br />
+	                             and {:suno.t}<br />
+	order by tccom020._index1<br />
+	selectdo<br />
+		select tdjub983.*<br />
+		from   tdjub983<br />
+		where  tdjub983._index1 inrange {&quot;&quot;, &quot;ATTR2&quot;, :dept.f} and {&quot;ZZZ&quot;, &quot;ATTR2&quot;, :dept.t}<br />
+		order by tdjub983._index1<br />
+		selectdo<br />
+			get.series()<br />
+			select tcmcs003.*<br />
+			from tcmcs003<br />
+			where ((tcmcs003._index1 = {&quot;KOR&quot;})<br />
+				or (tcmcs003._index1 = {&quot;IND&quot;})<br />
+				or (tcmcs003._index1 = {&quot;JPN&quot;})<br />
+				or (tcmcs003._index1 = {&quot;CWH&quot;}))<br />
+			order by tcmcs003._index1<br />
+			selectdo<br />
+				morno = &quot;      &quot;<br />
+				pono = 0<br />
+				ctr = 1<br />
+	<br />
+				select tdjub907.*<br />
+				from tdjub907<br />
+				where tdjub907._index1 = {:tccom020.suno, :tcmcs003.cwar}<br />
+				and  tdjub907.dept = :tdjub983.atcd<br />
+				selectdo<br />
+								<br />
+					insert_order1()<br />
+					stpapi.end.session(&quot;tdind0271s000&quot;)<br />
+					stpapi.end.session(&quot;tdpur4101m000&quot;)<br />
+			<br />
+			|		tdjub907.oqty = oqty<br />
+			|		tdjub907.orno = lval(morno)<br />
+			|		tdjub907.odat = date.num()<br />
+			|		db.update(ttdjub907, db.retry)<br />
+			|		commit.transaction()<br />
+					oqty = 0<br />
+				endselect<br />
+				stpapi.end.session(&quot;tdpur4105s000&quot;)		<br />
+				stpapi.end.session(&quot;tdpur4101m000&quot;)<br />
+			endselect	<br />
+		endselect<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+function void insert_order()<br />
+{<br />
+	if ctr = 1 then<br />
+<br />
+		stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.orno&quot;, str$(series))<br />
+		stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.suno&quot;, str$(tccom020.suno))<br />
+		stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.cotp&quot;, &quot;M2S&quot;)<br />
+		stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.comp&quot;, &quot;150&quot;)<br />
+		stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.odat&quot;, str$(date.num()))<br />
+<br />
+		stpapi.handle.subproc(&quot;tdpur4101m000&quot;, &quot;tdpurl102s002&quot;,  &quot;add&quot;)<br />
+		stpapi.insert(&quot;tdpurl102s002&quot;, true, errmsg)<br />
+		stpapi.end.session(&quot;tdpurl102s002&quot;)<br />
+<br />
+		stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.ddat&quot;, str$(date.num()))<br />
+		<br />
+		stpapi.insert(&quot;tdpur4101m000&quot;,true,errmsg)<br />
+<br />
+		stpapi.get.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.orno&quot;, morno)<br />
+		stpapi.end.session(&quot;tdpur4101m000&quot;)<br />
+				<br />
+		ctr = 0<br />
+	endif<br />
+		<br />
+	pono = lval(mpono) + 1<br />
+	mpono = str$(pono)<br />
+<br />
+	stpapi.put.field(&quot;tdpur4101m000&quot;,&quot;tdpur040.orno&quot;, morno)<br />
+	stpapi.find(&quot;tdpur4101m000&quot;, errmsg)<br />
+<br />
+	if isspace(errmsg) then<br />
+<br />
+		stpapi.handle.subproc(&quot;tdpur4101m000&quot;, &quot;tdpur4105s000&quot;,  &quot;add&quot;)<br />
+		stpapi.continue.process(&quot;tdpur4101m000&quot;,errmsg)	<br />
+<br />
+		if isspace(errmsg) then<br />
+<br />
+		|	stpapi.put.field(&quot;tdpur4105s000&quot;,&quot;tdpur041.pono&quot;, mpono)<br />
+			stpapi.put.field(&quot;tdpur4105s000&quot;,&quot;tdpur041.item&quot;, tdjub906.item)      <br />
+			stpapi.put.field(&quot;tdpur4105s000&quot;,&quot;tdpur041.cwar&quot;,&quot;CWH&quot;)<br />
+			stpapi.put.field(&quot;tdpur4105s000&quot;,&quot;tdpur041.oqua&quot;,str$(oqty))<br />
+		<br />
+			stpapi.handle.subproc(&quot;tdpur4105s000&quot;, &quot;tdind0271s000&quot;, &quot;add&quot;)<br />
+				<br />
+			stpapi.put.field(&quot;tdind0271s000&quot;, &quot;tdind020.bdat&quot;, str$(date.num()))<br />
+			stpapi.put.field(&quot;tdind0271s000&quot;, &quot;tdind020.exci&quot;, str$(etol(tcyesno.no)))<br />
+			stpapi.put.field(&quot;tdind0271s000&quot;, &quot;tdind020.svyn&quot;, str$(etol(tcyesno.no)))<br />
+			stpapi.put.field(&quot;tdind0271s000&quot;, &quot;tdind020.ocyn&quot;, str$(etol(tcyesno.no)))<br />
+			stpapi.insert(&quot;tdind0271s000&quot;, true, errmsg)<br />
+			stpapi.end.session(&quot;tdind0271s000&quot;)<br />
+			<br />
+			ret = stpapi.insert(&quot;tdpur4105s000&quot;, true, errmsg)<br />
+			if not ret then<br />
+				stpapi.recover(&quot;tdpur4105s000&quot;, errmsg)<br />
+			endif<br />
+		<br />
+			stpapi.end.session(&quot;tdind0271s000&quot;)<br />
+				<br />
+			if isspace(errmsg) then<br />
+				stpapi.end.session(&quot;tdpur4105s000&quot;)<br />
+			endif<br />
+		endif<br />
+	endif<br />
+}<br />
+<br />
+<br />
+<br />
+function void insert_order1()<br />
+{<br />
+	if ctr = 1 then<br />
+<br />
+		stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.orno&quot;, str$(series))<br />
+		stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.suno&quot;, str$(tdjub907.suno))<br />
+		stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.cotp&quot;, &quot;DIT&quot;)<br />
+		stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.comp&quot;, &quot;150&quot;)<br />
+		stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.odat&quot;, str$(date.num()))<br />
+<br />
+		stpapi.handle.subproc(&quot;tdpur4101m000&quot;, &quot;tdpurl102s002&quot;,  &quot;add&quot;)<br />
+		stpapi.insert(&quot;tdpurl102s002&quot;, true, errmsg)<br />
+		stpapi.end.session(&quot;tdpurl102s002&quot;)<br />
+<br />
+		stpapi.put.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.ddat&quot;, str$(date.num()))<br />
+		<br />
+		stpapi.insert(&quot;tdpur4101m000&quot;,true,errmsg)<br />
+<br />
+		stpapi.get.field(&quot;tdpur4101m000&quot;, &quot;tdpur040.orno&quot;, morno)<br />
+		stpapi.end.session(&quot;tdpur4101m000&quot;)<br />
+				<br />
+		ctr = 0<br />
+	endif<br />
+		<br />
+	pono = lval(mpono) + 1<br />
+	mpono = str$(pono)<br />
+<br />
+	stpapi.put.field(&quot;tdpur4101m000&quot;,&quot;tdpur040.orno&quot;, morno)<br />
+	stpapi.find(&quot;tdpur4101m000&quot;, errmsg)<br />
+<br />
+	if isspace(errmsg) then<br />
+<br />
+		stpapi.handle.subproc(&quot;tdpur4101m000&quot;, &quot;tdpur4105s000&quot;,  &quot;add&quot;)<br />
+		stpapi.continue.process(&quot;tdpur4101m000&quot;,errmsg)	<br />
+<br />
+		if isspace(errmsg) then<br />
+<br />
+			stpapi.put.field(&quot;tdpur4105s000&quot;,&quot;tdpur041.pono&quot;, mpono)<br />
+			stpapi.put.field(&quot;tdpur4105s000&quot;,&quot;tdpur041.item&quot;, tdjub907.item)      <br />
+			stpapi.put.field(&quot;tdpur4105s000&quot;,&quot;tdpur041.cwar&quot;,tdjub907.cwar)<br />
+			stpapi.put.field(&quot;tdpur4105s000&quot;,&quot;tdpur041.oqua&quot;,str$(tdjub907.oqty))<br />
+		<br />
+			stpapi.handle.subproc(&quot;tdpur4105s000&quot;, &quot;tdind0271s000&quot;, &quot;add&quot;)<br />
+				<br />
+			stpapi.put.field(&quot;tdind0271s000&quot;, &quot;tdind020.bdat&quot;, str$(date.num()))<br />
+			stpapi.put.field(&quot;tdind0271s000&quot;, &quot;tdind020.exci&quot;, str$(etol(tcyesno.no)))<br />
+			stpapi.put.field(&quot;tdind0271s000&quot;, &quot;tdind020.svyn&quot;, str$(etol(tcyesno.no)))<br />
+			stpapi.put.field(&quot;tdind0271s000&quot;, &quot;tdind020.ocyn&quot;, str$(etol(tcyesno.no)))<br />
+			stpapi.insert(&quot;tdind0271s000&quot;, true, errmsg)<br />
+			stpapi.end.session(&quot;tdind0271s000&quot;)<br />
+			<br />
+			ret = stpapi.insert(&quot;tdpur4105s000&quot;, true, errmsg)<br />
+			if not ret then<br />
+				stpapi.recover(&quot;tdpur4105s000&quot;, errmsg)<br />
+			endif<br />
+		<br />
+			stpapi.end.session(&quot;tdind0271s000&quot;)<br />
+				<br />
+			if isspace(errmsg) then<br />
+				stpapi.end.session(&quot;tdpur4105s000&quot;)<br />
+			endif<br />
+		endif<br />
+	endif<br />
+}<br />
+<br />
+function get.series()<br />
+{<br />
+	select tdjub910.series<br />
+	from tdjub910<br />
+	where tdjub910._index2 = {:tdjub983.atcd}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		series = tdjub910.series<br />
+	endselect<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

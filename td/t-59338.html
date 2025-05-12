@@ -1,0 +1,378 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Saving values on second table(Multi-occ), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Saving values on second table(Multi-occ) Tools Development" />
+	
+	<title>Saving values on second table(Multi-occ) [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Saving values on second table(Multi-occ)</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">7th October 2010, 17:20</div></div><div class="posttext">Hello everyone,<br />
+<br />
+I have to update a second table. It only works if the user tabs and goes on the next record of the form. If the user only changes the value of the field on the second table and try to save, old values are kept.<br />
+<br />
+When debugging, I see that as soon the session gets in the main.io/before.rewrite(where I set other values) old values are back to the updated field.<br />
+<br />
+Any idea<br />
+<br />
+Thanks,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">7th October 2010, 20:03</div></div><div class="posttext">Use do.occ / on.old.occ functions to get the actual values (old/new ) for actual.occ in main.table.io . This should help u .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rberti</div><div class="date">7th October 2010, 20:35</div></div><div class="posttext">Hi Carlos,<br />
+<br />
+You can use the stndard variable &quot;g.update.status&quot;. When the field of the second table changes, set g.update.status = 21 (modify set). It should make 4gl engine work as when you are changing a main table field.<br />
+<br />
+Hope it helps!<br />
+Regards,<br />
+Rafael</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">7th October 2010, 20:42</div></div><div class="posttext">Fields from the second table are part of the actual.occ? or only the ones from the main table?<br />
+<br />
+Thanks,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">7th October 2010, 21:10</div></div><div class="posttext">This is my code.... I tried the g.update.status = 21 and doesn't work...<br />
+<br />
+field.tiitm001.flag.cmc:                                                                <br />
+before.input:<br />
+        read.item.data()<br />
+        set.enum.values(tiflag.yes,tiflag.no)<br />
+        if tiitm001.eitm = tcyesno.yes then<br />
+                attr.input = false<br />
+        endif<br />
+when.field.changes:<br />
+        g.update.status = 21<br />
+        tiitm986.logn = logname$<br />
+	tiitm986.date = date.num()                                                      <br />
+<br />
+field.tiitm001.ear.cmc:                                                                 <br />
+before.input:<br />
+        read.item.data()<br />
+when.field.changes:<br />
+        g.update.status = 21<br />
+        tiitm986.logn = logname$<br />
+	tiitm986.date = date.num()                                                      <br />
+<br />
+|****************************** main table section **********************************<br />
+main.table.io:					|Main Table is tiitm986 &lt;&lt;-------<br />
+before.write:<br />
+        do.occ(actual.occ, set.flag.to.yes)                     <br />
+<br />
+before.rewrite:                                 |As soon it gets in this section, the values in the                 <br />
+        tiitm986.logn = logname$		|when.field.changes are overwriten by the old values<br />
+        tiitm986.date = date.num()		<br />
+        on.old.occ(set.flag.to.yes)			<br />
+|        do.occ(actual.occ, set.flag.to.yes)        |on and off for testing             <br />
+<br />
+        <br />
+<br />
+functions:                                                      <br />
+function set.flag.to.yes()<br />
+{                                                               <br />
+        if tiitm001.flag.cmc &lt;&gt; tiflag.yes and tiitm001.ear.cmc = tiear.tbd then        <br />
+                message(&quot;Item should be either FLAG = Yes or EAR Not Equal to TBD&quot;,1)<br />
+                skip.io(&quot;&quot;)<br />
+                return<br />
+        endif<br />
+        on.change.check(tiitm001.ear.cmc)<br />
+        on.change.check(tiitm001.flag.cmc)                                              <br />
+	select tiitm001.*			|Secondary table &lt;&lt;----<br />
+	from   tiitm001 for update<br />
+	where  tiitm001._index1 = {:tiitm986.item}<br />
+	selectdo<br />
+                if changed(tiitm001.flag.cmc) then              <br />
+                        not.curr(tiitm001.flag.cmc)<br />
+                endif<br />
+                if changed(tiitm001.ear.cmc) then<br />
+                        not.curr(tiitm001.ear.cmc)<br />
+                endif                                           <br />
+                db.update(ttiitm001, db.retry)<br />
+	endselect<br />
+<br />
+}                                                               <br />
+<br />
+<br />
+Thanks...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th October 2010, 22:23</div></div><div class="posttext">I do not know if this will help - it reminds me of the problem I had with qkey and adding tables onto a form.  What I did was use new external defined fields.  I will post one of the scripts - in my case tccom970 was the secondary table.  Notice the comment in the maintain io after.rewrite section.  I also get the fields in the after.read section.  I ran into this exact problem trying to use qkey and adding other tables - this is how they are all done today.  Not sure if this helps or not.<br />
+<br />
+<br />
+declaration:<br />
+	table	ttccom970	| Supplier extension table<br />
+	table	ttccom020	| Suppliers<br />
+	<br />
+| Added form fields<br />
+	extern	domain	tcdate		supl.expd	| Expiration Date<br />
+	extern	domain	tcdate		supl.k131	| KA131-1 Date  20070724<br />
+	extern	domain	tcudi.taxt	supl.taxt	| Income tax type  20070724<br />
+	extern	domain	tcyesno		supl.appr	| A&amp;D Approved<br />
+	extern	domain	tcmcs.str10	supl.ppic	| Supplier Producer Price Index Code<br />
+	extern	domain	tcmcs.str50	supl.mail	| Supplier Email Address<br />
+	extern	domain	tcnama		supl.nama	| Legal Tax return name<br />
+	extern	domain	tcyesno		supl.rfqable	| RFQ Enable<br />
+	extern	domain	tcyesno		supl.purable	| PUR Enable<br />
+	extern	domain	tcyesno		supl.statable	| Status Enable<br />
+<br />
+main.table.io:<br />
+| Read a record.<br />
+after.read:<br />
+	|#call<br />
+	|#pobj added by QKEY 3.70<br />
+	_pobj_exe1(&quot;after.read&quot;)<br />
+	|#end add by QKEY<br />
+	display_fields()<br />
+<br />
+| Delete a record<br />
+after.delete:<br />
+	|#call<br />
+	|#pobj added by QKEY 3.70<br />
+	_pobj_exe1(&quot;after.delete&quot;)<br />
+	|#end add by QKEY<br />
+	delete_fields()<br />
+<br />
+| Modify a record<br />
+after.rewrite:<br />
+| Hold this for after the update. During the update another<br />
+| table read is done which resets the displayed comment to<br />
+| the original.  So save it for storing in the tisfc970 table.<br />
+	|hold.ppic = tccom970.ppic<br />
+	|doing.update = true<br />
+	|#call<br />
+	update_fields()<br />
+	<br />
+| Insert a record<br />
+after.write:<br />
+	|#call<br />
+	|#pobj added by QKEY 3.70<br />
+	_pobj_exe1(&quot;after.write&quot;)<br />
+	|#end add by QKEY<br />
+	|hold.ppic = tccom970.ppic<br />
+	update_fields()<br />
+	|#pobj added by QKEY 3.70<br />
+<br />
+functions:<br />
+function display_fields()<br />
+{<br />
+	select	tccom970.*<br />
+	from	tccom970<br />
+	where	tccom970._index1 = {:tccom020.suno}<br />
+	selectdo<br />
+		supl.ppic = tccom970.ppic<br />
+		supl.mail = tccom970.mail<br />
+		supl.appr = tccom970.appr<br />
+		supl.expd = tccom970.expd<br />
+		supl.k131 = tccom970.k131	| Added KA131-1 date 20070724<br />
+		supl.taxt = tccom970.taxt	| Added income tax type 20070724<br />
+		supl.nama = tccom970.nama<br />
+		supl.rfqable = tccom970.rfqable	| Added RFQ Enable indicator 20090119<br />
+		supl.purable = tccom970.purable | Added PUR Enable indicator 20090119<br />
+		supl.statable = tccom970.statable | Added Status Enable indicator 20090119<br />
+	selectempty<br />
+		|tccom970.ppic = &quot;&quot;<br />
+		supl.ppic = &quot;&quot;<br />
+		supl.mail = &quot;&quot;<br />
+		supl.appr = empty<br />
+		supl.taxt = empty	| Added income tax type 20070724<br />
+		supl.expd = 0<br />
+		|supl.expd = tccom970.expd<br />
+		supl.k131 = 0			<br />
+		supl.nama = &quot;&quot;		| Added KA131-1 date 20070724<br />
+		supl.rfqable = tcyesno.no	| 20090119<br />
+		supl.purable = tcyesno.no	| 20090119<br />
+		supl.statable = tcyesno.no	| 20090119<br />
+	endselect<br />
+	|display(&quot;tccom970.ppic&quot;)<br />
+	display.all()<br />
+}<br />
+function update_fields()<br />
+{<br />
+|	db.retry.point()<br />
+	select	tccom970.*<br />
+	from	tccom970 for update<br />
+	where	tccom970._index1 = {:tccom020.suno}<br />
+	selectdo<br />
+		|tccom970.ppic = hold.ppic<br />
+		tccom970.ppic = supl.ppic<br />
+		tccom970.expd = supl.expd<br />
+		tccom970.mail = supl.mail<br />
+		tccom970.appr = supl.appr<br />
+		tccom970.k131 = supl.k131 	| Added KA131-1 date 20070724<br />
+		tccom970.taxt = supl.taxt	| Added income tax type 20070724<br />
+		tccom970.nama = supl.nama<br />
+		tccom970.rfqable = supl.rfqable	| 20090119<br />
+		tccom970.purable = supl.purable	| 20090119<br />
+		tccom970.statable = supl.statable |20090119<br />
+		tccom970.date = date.num()<br />
+		tccom970.user = logname$<br />
+		db.update(ttccom970,db.retry)<br />
+	selectempty<br />
+		tccom970.suno = tccom020.suno<br />
+		tccom970.ppic = supl.ppic<br />
+		tccom970.expd = supl.expd<br />
+		tccom970.mail = supl.mail<br />
+		tccom970.appr = supl.appr<br />
+|		tccom970.ppic = hold.ppic<br />
+		tccom970.taxt = supl.taxt	| Added income tax type 20070724<br />
+		tccom970.nama = supl.nama<br />
+		tccom970.rfqable = supl.rfqable	| 20090119<br />
+		tccom970.purable = supl.purable	| 20090119<br />
+		tccom970.statable = supl.statable |20090119<br />
+		tccom970.date = date.num()<br />
+		tccom970.user = logname$<br />
+		tccom970.k131 = supl.k131 	| Added KA131-1 date 20070724<br />
+		db.insert(ttccom970,db.retry)<br />
+	endselect<br />
+|	commit.transaction()<br />
+}<br />
+function delete_fields()<br />
+{<br />
+	|db.retry.point()<br />
+	select	tccom970.*<br />
+	from	tccom970 for update<br />
+	where	tccom970._index1 = {:tccom020.suno}<br />
+	selectdo<br />
+		db.delete(ttccom970,db.retry)<br />
+	endselect<br />
+	|commit.transaction()<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">8th October 2010, 18:24</div></div><div class="posttext">Hello Mark,<br />
+<br />
+I practically copied your code. But for a reason it displays the same values in all occurances...<br />
+<br />
+any idea?<br />
+<br />
+Thanks...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th October 2010, 19:01</div></div><div class="posttext">Yes - because yours is a multi-occurance form and mine was single occurence.  Let me check one of the other sessions.  I am sure I have one some where.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th October 2010, 19:25</div></div><div class="posttext">Okay - for multi-occurance we moved the read to before.display. You can see that code in the field input.vtype.  I did not realize how many qkey sessions we had - took forever to find a multi-occurance one with updates.<br />
+<br />
+<br />
+choice.user.0:<br />
+on.choice:<br />
+| Happens once after Initialize button clicked - these do not fire that main.table.io<br />
+	|#call<br />
+	|#pobj added by QKEY 3.70<br />
+	_pobj_exe1(&quot;on.choice.user.0&quot;)<br />
+	|#end add by QKEY<br />
+	hld.orno = tdilc501.orno<br />
+	hld.cwar = tdilc501.cwar<br />
+	initialize.button.updates()<br />
+<br />
+choice.cont.process:<br />
+before.choice:<br />
+|my stuff here - flip flag<br />
+<br />
+	check.all.input()<br />
+	|#call<br />
+	|#pobj added by QKEY 3.70<br />
+	_pobj_exe1(&quot;before.choice.cont.process&quot;)<br />
+	|#end add by QKEY<br />
+<br />
+after.choice:<br />
+	|#call<br />
+	|#pobj added by QKEY 3.70<br />
+	_pobj_exe1(&quot;after.choice.cont.process&quot;)<br />
+	|#end add by QKEY<br />
+<br />
+| flip flag back<br />
+<br />
+choice.update.db:<br />
+after.choice:<br />
+| Happens once after insert record, delete record or range of records, save after multi updates<br />
+| if try to update recd here, next record is current<br />
+| message (&quot;choice.update.db %s %s&quot;, tdilc501.loca, tdilc501.item)<br />
+	<br />
+	|#call<br />
+	|#pobj added by QKEY 3.70<br />
+	_pobj_exe1(&quot;after.choice.update.db&quot;)<br />
+	|#end add by QKEY<br />
+	<br />
+main.table.io:<br />
+after.write:<br />
+	message(&quot;after.write %s %s %s %d&quot;, tdilc501.loca, tdilc501.item, hold.recd(1, actual.occ), actual.occ)<br />
+	update.history()<br />
+	|#call<br />
+	|#pobj added by QKEY 3.70<br />
+	_pobj_exe1(&quot;after.write&quot;)<br />
+	|#end add by QKEY<br />
+	<br />
+after.rewrite:<br />
+	message(&quot;after.rewrite %s %s %s %d&quot;, tdilc501.loca, tdilc501.item, hold.recd(1, actual.occ), actual.occ)<br />
+|	abort.transaction()<br />
+	update.history()<br />
+	|#call<br />
+	|#pobj added by QKEY 3.70<br />
+	_pobj_exe1(&quot;after.rewrite&quot;)<br />
+	|#end add by QKEY<br />
+<br />
+after.delete:<br />
+|	message(&quot;after.delete %s %s&quot;, tdilc501.loca, tdilc501.item)<br />
+	delete.history()<br />
+	|#call<br />
+	|#pobj added by QKEY 3.70<br />
+	_pobj_exe1(&quot;after.delete&quot;)<br />
+<br />
+|***************************************************************************<br />
+|* Autogenerated subsections for main.table.io<br />
+|***************************************************************************<br />
+<br />
+after.read:<br />
+	_pobj_exe1(&quot;after.read&quot;)<br />
+<br />
+before.write:<br />
+	_pobj_exe1(&quot;before.write&quot;)<br />
+<br />
+before.rewrite:<br />
+	_pobj_exe1(&quot;before.rewrite&quot;)<br />
+<br />
+	|#end add by QKEY<br />
+	<br />
+|20100420.st<br />
+field.input.vtype:<br />
+before.display:<br />
+|message(&quot;before.display vtype&quot;)<br />
+	select 	tdcyc100.orno, tdcyc100.sern, tdcyc100.ordt, tdcyc100.recnum, tdcyc100.vtype from tdcyc100<br />
+	where	tdcyc100._index1 = {:tdilc501.orno, :tdilc501.sern, :tdilc501.data}<br />
+	and	tdcyc100.stat &lt;&gt; tdcyc.stat.process<br />
+	order by tdcyc100._index1 desc<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		input.vtype = tdcyc100.vtype<br />
+	selectempty<br />
+		input.vtype = tdcyc.vtype.none<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">8th October 2010, 20:27</div></div><div class="posttext">Yes, I put it in the before display, it works.<br />
+<br />
+Thanks a lot.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">joepte</div><div class="date">13th April 2012, 22:50</div></div><div class="posttext">Long time ago - but why do you put it in after display? Why does after display reset fields?<br />
+I have a multi occ session and all the fields change after an after.display (of unrelated fields and I am not sure why this is).<br />
+Thanks</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

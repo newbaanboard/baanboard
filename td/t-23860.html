@@ -1,0 +1,102 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Retriving data from tdsls045 very slow, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Retriving data from tdsls045 very slow Tools Development" />
+	
+	<title>Retriving data from tdsls045 very slow [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Retriving data from tdsls045 very slow</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">vineetu1</div><div class="date">24th April 2005, 11:55</div></div><div class="posttext">The tdsls045 table consist of around 6,10,000 records.<br />
+<br />
+I am in process of developing a cusomized sales related report wherein one of the input criteria is invoice date.<br />
+<br />
+The following basic query takes approximately 4-5 minutes to fetch the first record,which is very very slow. I checked it through  (-- -set TT_SQL_TRACE=0240 ) option.<br />
+All subsequent records are fetched in resonable time. I did not find any index which includeds the item and invoice date fields hence no index is suitable.<br />
+<br />
+To improve the speed I also optimized tdsls045 and tiitm001 table at database level (in informix) but the time taken to fetch the first record is still very slow.<br />
+	select	tdsls045.item, tdsls045.cwar, tdsls045.dqua, tdsls045.pric<br />
+ 		tiitm001.dsca, tiitm001.copr<br />
+	from	tdsls045, tiitm001<br />
+	where	tdsls045.item inrange :item.f and :item.t<br />
+	and	tdsls045.cwar inrange :warehouse.f and :warehouse.t<br />
+	and	tdsls045.invd inrange :desp.date.f and :desp.date.t<br />
+ 	and	tdsls045.item refers to tiitm001<br />
+	order by tdsls045.item<br />
+	selectdo<br />
+		rprt_send()<br />
+	endselect<br />
+<br />
+Any suggestions as to how to speed up the query ....?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanprog</div><div class="date">24th April 2005, 14:42</div></div><div class="posttext">Hi Vineet<br />
+<br />
+Try this<br />
+<br />
+select tdsls045.item, tdsls045.cwar, tdsls045.dqua, tdsls045.pric<br />
+tiitm001.dsca, tiitm001.copr<br />
+from tdsls045, tiitm001<br />
+where tdsls045._index8 inrange {&quot;      &quot;, :item.f} and {&quot;ZZZZZZ&quot;, :item.t}<br />
+and tdsls045.cwar inrange :warehouse.f and :warehouse.t<br />
+and tdsls045.invd inrange :desp.date.f and :desp.date.t<br />
+and tdsls045.item refers to tiitm001<br />
+order by tdsls045.item<br />
+selectdo<br />
+rprt_send()<br />
+endselect<br />
+<br />
+I have modified the item selection  part  by using index 8.<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vineetu1</div><div class="date">25th April 2005, 05:51</div></div><div class="posttext">Hi,<br />
+<br />
+I have already tried index8 earlier but there is no improvement.<br />
+<br />
+In general I find that, other than index1 all other indexes are relatively slow.<br />
+<br />
+Yesterday when I was viewing some records in tdinv700 through ttaad4500, when I used index3 and tried to browse to next record it took almost 10 mins to go to next record.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vineetu1</div><div class="date">25th April 2005, 05:56</div></div><div class="posttext">Would like to add that going to the next record is not much of problem, but going to previous record is very very slow.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">25th April 2005, 07:06</div></div><div class="posttext">Indeed in GTM , duplicate indices take very high time independent of database driver . However in code if the sql uses duplicate index , it's no problem.<br />
+<br />
+In ur  case , using index 8 of sls045 may not be helping bcos user must be inputting invoice date leaving from to item global values.<br />
+<br />
+If u notice almost all indices in Baan standard ar unique indices (with exceptions like tdinv700 3rd index) .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NyarlaToTep</div><div class="date">25th April 2005, 11:25</div></div><div class="posttext">If viewing records with ttaad4500 is too slowly maybe you must rebuild the index.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">EdHubbard</div><div class="date">25th April 2005, 23:32</div></div><div class="posttext">We have added a few extra indices onto tdsls045, one of them being invoice date, to speed up certain reports.<br />
+<br />
+This has definitely speeded them up.<br />
+<br />
+Ed<br />
+<br />
+p.s. our tdsls045 has 150,000 records.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tjbyfield</div><div class="date">26th April 2005, 01:44</div></div><div class="posttext">We use the index 5 with ckor = 3 of tdsls051 table to retreive tdsls045 invoiced records.  <br />
+<br />
+This works very well for us. Our RDBMS is oracle 8 and we have close to 2 mil tdsls045 records and 5 mill tdsls051 records.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

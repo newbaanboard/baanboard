@@ -1,0 +1,86 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="error 100 on db.insert; but why?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] error 100 on db.insert; but why? Tools Development" />
+	
+	<title>error 100 on db.insert; but why? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; error 100 on db.insert; but why?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">timb25</div><div class="date">21st September 2009, 19:15</div></div><div class="posttext">Our employee table (tccom001) is created in 6 companies.  It cannot be shared across all because of other business reasons.   So, when someone creates a new employee, they have to perform the same function 6 times.<br />
+<br />
+I wrote a custom session linked off the maintain employee session that allows you to insert the other companies you want to create the employee.<br />
+<br />
+Starting in company 100, the employee (100123) is created, saved, and all is good.  Then you open this session which displays employee 100123 and you set  to update/insert company 310, 320, 330, 340.  Refer to screen shot.<br />
+<br />
+And here is the abridged version of the code:<br />
+<br />
+function read.main()<br />
+{<br />
+	result = switch.to.company(base.comp)<br />
+	fill.current.employee()	|Fills variables with employee table field values<br />
+	x = 1<br />
+	while x &lt; 99 and comp.t(x) &lt;&gt; 0	|Loop thru each desired company<br />
+		update.employee.record()<br />
+		x = x + 1<br />
+	endwhile<br />
+}<br />
+<br />
+function update.employee.record()<br />
+{<br />
+	result = switch.to.company(comp.t(x))<br />
+<br />
+	db.retry.point()<br />
+	select	tccom001.*<br />
+	from 	tccom001 for update<br />
+	where	tccom001.emno = :emno.t	| current employee <br />
+	selectdo<br />
+		assign.table.fields.from.variables()	<br />
+		result = db.update(ttccom001,db.retry)<br />
+	selectempty<br />
+		assign.table.fields.from.variables()<br />
+		result = db.insert(ttccom001,db.retry)<br />
+	endselect<br />
+	commit.transaction()<br />
+}<br />
+<br />
+<br />
+I realize it's redundant going though company 100.  But I do a switch.to.company and 310 should be the next company to evaluate.  It determines there is no record in 310 so it will perform a db.insert.  The result of the db.insert is 100 (duplicate record).   I do not understand why......??</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st September 2009, 20:54</div></div><div class="posttext">I seem to recall a thread about record buffers and switching to multiple companies.  I will try to search for it. Have you tried setting the company number before the insert? Using tccom001._compnr = some company number.  I am not sure if that was the answer or not.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">timb25</div><div class="date">21st September 2009, 21:10</div></div><div class="posttext">Setting tccom001._compnr = {company} right before performing the insert DID work.  While debugging, this value always had the original company number and never changed even though i used switch.to.company.  I never had used this command in the past, but i don't recall performing inserts in any other company than the original.   <br />
+<br />
+Thanks alot!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st September 2009, 21:44</div></div><div class="posttext">Glad it worked I could not find the thread.  I think this was one field mentioned and there were a couple of other hidden fields - maybe something like _locked or elocked, I really can not recall. This is just something I do not have to worry about - I only read from a simulation company.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">21st September 2009, 22:06</div></div><div class="posttext">While debugging, this value always had the original company number and never changed even though i used switch.to.company. I never had used this command in the past, but i don't recall performing inserts in any other company than the original.<br />
+result = switch.to.company(comp.t(x))<br />
+Tim, in your code you were never checking the return value of 'result' if it could successfully change or not. When the result &lt;&gt; 1, then you are still in the original company and inserting there again will cause error - 100 duplicate value. <br />
+<br />
+Refer to the programmer's manual for more info: switch.to.company() (http://www.baanboard.com/programmers_manual_baanerp_help_functions_company_operations_switch_to_company)<br />
+Setting tccom001._compnr = {company} right before performing the insert DID work.<br />
+This will work as long as the table definitions of the Package Combination's/VRCs linked to the companies are same.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">timb25</div><div class="date">21st September 2009, 22:24</div></div><div class="posttext">NPRao - Prior to setting the tccom001._compnr value; I checked the return result each time for switch.to.company and it always returned 1.  That's why I was so confused because my select statement worked correctly while i was in the 'switched' company.  Just when it got to the db.insert is when it didn't work as I expected.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

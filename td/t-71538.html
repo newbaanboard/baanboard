@@ -1,0 +1,103 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Delayed lock &amp; retry Point, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Delayed lock &amp; retry Point Tools Development" />
+	
+	<title>Delayed lock &amp; retry Point [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Delayed lock &amp; retry Point</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Santosh_mali</div><div class="date">13th December 2018, 14:28</div></div><div class="posttext">Hi,<br />
+<br />
+I have written one query as below, <br />
+what will happen when another developer written same query and updates value for tcmcs142.exno with B and do commit before my query commits the record?<br />
+How delayed lock work in this case &amp; How Retry will happen in this scenario?<br />
+<br />
+<br />
+<br />
+db.retry.point()<br />
+<br />
+select   tcmcs142.exno<br />
+From     tcmcs142 for update<br />
+where   tcmcs142._index1 = {:tdsls040.cuno, :tdsls041.cvat}<br />
+selectdo<br />
+<br />
+               tcmcs142.exno = &quot;A&quot;<br />
+               db.update(ttcmcs142, db.retry)<br />
+               commit.transaction()<br />
+<br />
+selectempty<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th December 2018, 15:27</div></div><div class="posttext">I would expect (if things were perfect and hit at exactly the say time) one would wait for the lock and then process thru and update the record.  Now in my home grown sessions there are times I do not want them to be able to update or process at the same time.  For example I have sessions where you can process whole production order yields or outbound - in those cases I do not want 2 users trying to process the same order out of the same session.  So what I do is check for an application lock on the order, no lock, set an application lock, then process the order.  If at the same time another user tries to process the order - it will tell them an application lock exists and skip processing.  I even do this on some sessions to keep multiple users out - start of the session I set a session lock using application locks - then the next user tries to run the session it will not let them.  Not sure if that helps or not.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">13th December 2018, 16:58</div></div><div class="posttext">Hello,<br />
+Database handling overview<br />
+<br />
+--------------------------------------------------------------------------------<br />
+<br />
+BaanERP data is stored in a relational database, which is managed by a Relational Database Management System (RDBMS). The RDBMS acts as the database server for BaanERP applications. BaanERP supports the following RDBMS products:<br />
+<br />
+Informix <br />
+Oracle <br />
+DB2 <br />
+Microsoft SQL Server <br />
+The BaanERP architecture includes a database driver. This provides the application server (that is, the bshell) with a common interface to the database server, regardless of which RDBMS product is used. This enables the application server to be database independent. The database driver is responsible for translating database commands received from the application server into RDBMS-specific commands. Although, the database driver's interface with the application server is the same for all RDBMS products, its interface with the RDBMS is RDBMS-specific. Therefore, there is a separate database driver for each of the supported RDBMS products.<br />
+<br />
+Transaction handling<br />
+<br />
+--------------------------------------------------------------------------------<br />
+<br />
+With respect to database actions, a transaction is a sequence of related actions that are treated as a unit. The actions that make up a transaction are processed in their entirety, or not at all.<br />
+<br />
+A transaction ends with the function commit.transaction() (all changes made during the transaction are stored in the database) or with the function abort.transaction() (no changes are stored in the database). A transaction starts with the first database call after the beginning of a process, or with the first database call after the preceding transaction has ended. <br />
+<br />
+A transaction is automatically rolled back (that is, it is undone) when a process is canceled and if a program ends without a commit.transaction() or abort.transaction() after the last database call. <br />
+<br />
+Certain database actions cannot be placed within a transaction, because they cannot be rolled back. These actions are: db.create.table() and db.drop.table(). These functions can be called only at the start of a program or after the end of the preceding transaction. These functions will not start a new transaction.<br />
+<br />
+You can set a retry point immediately before a transaction. In case of an error, the system returns to this point and re-executes the transaction from there.<br />
+<br />
+A read-only transaction is a transaction in which you are permitted only to read records (without lock) from the database. A read-only transaction starts with the function set.transaction.readonly() (this must be called after ending the preceding transaction or at the beginning of the program) and ends with a commit.transaction() or abort.transaction(). <br />
+<br />
+Delayed locks<br />
+Locking a record for longer than required can result in unnecessarily long waiting times. The use of delayed locks solves this problem to a great extent.<br />
+<br />
+A delayed lock is applied to a record immediately before changes are committed to the database and not earlier. When the record is initially read, it is temporarily stored. Immediately before updating the database, the system reads the value of the record again, this time placing a lock on it. If the record is already locked, the system goes back to the retry point and retries the transaction. If the record is not locked, the system compares the content of the record from the first read with the content from the second read. If changes have been made to the record by another process since the first read, the error EROWCHANGED is returned and the transaction is undone. If no changes have occurred, the update is committed to the database.<br />
+<br />
+You place a delayed lock by adding the keyword FOR UPDATE to the SELECT statement (see BAAN SQL). For example:<br />
+<br />
+table   tpctst999<br />
+db.retry.point()<br />
+SELECT pctst999.*<br />
+FROM pctst999 FOR UPDATE<br />
+SELECTDO<br />
+                pctst999.dsca = &quot;....&quot;<br />
+                ....<br />
+                db.update(tpctst999, DB.RETRY)<br />
+ENDSELECT<br />
+<br />
+<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Santosh_mali</div><div class="date">13th December 2018, 17:23</div></div><div class="posttext">understood now.<br />
+Thanks Mark &amp; bdittmar for valuable response.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

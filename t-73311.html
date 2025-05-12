@@ -1,0 +1,542 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="The sub-session cannot run in background mode?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] The sub-session cannot run in background mode? AFS/DDC/OLE: Function servers" />
+	
+	<title>The sub-session cannot run in background mode? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; The sub-session cannot run in background mode?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">alibaba</div><div class="date">26th July 2020, 00:30</div></div><div class="posttext">Hi Experts:<br />
+    I found a strange problem when the stpapi.* functions was running,I made a call from tfgld1101m000 to tfacp1110s000 to tfacp1130s000 and tfacp1131s000 using the stpapi function. The code like this:<br />
+<br />
+<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;tedt.df&quot;,str$(date.num()))<br />
+	|... put other fields---<br />
+	q = stpapi.change.view(&quot;tfgld1101m000&quot;,msg)<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;tfgld101.ttyp&quot;,&quot;XXX&quot;)<br />
+	q = stpapi.insert(&quot;tfgld1101m000&quot;, true, msg)<br />
+	if q = 0  then<br />
+		t = stpapi.recover(&quot;tfgld1101m000&quot;, msg)<br />
+		stpapi.end.session(&quot;tfgld1101m000&quot;,msg)<br />
+	else<br />
+		stpapi.handle.subproc(&quot;tfgld1101m000&quot;, &quot;tfacp1110s000&quot;, &quot;add&quot;)<br />
+		stpapi.continue.process(&quot;tfgld1101m000&quot;, ttte)<br />
+		stpapi.put.field(&quot;tfacp1110s000&quot;,&quot;tfacp200.suno&quot;, &quot;xxxxxx&quot;)		<br />
+		stpapi.put.field(&quot;tfacp1110s000&quot;,&quot;screen.amnt&quot;, &quot;0.18&quot;)	<br />
+		stpapi.put.field(&quot;tfacp1110s000&quot;,&quot;tfacp200.orno&quot;, &quot;xxxxxx&quot;)		<br />
+		stpapi.handle.subproc(&quot;tfacp1110s000&quot;, &quot;tfacp1230s000&quot;, &quot;add&quot;)<br />
+		stpapi.handle.subproc(&quot;tfacp1110s000&quot;, &quot;tfacp1130s000&quot;, &quot;add&quot;)<br />
+		stpapi.handle.subproc(&quot;tfacp1130s000&quot;, &quot;tfacp1131s000&quot;, &quot;add&quot;)<br />
+		q = stpapi.insert(&quot;tfacp1110s000&quot;, true, msg)<br />
+		if q = 0 then<br />
+			t = stpapi.recover(&quot;tfacp1110s000&quot;, msg)<br />
+			stpapi.end.session(&quot;tfacp1110s000&quot;,msg)<br />
+		else<br />
+			stpapi.put.field(&quot;tfacp1131s000&quot;,&quot;tdpur045.orno&quot;, &quot;xxxxxx&quot;)<br />
+			stpapi.put.field(&quot;tfacp1131s000&quot;,&quot;tdpur045.pono&quot;, &quot;1&quot;)<br />
+|			stpapi.put.field(&quot;tfacp1131s000&quot;,&quot;tdpur045.srnb&quot;, &quot;1&quot;)<br />
+			q = stpapi.find(&quot;tfacp1131s000&quot;,msg)<br />
+			if q = 1 then<br />
+				q = stpapi.mark(&quot;tfacp1131s000&quot;,msg)<br />
+				if q = 1 then<br />
+					stpapi.put.field(&quot;tfacp1131s000&quot;,&quot;tdpur045.matc&quot;, &quot;2&quot;)<br />
+					q = stpapi.update(&quot;tfacp1131s000&quot;,true,msg)<br />
+					q = stpapi.save(&quot;tfacp1131s000&quot;,msg)<br />
+					if q = 0 then<br />
+						t = stpapi.recover(&quot;tfacp1131s000&quot;, msg)<br />
+					endif<br />
+					stpapi.end.session(&quot;tfacp1131s000&quot;,msg)<br />
+					stpapi.end.session(&quot;tfacp1130s000&quot;,msg)<br />
+				endif<br />
+			endif<br />
+<br />
+    When the script runs, stpapi.insert(&quot;tfacp1110s000&quot;, true, msg) is successful. But when I looked at the background running session, I found that session tfacp1130s000 had started, but session tfacp1131s000 did not start, so part stpapi.find(&quot;tfacp1131s000&quot;,msg) of the script failed to execute.<br />
+    I debugged the program and found that  tfacp1131s000 was started by tfacp1130s000. However, in tfacp1130s000, you need to determine whether you are running in background mode( background = 0 or 1 ). If it is no, tfacp1131s000 is not started. In the above script, after entering the debug mode of tfacp1130s000, the pre-defined variable background = 0.<br />
+   I looked at  tfacp1130s000 in the shell windows and found that its PPID(parent process) was not tfacp1110s000, but ottstpapiserv.<br />
+   I tried to modify the script to like this<br />
+<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;tedt.df&quot;,str$(date.num()))<br />
+	|... put other fields---<br />
+	q = stpapi.change.view(&quot;tfgld1101m000&quot;,msg)<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;tfgld101.ttyp&quot;,&quot;XXX&quot;)<br />
+	q = stpapi.insert(&quot;tfgld1101m000&quot;, true, msg)<br />
+	if q = 0  then<br />
+		t = stpapi.recover(&quot;tfgld1101m000&quot;, msg)<br />
+		stpapi.end.session(&quot;tfgld1101m000&quot;,msg)<br />
+	else<br />
+		stpapi.handle.subproc(&quot;tfgld1101m000&quot;, &quot;tfacp1110s000&quot;, &quot;add&quot;)<br />
+		stpapi.continue.process(&quot;tfgld1101m000&quot;, ttte)<br />
+		stpapi.put.field(&quot;tfacp1110s000&quot;,&quot;tfacp200.suno&quot;, &quot;xxxxxx&quot;)		<br />
+		stpapi.put.field(&quot;tfacp1110s000&quot;,&quot;screen.amnt&quot;, &quot;0.18&quot;)	<br />
+		stpapi.put.field(&quot;tfacp1110s000&quot;,&quot;tfacp200.orno&quot;, &quot;xxxxxx&quot;)		<br />
+		stpapi.handle.subproc(&quot;tfacp1110s000&quot;, &quot;tfacp1230s000&quot;, &quot;add&quot;)<br />
+		stpapi.handle.subproc(&quot;tfacp1110s000&quot;, &quot;tfacp1130s000&quot;, &quot;add&quot;)<br />
+		stpapi.handle.subproc(&quot;tfacp1130s000&quot;, &quot;tfacp1131s000&quot;, &quot;add&quot;)<br />
+		q = stpapi.insert(&quot;tfacp1110s000&quot;, true, msg)<br />
+		if q = 0 then<br />
+			t = stpapi.recover(&quot;tfacp1110s000&quot;, msg)<br />
+			stpapi.end.session(&quot;tfacp1110s000&quot;,msg)<br />
+		else<br />
+<br />
+			   stpapi.end.session(&quot;tfacp1230s000&quot;,msg)<br />
+			stpapi.end.session(&quot;tfacp1130s000&quot;,msg)<br />
+			stpapi.continue.process(&quot;tfacp1110s000&quot;, msg)<br />
+<br />
+			stpapi.put.field(&quot;tfacp1131s000&quot;,&quot;tdpur045.orno&quot;, &quot;xxxxxx&quot;)<br />
+			stpapi.put.field(&quot;tfacp1131s000&quot;,&quot;tdpur045.pono&quot;, &quot;1&quot;)<br />
+|			stpapi.put.field(&quot;tfacp1131s000&quot;,&quot;tdpur045.srnb&quot;, &quot;1&quot;)<br />
+			q = stpapi.find(&quot;tfacp1131s000&quot;,msg)<br />
+			if q = 1 then<br />
+				q = stpapi.mark(&quot;tfacp1131s000&quot;,msg)<br />
+				if q = 1 then<br />
+					stpapi.put.field(&quot;tfacp1131s000&quot;,&quot;tdpur045.matc&quot;, &quot;2&quot;)<br />
+					q = stpapi.update(&quot;tfacp1131s000&quot;,true,msg)<br />
+					q = stpapi.save(&quot;tfacp1131s000&quot;,msg)<br />
+					if q = 0 then<br />
+						t = stpapi.recover(&quot;tfacp1131s000&quot;, msg)<br />
+					endif<br />
+					stpapi.end.session(&quot;tfacp1131s000&quot;,msg)<br />
+					stpapi.end.session(&quot;tfacp1130s000&quot;,msg)<br />
+				endif<br />
+			endif<br />
+<br />
+    when process tfacp1130s000 starts again by stpapi.continue.process(&quot;tfacp1110s000&quot;, msg), the value of the predefined variable background = 1, and tfacp1131s000 starts normally. The function stpapi.find(&quot;tfacp1131s000&quot;,msg) executed successfully. at this time,I looked at tfacp1130s000/tfacp1131s000 in the shell windows and found that its PPID(parent process) is tfgld1101m000 !<br />
+    But I don't know why? Why the previous use of the function stpapi.handle.subproc(&quot;tfacp1110s000&quot;, &quot;tfacp1130s000&quot;, &quot;add&quot;), the variable  background of tfacp1130s000 is 0. But after executing the stpapi.continue.process(&quot;tfacp1110s000&quot;, msg) command again on tfacp1110s000, the variable background for tfacp1130s000 is 1.<br />
+    Thanks!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">26th July 2020, 09:25</div></div><div class="posttext">By my personal experience, I can say, there are issues with using AFS for booking Purchase Invoices in LN(I assume that is what you are looking for). I would recommend to identify the tables involved and either go with db.* or dal.* functions to avoid any issues. You might need to look for DLL's wherever necessary. Using AFS, we found several similar issues. If you resolve one, you might get trapped in another and it becomes a never ending journey of troubleshooting.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">alibaba</div><div class="date">26th July 2020, 19:58</div></div><div class="posttext">Thanks for your reply bhushanchanda.I think I found my problem: I entered the wrong STPAPI function order. Make the session start prematurely...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">avpatil</div><div class="date">26th October 2020, 05:18</div></div><div class="posttext">Hi,<br />
+I am also trying to do similar. <br />
+tfgld101m000 has session tfgld1101m100 where one enters the transaction type Then upon double clicking it launches a session tfacp2600m000. In that session also there is session tfacp1102m000 for entering additional cost. How does one handle all theses sessons? I have the code, but it hangs when I try to execute stapi.put.field in tfacp2600m000.<br />
+<br />
+Here is my code. I think I am missing some thing here in terms of handling of these sessions. Before launching AFS, I already created record in tfgld100 and tfgld101. So all I now need is to create invoice through tfacp2600m000.<br />
+<br />
+<br />
+stpapi.put.field(&quot;tfgld1101m000&quot;, &quot;tfgld101.year&quot;, str$(year))<br />
+stpapi.put.field(&quot;tfgld1101m000&quot;, &quot;tfgld101.btno&quot;, str$(i.btno))<br />
+stpapi.put.field(&quot;tfgld1101m000&quot;, &quot;tfgld101.ttyp&quot;, l.ttyp)<br />
+stpapi.find(&quot;tfgld1101m000&quot;, l.emsg)<br />
+if not isspace(l.emsg) then<br />
+l.emsg = &quot;Transaction Type not defined for AP User: &quot; &amp; logname$<br />
+l.errf = 1<br />
+stpapi.end.session(&quot;tfgld1101m000&quot;, l.emsg)<br />
+endif<br />
+if l.errf=1 then<br />
+|continue<br />
+endif<br />
+| stpapi.mark(&quot;tfgld1101m000&quot;)<br />
+stpapi.handle.subproc(&quot;tfgld1101m000&quot;, &quot;tfgld1101m100&quot;, &quot;add&quot;)<br />
+stpapi.put.field(&quot;tfgld1101m100&quot;, &quot;tfgld101.year&quot;, str$(year))<br />
+stpapi.put.field(&quot;tfgld1101m100&quot;, &quot;tfgld101.btno&quot;, str$(i.btno))<br />
+stpapi.put.field(&quot;tfgld1101m100&quot;, &quot;tfgld101.ttyp&quot;, l.ttyp)<br />
+stpapi.find(&quot;tfgld1101m100&quot;, l.emsg)<br />
+stpapi.handle.subproc(&quot;tfgld1101m100&quot;, &quot;tfacp2600m000&quot;, &quot;add&quot;)<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.ninv&quot;, &quot;0&quot;) |Document<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.appr&quot;, str$(etol(tfacp.inv.purchase)))|Match with Orders<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.orno&quot;, str$(i.orno)) |Receipt Number<br />
+if not isspace(l.dino) then<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.shpm&quot;, l.dino) |Packing Slip<br />
+endif<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.load&quot;, &quot;&quot;) |Load<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.shpi&quot;, &quot;&quot;) |Shipment<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.clus&quot;, &quot;&quot;) |Freight Cluster<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.lfbp&quot;, l.ifbp) |Invocie from BP<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.isup&quot;, i.sinv) |Supplier Invoice<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.refr&quot;, i.refr) |Reference<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.docf&quot;, str$(i.invd)) |Document Date-<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;reference.line&quot;, &quot;&quot;) |Reference Line<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;screen.amnt&quot;, str$(i.amnt)) |Screem Amount<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.rade&quot;, str$(l.mcfr)) |Rate Determiner<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.rtyp&quot;, l.ratt) |Exchange Rate Type<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.rate(1)&quot;, str$(l.ratp)) |Rate Factor<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.lavl&quot;, str$(etol(tfacp.vatc.header))) |Level of Tax calculation<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.vatc&quot;, l.vatc) |Tax country<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.cvat&quot;, l.cvat) |Tax code<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;screen.vata&quot;, str$(i.vata)) |Tax Amount<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.vaty&quot;, str$(i.vaty)) |Tax yesr<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.vatp&quot;, str$(i.vatp)) |Tax period<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.pryp&quot;, l.cotp) |Purchase Order Type<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.otyp&quot;, &quot;&quot;) |Original Invoce Type<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.oinv&quot;, &quot;0&quot;) |Priginal Invouce<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfacp200.osch&quot;, &quot;0&quot;) |Orginal Schedule Line<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;taxnr&quot;, &quot;&quot;) |Supplier Tax number<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfgld200.bloc&quot;, &quot;&quot;) |Hold Reason<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfgld200.bank&quot;, l.cban) |Bank<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfgld200.cpay&quot;, l.cpay) |Payment Term<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfgld200.paym&quot;, l.paym) |Payment Method<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfgld200.reas&quot;, &quot;&quot;) |Reason for payment<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfgld200.ccrs&quot;, l.ccrs) |Late Payment Surcharge<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfgld200.paya&quot;, l.paya) |Payment Agreement<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfgld200.optb&quot;, l.ptbp) |Orginal Pay to BP<br />
+stpapi.put.field(&quot;tfacp2600m000&quot;, &quot;tfgld200.otbb&quot;, l.otbp) |Orginal Buy From BP<br />
+stpapi.insert(&quot;tfacp2600m000&quot;,1,l.emsg)<br />
+stpapi.end.session(&quot;tfacp2600m000&quot;,l.emsg)<br />
+stpapi.end.session(&quot;tfgld1101m100&quot;,l.emsg)<br />
+stpapi.end.session(&quot;tfgld1101m000&quot;,l.emsg)<br />
+<br />
+<br />
+Regards<br />
+<br />
+Arvind Pati</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th October 2020, 15:35</div></div><div class="posttext">Typically in 4c4.  I would expect to see a continue or action on the main session to launch a subsession.  This comes after the add. Like below from one of our:<br />
+<br />
+	| Start Session tfgld1101s000 ... Insert CTR transaction holder<br />
+	stpapi.handle.subproc(sess.gld1100, sess.gld1101, &quot;add&quot;)<br />
+	| 1.2 Select Continue button<br />
+	stpapi.continue.process(sess.gld1100, e.msg<br />
+<br />
+So in yours I would had this:<br />
+<br />
+stpapi.handle.subproc(&quot;tfgld1101m000&quot;, &quot;tfgld1101m100&quot;, &quot;add&quot;)<br />
+stpapi.continue.process(&quot;tfgld1101m000&quot;, l.emsg)  |&lt;&lt;&lt;== Launch tfgld1101m000<br />
+ stpapi.put.field(&quot;tfgld1101m100&quot;, &quot;tfgld101.year&quot;, str$(year))<br />
+ stpapi.put.field(&quot;tfgld1101m100&quot;, &quot;tfgld101.btno&quot;, str$(i.btno))<br />
+ stpapi.put.field(&quot;tfgld1101m100&quot;, &quot;tfgld101.ttyp&quot;, l.ttyp)<br />
+ stpapi.find(&quot;tfgld1101m100&quot;, l.emsg)<br />
+<br />
+The same would be true for tfacp2600m000.  Below is a subroutines for creating a batch and adding purchase invoices for some contractors.  Just remember we are on 4c4.<br />
+<br />
+<br />
+function api.create.batch()<br />
+{<br />
+long	io.date<br />
+string	str.date(10)<br />
+<br />
+	p.info = &quot;Creating Batch ...&quot;<br />
+	display(&quot;p.info&quot;)<br />
+	refresh()<br />
+	<br />
+	num.to.date(date.num(), c.yyyy, c.mm, c.dd)<br />
+	<br />
+	c.btno = get.next.btno(c.yyyy)<br />
+	c.fprd = get.cur.fiscal.period()<br />
+	c.rprd = get.cur.report.period()<br />
+	c.vprd = get.cur.tax.period()<br />
+	<br />
+	sess.gld1100 = &quot;tfgld1100m000&quot;<br />
+	sess.gld1101 = &quot;tfgld1101s000&quot;<br />
+	<br />
+	| 1.  tfgld1100m000 (Maintain Transactions) <br />
+	| 1.0 Input Batch data<br />
+	stpapi.put.field(sess.gld1100, &quot;tfgld100.tedt&quot;, str$(date.num())) <br />
+	stpapi.put.field(sess.gld1100, &quot;tfgld100.year&quot;, str$(c.yyyy)) <br />
+	stpapi.put.field(sess.gld1100, &quot;tfgld100.btno&quot;, str$(c.btno)) <br />
+	stpapi.put.field(sess.gld1100, &quot;tfgld100.bref&quot;, sprintf$(&quot;Contractor Labor (%02d/%02d/%02d)&quot;, mm,dd,yyyy\100)) <br />
+	stpapi.put.field(sess.gld1100, &quot;tfgld100.fprd&quot;, str$(c.fprd)) <br />
+	stpapi.put.field(sess.gld1100, &quot;tfgld100.rprd&quot;, str$(c.rprd)) <br />
+	stpapi.put.field(sess.gld1100, &quot;tfgld100.vyer&quot;, str$(c.yyyy)) <br />
+	stpapi.put.field(sess.gld1100, &quot;tfgld100.vprd&quot;, str$(c.vprd)) <br />
+	| 1.1 Insert a batch record<br />
+	rc = stpapi.insert(sess.gld1100, 1, e.msg) <br />
+	if not isspace(e.msg) then<br />
+		stpapi.end.session(sess.gld1100) <br />
+		return<br />
+	endif<br />
+	<br />
+	save.year = c.yyyy	| used to update the contractor pro forma header<br />
+	save.btno = c.btno<br />
+<br />
+	stpapi.get.field(sess.gld1100, &quot;tfgld100.tedt&quot;, io.fld) <br />
+	io.date = lval(io.fld)<br />
+	str.date = num.to.date$(io.date, 2)<br />
+	<br />
+	| Start Session tfgld1101s000 ... Insert CTR transaction holder<br />
+	stpapi.handle.subproc(sess.gld1100, sess.gld1101, &quot;add&quot;)<br />
+	| 1.2 Select Continue button<br />
+	stpapi.continue.process(sess.gld1100, e.msg)<br />
+	<br />
+| 	stpapi.get.field(sess.gld1101,&quot;tedt.f&quot;,io.fld)<br />
+| 	stpapi.get.field(sess.gld1101,&quot;tfgld101.year&quot;,io.fld)<br />
+| 	stpapi.get.field(sess.gld1101,&quot;tfgld101.btno&quot;,io.fld)<br />
+| 	stpapi.get.field(sess.gld1101,&quot;fyer.f&quot;,io.fld)<br />
+| 	stpapi.get.field(sess.gld1101,&quot;fprd.f&quot;,io.fld)<br />
+| 	stpapi.get.field(sess.gld1101,&quot;ryer.t&quot;,io.fld)<br />
+| 	stpapi.get.field(sess.gld1101,&quot;rprd.t&quot;,io.fld)<br />
+| 	stpapi.get.field(sess.gld1101,&quot;vyer.f&quot;,io.fld)<br />
+| 	stpapi.get.field(sess.gld1101,&quot;vprd.f&quot;,io.fld)<br />
+|<br />
+	stpapi.save(sess.gld1101,e.msg)<br />
+<br />
+	| 2.  tfgld1101s000 (Maintain Transactions)<br />
+	| 2.0 Input Batch transaction type<br />
+	stpapi.put.field(sess.gld1101, &quot;tfgld101.ttyp&quot;, &quot;CTR&quot;) <br />
+	| 2.1 Insert a CTR transaction into that batch<br />
+	rc = stpapi.insert(sess.gld1101, 1, e.msg) 	<br />
+	if not isspace(e.msg) then<br />
+		stpapi.end.session(sess.gld1101) <br />
+		stpapi.end.session(sess.gld1100) <br />
+		return<br />
+	endif<br />
+<br />
+}<br />
+function api.create.approve.pur.inv()<br />
+{<br />
+	domain	tfgld.refr	t.refr<br />
+	domain	tfacp.stap	t.stap<br />
+	<br />
+		string		lasthalf(30)<br />
+		string		firsthalf(30),firstname(20)<br />
+		string		lastname(12), firstinit(1), middileinit(1)<br />
+	<br />
+	i.ctr = i.ctr + 1<br />
+	p.info = &quot;Creating Invoice for employee: &quot; &amp; <br />
+		 str$(tccom001.emno) &amp; <br />
+		 &quot;(&quot; &amp; str$(i.ctr) &amp; &quot;)&quot;		 <br />
+	display(&quot;p.info&quot;)<br />
+	refresh()<br />
+<br />
+	<br />
+	sess.acp1110 = &quot;tfacp1110s000&quot;<br />
+	sess.acp1230 = &quot;tfacp1230s000&quot;<br />
+	sess.acp1130 = &quot;tfacp1130s000&quot;<br />
+	sess.acp1131 = &quot;tfacp1131s000&quot;<br />
+	sess.acp1140 = &quot;tfacp1140s000&quot;<br />
+	sess.acp1141 = &quot;tfacp1141s000&quot;<br />
+	sess.acp1133 = &quot;tfacp1133s000&quot;<br />
+<br />
+	|------------------------------------------------------------<br />
+	| I'm using the free$ (baan system variable) to let some<br />
+	| sessions (tfacp1131s000, tfacp1133s000) know they were<br />
+	| called from this contractor api process. Each of these<br />
+	| sessions were compiled with Qkey overriding event calls.<br />
+	|------------------------------------------------------------<br />
+	free$ = &quot;contractor.api&quot;<br />
+	<br />
+	| 2.2 Select CTR transaction (last.set)<br />
+	rc = stpapi.browse.set(sess.gld1101, &quot;last.set&quot;, e.msg) <br />
+	<br />
+	| 2.3 Select Transaction button (continue option)<br />
+	stpapi.handle.subproc(sess.gld1101, sess.acp1110, &quot;add&quot;)<br />
+	stpapi.continue.process(sess.gld1101, e.msg)<br />
+	<br />
+	stpapi.save(sess.acp1110,e.msg)<br />
+<br />
+	| 3.  tfacp1110s000 (Maintain Pur Inv)<br />
+	| 3.0 Input pur inv data<br />
+	stpapi.put.field(sess.acp1110, &quot;tfacp200.ttyp&quot;, &quot;CTR&quot;) <br />
+| 20060131.start Use default series<br />
+|	stpapi.put.field(sess.acp1110, &quot;tfacp200.ninv&quot;, &quot;22&quot;) <br />
+	stpapi.put.field(sess.acp1110, &quot;tfacp200.ninv&quot;, str$(tfgld011.dsrn)) <br />
+	stpapi.put.field(sess.acp1110, &quot;ref.po&quot;, strip$(tccom020.refa)) <br />
+| 20070518.st Use tcudi005	<br />
+|	stpapi.put.field(sess.acp1110, &quot;tfacp200.suno&quot;, strip$(tccom001.namb)) <br />
+	stpapi.put.field(sess.acp1110, &quot;tfacp200.suno&quot;, strip$(tcudi005.suno)) 	| 20070518.end<br />
+	| 20060116.st Change isup format and the refr fields<br />
+	|t.refr = sprintf$(&quot;%02d%02d%02d%02d%s&quot;, mm, dd, yyyy\100, tfgld911.serc, strip$(tccom001.nama)) <br />
+	|t.refr = sprintf$(&quot;%02d%02d%02d%02d%-06d&quot;, mm, dd, yyyy\100, tfgld911.serc, tccom001.emno) <br />
+	rc = string.scan(tccom001.nama,&quot;%s,%s&quot;,firsthalf,lasthalf)<br />
+	lastname = shiftl$(firsthalf(1;8))<br />
+	rc = string.scan(shiftl$(lasthalf),&quot;%s %s&quot;,firstname,middileinit)<br />
+	firstinit = firstname(1;1)<br />
+	<br />
+	t.refr = sprintf$(&quot;%02d%02d%02d%04d%s%s%s&quot;, mm, dd, tfgld911.serc,inv.count, firstinit, middileinit,lastname) <br />
+	stpapi.put.field(sess.acp1110, &quot;tfacp200.isup&quot;, t.refr)<br />
+	<br />
+	|20060127.start - Change date again.<br />
+	|stpapi.put.field(sess.acp1110, &quot;tfacp200.docd&quot;, sprintf$(&quot;%02d%02d%04d&quot;, mm, dd, yyyy))<br />
+	stpapi.put.field(sess.acp1110, &quot;tfacp200.docd&quot;, str$(date.t))<br />
+<br />
+	| 20060116.st Change isup format and the refr fields<br />
+	|t.refr = sprintf$(&quot;C%-06d %02d%02d%02d%02d&quot;, tccom001.emno, mm, dd, yyyy\100, tfgld911.serc)<br />
+	| 20160413 Modify t.refr to include year<br />
+	t.refr = sprintf$(&quot;C%02d%02d%02d%04d%-06d%s&quot;, mm, dd, tfgld911.serc, yyyy, tccom001.emno, strip$(tccom001.nama))<br />
+	stpapi.put.field(sess.acp1110, &quot;tfacp200.refr&quot;, t.refr)  <br />
+	stpapi.put.field(sess.acp1110, &quot;screen.amnt&quot;, str$(round(tfgld911.amnt, 2, 0))) <br />
+	stpapi.put.field(sess.acp1110, &quot;tfacp200.reas&quot;, &quot;5&quot;) <br />
+	stpapi.put.field(sess.acp1110, &quot;tfacp200.orno&quot;, strip$(tccom020.refa)) <br />
+<br />
+	stpapi.get.field(sess.acp1110, &quot;tfacp200.orno&quot;, io.fld) <br />
+	stpapi.put.field(sess.acp1110, &quot;tfacp200.orno&quot;, strip$(tccom020.refa)) <br />
+<br />
+	| 3.1 Insert a purchase invoice<br />
+	stpapi.handle.subproc(sess.acp1110, sess.acp1230, &quot;add&quot;)<br />
+	rc = stpapi.insert(sess.acp1110, 1, e.msg) <br />
+	if not isspace(e.msg) then<br />
+		stpapi.end.session(sess.acp1110) <br />
+		return<br />
+	endif<br />
+	<br />
+	| 4.  tfacp1230s000 (Maint Matched Pur Inv)<br />
+	| 4.1 Select Variance Option (USER.0)<br />
+	stpapi.handle.subproc(sess.acp1230, sess.acp1133, &quot;add&quot;)<br />
+	stpapi.application.option( sess.acp1230, 1, 0, e.msg )	| Variance button<br />
+	<br />
+	| 5.  tfacp1133s000 (Maint Match Pur Inv)<br />
+	| 5.1 Insert T192 with Regular Hours<br />
+	| Get the new Invoice Number ...<br />
+	stpapi.get.field(sess.acp1133, &quot;tfacp101.ninv&quot;, io.fld) <br />
+	save.docn = lval(io.fld)<br />
+	<br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.ttyp&quot;, &quot;CTR&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.ninv&quot;, str$(save.docn)) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.orno&quot;, &quot;0&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.pono&quot;, &quot;0&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.seri&quot;, &quot;1&quot;) <br />
+	rc = stpapi.change.view(sess.acp1133, e.msg)<br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.leac&quot;, &quot;T192&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.dim1&quot;, tfgld911.ctrg) <br />
+| 20060918 Calculate the amount.<br />
+|	stpapi.put.field(sess.acp1133, &quot;tfacp101.amnt&quot;, str$(round((tfgld911.hour + tfgld911.othr) * tfgld911.rate, 2, 0)))<br />
+	acp101.amnt = round((tfgld911.hour + tfgld911.othr) * tfgld911.rate, 2, 1)<br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.amnt&quot;, str$(acp101.amnt))<br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.dbcr&quot;, &quot;1&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.qty1&quot;, str$(tfgld911.hour + tfgld911.othr)) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.refr&quot;, &quot;W/E &quot; &amp; t.refr) <br />
+	rc = stpapi.insert(sess.acp1133, 1, e.msg) <br />
+	if not isspace(e.msg) then<br />
+		stpapi.end.session(sess.acp1133) <br />
+		stpapi.end.session(sess.acp1230) <br />
+		stpapi.end.session(sess.acp1110) <br />
+		return<br />
+	endif<br />
+	<br />
+	| 5.2 Insert T192 with OT Hours<br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.ttyp&quot;, &quot;CTR&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.ninv&quot;, str$(save.docn)) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.orno&quot;, &quot;0&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.pono&quot;, &quot;0&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.seri&quot;, &quot;2&quot;) <br />
+	rc = stpapi.change.view(sess.acp1133, e.msg)<br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.leac&quot;, &quot;T192&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.dim1&quot;, tfgld911.ctrg)<br />
+<br />
+|20060918.start Change calculation to make sure it balances with the tfgld911.amnt<br />
+|	stpapi.put.field(sess.acp1133, &quot;tfacp101.amnt&quot;, str$(round(tfgld911.othr * 0.5 * tfgld911.rate, 2, 0)))<br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.amnt&quot;, str$(round(tfgld911.amnt - acp101.amnt, 2, 1)))<br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.dbcr&quot;, &quot;1&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.qty1&quot;, str$(tfgld911.othr))<br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.refr&quot;, &quot;OT &quot; &amp; t.refr) <br />
+	rc = stpapi.insert(sess.acp1133, 1, e.msg) <br />
+	if not isspace(e.msg) then<br />
+		stpapi.end.session(sess.acp1133) <br />
+		stpapi.end.session(sess.acp1230) <br />
+		stpapi.end.session(sess.acp1110) <br />
+		return<br />
+	endif<br />
+	<br />
+	| 5.3 Insert 661110 with Booked Hours Debit<br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.ttyp&quot;, &quot;CTR&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.ninv&quot;, str$(save.docn)) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.orno&quot;, &quot;0&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.pono&quot;, &quot;0&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.seri&quot;, &quot;3&quot;) <br />
+	rc = stpapi.change.view(sess.acp1133, e.msg)<br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.leac&quot;, &quot;661110&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.dim1&quot;, tfgld911.ctrg) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.amnt&quot;, str$(round(tfgld911.amnt.a, 2, 0)))<br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.dbcr&quot;, &quot;1&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.qty1&quot;, str$(tfgld911.hour + tfgld911.othr))<br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.refr&quot;, t.refr) <br />
+	rc = stpapi.insert(sess.acp1133, 1, e.msg) <br />
+	if not isspace(e.msg) then<br />
+		stpapi.end.session(sess.acp1133) <br />
+		stpapi.end.session(sess.acp1230) <br />
+		stpapi.end.session(sess.acp1110) <br />
+		return<br />
+	endif<br />
+	<br />
+	| 5.4 Insert T193 with Booked Hours Credit<br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.ttyp&quot;, &quot;CTR&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.ninv&quot;, str$(save.docn)) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.orno&quot;, &quot;0&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.pono&quot;, &quot;0&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.seri&quot;, &quot;1&quot;) <br />
+	rc = stpapi.change.view(sess.acp1133, e.msg)<br />
+| 20050829.st Change credit account<br />
+|	stpapi.put.field(sess.acp1133, &quot;tfacp101.leac&quot;, &quot;T193&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.leac&quot;, &quot;T192&quot;) 	| 20050829.end<br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.dim1&quot;, tfgld911.ctrg) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.amnt&quot;, str$(round(tfgld911.amnt.a, 2, 0)))<br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.dbcr&quot;, &quot;2&quot;) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.qty1&quot;, str$(tfgld911.hour + tfgld911.othr)) <br />
+	stpapi.put.field(sess.acp1133, &quot;tfacp101.refr&quot;, t.refr) <br />
+	rc = stpapi.insert(sess.acp1133, 1, e.msg) <br />
+	if not isspace(e.msg) then<br />
+		stpapi.end.session(sess.acp1133) <br />
+		stpapi.end.session(sess.acp1230) <br />
+		stpapi.end.session(sess.acp1110) <br />
+		return<br />
+	endif<br />
+	<br />
+	| 5.5 tfacp1133s000 End<br />
+	stpapi.end.session(sess.acp1133) <br />
+	<br />
+	| 4.2 tfacp1230s000 End<br />
+	stpapi.end.session(sess.acp1230) <br />
+<br />
+	stpapi.handle.subproc(sess.acp1110, sess.acp1130, &quot;add&quot;)<br />
+	stpapi.continue.process(sess.acp1110, e.msg)<br />
+	e.msg = &quot;&quot;<br />
+<br />
+	stpapi.handle.subproc(sess.acp1130, sess.acp1131, &quot;add&quot;)<br />
+	stpapi.end.session(sess.acp1131) <br />
+<br />
+	stpapi.handle.subproc(sess.acp1130, sess.acp1140, &quot;add&quot;)<br />
+	stpapi.application.option( sess.acp1130, 1, 0, e.msg )	| Approve button<br />
+	e.msg = &quot;&quot; | &quot;Process gone&quot; mesage OK!<br />
+	<br />
+	stpapi.handle.subproc(sess.acp1140, sess.acp1133, &quot;add&quot;)<br />
+	stpapi.end.session(sess.acp1133) <br />
+<br />
+	stpapi.end.session(sess.acp1140) <br />
+	stpapi.end.session(sess.acp1130) <br />
+	stpapi.end.session(sess.acp1110) <br />
+	<br />
+	free$ = &quot;&quot;<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">avpatil</div><div class="date">26th October 2020, 16:04</div></div><div class="posttext">Thank you Mark. I think even in IVc4, One needs to double click on Transaction type to launch the session to enter the session to enter Purchase Invoice. in Baan V and ERP, there are options in form itself to launch function that will in this case would launch tfacp2600m000 from tfgld1101m100. I was looking for AFS command to execute a form command<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th October 2020, 23:44</div></div><div class="posttext">Man did I miss the question. :) Try looking at stpapi.form.command for LN. You can refer to the sticky thread for some older documentation.  Can probably search this forum also for examples. <br />
+<br />
+void stpapi.form.command(string session, long command.type, string command.prog, ref string err.mesg)<br />
+ARGUMENTS<br />
+session	Name of the session this command is executed on.<br />
+command.type	The type of form command to be executed. The following values apply:<br />
+	2 - session<br />
+	5 - function<br />
+command.prog	The code of the session or the name of the function to be executed.<br />
+err.mesg	This parameter will contain the text of the error message if the function cannot complete normally.<br />
+DESCRIPTION<br />
+This function causes the specified form command to be executed in the specified session.<br />
+RETURN VALUES<br />
+None<br />
+<br />
+EXAMPLE<br />
+stpapi.put.field(&quot;dtfsa1501m000&quot;, &quot;dtfsa101.seno&quot;, str$(i.seno))<br />
+ret = stpapi.find(&quot;dtfsa1501m000&quot;, error.msg)<br />
+if ret = 1 then		<br />
+       ret = stpapi.mark(&quot;dtfsa1501m000&quot;, error.msg)<br />
+       if ret = 1 then		<br />
+              stpapi.form.command(&quot;dtfsa1501m000&quot;, 5, &quot;calculate.vat&quot;, <br />
+                                  error.msg)<br />
+       endif<br />
+endif</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

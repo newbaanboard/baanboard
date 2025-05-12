@@ -1,0 +1,87 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="validate DD from shared memory, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] validate DD from shared memory Tools Administration &amp; Installation" />
+	
+	<title>validate DD from shared memory [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; validate DD from shared memory</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">29th May 2003, 21:50</div></div><div class="posttext">This is from the release notes of the Porting Set - 7.3a.03<br />
+<br />
+I hope it will be useful for everyone.<br />
+<br />
+Problem Description (Customer terms)<br />
+Baan error 512 (corrupt DD) on tables in a company that have been reconfigurated<br />
+for another, similar, company.<br />
+<br />
+Problem Description (Technical terms)<br />
+The database driver cache stores DD images per (physical) company. When <br />
+a reconfiguration is done, only the DD's for the reconfigured companies<br />
+have been invalidated in the cache.<br />
+Other companies that with the same VRC are not invalidated. <br />
+<br />
+Workaround<br />
+Refresh shared memory after reconfigurations.<br />
+<br />
+Test Procedure<br />
+1. Restart shared memory<br />
+	% shmmanger6.2 -s  should show:<br />
+	Db driver DD            0x00000000<br />
+<br />
+Note: run all following steps with DBSLOG=1000 and check the generated log.<br />
+<br />
+2. Touch ttaad050 compnr 0<br />
+	% qptool6.2 -c 0 -q &quot;select * from ttaad050&quot;<br />
+	dbs.log contains lines like:<br />
+		Search DBS_DD in shared memory for 'ttaad050000' - Not found<br />
+		Msg_type 8 received.<br />
+		Handle DD of 'ttaad050' compnr 000.<br />
+		Store dbs_dd in shared memory, key = 'ttaad050000' - hash created<br />
+<br />
+3. Repeat step 2, and verify that the cache is used now.<br />
+	dbs.log contains lines like:<br />
+		Search DBS_DD in shared memory for 'ttaad050000'  - Found <br />
+<br />
+4. Repeat step 2, for another company number <br />
+	% qptool6.2 -c 1 -q &quot;select * from ttaad050&quot;<br />
+	dbs.log contains lines like:<br />
+		Search DBS_DD in shared memory for 'ttaad050001'  - Not found <br />
+		Msg_type 8 received.<br />
+		Handle DD of 'ttaad050' compnr 001.<br />
+		Store dbs_dd in shared memory, key = 'ttaad050001'<br />
+<br />
+5. Change the DD (remove a reference) and reconfigure table.<br />
+	% bdbreconfig6.2 -N ttaad050 -C 000<br />
+	dbs.log contains lines like:<br />
+		Invalidate DBS_DD in shared memory. tname = 'ttaad050' - invalidated<br />
+<br />
+6. Repeat step 2, verify that the cache is not used anymore.<br />
+	dbs.log contains lines like:<br />
+		Search DBS_DD in shared memory for 'ttaad050000'  - Found but invalidated <br />
+<br />
+Note: run all following step with DBSLOG=1001 and check the generated log.<br />
+	<br />
+7. Repeat step 4, verify that the cache is not used anymore.<br />
+	dbs.log contains lines like:<br />
+		Search DBS_DD in shared memory for 'ttaad050001'  - Found but invalidated <br />
+<br />
+An older database driver without this fix would pickup a DD from the cache and use it.<br />
+The Dictionary dump shows that the old driver is still using an old DD.<br />
+The dbs.log of the old driver contains lines like:<br />
+		Search DBS_DD in shared memory for 'ttaad050001'  - Found</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

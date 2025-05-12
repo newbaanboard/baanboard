@@ -1,0 +1,243 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Updating and deleting records within one select, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Updating and deleting records within one select Tools Development" />
+	
+	<title>Updating and deleting records within one select [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Updating and deleting records within one select</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">giggty</div><div class="date">6th March 2018, 08:59</div></div><div class="posttext">Hello,<br />
+so I'm trying to do something like this:<br />
+<br />
+select tisfc010.opno<br />
+from tisfc010 for update<br />
+where tisfc010._index1 = {:tisfc001.pdno}<br />
+order by tisfc010.opno<br />
+selectdo<br />
+	db.retry.point()<br />
+	if some.condition &gt; 0 then<br />
+		if not dal.change.object(&quot;tisfc010&quot;) then<br />
+			dal.set.field(...)<br />
+			if dal.save.object(&quot;tisfc010&quot;) &lt;&gt; 0 then<br />
+				show.dal.messages()<br />
+			endif<br />
+		endif<br />
+	else<br />
+		if dal.destroy.object(&quot;tisfc010&quot;) &lt;&gt; 0 then<br />
+			show.dal.messages()<br />
+		endif<br />
+	endif<br />
+	commit.transaction()<br />
+endselect<br />
+<br />
+The problem is it doesn't work correctly when an update happens after the previous record was deleted: &quot;Record [pdno, opno] cannot be saved in table Production Order Operations in company _compnr. Record is not locked.&quot; What would be the correct approach here?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">hklett</div><div class="date">6th March 2018, 13:23</div></div><div class="posttext">Put the retry Point before the select and not inside.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">giggty</div><div class="date">6th March 2018, 13:31</div></div><div class="posttext">I did some additional testing and it seems the update error arises 100% consistently when deletion happens first (e. g. records 1-3 was deleted and 4th is being updated).<br />
+I have found two workarounds:<br />
+1. Move db.retry.point() before select statement and use &quot;order by with retry&quot; hint, so when an update hiccup occurs the record is fetched anew (and the second time it works).<br />
+2. Move commit.transaction() after select statement, so updates/deletions are commited in one batch.<br />
+Still I would like to know where the problem is in the original code and what technique one should adhere to in such cases.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">giggty</div><div class="date">6th March 2018, 13:37</div></div><div class="posttext">Put the retry Point before the select and not inside.<br />
+Thanks hklett, seems like it never should be put inside select (correct me if there are exceptions). But still, why am i hitting a retry point here?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">hklett</div><div class="date">6th March 2018, 14:23</div></div><div class="posttext">The retry Point should always set autside of the query.<br />
+I think your update will run in an error, because you do not query all fields of this table.<br />
+Because LN do not update only one field but allways all fields of a record, you should always use <br />
+	select tisfc010.*.<br />
+Otherwise the content of the other fields are undefinede,,<br />
+	<br />
+Also it is important that you abort a transaction , if an update on a table failes:<br />
+<br />
+	if some.condition &gt; 0 then<br />
+		if not dal.change.object(&quot;tisfc010&quot;) then<br />
+			dal.set.field(...)<br />
+			if dal.save.object(&quot;tisfc010&quot;) &lt;&gt; 0 then<br />
+				abort.transaction()<br />
+				show.dal.messages()<br />
+			else<br />
+				commit.transaction()<br />
+			endif<br />
+			<br />
+		endif<br />
+	else<br />
+		if dal.destroy.object(&quot;tisfc010&quot;) &lt;&gt; 0 then<br />
+			abort.transaction()<br />
+			show.dal.messages()<br />
+		else<br />
+			commit.transaction()<br />
+		endif<br />
+	endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">giggty</div><div class="date">6th March 2018, 15:15</div></div><div class="posttext">Thank you for your comments hklett. I tried selecting tisfc010.*, but it didn't help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">hklett</div><div class="date">6th March 2018, 16:17</div></div><div class="posttext">Can you pleae send the whole Code of your update function?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">giggty</div><div class="date">7th March 2018, 07:28</div></div><div class="posttext">Here it is:<br />
+<br />
+function long get.production.orders(long ops.num.selected,<br />
+                                    ref long marked.ops())<br />
+{<br />
+	select tisfc001.pdno<br />
+	from tisfc001<br />
+	where tisfc001.grid = :tisfc350.grid<br />
+	selectdo<br />
+		process.ops(dal.mode.set, marked.ops)<br />
+	endselect<br />
+	return(0)<br />
+}<br />
+<br />
+function void process.ops(ref long marked.ops())<br />
+{<br />
+	string  msg.code(14), msg.text(132) mb<br />
+	long search_def(1, 4)<br />
+	qss.start(search_def, 1, 1)<br />
+	qss.way(search_def, 1, QSS.UP)<br />
+	qss.type(search_def, 1, DB.LONG)<br />
+	<br />
+	db.retry.point()<br />
+	select tisfc010.*<br />
+	from tisfc010 for update<br />
+	where tisfc010._index1 = {:tisfc001.pdno}<br />
+	order by tisfc010.opno with retry<br />
+	selectdo<br />
+			<br />
+		if qss.search(QSS.SRC.IS.SORTED + QSS.EQUAL, tisfc010.opno, marked.ops, search_def) &gt; 0 then<br />
+			if not dal.change.object(&quot;tisfc010&quot;) then<br />
+				dal.set.field(&quot;tisfc010.copo&quot;, tcyesno.yes)<br />
+				if dal.save.object(&quot;tisfc010&quot;) &lt;&gt; 0 then<br />
+					while dal.get.last.message(MSG.ERROR, msg.code, msg.text)<br />
+						print.update.error.msg(tisfc010.opno, msg.code, msg.text)<br />
+					endwhile<br />
+					abort.transaction()<br />
+				else<br />
+					commit.transaction()<br />
+				endif<br />
+			endif<br />
+		else<br />
+			if dal.destroy.object(&quot;tisfc010&quot;) &lt;&gt; 0 then<br />
+				while dal.get.last.message(MSG.ERROR, msg.code, msg.text)<br />
+					print.delete.error.msg(tisfc010.opno, msg.code, msg.text)<br />
+				endwhile<br />
+				abort.transaction()<br />
+			else<br />
+				commit.transaction()<br />
+			endif<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+marked.ops is an array of operation numbers that need to be updated. All other operations in the production order should be deleted.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">hklett</div><div class="date">7th March 2018, 12:51</div></div><div class="posttext">What is  the message from the DAL?<br />
+Maybee the modification of the record is forbidden because of the status of the operation?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">7th March 2018, 13:54</div></div><div class="posttext">The problem could be that the standard DAL is not letting you update/delete the record due to some conditions as hklett rightly said.<br />
+<br />
+Other problem could be, the DAL is expecting some DLL call before handling updates to the table like SFC parameter reading. This may be because of the problem with underlying standard code. You could give a shot to reading tisfc000 table prior to performing updates.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">giggty</div><div class="date">20th March 2018, 10:26</div></div><div class="posttext">Ok, sorry, I was on vacation :)<br />
+<br />
+Let me clear it up. I can do updates and deletes on tisfc010. The problem I am facing when doing this though is the following (and which is 100% reproducable):<br />
+1. For a given production order delete the first operation - no probs<br />
+2. Commit transaction - no probs<br />
+3. Then try to update the second operation (they are being processed sequentially) for the same order - it jumps from dal.change.object(&quot;tisfc010&quot;) to db.retry.point()<br />
+4. After that select gets executed again and the second operation gets updated successfully.<br />
+So, the question is why I am (even) hitting db.retry.point() here :confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">20th March 2018, 11:06</div></div><div class="posttext">Hi,<br />
+<br />
+the reason is that when changing or deleting an operation the previous and next operations are also changed in DAL by calling on of the following:<br />
+<br />
+ tisfc.dll0224.update.operation.backward(...)<br />
+ tisfc.dll0224.update.operation.forward(...)<br />
+This causes the return to db.retry.point() as the already selected records for update are changed!<br />
+<br />
+I recommend using two selects. First one to select the operations and the secound one to update/delete the actually selected operation:<br />
+<br />
+	domain	tcopno		this.opno<br />
+<br />
+	select	tisfc010.opno:this.opno<br />
+	from	tisfc010<br />
+	where	tisfc010._index1 = {:tisfc001.pdno}<br />
+	order by tisfc010.opno<br />
+	selectdo<br />
+		db.retry.point()<br />
+		select tisfc010.*<br />
+		from tisfc010 for update<br />
+		where tisfc010._index1 = {:tisfc001.pdno, :this.opno}<br />
+		selectdo<br />
+			if qss.search(QSS.SRC.IS.SORTED + QSS.EQUAL, tisfc010.opno, marked.ops, search_def) &gt; 0 then<br />
+				if not dal.change.object(&quot;tisfc010&quot;) then<br />
+					dal.set.field(&quot;tisfc010.copo&quot;, tcyesno.yes)<br />
+					if dal.save.object(&quot;tisfc010&quot;) &lt;&gt; 0 then<br />
+						while dal.get.last.message(MSG.ERROR, msg.code, msg.text)<br />
+							print.update.error.msg(tisfc010.opno, msg.code, msg.text)<br />
+						endwhile<br />
+						abort.transaction()<br />
+					else<br />
+						commit.transaction()<br />
+					endif<br />
+				endif<br />
+			else<br />
+				if dal.destroy.object(&quot;tisfc010&quot;) &lt;&gt; 0 then<br />
+					while dal.get.last.message(MSG.ERROR, msg.code, msg.text)<br />
+						print.delete.error.msg(tisfc010.opno, msg.code, msg.text)<br />
+					endwhile<br />
+					abort.transaction()<br />
+				else<br />
+					commit.transaction()<br />
+				endif<br />
+			endif<br />
+		endselect<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">giggty</div><div class="date">20th March 2018, 16:01</div></div><div class="posttext">vahdani, thank you for clarification!<br />
+I agree, it would totally make sense, but seems like the following senario (i tested it) contradicts your point:<br />
+1. update 1st operation and commit<br />
+2. delete 2nd operation and commit<br />
+3. update 3rd operation and commit - no retry point hit here!<br />
+4. proceed updating the rest of operations<br />
+So the case with deleting the first record and updating the second seems to be somewhat unique...<br />
+<br />
+As a side-question, before doing updates/deletes on tisfc010 I need to call DAL method &quot;set.dal.mode.production.planning&quot; which sets the global variable gl.calling.context to CALLER_PRODUCTION_PLANNING and therefore permits changes on the table. But there are three other methods (set.calling.context.add.explode.phantom, set.calling.context.production.order.creation, set.dal.mode.report.complete) which also set gl.calling.context. What is the difference between them and which one should I use (I only tested set.calling.context.production.order.creation and it works just like set.dal.mode.production.planning)?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">21st March 2018, 16:53</div></div><div class="posttext">Hi,<br />
+<br />
+as I see you only update the field &quot;cout point&quot; when you update. This is apparantly not a big change like changing quantities etc. so DAL does not change the subsequent operations and  therefore there is no jump to the db.retry.point(). But when you delete an operation this definitely does cause a change of the subsequent operations and therefore the jump to db.retry.point() that you observe :rolleyes:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">giggty</div><div class="date">22nd March 2018, 10:59</div></div><div class="posttext">vahdani, eh, not really. When I delete the second operation (the first one having been updated) it does not jump to retry point :(<br />
+<br />
+I tested it with other 3 gl.calling.context values. set.dal.mode.production.planning, set.calling.context.add.explode.phantom, set.calling.context.production.order.creation exhibit the same behavior, set.dal.mode.report.complete allows modification only for orders with status &quot;active&quot;.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

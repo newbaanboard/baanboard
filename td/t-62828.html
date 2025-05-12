@@ -1,0 +1,185 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Update data in main table in before.display.object, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Update data in main table in before.display.object Tools Development" />
+	
+	<title>Update data in main table in before.display.object [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Update data in main table in before.display.object</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">11th September 2012, 14:15</div></div><div class="posttext">Hi,<br />
+<br />
+In a type 3, 'Maintain' session, I need to <br />
+<br />
+#1 - update records in main table itself before displaying them<br />
+#2 - update records in a different table.<br />
+<br />
+<br />
+Q1<br />
+#2 is simple enough but #1 is giving me some frustrating errors (either transaction is on, or record not locked).  What is the best way to do this?  <br />
+<br />
+Q2<br />
+Currently the update is called within section &quot;before.display.object'. Should these updates instead be called from before/after.read of main table?<br />
+<br />
+Q3<br />
+I've read some posts on using &quot;select for update&quot; vs &quot;select [without &quot;for update&quot;].  Which should I use... in this case?<br />
+<br />
+Thanks in advance</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th September 2012, 14:22</div></div><div class="posttext">Okay - been thinking about this.  In most of my sessions I am updating something within the confines of the program itself - using before.program or find, something like that.  The question I have is if you are getting transaction is on then that means the program thinks it has already started a transaction - which means you should not have a retry point or a commit in your code.  You may just want to try execte(update.db) instead.  Not sure this will work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">12th September 2012, 15:02</div></div><div class="posttext">Thanks Mark,<br />
+<br />
+Given the 2 examples (1-Update maintable,  2- update other table), when should I <br />
+a)select for update, <br />
+b)select but NOT for update, or <br />
+c)simply update.db<br />
+<br />
+?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th September 2012, 16:42</div></div><div class="posttext">It depends on the situation.  So for example this is a qkey session that I use the main.table.io sections to update a different table.  This is one way to do this.  In this case it takes additional form fields used for input and then goes and updates the custom table.  This is an extension table for maintain employees.  Doing this is a method for us to not modify the main table and allow us to input additional information we need.<br />
+<br />
+<br />
+main.table.io:							<br />
+after.read:<br />
+	|#call<br />
+	get.emno.table()<br />
+	<br />
+after.rewrite:<br />
+	|#call<br />
+	update.emno.table()<br />
+<br />
+after.write:<br />
+	|#call<br />
+	update.emno.table()<br />
+<br />
+after.delete:<br />
+	|#call<br />
+	delete.emno.table()<br />
+<br />
+function update.emno.table()<br />
+{<br />
+	select	tcudi005.*<br />
+	from	tcudi005 for update<br />
+	where	tcudi005._index1 = {:tccom001.emno}<br />
+	selectdo<br />
+		db.update(ttcudi005,db.retry)<br />
+		commit.transaction()<br />
+	selectempty<br />
+		tcudi005.emno = tccom001.emno<br />
+		db.insert(ttcudi005,db.retry)<br />
+		commit.transaction()<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+In this example I build the records for the main table as the users are working.  I do this with the start set and with the continue button. Keep in mind I eliminated a lot of code to keep this post short.<br />
+<br />
+choice.start.set:<br />
+after.choice:<br />
+	load_tdapi435()<br />
+choice.cont.process:<br />
+on.choice:<br />
+	load_tdapi435()<br />
+	db.retry.point()<br />
+<br />
+function load_tdapi435()<br />
+{<br />
+	select	ticst001.*<br />
+	from	ticst001<br />
+	where	ticst001._index1 = {:tdapi435.pdno}<br />
+	and	ticst001.ques &lt;= 0<br />
+	selectdo<br />
+		select	tdapi435.*<br />
+		from	tdapi435 for update<br />
+		where	tdapi435._index1 = {:ticst001.pdno, :ticst001.opno, :ticst001.pono}<br />
+		as set with 1 rows<br />
+		selectdo<br />
+			tdapi435.user = baan.user<br />
+			db.insert(ttdapi435,db.retry)<br />
+		endselect<br />
+		commit.transaction()<br />
+	endselect<br />
+<br />
+<br />
+<br />
+I could not find an example of one that just did a select/update in the before program step.  The issue becomes what you want to happen where and why.  Sometimes it is not so easy to find every little event that affects your code.  Keep in mind I do 4c4 and not the other versions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baan_guru</div><div class="date">13th September 2012, 17:04</div></div><div class="posttext">Hi Robert,<br />
+<br />
+Comment out all occurences of db.retry.point() and in after.write section of main.table.io you can code your required update statements for tables other than main table.<br />
+<br />
+Hope this will help you out!!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">16th September 2012, 17:18</div></div><div class="posttext">Thank you very much Mark and Baan Guru.<br />
+<br />
+If I can ever help let me know ok. Have done alot of work on GBF...  painful.. but I have some pretty funky scripts.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">16th September 2012, 17:20</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Quick question, why have you set the db.retry point after the update of table in choice.cont.process?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th September 2012, 04:33</div></div><div class="posttext">Very good question - I will have to check my code, but it looks kind of useless.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">27th September 2012, 19:47</div></div><div class="posttext">For Mark, just a question:<br />
+Nice the use of reactivating the retry.point() after the commit, but what could happen if, for some reson, maybe the record locking of the main table (I think is the ticst001 table) in the normal update (it is clear what happens if the function hits the retry point with a recors is changed error by example at record of tdapi435, or almost I try to figure it)? Have you tried? Maybe this never happens, but...?<br />
+<br />
+Just curious about it ;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">27th September 2012, 20:00</div></div><div class="posttext">But, for RobertP:<br />
+<br />
+If you update the table in before.display.object, I think that this happens each time the object is displayed, so each time a next screen or even go down 1 row happens. So a lot of updates happens each time you scroll the screen. <br />
+Maybe the reason is that table collects data in real time or something like this, so from a logical point of view this could be right.<br />
+But IMHO is preferable to do before entering the program (at the start of the program data is almost correct) and doing the same at user command, because the user must be responsable of the fact that the data are updated not real time (what happens if the user goes to lunch and after one hour reads the screen seeing no changes? I doesn't know that data are refreshed periodically - and maybe doesn't knows haw the system real works ;) )</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">28th September 2012, 05:01</div></div><div class="posttext">For Mark, just a question:<br />
+Nice the use of reactivating the retry.point() after the commit, but what could happen if, for some reson, maybe the record locking of the main table (I think is the ticst001 table) in the normal update (it is clear what happens if the function hits the retry point with a recors is changed error by example at record of tdapi435, or almost I try to figure it)? Have you tried? Maybe this never happens, but...?<br />
+<br />
+Just curious about it ;)<br />
+<br />
+It is actually a typo. Not sure why cut and paste did not work. It must have been when I removed some of the comments.<br />
+<br />
+<br />
+function load_tdapi435()<br />
+{<br />
+	db.retry.point()<br />
+	select	ticst001.*<br />
+	from	ticst001<br />
+	where	ticst001._index1 = {:tdapi435.pdno}<br />
+	and	ticst001.ques &lt;= 0<br />
+	selectdo<br />
+		select	tdapi435.*<br />
+		from	tdapi435 for update<br />
+		where	tdapi435._index1 = {:ticst001.pdno, :ticst001.opno, :ticst001.pono}<br />
+		as set with 1 rows<br />
+		selectdo<br />
+			tdapi435.user = baan.user<br />
+			db.insert(ttdapi435,db.retry)<br />
+		endselect<br />
+		commit.transaction()<br />
+	endselect</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

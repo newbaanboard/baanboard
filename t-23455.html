@@ -1,0 +1,158 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS tfgdl1101m000 / tfacp1110s000, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS tfgdl1101m000 / tfacp1110s000 AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS tfgdl1101m000 / tfacp1110s000 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS tfgdl1101m000 / tfacp1110s000</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">hredgert</div><div class="date">16th March 2005, 16:56</div></div><div class="posttext">I'm trying to develop a input for purchase invoices in c4 and have some questions. When startting the tfgld1101m000 it needs a form GoTo command to clear the input fields, how to manage that ?. It does not seems to work the stpapi.clear command. Also it seems that the stpapi.continue.process not exist in the c4, even though it's in the docu.<br />
+<br />
+Below is the asf part of the script, any suggestions are appreciated.<br />
+<br />
+if first.line then<br />
+		| Here should be a form GoTo command to clear the fields (don't exist) ?<br />
+		tfgld1101m000f.clear()<br />
+		tfgld1101m000f.put.transaction_entry_date(in.date)<br />
+		tfgld1101m000f.put.fiscal_year(in.year)<br />
+		tfgld1101m000f.put.batch_reference(in.bref)<br />
+		tfgld1101m000f.put.fiscal_period(in.fper)<br />
+		tfgld1101m000f.put.reporting_period(in.rper)<br />
+		tfgld1101m000f.put.tax_period(in.tper)<br />
+		rv = tfgld1101m000f.update(0, errmess)<br />
+		tfgld1101m000f.put.transaction_type_code(in.ttyp)<br />
+		rv = tfgld1101m000f.insert(1, errmess)<br />
+		rv = tfgld1101m000f.mark(errmess)<br />
+		while true<br />
+			errmess = tfgld1101m000f.get.last.message.code()<br />
+			if isspace(errmess) then<br />
+				break<br />
+			else<br />
+				log.write(errmess)<br />
+			endif<br />
+		endwhile<br />
+		if rv = 1 then<br />
+			afs.main.ok = true<br />
+			tfgld1101m000f.handle.sub.process(&quot;tfacp1110s000&quot;, &quot;add&quot;)<br />
+			| Here should be a continue.process (don't exist) ?<br />
+			first.line = false<br />
+		else<br />
+			afs.main.ok = false<br />
+			log.write(errmess)<br />
+			log.write(w.row)<br />
+		endif<br />
+	endif<br />
+	if afs.main.ok then<br />
+		| Here should the recs be added in tfacp1110s000<br />
+	endif<br />
+<br />
+Regards<br />
+<br />
+H Redgert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">16th March 2005, 22:02</div></div><div class="posttext">Actually - Just wrote this code for tfgld1101m000 yesterday.  This creates a new batch for me every run:<br />
+<br />
+<br />
+function domain tcbool create.header()<br />
+{<br />
+	long	rc<br />
+	long	curr.tax.period<br />
+	curr.tax.period = get.cur.tax.period()<br />
+	<br />
+| Always insert a new batch	<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;tedt.df&quot;,str$(date.num()))<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;tfgld101.year&quot;,str$(year.f))<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;fprd.f&quot;,str$(peri.f))<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;rprd.f&quot;,str$(peri.f))<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;bref.f&quot;,&quot;Surrogate Burden Process&quot;)<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;vyer.f&quot;,str$(year.f))<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;vprd.f&quot;,str$(curr.tax.period))<br />
+	rc = stpapi.change.view(&quot;tfgld1101m000&quot;,errmsg)<br />
+	<br />
+	stpapi.put.field(&quot;tfgld1101m000&quot;,&quot;tfgld101.ttyp&quot;,&quot;JSB&quot;)<br />
+	rc = stpapi.insert(&quot;tfgld1101m000&quot;, true, errmsg)<br />
+	if rc = 0 or not isspace(errmsg) then<br />
+		return(true)<br />
+	endif<br />
+	stpapi.get.field(&quot;tfgld1101m000&quot;,&quot;tfgld101.btno&quot;,errmsg)<br />
+	batch.number = val(errmsg)<br />
+	stpapi.end.session(&quot;tfgld1101m000&quot;,errmsg)<br />
+	return(false)<br />
+}<br />
+<br />
+<br />
+Now the sub-session I will be running is tfgld1115s000 - trying to test that in my spare time today.  So first make sure you have current stpapi patches.  Second update your user profile so we can see what Baan version you are using - makes a difference in responses.  Third not sure if this is what you are looking for - does this help?<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">hredgert</div><div class="date">17th March 2005, 11:29</div></div><div class="posttext">The batch header is created ok, now for creation of the subrecs in tfacp1110s000. I activate the subprocess and accoding the docs I shuld the post the stpapi.continue command. In my version it's do not seems to exist, so then there is only the possability to use the zoom to, but in that case the main script logig is not used correctly.<br />
+<br />
+Actual version is B40_c4 service pack 12<br />
+<br />
+Any ideas are appreciated<br />
+<br />
+H Redgert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th March 2005, 14:06</div></div><div class="posttext">First make sure you have the latest stpapi patches and session objects for your system.  This works on Baan 4C4 latest service pack - not sure of the number:<br />
+<br />
+<br />
+	sess.gld1100 = &quot;tfgld1100m000&quot;<br />
+	sess.gld1101 = &quot;tfgld1101s000&quot;<br />
+	sess.acp1110 = &quot;tfacp1110s000&quot;<br />
+rc = stpapi.browse.set(sess.gld1101, &quot;last.set&quot;, e.msg) <br />
+	<br />
+	| 2.3 Select Transaction button (continue option)<br />
+	stpapi.handle.subproc(sess.gld1101, sess.acp1110, &quot;add&quot;)<br />
+	stpapi.continue.process(sess.gld1101, e.msg)<br />
+	<br />
+	stpapi.save(sess.acp1110,e.msg)<br />
+<br />
+	| 3.  tfacp1110s000 (Maintain Pur Inv)<br />
+	| 3.0 Input pur inv data<br />
+	stpapi.put.field(sess.acp1110, &quot;tfacp200.ttyp&quot;, &quot;CTR&quot;) <br />
+	stpapi.put.field(sess.acp1110, &quot;tfacp200.ninv&quot;, &quot;22&quot;) <br />
+	stpapi.put.field(sess.acp1110, &quot;ref.po&quot;, strip$(tccom020.refa)) <br />
+	stpapi.put.field(sess.acp1110, &quot;tfacp200.suno&quot;, strip$(tccom001.namb)) <br />
+	t.refr = sprintf$(&quot;%02d%02d%02d%02d%s&quot;, mm, dd, yyyy\100, tfgld911.serc, strip$(tccom001.nama)) <br />
+	stpapi.put.field(sess.acp1110, &quot;tfacp200.isup&quot;, t.refr)<br />
+	stpapi.put.field(sess.acp1110, &quot;tfacp200.docd&quot;, sprintf$(&quot;%02d%02d%d&quot;, mm, dd, yyyy)) <br />
+	t.refr = sprintf$(&quot;C%-06d %02d%02d%02d%02d&quot;, tccom001.emno, mm, dd, yyyy\100, tfgld911.serc)<br />
+	stpapi.put.field(sess.acp1110, &quot;tfacp200.refr&quot;, t.refr)  <br />
+	stpapi.put.field(sess.acp1110, &quot;screen.amnt&quot;, str$(round(tfgld911.amnt, 2, 0))) <br />
+	stpapi.put.field(sess.acp1110, &quot;tfacp200.reas&quot;, &quot;5&quot;) <br />
+	stpapi.put.field(sess.acp1110, &quot;tfacp200.orno&quot;, strip$(tccom020.refa)) <br />
+<br />
+	stpapi.get.field(sess.acp1110, &quot;tfacp200.orno&quot;, io.fld) <br />
+	stpapi.put.field(sess.acp1110, &quot;tfacp200.orno&quot;, strip$(tccom020.refa)) <br />
+<br />
+	| 3.1 Insert a purchase invoice<br />
+	stpapi.handle.subproc(sess.acp1110, sess.acp1230, &quot;add&quot;)<br />
+	rc = stpapi.insert(sess.acp1110, 1, e.msg) <br />
+	if not isspace(e.msg) then<br />
+		stpapi.end.session(sess.acp1110) <br />
+		return<br />
+	endif<br />
+<br />
+<br />
+The above code actually works by calling tfgld1100m000, then tfgld1101s000, then activates tfacp1110s000.  As you can see the tfgld1101s000 command does work with the stpapi.continue.<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

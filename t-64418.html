@@ -1,0 +1,111 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="PDF problem while running session on AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] PDF problem while running session on AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>PDF problem while running session on AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; PDF problem while running session on AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">saumya</div><div class="date">1st August 2013, 14:59</div></div><div class="posttext">Hi All,<br />
+<br />
+I have written AFS on session tfgld2215m000 &quot;Post Imported Journal Transactions&quot;. <br />
+<br />
+Session which will call this AFS, can be run in job as well manually.<br />
+<br />
+Here I am printing multiple records in single report. <br />
+If Running in JOB, I have hardcoded device, but when running manually device will be asked to enter. Report printing is working perfact if I am using notepad/ascif. if I give Pdf or excel no report is printing. Please Help.<br />
+<br />
+Below is the code I am executing:<br />
+<br />
+select	tfgld213.idno<br />
+	from	tfgld213<br />
+	where	tfgld213._index1 inrange :idno.f and :idno.t<br />
+	and	tfgld213.ttyp inrange :ttyp.f and :ttyp.t<br />
+	and	tfgld213.imst = tfgld.imst.free<br />
+	order by tfgld213.idno<br />
+	selectdo<br />
+		rcd.count   = rcd.count + 1<br />
+		curr.idno.f = tfgld213.idno<br />
+		error = &quot;&quot;<br />
+	if rcd.count = 1 then<br />
+		if job.process then<br />
+			spool.id = spool.open(REPORT.TO.BE.OPEN, DEVICE.TO.BE.USED, 0)<br />
+		else<br />
+			spool.id = spool.open(REPORT.TO.BE.OPEN, &quot;&quot;, 1)<br />
+		endif<br />
+	endif<br />
+		<br />
+		tfgldf2215m00c.put.Identification_Number.idno.f(curr.idno.f)<br />
+		tfgldf2215m00c.put.Identification_Number.idno.t(curr.idno.f)<br />
+		tfgldf2215m00c.put.Print_only_errors(hold.print.only.errors)<br />
+		tfgldf2215m00c.put.Audit(hold.audit)<br />
+		tfgldf2215m00c.put.Remove_Document_Lines(hold.remove.doc.lines)<br />
+		tfgldf2215m00c.set.report(REPORT.TO.BE.OPEN, spool.device, error)<br />
+		if isspace(error) then<br />
+			tfgldf2215m00c.Import(error)<br />
+			if not isspace(error) then<br />
+				mess(&quot;tfgld2215.03c&quot;,1, error)<br />
+				|* AFS Error while Importing: $1%s<br />
+				break<br />
+			endif			<br />
+		else<br />
+			tfgldf2215m00c.end()<br />
+			mess(&quot;tfgld2215.02c&quot;,1, error)<br />
+			|* AFS Error while opening Report: $1%s<br />
+			break<br />
+		endif		<br />
+		tfgldf2215m00c.end()<br />
+	selecteos<br />
+		mess(&quot;tccom99988&quot;, 0)<br />
+		|* Process Completed<br />
+	selectempty<br />
+		mess(&quot;tcccps0001&quot;, 0)<br />
+		|* No data within selection<br />
+	endselect	<br />
+	spool.close()<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">1st August 2013, 16:22</div></div><div class="posttext">I don't think it is the AFS code at all.  As far as I know when you run it as a scheduled job you do not have a client attached. Which means there is no excel and I assume no pdf creation tool that can be launched - since (and basing this off my system) devices like that tend to launch the executable for the tool. I do not know a good solution.  What we did in one case was print the files to a unix directory.  Then the users that want the reports can run a session to print them.  In our case we just overwrite the files daily - then they can print to excel or a printer just the reports they want.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">saumya</div><div class="date">1st August 2013, 17:56</div></div><div class="posttext">Hi Mark, <br />
+<br />
+I run this session manually and give device as pdf. Report doesnt get generated.<br />
+<br />
+Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">saumya</div><div class="date">1st August 2013, 17:57</div></div><div class="posttext">AFS dll tfgldf2215m00c is created for session tfgld2215m000.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd August 2013, 19:52</div></div><div class="posttext">Where do you define spool.device and spool.fileout?  Because using lower case for excel did not work for me.<br />
+<br />
+               spool.device = &quot;excel&quot;<br />
+                spool.fileout =&quot;testd&quot;<br />
+<br />
+BUT make it upper case and it worked just fine:<br />
+<br />
+               spool.device = &quot;EXCEL&quot;<br />
+                spool.fileout =&quot;testd&quot;<br />
+                stpapi.put.field(&quot;tcmcs0403m000&quot;,&quot;cwar.f&quot;,&quot;   &quot;)<br />
+                stpapi.put.field(&quot;tcmcs0403m000&quot;,&quot;cwar.t&quot;,&quot;ZZZ&quot;)<br />
+               stpapi.set.report(&quot;tcmcs0403m000&quot;,&quot;rtcmcs040301000&quot;,spool.device,err)<br />
+               stpapi.continue.process(&quot;tcmcs0403m000&quot;,err)<br />
+               stpapi.end.session(&quot;tcmcs0403m000&quot;)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

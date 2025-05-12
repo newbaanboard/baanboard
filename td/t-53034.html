@@ -1,0 +1,547 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Script problem when converting to Windows 2003 and SQLServer 2005, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Script problem when converting to Windows 2003 and SQLServer 2005 Tools Development" />
+	
+	<title>Script problem when converting to Windows 2003 and SQLServer 2005 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Script problem when converting to Windows 2003 and SQLServer 2005</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">marwest98</div><div class="date">16th July 2008, 18:14</div></div><div class="posttext">We have a session that requires the users to input a filename.  Since we are in the process of converting from Unix to SQLServer 2005, I am testing scripts.  Normally in this session the user types in a Direction File of /usr/bsp/myreport/rpdistnew.csv and an error file of /usr/bsp/myreport/rpdist.err.  To convert to windows, I have modified the script to use \ instead of /.  I have tried various ways to put the file name in, but the script builds the file path with \\ - \\usr\\bsp\\myreport\\rpdistnew.csv for example.  It does not matter how I put the file name in - I've tried using the server name \\fwbaan\baan5c\usr etc, and then it does \\\\fwbaan\baan5c\usr.....   If I try fwbaan\baan5c\usr...  I get fwbann\\baan5c\\usr.  How can I stop this from happening?  Here is a copy the script.<br />
+<br />
+|******************************************************************************<br />
+|* timjrc425  0  VRC B50C c  prod<br />
+|* Print Period Profit Report for Branch Managers<br />
+|* General_User_UNIX             <br />
+|* 2003-07-30<br />
+|******************************************************************************<br />
+|* Main table tfgld005 Periods, Form Type 4<br />
+|* Amit Biswas<br />
+|******************************************************************************<br />
+| This session is created to print reports for all Branch Managers/Gen. Managers.<br />
+| There should be a direction file. Currently it is maintained as <br />
+| /usr/bsp/mjreport/rpdistnew.csv .It may be modified according to needs.<br />
+| It is a CSV file containing the fields as following:-<br />
+| Name of the Manager, path string on I directory ( by concatenating another string with <br />
+| it respective file names are generated for the concerned Managers) and branch numbers.<br />
+| There are provisions for 16 branch numbers, each branch is designated with two-digit code<br />
+| and should be present on the branch table.  <br />
+| The program reads this file , for each record it will generate three separate reports <br />
+| covering designated branches and push the files finally to different folders on I drive | meant for the concerned Manager .<br />
+| The type of file created is postscript( with .ps extension) to be opened with ghostview<br />
+| software.<br />
+| Error file will contain error message if any.<br />
+| Before writing any file on Client ( C: or I:) first it writes a temporary file on the <br />
+| Unix directory &quot;/usr/bsp/mjreport&quot; (to be removed after it is copied to client).                                                          <br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+<br />
+	table	ttfgld005	| Periods<br />
+	table	ttfgld006	| End Dates by Year<br />
+	table	ttimjr907	| Sales Group with Sales category<br />
+	table   ttimjr906       | Sales Group<br />
+	table   ttimjr910	| Product<br />
+	table   ttimjr912	| Stores<br />
+	table   ttimjr913	| Retail Price<br />
+	table   ttimjr923	| Scanned Sales<br />
+<br />
+        extern string	buff(2048)<br />
+	extern string	ebuf(2048)<br />
+	extern	domain	tcmcs.str10    	tbid.f<br />
+	extern	domain	tcmcs.str10    	tbid.t<br />
+	extern	domain	tcmcs.str20    	stor.f<br />
+	extern	domain	tcmcs.str20    	stor.t<br />
+	extern	domain	tfgld.ptyp    	ptyp.t<br />
+	extern	domain	tfgld.ptyp    	ptyp.f<br />
+	extern	domain	tfgld.ptyp    	ptyp.t<br />
+	extern	domain	tfgld.year    	year.f<br />
+	<br />
+	extern	domain	tfgld.prod    	prno.f<br />
+	<br />
+	extern  domain  tccitg		scat.f,scat.t<br />
+	extern  domain  tccitg		sgrp.f,sgrp.t<br />
+	extern  domain	tfgld.date	last.date ,wk.ldt<br />
+	extern  domain  tcamnt		samnt<br />
+	extern	domain  tcqana		sunit<br />
+	extern  domain  tcpric          rpric,n.price,opric,wpric<br />
+	extern  domain  tcweek          weekno<br />
+        extern  domain  tcyesno         second.header<br />
+	extern  domain  tcmcs.str50	dirpath,r.path,e.file<br />
+        extern  domain  tcmcs.str15     nam<br />
+        extern  domain  tcmcs.long      el,id1,id2,id3<br />
+        extern  domain  tcmcs.str4      lv0,lv1,lv2<br />
+<br />
+	extern  domain  tccitg		bran.f1,bran.f2,bran.f3,bran.f4,bran.f5,bran.f6,bran.f7,bran.f8,bran.f9,bran.f10,bran.f11,bran.f12,bran.f13,bran.f14<br />
+	extern  domain  tccitg		bran.t1,bran.t2,bran.t3,bran.t4,bran.t5,bran.t6,bran.t7,bran.t8,bran.t9,bran.t10,bran.t11,bran.t12,bran.t13,bran.t14<br />
+<br />
+        extern  domain  tcmcs.str40     ps2pdf<br />
+        extern  domain  tcmcs.long      flno<br />
+|****************************** form section **********************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+        flno=0<br />
+        if isspace(dirpath) or isspace(e.file) then<br />
+          message(&quot;Direction file or Error file must not be empty..&quot;)<br />
+          choice.again()<br />
+        endif<br />
+	read.main()<br />
+	<br />
+<br />
+|****************************** field section *********************************<br />
+field.sgrp.f:<br />
+when.field.changes:<br />
+	sgrp.t = sgrp.f<br />
+field.scat.f:<br />
+when.field.changes:<br />
+	scat.t = scat.f<br />
+field.ptyp.f:<br />
+when.field.changes:<br />
+	ptyp.t = ptyp.f<br />
+<br />
+<br />
+<br />
+field.stor.f:<br />
+when.field.changes:<br />
+	stor.t = stor.f<br />
+<br />
+<br />
+|****************************** function section *****************************<br />
+<br />
+functions:<br />
+function read.main()<br />
+{<br />
+	<br />
+<br />
+	long count<br />
+	long fl, ret<br />
+        el=0<br />
+	fl = seq.open(dirpath,&quot;r+&quot;)<br />
+        if fl &lt; 0 then<br />
+           message(&quot;Cannot open Direction file&quot;)<br />
+           exit()<br />
+        endif<br />
+	<br />
+	<br />
+	db.retry.point()<br />
+	while not seq.eof(fl) <br />
+		buff=&quot;&quot;<br />
+		ebuf=&quot;&quot;<br />
+		            <br />
+		<br />
+		seq.gets(buff ,2048,fl)<br />
+        <br />
+		buff=strip$(shiftl$(buff))<br />
+		if not isspace(buff) then<br />
+			<br />
+			init.values()<br />
+			read.line()<br />
+				<br />
+			<br />
+		endif<br />
+		<br />
+	endwhile<br />
+	seq.close(fl)<br />
+        fl=0<br />
+        if el &lt;&gt; 0 then<br />
+             seq.close(el)<br />
+        endif<br />
+        el=0<br />
+     <br />
+	<br />
+}<br />
+function read.main.table2()<br />
+{   second.header=tcyesno.yes<br />
+    open.reports()<br />
+    select timjr912.stor,timjr912.tbid,timjr912.nama,timjr912.bran<br />
+    from   timjr912<br />
+    where  timjr912._index1 between {:tbid.f,:stor.f} and {:tbid.t,:stor.t}<br />
+    and (  timjr912._index2={:bran.f1} <br />
+    or	   timjr912._index2={:bran.t1}<br />
+    or	   timjr912._index2={:bran.f2} <br />
+    or     timjr912._index2={:bran.t2}<br />
+    or	   timjr912._index2={:bran.f3} <br />
+    or	   timjr912._index2={:bran.t3}<br />
+    or	   timjr912._index2={:bran.f4} <br />
+    or     timjr912._index2={:bran.t4}<br />
+    or     timjr912._index2={:bran.f5} <br />
+    or	   timjr912._index2={:bran.t5}<br />
+    or	   timjr912._index2={:bran.f6} <br />
+    or     timjr912._index2={:bran.t6}<br />
+    or	   timjr912._index2={:bran.f7} <br />
+    or	   timjr912._index2={:bran.t7}<br />
+    or	   timjr912._index2={:bran.f8} <br />
+    or     timjr912._index2={:bran.t8} <br />
+<br />
+<br />
+    or	   timjr912._index2={:bran.f9} <br />
+    or     timjr912._index2={:bran.t9}<br />
+    or     timjr912._index2={:bran.f10} <br />
+    or	   timjr912._index2={:bran.t10}<br />
+    or	   timjr912._index2={:bran.f11} <br />
+    or     timjr912._index2={:bran.t11}<br />
+    or	   timjr912._index2={:bran.f12} <br />
+    or	   timjr912._index2={:bran.t13}<br />
+    or	   timjr912._index2={:bran.f14} <br />
+    or     timjr912._index2={:bran.t14} <br />
+<br />
+<br />
+)<br />
+    order by timjr912._index1<br />
+    selectdo<br />
+	last.date =0<br />
+	select	tfgld005.*, tfgld006.*<br />
+	from	tfgld005, tfgld006<br />
+	where   tfgld005._index1={tfgld.ptyp.financial, :year.f, :prno.f}<br />
+	                             <br />
+	and	tfgld005.year refers to tfgld006<br />
+	order by tfgld005._index1<br />
+	selectdo<br />
+		<br />
+		last.date = tfgld005.stdt +27<br />
+		if tfgld005.prno &gt; 12 then<br />
+			get.last.date.last.period()<br />
+		endif<br />
+		select timjr907.*,timjr906.dsca<br />
+		from   timjr907,timjr906<br />
+		where  timjr907.sgrp =timjr906.sgrp<br />
+		order  by timjr907._index1<br />
+		selectdo<br />
+<br />
+                        select timjr910.prid ,timjr910.dsca,timjr910.scat<br />
+			from   timjr910<br />
+			where  timjr910.scat=:timjr907.scat<br />
+			order  by timjr910.prid<br />
+			selectdo<br />
+				sunit =0<br />
+				samnt = 0<br />
+				rpric = 0<br />
+				opric =	0<br />
+				wpric = 0<br />
+				n.price =0<br />
+				select timjr923.* <br />
+				from   timjr923<br />
+				where  timjr923._index1={:timjr912.tbid,:timjr912.stor,:timjr910.prid}<br />
+				and    timjr923.scdt between :tfgld005.stdt and :last.date<br />
+				and    timjr923.qana &lt;&gt; 0<br />
+				order by  timjr923.scdt<br />
+				selectdo<br />
+					get.retail.price( timjr923.scdt)<br />
+					wpric = timjr923.amnt/timjr923.qana<br />
+					get.week.no()<br />
+					<br />
+<br />
+					if ( rpric &lt;&gt; 0 and n.price &lt;&gt; rpric ) or<br />
+						( opric &lt;&gt; 0 and wpric &lt;&gt; opric ) then<br />
+						send.reports()<br />
+						sunit =0<br />
+						samnt = 0						<br />
+					endif<br />
+					rpric= n.price<br />
+					opric = wpric<br />
+					sunit =sunit + timjr923.qana<br />
+					samnt =samnt + timjr923.amnt<br />
+						<br />
+					<br />
+					<br />
+				selecteos<br />
+					<br />
+                                     <br />
+					send.reports()<br />
+				endselect<br />
+			endselect<br />
+		endselect<br />
+		<br />
+ 	endselect<br />
+     <br />
+     endselect<br />
+     close.reports()<br />
+     move.reports()<br />
+<br />
+}<br />
+<br />
+<br />
+<br />
+function get.retail.price( domain tfgld.date scdt)<br />
+{<br />
+        domain tcbool got<br />
+        got = false<br />
+	n.price = 0<br />
+	select timjr913.pric,timjr913.efdt<br />
+	from   timjr913<br />
+	where  timjr913._index1={:timjr912.tbid,:timjr910.prid,:timjr912.stor}<br />
+	and    timjr913.efdt &lt;= :scdt<br />
+	and    timjr913.exdat &gt;=:scdt<br />
+        and    timjr913.exdat &gt; 0<br />
+	order by timjr913.efdt<br />
+	selectdo<br />
+        selecteos<br />
+          got=true<br />
+          n.price = timjr913.pric<br />
+        selectempty<br />
+          got= false<br />
+	endselect<br />
+        if not got then <br />
+	  get.default.retail.price( scdt)<br />
+        endif<br />
+	timjr913.pric =0<br />
+}<br />
+<br />
+function get.default.retail.price( domain tfgld.date scdt0)<br />
+{<br />
+	n.price = 0<br />
+	select timjr913.pric,timjr913.efdt<br />
+	from   timjr913<br />
+	where  timjr913._index1={:timjr912.tbid,:timjr910.prid,:timjr912.stor}<br />
+	and    timjr913.efdt &lt;= :scdt0<br />
+	and    timjr913.exdat = 0 <br />
+		<br />
+	order by timjr913.efdt<br />
+	selectdo<br />
+        selecteos<br />
+		n.price = timjr913.pric<br />
+                <br />
+	endselect<br />
+	<br />
+	<br />
+ }<br />
+<br />
+<br />
+function get.last.date.last.period()<br />
+{	domain tfgld.year yr<br />
+	yr = tfgld005.year <br />
+        select tfgld006.fpdt:last.date<br />
+	from   tfgld006<br />
+	where  tfgld006._index1={:yr}<br />
+	selectdo<br />
+	endselect<br />
+	<br />
+}<br />
+	                             <br />
+function get.week.no()<br />
+{<br />
+	<br />
+	<br />
+		if timjr923.scdt &gt;= (tfgld005.stdt+21) and<br />
+		   timjr923.scdt &lt;= (tfgld005.stdt +27) then<br />
+			weekno = (tfgld005.prno -1)*4 +4<br />
+			wk.ldt = tfgld005.stdt +27<br />
+		endif<br />
+		if timjr923.scdt &gt;= (tfgld005.stdt+14) and<br />
+		   timjr923.scdt &lt;= (tfgld005.stdt +20) then<br />
+			weekno = (tfgld005.prno -1)*4 +3<br />
+			wk.ldt = tfgld005.stdt +20<br />
+		endif<br />
+		if timjr923.scdt &gt;= (tfgld005.stdt+7) and<br />
+		   timjr923.scdt &lt;= (tfgld005.stdt +13) then<br />
+			weekno = (tfgld005.prno - 1)*4 +2<br />
+			wk.ldt = tfgld005.stdt +13<br />
+		endif<br />
+		if timjr923.scdt &gt;= (tfgld005.stdt) and<br />
+		   timjr923.scdt &lt;= (tfgld005.stdt +6) then<br />
+			weekno = (tfgld005.prno -1)*4 +1<br />
+			wk.ldt = tfgld005.stdt +6<br />
+		endif<br />
+	<br />
+ }<br />
+	<br />
+function init.values()<br />
+{<br />
+  nam=&quot;&quot;<br />
+  r.path=&quot;&quot;<br />
+  bran.f1=&quot;&quot;<br />
+  bran.f2=&quot;&quot;<br />
+  bran.f3=&quot;&quot;<br />
+  bran.f4=&quot;&quot;<br />
+  bran.f5=&quot;&quot;<br />
+  bran.f6=&quot;&quot;<br />
+  bran.f7=&quot;&quot;<br />
+  bran.f8=&quot;&quot;<br />
+  bran.t1=&quot;&quot;<br />
+  bran.t2=&quot;&quot;<br />
+  bran.t3=&quot;&quot;<br />
+  bran.t4=&quot;&quot;<br />
+  bran.t5=&quot;&quot;<br />
+  bran.t6=&quot;&quot;<br />
+  bran.t7=&quot;&quot;<br />
+  bran.t8=&quot;&quot;<br />
+<br />
+<br />
+  bran.f9=&quot;&quot;<br />
+  bran.f10=&quot;&quot;<br />
+  bran.f11=&quot;&quot;<br />
+  bran.f12=&quot;&quot;<br />
+  bran.f13=&quot;&quot;<br />
+  bran.f14=&quot;&quot;<br />
+  bran.t9=&quot;&quot;<br />
+  bran.t10=&quot;&quot;<br />
+  bran.t11=&quot;&quot;<br />
+  bran.t12=&quot;&quot;<br />
+  bran.t13=&quot;&quot;<br />
+  bran.t14=&quot;&quot;<br />
+  <br />
+  id1=0<br />
+  id2=0<br />
+  id3=0<br />
+  lv0=&quot;&quot;<br />
+  lv1=&quot;&quot;<br />
+  lv2=&quot;&quot;<br />
+  }<br />
+<br />
+function read.line()<br />
+<br />
+{			<br />
+			if 	string.scan(buff,&quot;%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s&quot;,<br />
+	nam,r.path,bran.f1,bran.f2,bran.f3,bran.f4,bran.f5,bran.f6,bran.f7,bran.f8,bran.f9,bran.f10,bran.f11,bran.f12,bran.f13,bran.f14,<br />
+        bran.t1,bran.t2,bran.t3,bran.t4,bran.t5,bran.t6,bran.t7,bran.t8,bran.t9,bran.t10,bran.t11,bran.t12,bran.t13,bran.t14) &lt; 18 then  <br />
+			    ebuf=&quot;strip$(buff)&amp;&quot;|Err:Incorrect format &quot;<br />
+			    write.error()<br />
+			    		    <br />
+			else<br />
+				r.path=shiftl$(r.path)<br />
+                             <br />
+				<br />
+				read.main.table2()		<br />
+											<br />
+			endif<br />
+	<br />
+<br />
+}<br />
+<br />
+function write.error()<br />
+{<br />
+	if el = 0 then<br />
+		el = seq.open( e.file,&quot;w+&quot;)<br />
+	endif<br />
+	seq.puts(ebuf,el)<br />
+	ebuf=&quot;&quot;<br />
+<br />
+}<br />
+<br />
+function open.reports()<br />
+{<br />
+spool.fileout=&quot;\usr\bsp\mjreport\rep1.ps&quot;<br />
+id1=brp.open(&quot;rtimjrc42311000&quot;,&quot;POSTSCRIPT&quot;,0)<br />
+<br />
+spool.fileout=&quot;\usr\bsp\mjreport\rep2.ps&quot;<br />
+id2=brp.open(&quot;rtimjrc42312000&quot;,&quot;POSTSCRIPT&quot;,0)<br />
+<br />
+spool.fileout=&quot;\usr\bsp\mjreport\rep3.ps&quot;<br />
+id3=brp.open(&quot;rtimjrc42313000&quot;,&quot;POSTSCRIPT&quot;,0)<br />
+}<br />
+<br />
+function send.reports()<br />
+{<br />
+spool.fileout=&quot;\usr\bsp\mjreport\rep1.ps&quot;<br />
+  brp.ready(id1)<br />
+<br />
+spool.fileout=&quot;\usr\bsp\mjreport\rep2.ps&quot;<br />
+  brp.ready(id2)<br />
+spool.fileout=&quot;\usr\bsp\mjreport\rep3.ps&quot;<br />
+  brp.ready(id3)<br />
+}<br />
+  <br />
+<br />
+function close.reports()<br />
+{<br />
+brp.close(id1)<br />
+brp.close(id2)<br />
+brp.close(id3)<br />
+}<br />
+<br />
+function move.reports()<br />
+{<br />
+flno=flno +1<br />
+|server2client(&quot;\usr\bsp\mjreport\rep1.ps&quot;,&quot;I:\PRISMREPORTNEW\TEMP_DIR\&quot;&amp;&quot;rp1&quot;&amp;str$(flno)&amp;&quot;.ps&quot;,0,0)<br />
+<br />
+server2client(&quot;\usr\bsp\mjreport\rep1.ps&quot;,&quot;I:\PRISMREPORTNEW\&quot;&amp;strip$(shiftl$(r.path))&amp;&quot;1&quot;&amp;str$(year.f)&amp;str$(prno.f)&amp;&quot;.ps&quot;,0,0)<br />
+|convert.files(ps2pdf,&quot;I:\PRISMREPORTNEW\&quot;&amp;strip$(shiftl$(r.path))&amp;&quot;1&quot; ,flno,&quot;1&quot;)<br />
+<br />
+flno=flno +1<br />
+|server2client(&quot;\usr\bsp\mjreport\rep2.ps&quot;,&quot;I:\PRISMREPORTNEW\TEMP_DIR\&quot;&amp;&quot;rp2&quot;&amp;str$(flno)&amp;&quot;.ps&quot;,0,0)<br />
+<br />
+server2client(&quot;\usr\bsp\mjreport\rep2.ps&quot;,&quot;I:\PRISMREPORTNEW\&quot;&amp;strip$(shiftl$(r.path))&amp;&quot;2&quot;&amp;str$(year.f)&amp;str$(prno.f)&amp;&quot;.ps&quot;,0,0)<br />
+|convert.files(ps2pdf,&quot;I:\PRISMREPORTNEW\&quot;&amp;strip$(shiftl$(r.path))&amp;&quot;2&quot; ,flno,&quot;2&quot;)<br />
+<br />
+flno=flno +1<br />
+|server2client(&quot;\usr\bsp\mjreport\rep3.ps&quot;,&quot;I:\PRISMREPORTNEW\TEMP_DIR\&quot;&amp;&quot;rp3&quot;&amp;str$(flno)&amp;&quot;.ps&quot;,0,0)<br />
+<br />
+server2client(&quot;\usr\bsp\mjreport\rep3.ps&quot;,&quot;I:\PRISMREPORTNEW\&quot;&amp;strip$(shiftl$(r.path))&amp;&quot;3&quot;&amp;str$(year.f)&amp;str$(prno.f)&amp;&quot;.ps&quot;,0,0)<br />
+|convert.files(ps2pdf,&quot;I:\PRISMREPORTNEW\&quot;&amp;strip$(shiftl$(r.path))&amp;&quot;3&quot; ,flno,&quot;3&quot;)<br />
+<br />
+file.rm(&quot;\usr\bsp\mjreport\rep1.ps&quot;)<br />
+file.rm(&quot;\usr\bsp\mjreport\rep2.ps&quot;)<br />
+file.rm(&quot;\usr\bsp\mjreport\rep3.ps&quot;)<br />
+<br />
+}<br />
+<br />
+<br />
+function convert.files( domain tcmcs.str40 pspd ,domain tcmcs.str40 rpth , domain tcmcs.long fl0,domain tcmcs.str1 fl)<br />
+{<br />
+  long aid<br />
+  <br />
+ if not isspace(pspd) then<br />
+  	aid = app_start( strip$(shiftl$(pspd))&amp;&quot; I:\PRISMREPORTNEW\TEMP_DIR\&quot;&amp;&quot;rp&quot;&amp;fl&amp;str$(fl0)&amp;&quot;.ps  &quot;&amp;rpth&amp;str$(year.f)&amp;str$(prno.f)&amp;&quot;.pdf&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;)<br />
+ endif<br />
+}<br />
+<br />
+It won't let me copy the form.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">16th July 2008, 18:41</div></div><div class="posttext">Extra \ appear only as an escape character while debugging . Actually it works only without an extra \ . We have never encountered problem like this in our  windows installation.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">marwest98</div><div class="date">16th July 2008, 20:02</div></div><div class="posttext">It doesn't make any difference whether I am in debug mode or not.  I still cannot get the file.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dkulikow</div><div class="date">16th July 2008, 20:42</div></div><div class="posttext">Hello, <br />
+<br />
+We went from Unix to Windows w/SQL database a couple of years ago and I'm not sure if this will help you out or not, but we had similar issues.<br />
+<br />
+This is a path we used to have in Unix with our program: seq.path = &quot;/usr/local/flexfab/data/Juarez/packlist/current/&quot;.  Now it looks like this: seq.path = &quot;e:\Baan\flexfab\data\Juarez\packlist\current\&quot;.<br />
+<br />
+The &quot;e:&quot; drive is our Baan Application server drive.<br />
+<br />
+Like I said, it may or may not be helpful.  I hope it is and good luck to you.<br />
+<br />
+Best regards...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">marwest98</div><div class="date">16th July 2008, 20:52</div></div><div class="posttext">Does not seem to make any difference.  Our Baan application server drive happens to be c:,  I've tried the c: \\fwbaan - (server name)  baan5c - server drive name and also using ${BSE}.  It doesn't seem to make any difference.<br />
+<br />
+I'm really not impressed with Baan.  I've worked on a lot of different packages, and this one is a pain.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">marwest98</div><div class="date">16th July 2008, 20:59</div></div><div class="posttext">Got It!!!!!!!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">wiggum</div><div class="date">17th July 2008, 12:09</div></div><div class="posttext">You can always use slashes. It is not necessary to change backslash to slash as baan converts the path by itself for windows.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">marwest98</div><div class="date">22nd July 2008, 19:45</div></div><div class="posttext">done with this closing</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">22nd July 2008, 22:27</div></div><div class="posttext">Glad you solved your problem, but we typically leave threads open so that in the future someone else with the same problem can ask additional questions.<br />
+<br />
+Thanks</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

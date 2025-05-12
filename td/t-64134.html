@@ -1,0 +1,213 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Core File getting generated while processing Session, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Core File getting generated while processing Session Tools Development" />
+	
+	<title>Core File getting generated while processing Session [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Core File getting generated while processing Session</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">1st June 2013, 12:21</div></div><div class="posttext">Hello<br />
+<br />
+I tried to search the Core Files Topic but didn't find the relevant one so i am opening a new Topic here.<br />
+<br />
+<br />
+My Session tries to process a large number of records. Apparently the number of records is 9 lakhs.<br />
+<br />
+And i have tried to process the records in the batch of 50k Records. But as soon i am through with around 3 4 Lakh Records i get a Message of &quot;Running out of Memory&quot; and then it exits and i get a Core File.<br />
+<br />
+<br />
+<br />
+        Header = true<br />
+        Last.Batch = False<br />
+        cins.inter.f = cins.f<br />
+<br />
+        While Last.Batch = false<br />
+<br />
+        count = 0<br />
+        file.initiation()<br />
+        select  tssma102.*<br />
+        from    tssma102 for update<br />
+        where   tssma102._index1 inrange {:cins.inter.f}<br />
+                                     and {:cins.t}<br />
+        and     tssma102.orno &lt;&gt; 0<br />
+        order by tssma102._index1<br />
+        selectdo<br />
+                select tdsls041.orno<br />
+                from   tdsls041<br />
+                where  tdsls041._index1 = {:tssma102.orno,:tssma102.pono}<br />
+                Selectdo<br />
+                                        count = count + 1<br />
+                        if Header = true then<br />
+                                update.desc = enum.descr$(&quot;tcyesno&quot;,form.update)<br />
+                                Curr.date = sprintf$(&quot;%D(Date: %02d/%02m/%04Y)&quot;,<br />
+date.num())<br />
+                                file.input = &quot;Update = &quot; &amp; update.desc &amp; &quot;, &quot;  &amp;<br />
+ strip$(Curr.date) &amp; &quot;  &quot; &amp;  Current.time &amp; &quot;, &quot;  &amp;&quot; User: &quot;&amp; logname$<br />
+                                seq.puts(file.input, file.pointer)<br />
+                                file.input = &quot;&quot;<br />
+                                file.input(1;20) = &quot;Installation&quot;<br />
+                                file.input(21;1) = &quot;;&quot;<br />
+                                file.input(22;9) = &quot;SO Number&quot;<br />
+                                file.input(31;1) = &quot;;&quot;<br />
+                                file.input(32;10) = &quot;SO Line No&quot;<br />
+                                seq.puts(file.input, file.pointer)<br />
+                                Header = false<br />
+                        endif<br />
+<br />
+                        file.input(1;20) = str$(strip$(shiftl$(tssma102.cins)))<br />
+                        file.input(21;1) = &quot;;&quot;<br />
+                        file.input(22;9) = str$(tssma102.orno)<br />
+                        file.input(31;1) = &quot;;&quot;<br />
+                        file.input(32;10) = str$(tssma102.pono)<br />
+<br />
+                                                ret.val = seq.puts(file.input, file.pointer)<br />
+<br />
+                        if form.update = tcyesno.yes then<br />
+                               tssma102.owno.c = str$(tssma102.orno) &amp; &quot;-&quot; &amp; str<br />
+$(tssma102.pono)<br />
+                               tssma102.orno = 0<br />
+                               tssma102.pono = 0<br />
+                               db.update(ttssma102,db.retry)<br />
+                        endif<br />
+                        if count = 100000 then<br />
+                                select d102.cins:cins.inter.f<br />
+                                from   tssma102 d102<br />
+                                where d102._index1 &gt; {:tssma102.cins}<br />
+                                as set with 1 rows<br />
+                                selectdo<br />
+                                endselect<br />
+                                break<br />
+                        endif<br />
+                endselect<br />
+        if count = 100000 then<br />
+                break<br />
+        endif<br />
+        selecteos<br />
+                Last.Batch = true<br />
+        endselect<br />
+        if form.update = tcyesno.yes and count &lt;&gt; 0 then<br />
+                commit.transaction()<br />
+                ret.val = seq.close(file.pointer)<br />
+        else<br />
+                if count &lt;&gt; 0  then<br />
+                        ret.val = seq.close(file.pointer)<br />
+                endif<br />
+        endif<br />
+<br />
+        ENDWHILE<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+For some reason i think the Clue to this would be the session releasing the records from its buffer to Update.<br />
+<br />
+<br />
+Any Clues Anyone?<br />
+<br />
+Regards<br />
+Ajesh</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">1st June 2013, 18:27</div></div><div class="posttext">Are you sure each file is getting open and closed correctly? That was the first thing that popped into my mind.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">2nd June 2013, 10:51</div></div><div class="posttext">Hi,<br />
+<br />
+this might be caused by the size of the database transaction undo buffer. You commit your transaction after 100000 records! This is a lot. You should reduce this number. A number around 50 to 100 is usually recommended. <br />
+<br />
+I would add something like the red section below:<br />
+<br />
+                if count = 100000 then<br />
+                        break<br />
+                endif<br />
+                if count\50 = 0 then<br />
+                        if form.update = tcyesno.yes then<br />
+                                commit.transaction()<br />
+                        else<br />
+                                abort.transaction()<br />
+                        endif<br />
+                endif<br />
+        selecteos<br />
+                Last.Batch = true<br />
+        endselect<br />
+        if form.update = tcyesno.yes and count &lt;&gt; 0 then<br />
+                commit.transaction()<br />
+                ret.val = seq.close(file.pointer)<br />
+        else<br />
+                if count &lt;&gt; 0  then<br />
+                        ret.val = seq.close(file.pointer)<br />
+                endif<br />
+        endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">2nd June 2013, 13:20</div></div><div class="posttext">Are you sure each file is getting open and closed correctly? That was the first thing that popped into my mind.<br />
+<br />
+<br />
+Yes The Files are getting opened and Closed Correctly.<br />
+<br />
+<br />
+Hi,<br />
+<br />
+this might be caused by the size of the database transaction undo buffer. You commit your transaction after 100000 records! This is a lot. You should reduce this number. A number around 50 to 100 is usually recommended. <br />
+<br />
+I would add something like the red section below:<br />
+<br />
+                if count = 100000 then<br />
+                        break<br />
+                endif<br />
+                if count\50 = 0 then<br />
+                        if form.update = tcyesno.yes then<br />
+                                commit.transaction()<br />
+                        else<br />
+                                abort.transaction()<br />
+                        endif<br />
+                endif<br />
+        selecteos<br />
+                Last.Batch = true<br />
+        endselect<br />
+        if form.update = tcyesno.yes and count &lt;&gt; 0 then<br />
+                commit.transaction()<br />
+                ret.val = seq.close(file.pointer)<br />
+        else<br />
+                if count &lt;&gt; 0  then<br />
+                        ret.val = seq.close(file.pointer)<br />
+                endif<br />
+        endif<br />
+<br />
+<br />
+Actually i introduced commit.transaction in one of the areas of the code and it ran successfully. <br />
+<br />
+<br />
+if form.update = tcyesno.yes and count &lt;&gt; 0 then<br />
+                commit.transaction()<br />
+                ret.val = seq.close(file.pointer)<br />
+        else<br />
+                if count &lt;&gt; 0  then<br />
+                        ret.val = seq.close(file.pointer)<br />
+                        commit.transaction() <br />
+                endif<br />
+        endif<br />
+<br />
+<br />
+<br />
+Also does it have to do with today being a Saturday and not many transactions are being run?<br />
+<br />
+I need to try it on a Weekday as i feel that might be a true test.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

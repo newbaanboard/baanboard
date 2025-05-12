@@ -1,0 +1,152 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="3GL code, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] 3GL code Tools Development" />
+	
+	<title>3GL code [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; 3GL code</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Sandy Blondino</div><div class="date">17th October 2013, 18:42</div></div><div class="posttext">Hello,<br />
+I'm having trouble getting a 3GL script to compile.<br />
+I have a session with 4GL script that calls the 3GL script and that works fine.<br />
+<br />
+I'm trying to check for records in several tables by calling different functions, but I get compile errors from the functions. 'tcpdno' not expected and 'Missing RETURN(...) in function 'verify.prod.order'.<br />
+<br />
+Here is a code snippet.<br />
+Am I missing something or is this not possible in a 3GL?<br />
+<br />
+Thanks,<br />
+Sandy<br />
+<br />
+|* Script Type: 123<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** DECLARATION SECTION ***************************<br />
+  <br />
+  extern	domain	tcbool	stop.process<br />
+    <br />
+function main()<br />
+{	<br />
+	stop.process = false<br />
+		<br />
+	while true<br />
+		check.for.new.records()<br />
+		suspend(10000)	|10000 miliseconds = 10 seconds<br />
+		if stop.process then<br />
+			break<br />
+		endif<br />
+	endwhile<br />
+}	  <br />
+<br />
+function check.for.new.records()<br />
+{<br />
+	long	count<br />
+	domain	tcpdno			temp.pdno<br />
+	domain	tcopno			temp.opno<br />
+	domain	tiqep3			temp.qcmp<br />
+	domain	tiqep3			temp.qrjc<br />
+	domain	tcmcs.long	temp.rkey<br />
+	table	ttilit601	| Report Operations Completed Integration<br />
+	table	ttisfc010	| Production Planning by Order<br />
+	table	ttisfc001	| Production Orders<br />
+		<br />
+	select	tilit601.*<br />
+	from	tilit601 <br />
+	where   tilit601.step &lt;&gt; 99<br />
+	order by tilit601._index1<br />
+	selectdo<br />
+		temp.rkey = tilit601.rkey<br />
+		temp.pdno = tilit601.pdno<br />
+		temp.opno = tilit601.opno<br />
+		temp.qcmp = tilit601.qcmp<br />
+		temp.qrjc = tilit601.qrjc<br />
+						<br />
+		|verify that production order exists<br />
+		if verify.prod.order(temp.pdno) then<br />
+			|check production order status<br />
+			if verify.prod.status(temp.pdno) then<br />
+				....<br />
+			endif<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+domain 	tcpdno	t.pdno<br />
+domain	tcopno	t.opno<br />
+<br />
+function long verify.prod.order(ref tcpdno t.pdno)<br />
+{ <br />
+	select	tisfc001.*<br />
+	from		tisfc001<br />
+	where		tisfc001._index1 = {:t.pdno}<br />
+	selectempty	|production order does not exist<br />
+		db.retry.point()<br />
+		select	tilit601.*<br />
+		from	tilit601 for update <br />
+		where	tilit601._index2 = {:t.pdno}<br />
+		selectdo<br />
+		       tilit601.step = 99<br />
+		       tilit601.emsg = &quot;Production Order does not exist&quot;<br />
+		       db.update(ttilit601, db.retry)<br />
+		       commit.transaction()<br />
+		endselect<br />
+		return(0)<br />
+	selectdo<br />
+		return(1)		<br />
+	endselect		<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">17th October 2013, 19:27</div></div><div class="posttext">function long verify.prod.order(ref tcpdno t.pdno)<br />
+{ <br />
+select	tisfc001.*<br />
+from	 tisfc001<br />
+where	 tisfc001._index1 = {:t.pdno}<br />
+selectempty	|production order does not exist<br />
+		db.retry.point()<br />
+	select	tilit601.*<br />
+	from	tilit601 for update <br />
+	where	tilit601._index2 = {:t.pdno}<br />
+	selectdo<br />
+	tilit601.step = 99<br />
+	tilit601.emsg = &quot;Production Order does not exist&quot;<br />
+	db.update(ttilit601, db.retry)<br />
+	commit.transaction()<br />
+	endselect<br />
+	return(0)<br />
+selectdo<br />
+return(1)	<br />
+endselect<br />
+return (-1)	<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">18th October 2013, 09:42</div></div><div class="posttext">as vamsi said you must return something right at the very end of the verify.prod.order function and there is a missing &quot;domain&quot; by the definition of the same function. It should be:<br />
+<br />
+<br />
+function long verify.prod.order(ref domain tcpdno t.pdno)<br />
+{<br />
+   ...<br />
+ <br />
+   return(x)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">18th October 2013, 14:09</div></div><div class="posttext">,.....................</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

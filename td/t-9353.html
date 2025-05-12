@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="inserting next BP number in form, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] inserting next BP number in form Tools Development" />
+	
+	<title>inserting next BP number in form [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; inserting next BP number in form</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Haggis</div><div class="date">24th March 2003, 12:31</div></div><div class="posttext">Hi<br />
+<br />
+I have a session that the user uses to assign a Business Partner to a category.  They have to go through each BP number.  I was asked if it was possible to get the form to increment the BP number as you go to the next record.  So if you inserted BP100001 to a category and tabbed to the next line or record it would default to BP100002?<br />
+<br />
+Tried to do something in the script for along the lines of <br />
+<br />
+field.tfzzz302.bpid:<br />
+before.input:<br />
+if choice = add.set then<br />
+	on.main.table (get.next.bp)<br />
+	tfzzz302.bpid = last.bp + 1 <br />
+	endif<br />
+<br />
+then the function get.next.bp tries to determine the highest BP used so far, etc.  But obviously the BP is not a number but a string?<br />
+<br />
+Can anyone help or point me in the right direction?<br />
+<br />
+Thanks<br />
+Haggis</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">FransG</div><div class="date">24th March 2003, 12:50</div></div><div class="posttext">field.tfzzz302.bpid:<br />
+before.input:<br />
+if choice = add.set then<br />
+tfzzz302.bpid = get.next.bp(last.bp) <br />
+endif<br />
+<br />
+function domain tccom.bpid get.next.bp(domain tccom.bpid i.last.bp)<br />
+{<br />
+domain tccom.bpid next.bp<br />
+<br />
+next.bp = &quot;&quot;<br />
+select	tccom100.bpid:next.bp<br />
+from	tccom100<br />
+where	tccom100._index1 &gt; {:i.last.bp}<br />
+order by tccom100._index1<br />
+as set with 1 rows<br />
+selectdo<br />
+endselect<br />
+<br />
+return(next.bp)<br />
+}<br />
+<br />
+<br />
+BTW, this might be performance inefficient.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kevobr</div><div class="date">24th March 2003, 15:03</div></div><div class="posttext">Haggis, I think what you are after is to convert the bpid from it's string to an integer, add 1 and convert it back again.<br />
+<br />
+e.g.<br />
+<br />
+tfzzz302.bpid = str$(  (lval(last.bpid) + 1) )</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Haggis</div><div class="date">24th March 2003, 16:28</div></div><div class="posttext">Hi<br />
+<br />
+Thanks for the suggestions guys.  Fransg I have inserted your code in and it works.  The only problem is getting the last BP that was inserted into the last.bp variable so it knows where to pick the next one up from.  It currently puts a blank BP into the variable so I keep getting the first BP inserted everytime.  I am playing around with it.<br />
+<br />
+Kevobr thanks for that conversion, will give it a try now.<br />
+<br />
+Thanks again<br />
+Haggis</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kevobr</div><div class="date">24th March 2003, 18:20</div></div><div class="posttext">Haggis you need to add in a line to FransG's suggestion to set i.last.bp e.g.<br />
+<br />
+field.tfzzz302.bpid:<br />
+before.input:<br />
+    if choice = add.set then<br />
+              tfzzz302.bpid = get.next.bp(last.bp) <br />
+              i.last.bp = tfzzz302.bpid               <br />
+    endif<br />
+<br />
+<br />
+<br />
+Just addding 1 to bpid would still need the check of the tccom100 table to ensure BP exists so probably best stick with FransG's solution.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">FransG</div><div class="date">25th March 2003, 08:55</div></div><div class="posttext">Haggis,<br />
+<br />
+You can keep track of the &quot;last&quot; business partner in the when.field.changes section. If you do an assignment in that section then it's ok, I guess.<br />
+The first time entering will return the first business partner because the &quot;last.bp&quot; is empty.<br />
+last.bp should be defined global for the script.<br />
+<br />
+<br />
+|* Declaration<br />
+domain tccom.bpid last.bp<br />
+<br />
+|* Field Section<br />
+field.tfzzz302.bpid:<br />
+before.input:<br />
+if choice = add.set then<br />
+tfzzz302.bpid = get.next.bp(last.bp) <br />
+endif<br />
+when.field.changes:<br />
+last.bp = tfzzz302.bpid<br />
+<br />
+|* Function section<br />
+<br />
+functions:<br />
+<br />
+function domain tccom.bpid get.next.bp(domain tccom.bpid i.last.bp)<br />
+{<br />
+domain tccom.bpid next.bp<br />
+<br />
+next.bp = &quot;&quot;<br />
+select	tccom100.bpid:next.bp<br />
+from	tccom100<br />
+where	tccom100._index1 &gt; {:i.last.bp}<br />
+order by tccom100._index1<br />
+as set with 1 rows<br />
+selectdo<br />
+endselect<br />
+<br />
+return(next.bp)<br />
+}<br />
+<br />
+<br />
+Because of assigning last.bp only in the when.field.changes section you'll always have the previous handled business partner.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

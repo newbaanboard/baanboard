@@ -1,0 +1,93 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Read next sequence value from table - concurrency concerns, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Read next sequence value from table - concurrency concerns Tools Development" />
+	
+	<title>Read next sequence value from table - concurrency concerns [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Read next sequence value from table - concurrency concerns</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">tom_pim</div><div class="date">25th September 2009, 02:17</div></div><div class="posttext">I need to generate the next bptmm130.seqn value for a given employee-year-period so I can insert a record.  Using the DAL would be the optimum choice, however I cannot do this because of a recursion error.  To explain breifly, the code automates the creation of a second hours accounting record when certain types of labor entries are made in hours accounting (bptmm1130m000).<br />
+<br />
+I have code to get the next seqn value but I'm concerned it is not safe for concurrent transactions --- that is two different people keying in records at the same time:<br />
+<br />
+<br />
+    | have to get next seqn value<br />
+    | is this safe for concurrent operations?<br />
+    select max(bptmm130.seqn):max.seqn<br />
+    from   bptmm130<br />
+    where  bptmm130._index1 = {:i.emno, :bptmm130.year, :bptmm130.peri}<br />
+    as set with 1 rows<br />
+    selectdo<br />
+        bptmm130.seqn = max.seqn + 1<br />
+    selectempty<br />
+        bptmm130.seqn = 1<br />
+    endselect<br />
+<br />
+<br />
+then I go on w/ db.insert() later<br />
+<br />
+<br />
+All of this is happening in the ue.after.after.save.object() method of a user-exit DAL for bptmm130.  So I'm assuming (and it appears) that db.retry/commit is being handled outside of my code (by 4GL engine?).<br />
+<br />
+My questions are: is the code the way its written safe for concurrent transactions?  If not, how can I change it so it is?<br />
+<br />
+Thanks in advance,<br />
+-Tom</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">26th September 2009, 11:50</div></div><div class="posttext">Hi Tom,<br />
+<br />
+this is the standard way to find sequence numbers and is perfectly concurrency safe. As your code is running inside a transaction (which is started and commited by standard program) this is what happens when two processes execute the code at exactly the same time:<br />
+<br />
+ Both processes determine the same next sequence number. <br />
+ One of the processes is successful and write its record in database. <br />
+ The other process fails with error 100 &quot;duplicate record&quot; and has to go back to the retry point. By second attempt it &quot;sees&quot; the seuqnce number of the first process and generates a higher sequence number and now can save its record without problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tom_pim</div><div class="date">29th September 2009, 20:30</div></div><div class="posttext">vahdani,<br />
+Thanks for you reply and clear explanation.  I am inserting the record w/ db.insert(tbl.id, DB.RETRY).<br />
+<br />
+Also, after I create the bptmm130 record I need to restore the bptmm130 record buffer to the original values.  I'm using db.store.record(), it seems to be working OK but I'm not entirely sure its necessary or that I'm using it correctly.<br />
+<br />
+<br />
+|* shown here without checking return values or error handling for brevity<br />
+tbl.id = db.bind(&quot;tbptmm130&quot;)<br />
+db.store.record(tbptmm130)<br />
+|* create new bptmm130 by changing some values in bptmm130 buffer:<br />
+bptmm130.emno = i.emno | etc.<br />
+db.insert(tbl.id, DB.RETRY)<br />
+db.restore.record(tbptmm130)<br />
+db.unbind(tbl.id)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">30th September 2009, 09:21</div></div><div class="posttext">Hi Tom,<br />
+<br />
+there is no need for the variable &quot;table.id&quot; and explicit db.bind call. The table is already declared so all you need is the following:<br />
+<br />
+	table	tbptmm130<br />
+	...<br />
+	...<br />
+	db.store.record(tbptmm130)<br />
+	db.retry.point()<br />
+	|fill fields of bptmm130<br />
+	...<br />
+	db.insert(tbptmm130, db.retry)<br />
+	commit.transaction()<br />
+	db.restore.record(tbptmm130)<br />
+	...</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

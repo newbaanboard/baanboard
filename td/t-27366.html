@@ -1,0 +1,108 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="customizing tdpur4404m000(purchase invoices), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] customizing tdpur4404m000(purchase invoices) Tools Development" />
+	
+	<title>customizing tdpur4404m000(purchase invoices) [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; customizing tdpur4404m000(purchase invoices)</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">luckaku</div><div class="date">15th June 2006, 14:54</div></div><div class="posttext">I'm Baan IV user,I want to show the purchase Item Approval Date in the purchase invoices,but i searched all the tables in database,and not table have the approval date. please help me,teach me step by setp.Waiting for immediate reply.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">15th June 2006, 16:32</div></div><div class="posttext">I'm Baan IV user,I want to show the purchase Item Approval Date in the purchase invoices,but i searched all the tables in database,and not table have the approval date. please help me,teach me step by setp.Waiting for immediate reply.<br />
+<br />
+Hello,<br />
+<br />
+have a look at table tdpur045.<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">luckaku</div><div class="date">15th June 2006, 16:52</div></div><div class="posttext">Hi ,<br />
+tdpur045 only have receive date ,not approval date.<br />
+I find some information in tfgld410,but it can't refers to tdpur045.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">15th June 2006, 17:46</div></div><div class="posttext">I am not sure what approval date you are talking about- but for example if you are talking the day a user did the maintain approvals then I think Baan does not keep this date.  We(using QKEY functionality) track dates users do stuff in our own tables.  For example we track the day the user did the receipt rather than the receipt date. The receipt date can be entered manually - they do this so they do not impact supplier ratings.  And we can see how long things sit on the dock before they are received.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">luckaku</div><div class="date">16th June 2006, 04:19</div></div><div class="posttext">Yes,I want to take the day of item approvals :maintain approvals(tdpur4121m000).So,how using the QKEY functionality obtain the approval date?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">16th June 2006, 12:02</div></div><div class="posttext">Hi ,<br />
+tdpur045 only have receive date ,not approval date.<br />
+I find some information in tfgld410,but it can't refers to tdpur045.<br />
+<br />
+Hello,<br />
+you're right. I think i'ts the right way to get this date from purchase history (table tdpur051).<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">16th June 2006, 14:55</div></div><div class="posttext">Not sure about that table tdpur051.  I checked a few records and it does not look like each transaction gets loaded.  I see a record type(always 1), but not sure what it represents.  Maybe something else needs to be set-up but what is there is not what we need.  <br />
+<br />
+Here is what we do with qkey:<br />
+<br />
+after.rewrite:<br />
+	|#call<br />
+	|#pobj added by QKEY 3.70<br />
+	_pobj_exe1(&quot;after.rewrite&quot;)<br />
+	|#end add by QKEY<br />
+	check_approved()<br />
+<br />
+function check_approved()<br />
+{<br />
+	long	record.number<br />
+<br />
+	select	tdpur045.*<br />
+	from	tdpur045<br />
+	where	tdpur045._index6 = {:tdpur045.reno,:tdpur045.orno,:tdpur045.pono}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		select	tdpur975.*<br />
+		from	tdpur975 for update<br />
+		where	tdpur975._index2={:tdpur045.reno,:tdpur045.orno,:tdpur045.pono}<br />
+		order by tdpur975.recnum desc<br />
+		as set with 1 rows<br />
+		selectdo<br />
+			tdpur975.aprdate = date.num()<br />
+			tdpur975.aprusr  = logname$<br />
+			db.update(ttdpur975,db.retry)<br />
+		selectempty<br />
+			db.set.to.default(ttdpur975)<br />
+			tdpur975.recnum	 = 1<br />
+			tdpur975.orno 	 = tdpur045.orno<br />
+			tdpur975.pono 	 = tdpur045.pono<br />
+			tdpur975.srnb 	 = tdpur045.srnb<br />
+			tdpur975.suno 	 = tdpur045.suno<br />
+			tdpur975.reno 	 = tdpur045.reno<br />
+			tdpur975.aprdate = date.num()<br />
+			tdpur975.aprusr  = logname$<br />
+			db.insert(ttdpur975,db.retry)<br />
+		endselect<br />
+	endselect<br />
+}<br />
+<br />
+The initial record is created when the receipt is created.  We did this early-on when our docked was backed up.  At that time receiving had 3 days to get inventory into stores.  We did reporting off this table for the managers.  Then once we automated the process this is not so important, but we still track it.  <br />
+<br />
+Qkey is a source code wrapper, RMC offers one and there is a freeware solution posted in the code and utilities forum by ~Vamsi.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">luckaku</div><div class="date">21st June 2006, 16:56</div></div><div class="posttext">Thanks,Mark_h,i have not the source code of tdpur4121m000.<br />
+Now I got the solution of approval date.I appoint the &quot;current planned delivery date&quot; of tdpur045 to &quot;approval date&quot;,and maintain the approval date in tdpur4121m000.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

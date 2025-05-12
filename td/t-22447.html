@@ -1,0 +1,174 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Insert record in table: not work, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Insert record in table: not work Tools Development" />
+	
+	<title>Insert record in table: not work [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Insert record in table: not work</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mostrightfuture</div><div class="date">26th November 2004, 19:11</div></div><div class="posttext">Hi friends<br />
+<br />
+I have created a function in library to block a sales order, but its not blocking SOR. The code is as follows<br />
+<br />
+	domain tcyesno 	order.blocked<br />
+	domain	tcdate	dtbl<br />
+	<br />
+	order.blocked = tcyesno.no<br />
+	dtbl = utc.num()<br />
+	<br />
+	db.retry.point()<br />
+	select * <br />
+		from tdsls400 for update<br />
+		where tdsls400.orno between (:orno.f) and (:orno.t)<br />
+	selectdo<br />
+		|Insert record in table Order (Lines) Blocking<br />
+		select * <br />
+			from tdsls420<br />
+			where tdsls420.orno = (:tdsls400.orno)<br />
+		selectdo<br />
+		selectempty<br />
+			tdsls420.orno = tdsls400.orno<br />
+			tdsls420.pono = 0<br />
+			tdsls420.sqnb = 0<br />
+			tdsls420.hrea = &quot;001&quot;<br />
+			tdsls420.opon = 0<br />
+			<br />
+			if credit.check.hrea(tdsls420.hrea) then	   <br />
+				tdsls420.bpid = tdsls400.itbp<br />
+				tdsls420.bprt = tccom.bprt.invoice.to<br />
+			else<br />
+				tdsls420.bpid = tdsls400.ofbp<br />
+				tdsls420.bprt = tccom.bprt.sold.to<br />
+			endif<br />
+			<br />
+			dal.start.business.method(&quot;tdsls420&quot;,<br />
+					  &quot;calculate.expected.release.date&quot;, ret,<br />
+					  tdsls420.bpid, tdsls420.bprt, tdsls420.hrea,<br />
+					  tdsls420.erdt)<br />
+			if ret then<br />
+				tdsls420.erdt = dtbl<br />
+			endif<br />
+			<br />
+			tdsls420.lobl = logname$<br />
+			|tdsls420.cran	not defined<br />
+			|tdsls420.cbtp	not defined<br />
+			|tdsls420.pstc	not defined<br />
+<br />
+			order.blocked = tcyesno.yes<br />
+		endselect<br />
+		<br />
+		<br />
+		if(order.blocked = tcyesno.yes) then<br />
+			|Insert in table Order (Line) block history<br />
+			select * <br />
+				from tdsls421<br />
+				where tdsls421.orno = &quot;&quot;<br />
+			selectdo<br />
+			selectempty<br />
+				tdsls421.orno = tdsls400.orno<br />
+				tdsls421.pono = 0<br />
+				tdsls421.sqnb = 0<br />
+				tdsls421.hrea = &quot;001&quot;<br />
+				tdsls421.opon = 0<br />
+				tdsls421.dtbl = dtbl<br />
+				tdsls421.lobl = logname$<br />
+				|tdsls421.dtrl<br />
+				|tdsls421.lorl<br />
+				tdsls421.bpid = tdsls420.bpid<br />
+				tdsls421.bprt = tdsls420.bprt<br />
+				|tdsls421.rlty  <br />
+				|tdsls421.rlam <br />
+				tdsls421.erdt = tdsls420.erdt<br />
+				|tdsls420.pstc <br />
+				<br />
+			endselect<br />
+			<br />
+			|Block sales order line<br />
+			select * <br />
+				from tdsls401 for update<br />
+				where tdsls401.orno = (:tdsls400.orno)<br />
+			selectdo<br />
+				tdsls401.bkyn = tcyesno.yes<br />
+			selectempty<br />
+			endselect<br />
+			<br />
+<br />
+			|Block sales order<br />
+              tdsls400.bkyn = tcyesno.yes<br />
+		endif<br />
+	selectempty<br />
+	endselect<br />
+	<br />
+	if(order.blocked = tcyesno.yes)then<br />
+		commit.transaction()<br />
+	Endif<br />
+<br />
+what I have missing.<br />
+<br />
+thanks in advance<br />
+Mahmood</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">26th November 2004, 20:56</div></div><div class="posttext">{<br />
+db.retry.point()<br />
+<br />
+select Tablefields<br />
+from Table for update<br />
+where .......<br />
+selectdo<br />
+<br />
+.........................<br />
+<br />
+db.update(Table, db.retry)<br />
+commit.transaction()<br />
+endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mostrightfuture</div><div class="date">29th November 2004, 11:22</div></div><div class="posttext">Hi,<br />
+<br />
+I updated the code by writting <br />
+<br />
+db.update(Table, db.retry)<br />
+<br />
+Now I am getting error: Error 206 (record is not locked)<br />
+<br />
+<br />
+Mahmood</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">29th November 2004, 11:43</div></div><div class="posttext">Try this:<br />
+<br />
+{<br />
+db.retry.point()<br />
+<br />
+select Tablefields<br />
+from Table for update<br />
+where .......<br />
+selectdo<br />
+<br />
+.........................<br />
+<br />
+db.update(Table, db.retry)<br />
+commit.transaction()<br />
+endselect<br />
+<br />
+commit.transaction()<br />
+<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

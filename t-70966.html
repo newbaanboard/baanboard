@@ -1,0 +1,195 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="[AFS] Create a new record in Outbound Advice session, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] [AFS] Create a new record in Outbound Advice session AFS/DDC/OLE: Function servers" />
+	
+	<title>[AFS] Create a new record in Outbound Advice session [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; [AFS] Create a new record in Outbound Advice session</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">30th March 2018, 11:27</div></div><div class="posttext">Hi,<br />
+<br />
+I am working on an AFS program that tries to simulate user interaction in the Outbound Advice session (whinh4525m000) in order to create a new record.<br />
+Here is the code:<br />
+<br />
+session.code = &quot;whinh4525m000&quot; | Outbound Advice Session<br />
+stpapi.clear(session.code)<br />
+if stpapi.synchronize.dialog(session.code, &quot;add&quot;, error.msg) then<br />
+	stpapi.put.field(session.code, &quot;whinh225.oorg&quot;, &quot;1&quot;)<br />
+	stpapi.put.field(session.code, &quot;whinh225.orno.segment.1&quot;, &quot;BOX000111&quot;)<br />
+	stpapi.put.field(session.code, &quot;whinh225.oset&quot;, &quot;1&quot;)<br />
+	stpapi.put.field(session.code, &quot;whinh225.pono&quot;, &quot;1&quot;)<br />
+	stpapi.put.field(session.code, &quot;whinh225.seqn&quot;, &quot;0&quot;)<br />
+	stpapi.put.field(session.code, &quot;whinh225.sern&quot;, &quot;1&quot;)<br />
+	stpapi.put.field(session.code, &quot;whinh225.qads&quot;, &quot;3&quot;)<br />
+	stpapi.get.field(session.code, &quot;whinh225.runn&quot;, output)<br />
+	ret = stpapi.insert(session.code, true, error.msg)<br />
+	if (not isspace(error.msg)) then<br />
+		message(&quot;Cannot Insert : &quot; &amp; error.msg)<br />
+	endif<br />
+else<br />
+	error.msg = &quot;Cannot open synchronized dialog: &quot; &amp; error.msg<br />
+endif<br />
+stpapi.end.session(session.code, error.msg)<br />
+<br />
+However, there is an error message at the end saying &quot;Enter a value for the Business Object Type field.&quot;, but the field is actually not mandatory.<br />
+In addition, I tried manually putting those fields (without Business Object Type field) and the record is created just fine.<br />
+Please advice.<br />
+<br />
+Regards,<br />
+Thana</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">30th March 2018, 19:35</div></div><div class="posttext">Searching for code on the site - I say one post that has orno not as a segment.  So I can't answer that.  I will say calling code via api code it does not always work like it does manually.  In this case it might not be setting something that makes it skip checking the field.  Sometimes you can do a insert without true and then do a save.  I have had to do some different things like that to get API code to work in 4c4.  Can't really help with LN.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">2nd April 2018, 04:32</div></div><div class="posttext">I have tried using orno not as a segment, and I have also tried insert with false then save, but no luck.<br />
+orno way gives me the same error while inserting with false then save gives me the same error on insert but not on save.<br />
+So, none of these seem to work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd April 2018, 14:38</div></div><div class="posttext">You wouldn't by chance happen to have code so you could debug what is happening would you?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">giggty</div><div class="date">2nd April 2018, 16:18</div></div><div class="posttext">orno is definitely not a segmented field. When you are creating new record by hand, do you fill only those fields you have in your code? Does it throw any messages at you during it? Try to get all messages generated in session:<br />
+<br />
+ret = stpapi.insert(session.code, true, error.msg)<br />
+if not ret then<br />
+	while true <br />
+		error.code = stpapi.get.mess.code(session.code, error.msg)<br />
+		if isspace(error.msg) then<br />
+			   break<br />
+		endif <br />
+		message(error.msg)<br />
+	endwhile<br />
+	stpapi.recover(session.code, recover.msg)<br />
+endif<br />
+<br />
+I encountered a weird error in AFS once, turned out it was another field all the time having been filled incorrectly rather then the one error message pointed to.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">3rd April 2018, 05:09</div></div><div class="posttext">mark_h, I tried debugging the AFS.<br />
+Here's the result:<br />
+<br />
+LOGGING STARTED<br />
+03-04-2018<br />
+&gt;whinh4525m000 clear<br />
+45dll-&gt;serv (getxml)<br />
+45dll-&gt;serv (startwhinh4525m000100)<br />
+47serv&lt;-4gl (api.child.startedwhinh4525m00045)<br />
+47serv&lt;-4gl (init.ready)<br />
+whinh4525m000(47)-RUNNING:<br />
+45dll-&gt;serv (startwhinh4525m0001whinh4525m000114)<br />
+49serv&lt;-4gl (init.ready)<br />
+whinh4525m000(49)-RUNNING:<br />
+45dll-&gt;serv (syncadd47)<br />
+whinh4525m000(47)-RUNNING:syncadd<br />
+47serv&lt;-4gl (syncadd0)<br />
+whinh4525m000(47)-RUNNING:<br />
+&gt;whinh4525m000(47) put.field:whinh225.oorg 1<br />
+&gt;whinh4525m000(47) put.field:whinh225.orno BOX000111<br />
+&gt;whinh4525m000(47) put.field:whinh225.oset 1<br />
+&gt;whinh4525m000(47) put.field:whinh225.pono 1<br />
+&gt;whinh4525m000(47) put.field:whinh225.seqn 0<br />
+&gt;whinh4525m000(47) put.field:whinh225.sern 1<br />
+&gt;whinh4525m000 get.field:whinh225.oorg<br />
+&lt;whinh4525m000(49) get.field:whinh225.oorg=1<br />
+&gt;whinh4525m000 get.field:whinh225.orno<br />
+&lt;whinh4525m000(49) get.field:whinh225.orno=BOX000111<br />
+&gt;whinh4525m000 get.field:whinh225.pono<br />
+&lt;whinh4525m000(49) get.field:whinh225.pono=1<br />
+&gt;whinh4525m000 get.field:whinh225.seqn<br />
+&lt;whinh4525m000(49) get.field:whinh225.seqn=0<br />
+&gt;whinh4525m000 get.field:whinh225.sern<br />
+&lt;whinh4525m000(49) get.field:whinh225.sern=1<br />
+&gt;whinh4525m000 get.field:whinh225.oset<br />
+&lt;whinh4525m000(49) get.field:whinh225.oset=1<br />
+&gt;whinh4525m000(47) put.field:whinh225.qads 3<br />
+&gt;whinh4525m000 get.field:whinh225.runn<br />
+&lt;whinh4525m000(49) get.field:whinh225.runn=            <br />
+&gt;whinh4525m000 insert<br />
+45dll-&gt;serv (add.set+save49)<br />
+whinh4525m000(49)-RUNNING:add.set+save<br />
+49serv&lt;-4gl (add.set+save10)<br />
+whinh4525m000(49)-RUNNING:<br />
+&lt;whinh4525m000 Enter a value for the Business Object Type field.<br />
+&gt;whinh4525m000 get.mess.code<br />
+&lt;whinh4525m000 <br />
+&gt;whinh4525m000 get.field:whinh225.oorg<br />
+&lt;whinh4525m000(49) get.field:whinh225.oorg=1<br />
+&gt;whinh4525m000 get.field:whinh225.orno<br />
+&lt;whinh4525m000(49) get.field:whinh225.orno=BOX000002<br />
+&gt;whinh4525m000 get.field:whinh225.pono<br />
+&lt;whinh4525m000(49) get.field:whinh225.pono=10<br />
+&gt;whinh4525m000 get.field:whinh225.seqn<br />
+&lt;whinh4525m000(49) get.field:whinh225.seqn=0<br />
+&gt;whinh4525m000 get.field:whinh225.sern<br />
+&lt;whinh4525m000(49) get.field:whinh225.sern=2<br />
+&gt;whinh4525m000 get.field:whinh225.oset<br />
+&lt;whinh4525m000(49) get.field:whinh225.oset=1<br />
+&gt;whinh4525m000 end.session<br />
+45dll-&gt;serv (end.program47)<br />
+whinh4525m000(47)-RUNNING:end.program<br />
+whinh4525m000(49)-RUNNING:end.program<br />
+47serv&lt;-4gl (end.program0)<br />
+whinh4525m000(47)-RUNNING:<br />
+47dll-&gt;serv (whinh4525m000: exit(47))<br />
+49dll-&gt;serv (whinh4525m000: exit(49))<br />
+<br />
+It looks like I put the fields correctly but it still asks for Business Object Type field.<br />
+And giggty, I also tried your code but it displays no error messages.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd April 2018, 14:55</div></div><div class="posttext">I was hoping you had baan source code you could debug and step thru to see what is happening.  My suspicion is that when you run it manually and move thru the fields and event gets hit which says that business object type field is not needed, but when you run it via AFS code it does not hit that event.  Is it possible to put that field and then maybe go back and edit it to make it empty?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">4th April 2018, 04:37</div></div><div class="posttext">I don't have the source code.<br />
+I have tried putting the Business Object Type field but it then asked for another non-mandatory field, and when I put in the field it gave me another error. So, I think it is not the way it should be because I have to put so many non-mandatory fields that are not even required. Most of them will be left blank by the users when manually create as well.<br />
+However, yesterday I gave DAL a try and it seems to do the work just fine. So, I want to ask what are the things I should keep in mind when I try to use DAL instead of AFS for the same work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">giggty</div><div class="date">4th April 2018, 16:21</div></div><div class="posttext">I tried to create an Advice through AFS filling in exactly the same fields and values I use when doing it manually and it throws an error regarding some irrelevant existing line :confused: I could not figure it out.<br />
+So if DAL approach worked for you then just go for it. Nothing special to keep in mind here, DAL does the heavy lifting ;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">5th April 2018, 04:44</div></div><div class="posttext">Thank you mark_h and giggty for the advice. I finally use the DAL instead of AFS to solve this problem. It works like a charm and it is way eaiser than I thought. Here's the code for anyone who is having the same problem as I was.<br />
+<br />
+*only the DAL part*<br />
+<br />
+if dal.new.object(&quot;whinh225&quot;) &lt;&gt; 0 then<br />
+	dal.get.error.message(error.msg)<br />
+	return(error.msg)<br />
+endif<br />
+dal.set.field(&quot;whinh225.oorg&quot;, i.tdcrm411.oorg)<br />
+dal.set.field(&quot;whinh225.orno&quot;, str$(i.tdcrm411.orno))<br />
+dal.set.field(&quot;whinh225.oset&quot;, i.tdcrm411.oset)<br />
+dal.set.field(&quot;whinh225.pono&quot;, i.tdcrm411.pono)<br />
+dal.set.field(&quot;whinh225.seqn&quot;, i.tdcrm411.seqn)<br />
+dal.set.field(&quot;whinh225.sern&quot;, i.tdcrm411.sern)<br />
+dal.set.field(&quot;whinh225.locf&quot;, str$(i.tdcrm411.loca))<br />
+dal.set.field(&quot;whinh225.clot&quot;, str$(i.tdcrm411.clot))<br />
+dal.set.field(&quot;whinh225.qads&quot;, i.tdcrm411.qads)<br />
+dal.set.field(&quot;whinh225.idat&quot;, i.tdcrm411.idat)<br />
+if dal.save.object(&quot;whinh225&quot;) &lt;&gt; 0 then<br />
+	dal.get.error.message(error.msg)<br />
+	return(error.msg)<br />
+endif<br />
+if get.var(pid,&quot;whinh225.runn&quot;, o.tdcrm411.runn) &lt;&gt; 1 then<br />
+	error.msg = &quot;Cannot get Run Number.&quot;<br />
+endif<br />
+return(error.msg)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Field sorting in Report, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Field sorting in Report Tools Development" />
+	
+	<title>Field sorting in Report [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Field sorting in Report</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">manusatsangi</div><div class="date">20th February 2003, 15:34</div></div><div class="posttext">Hi,<br />
+I have a report in which an input field (called 'level') is 'presorted' and a typical sequence of this numeric field can be :<br />
+1, 2, 3, 2, 3, 4, 5, 2, etc.....<br />
+<br />
+Now I have a requirement to print a particular layout when <br />
+1) the sort sequence of the input field break<br />
+ and also when <br />
+2) the new (upcoming) value is less than the current value of the field.<br />
+i.e. when both the conditions are met.<br />
+<br />
+Now if I use a layout 'after.level.1', then it does not check for the 2nd condition at all.<br />
+How do I arrange so that this layout is printed only when both the conditions are met.<br />
+<br />
+Warm Regards<br />
+Manu</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th February 2003, 20:05</div></div><div class="posttext">In the after field layout you can read the r.recbuf$ to get the next value.  r.recbuf$ is the variable in the report that baan uses to hold the record, this is then translated into the layout fields. Here is an example:<br />
+<br />
+<br />
+declaration:<br />
+	extern	domain tppdm.gcid.a	some.gcid<br />
+	<br />
+after.tpppc600.gcid.1:<br />
+after.layout:<br />
+	e = string.scan(r.recbuf$,&quot;%s^B&quot;,some.gcid) | Return the fields<br />
+	if some.gcid&lt;tpppc600.gcid then<br />
+		lattr.print = false<br />
+	endif<br />
+<br />
+<br />
+<br />
+Run the report in debugger and look at the string.scan it uses to read in the fields.  Then just clone this into the after.layout field.  Remember to use different variables than the report fields so they do not get confused.<br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manusatsangi</div><div class="date">21st February 2003, 08:14</div></div><div class="posttext">Hi Mark,<br />
+Thanks for the reply.<br />
+But unfortunately, when pasted your script with relevant modifications and tried to compile the report, it did not compile and complained that :<br />
+<br />
+r.recbuf$ not declared<br />
+<br />
+I thought, maybe the variable name would be similar in nature like r.recbuf1$, r.recbuf2$.. as usually rep_gen creates variable names depending upon the report.<br />
+So, I just added a dummy line as given below:<br />
+<br />
+declaration:<br />
+long new.level<br />
+<br />
+after.level.1:<br />
+after.layout:<br />
+message(&quot;Hi&quot;)<br />
+<br />
+Now I debugged the report script and created a breakpoint on the 'message(&quot;Hi&quot;)' line.<br />
+On hitting the break point, I listed all the variables in the debugger using 'l' and also 'L'.<br />
+I went on searching for variables with were similar to 'r.recbuf$'. BUt alas, I found none.<br />
+<br />
+There is another way I tried to search,<br />
+I altered the program script (just for this research) so that it first sends records with level = 78 then with level = 79. Hence when this breakpoint is hit, the value of level is changing from 78 to 79.<br />
+So, I went on searching variables which have value 79.<br />
+Because it is this value 79, which I have to know beforehand, while printing 78. BUt I found no variable containing value 79. :(<br />
+<br />
+Do you have any idea about this, why is it not working with me when it is working for you?<br />
+Any tools version mismatch?<br />
+I am on Baan IV c4. Porting set 6.1c.06.02.<br />
+Tools version 6.1<br />
+<br />
+Warm Regards<br />
+Manu</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st February 2003, 15:57</div></div><div class="posttext">I am not sure about 4c4 since I do not have access to it yet, but under 4c3 when the report is in debug mode I can go to the top and see where r.recbuf$ is declared.  Is there a section in debug mode called r.read.seq.file()?  This is where the data is read into the report and where I got r.recbuf$ variable.  I put two different reports in debug mode and saw where this variable is consistent.  In my case I could see where in did the r.read.seq.file() then did if changed(tpppc600.gcid) check and then did the after section layout.  I attached a document showing those sections.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manusatsangi</div><div class="date">24th February 2003, 07:35</div></div><div class="posttext">Hi Mark,<br />
+Thanks a lot for the detailed info.<br />
+I noticed that if I do not have a sorting of &quot;Ascending&quot; or &quot;Descending&quot; in my report input fields, the function r.read.seq.file() as blank. And hence r.recbuf$ are not declated etc.<br />
+The moment, I create a &quot;dummy&quot; report input field (with Ascending), it declares r.recbuf$ and writes some code in r.read.seq.file().<br />
+Earlier, I was using a report in which fields were either &quot;Presorted&quot; or &quot;None&quot;, hence r.recbuf$ was not getting declared.<br />
+Anyway, I have made a workaround by giving a &quot;dummy&quot; report input field (with Ascending).<br />
+<br />
+Moreover, I see that r.recbuf$ format is highly dependant on the no and order of report input fields. That means if I use r.recbuf$, the report would not work correctly in case sundry changes in report input fields are done.<br />
+<br />
+Thanks and regards<br />
+Manu</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

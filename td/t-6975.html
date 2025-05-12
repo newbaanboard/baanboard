@@ -1,0 +1,117 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="seq.* functions, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] seq.* functions Tools Development" />
+	
+	<title>seq.* functions [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; seq.* functions</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rupertb</div><div class="date">2nd October 2002, 15:53</div></div><div class="posttext">I need conceptual help regarding reading from a file (TIME.HIS) into a new baan table. I'm using seq.open, seq.eof,  seq.gets and string.scan to read and format the data in my session. This file (TIME.HIS) is constantly written to by baan. I don't want to lock the file at any given point for this reason. However I need to clean out those lines I've read in from the top of the file and inserted into my table. Seq.unlink won't work here. How can I delete x number of lines from an ascii file?<br />
+<br />
+Rupert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">hklett</div><div class="date">2nd October 2002, 16:47</div></div><div class="posttext">May it could work if you rename the file periodic and read from the renamed file while the writing process writes  in the original file.<br />
+<br />
+I think the behavior of this procedure depent on the underlying operating system and the kind of  the writing process .<br />
+Does it write several lines in a open file, or does it open and close the file for each line it writes.<br />
+<br />
+The problem is that a sequentiell file isnt a database.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">2nd October 2002, 16:49</div></div><div class="posttext">First of all: You can only &quot;delete&quot; lines from the beginning if you overwrite them. That would be possible, but I would'nt do that.<br />
+<br />
+As you mention the file name TIME.HIS, I guess you mean the file in $BSE/lib? This file has &quot;records&quot; (lines) and &quot;fields&quot; separated by the pipe character. So you can easily read that file from the beginning, parse a line into separate fields. Before you insert the fields into your (database) table, you have to check, if an appropriate record already exists =&gt; that means you have already processed that line.<br />
+<br />
+One more hint: If you rename the file at first, a process that has already opened the file can continue writing to it. When that process closes the file, you will see the data written (okay, a flush would be enough). A new open form another process would create TIME.HIS as a new file.<br />
+<br />
+So, I think the bshell is the process that writes TIME.HIS. When that is intermally coded like seq.open(&quot;TIME.HIS&quot;, &quot;a&quot;) / seq.puts() / seq.close(), you could try file.rename(&quot;TIME.HIS&quot;, &quot;TIME.BAK&quot;) / wait 10 seconcs / process TIME.BAK.<br />
+<br />
+günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rupertb</div><div class="date">2nd October 2002, 17:03</div></div><div class="posttext">Thanks for the replies chaps,<br />
+<br />
+Guenther the only problem I see with coping the file is that the original TIME.HIS would continue growing and that's what I want to avoid. I also don't want to constantly try and insert duplicate records into the database (wasted resource). I was hoping to use the TIME.HIS as a buffer, baan adds lines at the end of the file and my program flushes them out from the begining of the file.<br />
+<br />
+Rupert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">2nd October 2002, 17:20</div></div><div class="posttext">I know what you mean; I also take care about my resources. But please be careful: I did not write COPY, I wrote RENAME (or MOVE)!!! <br />
+<br />
+The new created TIME.HIS will start with 0 bytes; no growing!<br />
+<br />
+Btw. With that concept, you would not have to read the file again and again.<br />
+<br />
+günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">3rd October 2002, 04:14</div></div><div class="posttext">Rupert,<br />
+<br />
+1. Can you please state the purpose of why do you want to store the info from TIME.HIS file to a database?<br />
+<br />
+2. Another solution is to  use unix commands like -  grep.<br />
+<br />
+We had a sitatuation where wanted to remove the history specific to a user so we used - <br />
+<br />
+<br />
+$ grep -v TIME.HIS TIME.HIS.BAK<br />
+$ mv TIME.HIS.BAK TIME.HIS<br />
+<br />
+<br />
+This file is always growing big if not properly taken care of.<br />
+<br />
+In this way we lose this a fraction of the history and also save space.<br />
+<br />
+I logged a case with BaaN Support asking for enhancement to use this option as a table based data than a file based data. <br />
+Then the queries will be executed much faster. Right now, I guess the sessions - ttaad2402m000 - Print User History, ttaad2202m000 - Delete User History take a long time for processing.<br />
+<br />
+Also, there is no option to cap the file size or roll over the file as for the $BSE/log files. :(</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rupertb</div><div class="date">3rd October 2002, 09:47</div></div><div class="posttext">Once again thanks! We're a few months away from migrating to c4 from b2 (at last!). Unfortunately we let our users requests for enhancements get the better of us. My intention is to parse the TIME.HIS information for those sessions (enhancements) that have never been used - those that seemed like a GREAT idea at that time. Then I'll be able to motivate deleting those and limit my workload over the next 6 months. Unfortunately the standard print user history is to slow :( But thanks NPRao what I'll do is read in say 1000 lines from TIME.HIS insert them into my table and then execute a shell script calling something like 'sed' removing those same 1000 lines. This I'll put in a job. Then I can play with the timing of the job to keep TIME.HIS at a more or less fixed file size. And of course I can do my analysis of the user history from the suitably indexed table.<br />
+<br />
+Guenther I was re-reading your suggestions as well, that can work too in fact that might be the option I'll use I need to ensure that TIME.HIS is never locked irrespective of the command I use be it 'mv' or 'sed'.<br />
+<br />
+Thanks :D</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">3rd October 2002, 13:52</div></div><div class="posttext">At least on Unix it's possible to use an option of ls in order to find out the last time a file was accessed. Wouldn't that help which customizations haven't been used for a long time?<br />
+<br />
+Rgrds,<br />
+Han</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">3rd October 2002, 16:48</div></div><div class="posttext">Rupert,<br />
+<br />
+Thinking back I got another idea using a shell script.<br />
+<br />
+Here is a brief logic and I guess you can keep this in a function and call in a loop until the file is empty or no more lines.<br />
+<br />
+<br />
+head -n1000 TIME.HIS &gt; TIME.HIS.TEMP<br />
+numlines=`wc -l TIME.HIS`<br />
+startline=`expr ${numlines} - 1000`<br />
+tail -${startline} TIME.HIS &gt; TIME.HIS.BAK<br />
+mv TIME.HIS.BAK TIME.HIS<br />
+<br />
+<br />
+So you have to parse the TIME.HIS.TEMP files for every 1000 lines and put data into the table.<br />
+<br />
+Hope it helps you. :p</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

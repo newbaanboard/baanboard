@@ -1,0 +1,140 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="API Call to Maintain Outbound Data, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] API Call to Maintain Outbound Data AFS/DDC/OLE: Function servers" />
+	
+	<title>API Call to Maintain Outbound Data [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; API Call to Maintain Outbound Data</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">LittleJohn</div><div class="date">2nd August 2002, 03:13</div></div><div class="posttext">Hi,<br />
+<br />
+I'm trying to Maintain Outbound Data(tdilc4101m000) using the Function Server API calls. The data is in a ASCII file.<br />
+<br />
+I'm on Baan IVc2 (No Source Codes).<br />
+<br />
+The manual process would be to run the tdilc4101m000 session, input the values of Run Number, Order Type &amp; Ord #... and futher on hit the &quot;Lines&quot; Button. This would start the sub-session tdilc4102s000.<br />
+(The 'Lines' button on the tdilc4101m000, is the Continue button)<br />
+<br />
+In the tdilc4102s000 subsession, I would just enter the Position Number. The Seqn (serb) defaults automatically. I would just insert the Qty and save the record.<br />
+<br />
+I'm trying to use the Function Server to work this out. <br />
+<br />
+After I do the required &quot;put&quot; func calls, I do a &quot;get&quot; just to check the values....  The problem I'm facing is, the other fields like Item, Warehouse, Date, Unit, etc never get populated at all and this results in the record not being saved. <br />
+<br />
+It comes up with a error &quot;Command Cancelled&quot; when I do the  f4102s000.update(1, err.msg)<br />
+<br />
+The other strange thing is, When I look up the various process started in the background (Option Dialog, &quot;ps&quot;), apart from the processes tdilc4101m000 and tdilc4102s000, there is a third process that comes up... it is tdilc4513s000. <br />
+(No idea why this comes up, and does not get killed when I try to kill it through the API call handle.sub.process().... quite a tough customer ;) )<br />
+<br />
+I'm attaching the script, Can someone please help me working out this solution. Thanks a lot.<br />
+<br />
+Adios<br />
+Minhaaj<br />
+<br />
+f4101m000.put.Run(hold.runn)<br />
+	f4101m000.put.k.o.order(hold.type)<br />
+	f4101m000.put.ordernr(hold.pdno)<br />
+	f4101m000.handle.sub.process(&quot;tdilc4102s000&quot;, &quot;add&quot;)<br />
+	f4101m000.continue(err.msg)<br />
+	f4102s000.handle.sub.process(&quot;tdilc4513s000&quot;, &quot;kill&quot;)<br />
+	if isspace(err.msg) then<br />
+		f4102s000.put.Order_Type(hold.type)<br />
+		f4102s000.put.Order_Number(hold.pdno)<br />
+		if item.exists = 1 and hold.pono &lt;&gt; 0 then<br />
+			f4102s000.put.Position_Number(hold.pono)<br />
+		endif<br />
+		f4102s000.put.Sequence_No.serb(temp.serb)<br />
+		f4102s000.put.tdilc401.qstr(hold.qty)<br />
+		f4102s000.save(err.msg)<br />
+		f4102s000.update(1, err.msg)<br />
+		f4102s000.end()<br />
+	endif<br />
+	f4101m000.end()</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd August 2002, 15:26</div></div><div class="posttext">You should be able to ignore that subsession - until you start ending the sessions.  We are on 4c3 (also without source).  You may want to make sure you have the current API tools patch and maybe even newest version of these sessions. Here is a quick test I did to update the quantity on a specific order.<br />
+<br />
+<br />
+	stpapi.put.field(&quot;tdilc4101m000&quot;,&quot;runnumber&quot;,&quot;aaaa&quot;)<br />
+	stpapi.put.field(&quot;tdilc4101m000&quot;,&quot;k.o.order&quot;,str$(tdilc.koob.act.sfc))<br />
+	stpapi.put.field(&quot;tdilc4101m000&quot;,&quot;ordernr&quot;,&quot;312013&quot;)<br />
+	stpapi.handle.subproc(&quot;tdilc4101m000&quot;,&quot;tdilc4102s000&quot;, &quot;add&quot;)<br />
+	stpapi.continue.process(&quot;tdilc4101m000&quot;,msg)<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.qstr&quot;,&quot;1&quot;)<br />
+	stpapi.update(&quot;tdilc4102s000&quot;,1,msg)<br />
+	stpapi.end.session(&quot;tdilc4513s000&quot;)<br />
+	stpapi.end.session(&quot;tdilc4102s000&quot;)<br />
+	stpapi.end.session(&quot;tdilc4101m000&quot;<br />
+<br />
+<br />
+My ttstpcreatdll does not work right now. Sigh. <br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">LittleJohn</div><div class="date">2nd August 2002, 20:05</div></div><div class="posttext">Hi Mark,<br />
+<br />
+ Thanks for the good lead. I'll try and install the latest versions available for Baan IVc2.<br />
+<br />
+In case you might know it, Can you please let me know what the latest API version for BaanIV might be, I mean, If its a common one across BaanIV ?<br />
+<br />
+Btw, Were you able to duplicate this process successfully at your end ?<br />
+I still am facing the same problem. I hope it gets resolved with the new patch installation.<br />
+<br />
+Cheers<br />
+Minhaaj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd August 2002, 20:50</div></div><div class="posttext">In the previous example I only updated a line.  In this example I inserted the line.<br />
+<br />
+<br />
+	stpapi.put.field(&quot;tdilc4101m000&quot;,&quot;runnumber&quot;,&quot;aaaa&quot;)<br />
+	stpapi.put.field(&quot;tdilc4101m000&quot;,&quot;k.o.order&quot;,str$(tdilc.koob.act.sfc))<br />
+	stpapi.put.field(&quot;tdilc4101m000&quot;,&quot;ordernr&quot;,&quot;312013&quot;)<br />
+	stpapi.handle.subproc(&quot;tdilc4101m000&quot;,&quot;tdilc4102s000&quot;, &quot;add&quot;)<br />
+	stpapi.continue.process(&quot;tdilc4101m000&quot;,msg)<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.pono&quot;,&quot;10&quot;)<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.loca&quot;,&quot;CB0509D&quot;)<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.qstr&quot;,&quot;3&quot;)<br />
+|	stpapi.update(&quot;tdilc4102s000&quot;,1,msg)<br />
+	stpapi.insert(&quot;tdilc4102s000&quot;,1,msg)<br />
+	stpapi.end.session(&quot;tdilc4513s000&quot;)<br />
+	stpapi.end.session(&quot;tdilc4102s000&quot;)<br />
+	stpapi.end.session(&quot;tdilc4101m000&quot;)<br />
+<br />
+<br />
+Notice I used the stpapi.insert command.  I ran it in debug mode to check the msg and it was empty after the insert. You might want to try the insert first.  Evidently I did not read the original message - I saw the update and just assumed you wanted to update a record not insert a new record. I took a screen print of the outbound, then deleted it, then ran the above insert.  The printout matched what this insert did. You may not have to put the same fields, for this part I had to change the location to something that was valid. Actually if the location was valid all I would have add to put was the position number, the location and quantity default - at least they did manually.<br />
+<br />
+In all honesty I do not know if it is the same across versions.  I always hesitate to post solution numbers since it may not be the same.  I would hate to recommend something that may not work on another system or worse broke something different.  I would prefer that people contact Baan and get the latest versions of the tools or sessions for their system. We are on 4c3 with the A&amp;D extension, so patches for our system would probably not be the same as patches for the commercial system.<br />
+<br />
+Hope this helps!<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">LittleJohn</div><div class="date">6th August 2002, 18:56</div></div><div class="posttext">Hi Mark,<br />
+<br />
+I think you were absolutely right in mentioning the &quot;insert&quot; sequence. I thought the &quot;save&quot; might do the job.<br />
+This works fine now. <br />
+I'm anyway installing the lastest patch objects for the stpapi handlers.<br />
+<br />
+Thanks again for your help Mark. Appreciate it.<br />
+<br />
+Regards<br />
+Minhaaj</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

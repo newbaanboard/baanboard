@@ -1,0 +1,159 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Overflow in log.bshell after migration to linux, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Overflow in log.bshell after migration to linux Tools Administration &amp; Installation" />
+	
+	<title>Overflow in log.bshell after migration to linux [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Overflow in log.bshell after migration to linux</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">alexpreyer</div><div class="date">30th August 2005, 12:20</div></div><div class="posttext">We migrated our Baan IV c4 Servers a few weeks ago to linux, without big problems. The only issue we have at the moment is that some people sometimes get error messages (in different sessions doesn't matter if view - print - maintain).<br />
+Here you see a part of log.bshell (sorry the error is in german):<br />
+<br />
+2005-08-30[10:39:50]:E:rkreuzpa: ******* S T A R T of Error message *******<br />
+2005-08-30[10:39:50]:E:rkreuzpa: Log message called from /view/port.6.1c.07.07/vobs/tt/mir/mir/mat_fun.c: #94 keyword: ttstpsplclose<br />
+2005-08-30[10:39:50]:E:rkreuzpa: Pid 31899 Uid 548 Euid 548 Gid 500 Egid 500<br />
+2005-08-30[10:39:50]:E:rkreuzpa: user_type N language 3 user_name rkreuzpa tty ote locale ISO88591/NULL<br />
+2005-08-30[10:39:50]:E:rkreuzpa: Errno 0 bdb_errno 0<br />
+2005-08-30[10:39:50]:E:rkreuzpa: Log_mesg: Überlauf: Format='99999' Wert='989212883'<br />
+2005-08-30[10:39:50]:E:rkreuzpa: ******* E N D of Error message *******<br />
+<br />
+The last time we had it in the session tdpur4531m000 after searching a record. The second time we searched for the same record we got no error.<br />
+<br />
+After confirming the error message you can go on as normal.<br />
+<br />
+Hopefully someone knows a solution.<br />
+<br />
+Alex Preyer</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">victor_cleto</div><div class="date">30th August 2005, 12:58</div></div><div class="posttext">/view/port.6.1c.07.07/vobs/tt/mir/mir/mat_fun.c: #94 keyword: ttstpsplclose<br />
+2005-08-30[10:39:50]:E:rkreuzpa: Log_mesg: Überlauf: Format='99999' Wert='989212883'<br />
+<br />
+This indicates a possible format bug (value 989212883 when the format expected is only 5 digits) in ttstpsplclose or the calling session(s) that may need an update.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">30th August 2005, 21:40</div></div><div class="posttext">Not sure if you have the fix in your Baan version release. <br />
+From one of the porting set release notes -<br />
+<br />
+MaintCorelli: # 17575 (BDNT11034): Control logging of get_format_entry errors<br />
+Date: Thu, 13 Mar 2003 16:21:41 +0100<br />
+Created on:  MaintCorelli<br />
+Type:        bugfix<br />
+<br />
+Problem Description (Customer terms)<br />
+The error logs are filled up with a lot of get_format_entry error messages. This is request for that the get_format_entry errors are not to be logged when at least a generic format is found for the format code.<br />
+<br />
+If the format code &amp; unit combination is not found (eg. Q13/FT but the generic format code does exist (eg Q13) then no error message should be written to the log.bshell file?<br />
+<br />
+This would help us tremendously in many ways:<br />
+1 - being our log files will not roll over so fast that we miss real error messages.<br />
+2 - performance will improve for batch jobs which end up writing thousands of these messages.<br />
+3 - we will not need to continously update the datecurr file.<br />
+<br />
+Problem Description (Technical terms)<br />
+Function get_format_entry searches datecurr file for the format specifier.<br />
+<br />
+For example:<br />
+<br />
+C|001USD|USD|ZZZZ9|<br />
+<br />
+Here:<br />
+<br />
+C:		Means this line specifies a currency format<br />
+001USD:		Format Code 001, and currency (Generic Unit) USD<br />
+ZZZZ9:		Format specifier.<br />
+<br />
+The input is a pattern, which is a combination of the Format Code and the Generic Unit (in this case this represents a Currency).<br />
+In case the format specified cannot be found for this pattern, an error is logged.<br />
+Now the request is to make it possible to log only an error in case the Format Code is not available at all.<br />
+<br />
+<br />
+Workaround<br />
+No workaround<br />
+<br />
+Test Procedure<br />
+The following 3GL script, is used for testing:<br />
+<br />
+function main()<br />
+{<br />
+string result(80)<br />
+<br />
+| default currency of testcompany used is USD	|the datecurr file contains the following entry: A|902|USD|001|001|<br />
+						|so, this defines default currency = USD for company 902. The default format code is 001.<br />
+<br />
+result = sprintf$(&quot;%A001&quot;, 1234.56)		| no error, because the following entry exists in the datecurr file: C|001USD|USD|ZZZZ9|<br />
+<br />
+result = sprintf$(&quot;%A001,hfl&quot;, 1234.56)		| Format Code 001 exists, but Generic Unit (currency) hfl does not exist<br />
+						| (the following line should be in datecurr: C|001hfl|hfl|ZZZZ9| ,but is not there)<br />
+						| in case hide_format_errors = 1, no error should be logged, because format code 001 itself exists<br />
+						| in case hide_format_errors = 0, error should be logged (old behaviour)<br />
+<br />
+result = sprintf$(&quot;%A999,HFL&quot;, 1234.56)		| Format Code 999 does not exists<br />
+						| (the following line should be in datecurr: C|999USD|USD|ZZZZ9| ,but is not there)<br />
+						| in case hide_format_errors = 1, error should be logged (error specifies also the missing format code)<br />
+						| in case hide_format_errors = 0, error should be logged (old behaviour)<br />
+}<br />
+<br />
+Resource hide_format_errors set to 0 ($BSE\lib\defaults\all)<br />
+============================================================<br />
+So, now the old behavior applies.<br />
+When running the testscript the following errors are logged (this example shows the errors which would be logged on a Windows platform, but similair error messages will be logged in the ${BSE}/log/log.bshell file in case of Unix systems):<br />
+<br />
+Env	 Baan5c (C:\baan\baan5c)<br />
+Prog	 bshell file \general\lib\al_1\AL_ENV.C # 933<br />
+Keyword	 get_format_entry<br />
+Username	 kvddool	type S	language 2<br />
+Process	 0xca4<br />
+ProcessSet	 kvddool@CNL09659:3196<br />
+Lasterror	 0<br />
+Errno	 0<br />
+bdberrno	 213 (Transaction is started but not updated)<br />
+Message	 get_format_entry pattern '001hfl' index 3 entry 0 not found<br />
+<br />
+Env	 Baan5c (C:\baan\baan5c)<br />
+Prog	 bshell file \general\lib\al_1\AL_ENV.C # 933<br />
+Keyword	 get_format_entry<br />
+Username	 kvddool	type S	language 2<br />
+Process	 0xca4<br />
+ProcessSet	 kvddool@CNL09659:3196<br />
+Lasterror	 997 (Overlapped I/O operation is in progress.)<br />
+Errno	 0<br />
+bdberrno	 213 (Transaction is started but not updated)<br />
+Message	 get_format_entry pattern '999HFL' index 3 entry 0 not found<br />
+<br />
+Resource hide_format_errors set to 1 ($BSE\lib\defaults\all)<br />
+============================================================<br />
+So, now the modified behavior applies, and only errors are logged in case the format code does not exists at all.<br />
+When running the testscript the following errors are logged:<br />
+<br />
+Env	 Baan5c (C:\baan\baan5c)<br />
+Prog	 bshell file \general\lib\al_1\AL_ENV.C # 941<br />
+Keyword	 get_format_entry<br />
+Username	 kvddool	type S	language 2<br />
+Process	 0xc94<br />
+ProcessSet	 kvddool@CNL09659:3248<br />
+Lasterror	 0<br />
+Errno	 0<br />
+bdberrno	 213 (Transaction is started but not updated)<br />
+Message	 get_format_entry pattern '999HFL' index 3 entry 0, format code 999 not found<br />
+<br />
+Like you see now, only an error is logged in case the Format Code at all cannot be found. The error message mentiones no also explicitly &quot;format code xxx not found&quot;.<br />
+<br />
+Motive source<br />
+DF:212983</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

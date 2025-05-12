@@ -1,0 +1,130 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="CSV Import with Quotations, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] CSV Import with Quotations Tools Development" />
+	
+	<title>CSV Import with Quotations [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; CSV Import with Quotations</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">17th September 2007, 23:02</div></div><div class="posttext">Hi,<br />
+ <br />
+I'm trying to write a program that will data from a CSV file sent to us by a customer and create sales orders from it using AFS. <br />
+ <br />
+I've got everything working, but some of the files have commas within quotation marks and these are causing problems.<br />
+ <br />
+Here is the process.<br />
+User downloads file from customer web site.<br />
+User uses FTP to copy file to SLES 9 (Linux) Baan server.<br />
+User starts session to Baan to read from the file. <br />
+ <br />
+The goal is to do this in as few steps as possible to speed up the process. CSV is the only option from this customer. I can get this to work from and Excel macro too, but it is really hard to error proof the Excel macros. It feels safer doing it from a Baan session.<br />
+ <br />
+Say the file has these lines:<br />
+ <br />
+ <br />
+Cust PO, Item, Desc, Qty, Price<br />
+PO123, I1234, Grommet, 10, 1.23<br />
+PO124, I1235, &quot;Grommet, 6cm&quot;, 11, 230<br />
+<br />
+If I open this in Excel, it recognizes that the comma between the quotation marks is not a delimiter and treats it as part of the text. How do I do this in Baan (or Linux)?<br />
+ <br />
+ <br />
+fp = seq.open(&quot;file.csv&quot;, &quot;r&quot;)<br />
+while not seq.gets(buffer, 1024, fp)<br />
+   ret = string.scan(buffer, &quot;%s, %s, %s, %l, %l&quot;, po, item, desc, qty, price)<br />
+   ...<br />
+endwhile<br />
+<br />
+ <br />
+For the first line qty = 10<br />
+For the second line, it thinks there is an extra field and qty = 0<br />
+ <br />
+Is there anyway to make it ignore this second comma.<br />
+ <br />
+Thanks,<br />
+Rob</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">avpatil</div><div class="date">18th September 2007, 05:35</div></div><div class="posttext">Can you ask your customer to send &quot;tab&quot; delemited file. Alternatively you have to write a piece of code where you can differentiate a  field delimited comma vs a comma in the data. For this reason I prefer to have a tab delimiter. As this solves all such  issues.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kaukul</div><div class="date">18th September 2007, 07:11</div></div><div class="posttext">Hi,<br />
+<br />
+1. Open the file in excel (as per your post, it opens properly in excel).<br />
+2. Copy all the columns of data and paste it into wordpad.<br />
+3. Now, data will be available in tab separated format. Replace tabs with &quot;|&quot; or some other delimiter which is not used in the data.<br />
+<br />
+When copying this file in your server....put this &quot;|&quot; separated file.<br />
+<br />
+BaaN can not recognize difference between data and delimiter by itself...<br />
+<br />
+Regards,<br />
+Kaustubh</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pconde</div><div class="date">18th September 2007, 09:50</div></div><div class="posttext">Hi,<br />
+<br />
+the delimiter used by excel in CSV files is controlled by the regional and language option <br />
+==&gt;regional ==&gt; language ==&gt; customize ==&gt; list separator: you can change it to a any suitable character<br />
+<br />
+Regards<br />
+Philippe</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">18th September 2007, 17:21</div></div><div class="posttext">Thanks for the suggestions. I was hoping there was an easier way to do this, but following avpatil's suggestion, I wrote a function to remove the commas within quotations:<br />
+ <br />
+ <br />
+function string remove.csv.quotes(string strIn(1024))            <br />
+{                                                                <br />
+| Removes commas within quotations from a csv file               <br />
+| Replaces these commas and quotation marks with spaces          <br />
+| Returns string the same length as the original                 <br />
+ <br />
+        string  strTemp(1024)                                    <br />
+        long    lqte, rqte, cpos<br />
+ <br />
+        lqte = pos(strIn, &quot;&quot;&quot;&quot;)                                  <br />
+        while lqte &lt;&gt; 0                                          <br />
+                rqte = pos(strIn(lqte+1), &quot;&quot;&quot;&quot;)                  <br />
+                if rqte &lt;&gt; 0 then                                <br />
+                        strTemp = strIn(lqte;rqte)               <br />
+                        cpos = pos(strTemp, &quot;,&quot;)                 <br />
+                        while cpos &lt;&gt; 0                          <br />
+                                strIn(cpos+lqte-1;1) = &quot; &quot;       <br />
+                                strTemp = strIn(lqte;rqte)       <br />
+                                cpos = pos(strTemp, &quot;,&quot;)         <br />
+                        endwhile                                 <br />
+                        strIn(rqte+lqte;1) = &quot; &quot;                 <br />
+                endif                                            <br />
+                strIn(lqte;1) = &quot; &quot;                              <br />
+                lqte = pos(strIn, &quot;&quot;&quot;&quot;)          <br />
+        endwhile                                 <br />
+        return(strIn)                            <br />
+}                                                <br />
+ <br />
+<br />
+ <br />
+I could not get the pos() function to work with a partial string, so I needed to create the temp string. E.g. <br />
+str = a 25 len string<br />
+pos(str(10), &quot;,&quot;) searches str from position 10-25 to for a comma. <br />
+pos(str(10;5),&quot;,&quot;) also searches str from position 10-25 for a comma.<br />
+ <br />
+Not sure why, but the temp string got around this.<br />
+ <br />
+Rob</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

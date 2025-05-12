@@ -1,0 +1,241 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Trying to use Baan OLE functions in Excel. Help is appreciated, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Trying to use Baan OLE functions in Excel. Help is appreciated AFS/DDC/OLE: Function servers" />
+	
+	<title>Trying to use Baan OLE functions in Excel. Help is appreciated [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Trying to use Baan OLE functions in Excel. Help is appreciated</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">patrick</div><div class="date">27th October 2005, 14:25</div></div><div class="posttext">This is my first script trying to use Baan OLE functions in Excel.<br />
+<br />
+I copied a script previously posted in this forum, and modified it in order to try to understand it.<br />
+<br />
+this is the script :<br />
+<br />
+Sub lookup_customers()<br />
+Dim BaanObj As Object<br />
+Dim B_function As String<br />
+Dim Customer<br />
+ErrorPositionCode = 2<br />
+<br />
+Set BaanObj = CreateObject(&quot;Baan4.Application&quot;)<br />
+<br />
+BaanObj.Timeout = 10<br />
+<br />
+        Query = &quot;select tccom010.cuno from tccom010 &quot; &amp; _<br />
+                &quot;where tccom010.cuno = &quot; &amp; Chr(34) &amp; Chr(34) &amp; &quot;004302&quot; &amp; Chr(34) &amp; Chr(34)<br />
+            B_function = &quot;olesql_parse(&quot; &amp; Chr(34) &amp; Query &amp; Chr(34) &amp; &quot;)&quot;<br />
+        BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+    <br />
+' If this function fails the ReturnValue is equal to zero, otherwise<br />
+' the function olesql_parse returns a identification number of the query<br />
+' Convert the (string) ReturnValue to a long variable using the function Val<br />
+        query_id = Val(BaanObj.ReturnValue)<br />
+        If query_id = 0 Then<br />
+            MsgBox &quot;function olesql_parse fails&quot;<br />
+        End If<br />
+        <br />
+' Fetch the record<br />
+        B_function = &quot;olesql_fetch(&quot; &amp; query_id &amp; &quot;)&quot;<br />
+        BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+        If BaanObj.ReturnValue = 0 Then<br />
+        MsgBox (&quot;value is &quot; &amp; query_id)<br />
+        Customer = Val(query_id)<br />
+        Else<br />
+        End If<br />
+        Sheets(1).Cells(2, 2).Value = Customer<br />
+<br />
+BaanObj.Quit<br />
+Set BaanObj = Nothing<br />
+End Sub<br />
+<br />
+<br />
+It returns a number, probably the Query ID. <br />
+But not the customer fetched from Baan.<br />
+This is a very simple example made just that I can understand how it all works.<br />
+<br />
+Questions unclear for me is ? Should there be a query defined in Baan before I can use the OLE function in Excel or not ?<br />
+<br />
+Can someone put me on the right track. Does anyone have a simple working example for me to get started with ?<br />
+<br />
+Many thanks in advance !!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">j_hass</div><div class="date">27th October 2005, 15:17</div></div><div class="posttext">Hi Patrick,<br />
+<br />
+the getstring function is missing.<br />
+<br />
+Try after fetch:<br />
+<br />
+B_function1 = &quot;olesql_getstring(&quot;&quot;tfccom010.cuno&quot;&quot;,&quot;&quot;        &quot;&quot;)&quot;<br />
+BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function1<br />
+temp_string = BaanObj.ReturnCall<br />
+customer = Mid(temp_string, 35, 8)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th October 2005, 15:43</div></div><div class="posttext">Looks like the only thing you are missing is the olesql_getint.  You should also have some examples that come your baan client - BAAN.XLS.  It fetches user-ids.  I think there are better examples in AFS/DDC/OLE forum.  Probably should search that forum.<br />
+<br />
+<br />
+         Query = &quot;select tisfc010.sutm,tisfc010.rutm,tisfc010.qpln from tisfc010&quot; &amp; _<br />
+                &quot; where tisfc010._index1 = {&quot; &amp; prod_order &amp; &quot;,&quot; &amp; operation &amp; &quot;}&quot;<br />
+        'MsgBox Query<br />
+' Execute query<br />
+        B_function = &quot;olesql_parse(&quot; &amp; Chr(34) &amp; Query &amp; Chr(34) &amp; &quot;)&quot;<br />
+        BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+    <br />
+' If this function fails the ReturnValue is equal to zero, otherwise<br />
+' the function olesql_parse returns a identification number of the query<br />
+' Convert the (string) ReturnValue to a long variable using the function Val<br />
+        query_id = Val(BaanObj.ReturnValue)<br />
+        If query_id = 0 Then<br />
+            MsgBox &quot;function olesql_parse fails&quot;<br />
+            GoTo BaanAutomationError<br />
+        End If<br />
+        <br />
+' Fetch the record<br />
+        B_function = &quot;olesql_fetch(&quot; &amp; query_id &amp; &quot;)&quot;<br />
+        BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+        runtime = 0<br />
+        setup = 0<br />
+        If BaanObj.ReturnValue = 0 Then<br />
+' retrieve query result and store it in the second argument of the function olesql_getstring<br />
+' Get Setup Time Number<br />
+            temp_string = &quot;tisfc010.sutm&quot;<br />
+            setup = 0<br />
+            'order_status = String(20, &quot; &quot;)<br />
+            B_function2 = &quot;olesql_getint(&quot; &amp; Chr(34) &amp; temp_string &amp; Chr(34) &amp; &quot;,&quot; &amp; setup &amp; &quot;)&quot;<br />
+            BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function2<br />
+            temp_string = BaanObj.FunctionCall<br />
+            temp_string = Mid(temp_string, 30, 10)<br />
+            value_string = &quot;&quot;<br />
+            found = False<br />
+            For i = 1 To 10<br />
+                If (Asc(Mid(temp_string, i, 1)) &gt;= 48 And Asc(Mid(temp_string, i, 1)) &lt;= 57) Then<br />
+                    value_string = value_string &amp; Mid(temp_string, i, 1)<br />
+                    found = True<br />
+                Else<br />
+                 If (found) Then<br />
+                        Exit For<br />
+                    End If<br />
+                End If<br />
+            Next i<br />
+            setup = Val(value_string)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patrick</div><div class="date">27th October 2005, 15:56</div></div><div class="posttext">Hi,<br />
+<br />
+I tried your suggestion but BaanObj.ReturnCall is a not know object property ?<br />
+<br />
+Second the table you mentioned was not correct it should have been tccom010.cuno.<br />
+So I changed that but no success ? :-(<br />
+<br />
+IT stops at the ReturnCall line as unknow property</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patrick</div><div class="date">27th October 2005, 16:07</div></div><div class="posttext">Still unclear if I need to have a Query in Baan alread predefined, before I can use the OLE query. Or is this not needed ?<br />
+<br />
+can anyone tell me ?<br />
+<br />
+Is there anymore information available somewhere. Not to try to reinvent the wheel again.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th October 2005, 16:16</div></div><div class="posttext">First as moderator - please do not cross post.  I just found this and have merged the threads.<br />
+<br />
+Second - no need to define anything in Baan.  You do your query on tccom010 then use oleget functions to retrieve your output.  So I think all you need is to use one of the olegets and your done.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patrick</div><div class="date">27th October 2005, 17:38</div></div><div class="posttext">Is there any documentation available somewhere.<br />
+<br />
+Because I checked throught the forum and there is no example that fits our system (we use Process and not manufacturing).<br />
+<br />
+As a result most of the examples posted are not helping me.<br />
+<br />
+A simple working example would be OK to get started,like reading the customers or items.<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th October 2005, 18:08</div></div><div class="posttext">Don't hold the coding against me. :)  I used your code and added a few lines.  The only place I ever used this was on the manufacturing side.  I no longer use any of this.  I know there are better ways to do what I did.<br />
+<br />
+<br />
+Sub testit()<br />
+Set BaanObj = CreateObject(&quot;Baan4.Application&quot;)<br />
+<br />
+BaanObj.Timeout = 10<br />
+<br />
+        Query = &quot;select tccom010.cuno from tccom010 &quot; &amp; _<br />
+                &quot;where tccom010.cuno = &quot; &amp; Chr(34) &amp; Chr(34) &amp; &quot;SP0900&quot; &amp; Chr(34) &amp; Chr(34)<br />
+            B_function = &quot;olesql_parse(&quot; &amp; Chr(34) &amp; Query &amp; Chr(34) &amp; &quot;)&quot;<br />
+        BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+    <br />
+' If this function fails the ReturnValue is equal to zero, otherwise<br />
+' the function olesql_parse returns a identification number of the query<br />
+' Convert the (string) ReturnValue to a long variable using the function Val<br />
+        query_id = Val(BaanObj.ReturnValue)<br />
+        If query_id = 0 Then<br />
+            MsgBox &quot;function olesql_parse fails&quot;<br />
+        End If<br />
+        <br />
+' Fetch the record<br />
+        B_function = &quot;olesql_fetch(&quot; &amp; query_id &amp; &quot;)&quot;<br />
+        BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+        If BaanObj.ReturnValue = 0 Then<br />
+        MsgBox (&quot;value is &quot; &amp; query_id)<br />
+        customer = Val(query_id)<br />
+        Else<br />
+        End If<br />
+        temp_string = &quot;tccom010.cuno&quot;<br />
+        customer = String(6, &quot; &quot;)<br />
+    ' The function olesql_getstring retrieves the query result and stores it in the second argument,<br />
+    ' a 'call by reference' argument. Note that the second argument must be large enough to fill in the result<br />
+    B_function2 = &quot;olesql_getstring(&quot; &amp; Chr(34) &amp; temp_string &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; customer &amp; Chr(34) &amp; &quot;)&quot;<br />
+    BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function2<br />
+    <br />
+    ' search returned string in the function call (call by reference argument)<br />
+    temp_string = BaanObj.FunctionCall<br />
+    customer = Mid(temp_string, 35, 6)<br />
+    customer = Trim(customer)<br />
+        <br />
+        <br />
+        Sheets(1).Cells(2, 2).Value = customer<br />
+<br />
+BaanObj.Quit<br />
+Set BaanObj = Nothing<br />
+<br />
+End Sub</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patrick</div><div class="date">27th October 2005, 18:21</div></div><div class="posttext">Thanks.<br />
+<br />
+Is there any documentation available in order to dig in more deeper.<br />
+<br />
+like how may quotes &quot; &quot; should be placed where in the SQL statement. <br />
+<br />
+And if I would like to add an other field, do I need to created an extra &quot;temp_string&quot; in VB etc.<br />
+<br />
+All of this is not yet clear. <br />
+In order to not bug you all the time, I am willing to read through some documentation. <br />
+<br />
+But where to find it ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th October 2005, 18:57</div></div><div class="posttext">Sorry - I know of no documentation.  What I did was play with the examples that came with the client.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">p.cole</div><div class="date">28th October 2005, 21:18</div></div><div class="posttext">For info.  I don't think the OLE examples are shipped with the later releases of bw</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

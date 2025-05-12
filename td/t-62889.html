@@ -1,0 +1,166 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="New Session doesn't default to correct value, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] New Session doesn't default to correct value Tools Development" />
+	
+	<title>New Session doesn't default to correct value [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; New Session doesn't default to correct value</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">metropoj</div><div class="date">24th September 2012, 18:29</div></div><div class="posttext">Creating a new session and table def.<br />
+<br />
+I dont do this kind of dev often so please bear with me.<br />
+<br />
+I wrote some code to go out and fetch the current sales order number value and do a select stmt on my table to hopefully fetch the correct record. The debug shows it is grabbing the right order number but I never get the correct record in my custom table to show.  I use the same domain in both tables and indexed based on orno .....<br />
+<br />
+<br />
+declaration:<br />
+<br />
+table   ttdsls960 | my table ...<br />
+table	ttdsls400 | SO Table<br />
+<br />
+extern	domain	tcorno	orno		| Order Number<br />
+<br />
+|******** program section ****************<br />
+<br />
+<br />
+before.program:<br />
+<br />
+import(&quot;tdsls400.orno&quot;,orno)<br />
+<br />
+	select	tdsls960.*<br />
+	from	tdsls960<br />
+	where	tdsls960._index1 = orno<br />
+	selectdo<br />
+<br />
+<br />
+	selectempty<br />
+<br />
+<br />
+<br />
+Am I even close in my thinking on this ???<br />
+<br />
+Thanks for any suggestions. My searches have not revealed what i am looking for as of yet .....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th September 2012, 19:15</div></div><div class="posttext">Try doing an execute(find.data) after the select.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">metropoj</div><div class="date">24th September 2012, 19:39</div></div><div class="posttext">The whole &quot;Before Program&quot; or &quot;Choice options&quot; I am not very fluent with ..<br />
+<br />
+For example, The code I had was in a Before program <br />
+<br />
+but it doesn't like the execute(find.data) as it is 4GL ....<br />
+<br />
+Right now the only thing in my script is to find the first record ....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">metropoj</div><div class="date">24th September 2012, 20:37</div></div><div class="posttext">I made sure my new session was Specific Start Command 7 (find.data), I think that is correct<br />
+<br />
+Trying to locate some examples of where best to place the execit(find.data) command ...<br />
+<br />
+At least my query does find the current tdsls400.orno and also assigns the tdsls960.orno to the same values so taht's good, just no correct display yet !</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">24th September 2012, 20:39</div></div><div class="posttext">select tdsls960.*<br />
+from tdsls960<br />
+where tdsls960._index1 = {:orno}<br />
+selectdo<br />
+:<br />
+:<br />
+<br />
+<br />
+Your 'orno' is never making it into the select statement from the zoomed variable.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th September 2012, 15:35</div></div><div class="posttext">Other places to try using the zoom.<br />
+<br />
+<br />
+zoom.from.all:<br />
+on.entry:<br />
+	import(&quot;zoom.rfqnum&quot;,zoom.rfqnum)<br />
+	import(&quot;zoom.rfqline&quot;,zoom.rfqline)<br />
+	select	tdexi011.*<br />
+	from	tdexi011<br />
+	where	tdexi011._index1 = {:zoom.rfqnum,:zoom.rfqline}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	selectempty<br />
+		tdexi011.rfqnum = 0<br />
+	endselect<br />
+	execute(find.data)<br />
+<br />
+<br />
+Or you can try it in the before.form sections.  I guess it would depend on how your session was getting launched.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">metropoj</div><div class="date">25th September 2012, 15:56</div></div><div class="posttext">Thanks BaaninOhio for the syntax point out on the {:}  and mark_h for the code example. <br />
+<br />
+I was able to get it working without the execute command in this instance once I fixed my syntax :o<br />
+<br />
+Thanks once again !<br />
+<br />
+before.program:<br />
+<br />
+import(&quot;tdsls400.orno&quot;,orno)<br />
+<br />
+<br />
+choice.find.data:<br />
+before.choice:<br />
+<br />
+	select	*<br />
+	from	tdsls960<br />
+	where	tdsls960.orno = {:orno}<br />
+	selectdo<br />
+	selectempty<br />
+		db.retry.point()	|Start a transaction!<br />
+		tdsls960.orno = orno<br />
+		db.insert(ttdsls960, db.retry)	|Insert record<br />
+		commit.transaction()	|Commit to database<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">metropoj</div><div class="date">13th November 2012, 19:07</div></div><div class="posttext">The LN session I created, with your help and guidance, imports the tdsls400.orno value and checks for a match in my custom table, inserts if no match as it does, etc. Works just fine until now that I want to expand it outwards more.....<br />
+<br />
+I want to expand seeing fields from other tables as well and this is where i am stuck ...<br />
+<br />
+I imported tdsls400.ofbp sold to BP and it displays fine. These are the default values of the session when it opens.<br />
+<br />
+However, it doesn't update the value if I select another record using the forward backward arrows on my session. Nothing tied back to refresh those values ...<br />
+<br />
+i also want to tie in and display the Business Partner description from tccom100.nama.<br />
+<br />
+I have tried select statements to tie in either tables,<br />
+field.xxxx<br />
+before.display:<br />
+I cannot seem to get that relationship down properly.<br />
+<br />
+I am not sure what section to create my select stmt to tie together my custom table order, to sls400.orno, and tdsls400,ofbp to tccom100 nama values.<br />
+<br />
+Any help or guidance where to look would be appreciated ...<br />
+<br />
+Thanks !</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">14th November 2012, 14:29</div></div><div class="posttext">Put your custom logic to get other fields and prepare for display in the program section for &quot;before.display.object&quot; instead of a field section.  This is executed each time a record is displayed, so you should have the fields read from other tables automatically displayed.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">metropoj</div><div class="date">14th November 2012, 17:24</div></div><div class="posttext">before.display.object ....   sigh.  That's good info to know.<br />
+<br />
+<br />
+Thanks again. Now, i can select what i want and it actually stays refreshed !</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

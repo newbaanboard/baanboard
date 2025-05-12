@@ -1,0 +1,83 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Not all documents balanced, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Not all documents balanced AFS/DDC/OLE: Function servers" />
+	
+	<title>Not all documents balanced [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Not all documents balanced</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rrankinmba</div><div class="date">11th February 2010, 02:49</div></div><div class="posttext">My invoice api script appears to handle everything correctly for non-matched invoices.  It can create multiple invoices with multiple g/l lines and by all appearances the amounts balance.  <br />
+<br />
+After ending each of the sessions tfgld1101m000, tfacp1110s000, and tfacp1120s000 the transactions session tfgld1101 has a new line -785 Purchase Invoice Approval and the two batch status tables are not ready for finalization.  tfgld101 has a status message, &quot;Not all documents balanced&quot;.<br />
+<br />
+If I use GTM to clean the two batch status tables then the batch will finalize.  It seems that I am missing something on the return to the main session.<br />
+<br />
+If anyone has come across this before I'd appreciate some insight.<br />
+<br />
+Thanks,<br />
+Bob</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rrankinmba</div><div class="date">11th February 2010, 18:25</div></div><div class="posttext">I've been looking through the tables and in the tfgld102 Non-finalized transactions table the control line does not have an amount and its' background indicator = Non-processed.<br />
+<br />
+It makes me think that I am missing something during the insert into tfacp1120s000.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th February 2010, 21:29</div></div><div class="posttext">Well I really can not say what the problem might be, but double check all the input fields and make sure they get set correctly and the baan tables correctly reflect these values.  I know there have been a couple cases where I litterally had to play with the api code to get them to work - some cases an insert alone would not work and I had to use save followed by insert to get it to work.  I don't know this for a fact that this is the case, but these are the only thing I can think of - short of calling infor to get new objects.<br />
+<br />
+Below is the only code I have involving tfacp1120s000 and I really can not talk about how the session works.  Been years since I have looked at this, but we still use this code.<br />
+<br />
+<br />
+function api.create.invoice()<br />
+{<br />
+	domain	tcmcs.str80	hold.msg<br />
+	<br />
+|Active the tfacp1110s000 session.<br />
+	stpapi.continue.process(&quot;tfgld1101s000&quot;, e.msg)<br />
+	<br />
+| Clear insert mode.<br />
+	stpapi.save(&quot;tfacp1110s000&quot;,e.msg)<br />
+| Add the new record - note isup and refr must be unique on our system.<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.suno&quot;, strip$(tfudi030.suno))<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.isup&quot;, str$(tfudi030.isup))<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.docd&quot;, str$(date.num()))<br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.refr&quot;, tfudi035.pref &amp; str$(sel.refr))  <br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;screen.amnt&quot;, str$(round(tfudi030.amnt, 2, 0))) <br />
+	stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.reas&quot;, tfudi030.reas ) <br />
+	stpapi.handle.subproc(&quot;tfacp1110s000&quot;, &quot;tfacp1120s000&quot;, &quot;add&quot;)<br />
+	rc = stpapi.insert(&quot;tfacp1110s000&quot;, 1, e.msg) <br />
+	if not isspace(e.msg) then<br />
+		stpapi.end.session(&quot;tfacp1110s000&quot;) <br />
+		return<br />
+	endif<br />
+|Insert the account on tfacp1120s000	<br />
+	stpapi.put.field(&quot;tfacp1120s000&quot;, &quot;tfgld102.leac&quot;, tfudi030.leac) <br />
+	rc = stpapi.insert(&quot;tfacp1120s000&quot;, 1, e.msg)<br />
+	if not isspace(e.msg) then<br />
+		stpapi.end.session(&quot;tfacp1120s000&quot;)<br />
+		hold.msg = e.msg<br />
+		stpapi.delete(&quot;tfacp1110s000&quot;, true, e.msg)<br />
+		e.msg = hold.msg<br />
+		stpapi.end.session(&quot;tfacp1110s000&quot;) <br />
+		return<br />
+	endif<br />
+| End the two sessions<br />
+	stpapi.end.session(&quot;tfacp1120s000&quot;)<br />
+	stpapi.end.session(&quot;tfacp1110s000&quot;) <br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

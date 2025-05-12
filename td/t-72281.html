@@ -1,0 +1,571 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Insert value into other new table, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Insert value into other new table Tools Development" />
+	
+	<title>Insert value into other new table [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Insert value into other new table</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">8th October 2019, 10:31</div></div><div class="posttext">Hi,<br />
+I ask if there is a method to insert values of an existing table into a new table that don't have values. I see that there is db.update, but I don't know how to use for this specific use.<br />
+My purpose is to display this new table in a report, because I don't need of all the fields of the existing table but only some that I have already put.<br />
+Regards,<br />
+RavCoder</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">8th October 2019, 14:27</div></div><div class="posttext">Well, you can do just that. (Take field values of table A. Assign these values to fields of table B. Insert the fields as a new dataset into table B. Print the values of table B. Delete the new inserted dataset of table B, because you don't need the new dataset any longer?) It will work, just mind the index fields, just in case you don’t want to get a duplicate value error on insert.<br />
+<br />
+But I still prefer the direct approach of printing the fields of table A directly on the report.<br />
+If you want to modify data prior to printing, it can be done in the before.layout section of the report script.<br />
+<br />
+i.E. the report is printing tcibd001.item in layout detail.1. You can change the value of tcibd001.item in the before.layout section:<br />
+<br />
+<br />
+detail.1:<br />
+before.layout:<br />
+  tcibd001.item = “         bunny ears”</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">8th October 2019, 15:39</div></div><div class="posttext">Hi, <br />
+I didn't understand exactly how to do it, but I did this:<br />
+<br />
+<br />
+<br />
+function insert_field_table(){<br />
+			db.retry.point()<br />
+			select tdsls900.* , tdsls400.ofbp, tdsls400.odat, tccom100.nama, <br />
+		tdsls401.orno, tdsls401.cups, tdsls401.item , tdsls401.qoor<br />
+			from <br />
+		tdsls900, tdsls401, tdsls400, tccom100<br />
+			where tdsls400.ofbp = tdsls401.ofbp <br />
+			and tdsls400.orno = tdsls900.orno<br />
+			and tccom100.bpid = tdsls900.bpid<br />
+			<br />
+				selectdo<br />
+				 tdsls400.ofbp= :tdsls900.bpid<br />
+				tccom100.nama =  :tdsls900.nama<br />
+				 tdsls401.item= :tdsls900.item<br />
+				tdsls401.cups = :tdsls900.cuni<br />
+				tdsls400.odat = :tdsls900.odat<br />
+				tdsls401.orno = :tdsls900.orno<br />
+				 tdsls401.qoor = :tdsls900.qoor<br />
+				db.retry.point()<br />
+				<br />
+				db.insert(ttdsls900, db.retry)<br />
+				commit.transaction()<br />
+				<br />
+				<br />
+			 <br />
+			rprt_send()<br />
+			endselect<br />
+				<br />
+<br />
+}<br />
+<br />
+<br />
+However I only print certain values ​​(which are not present here but in other functions).<br />
+I've been stuck on this for a long time, because I don't know exactly how to do it.<br />
+Regards,<br />
+RavCoder</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">8th October 2019, 16:30</div></div><div class="posttext">OK, let's update a table. We will only update one field in a single dataset:<br />
+<br />
+<br />
+db.retry.point()<br />
+select tdsls400.*<br />
+from tdsls400 for update<br />
+where tdsls400._index1 = {:tdsls900.orno}<br />
+|tdsls400.orno = :tdsls900.orno     |this is equal to the line above, because tdsls400.orno is the index<br />
+selectdo<br />
+  tdsls400.odat = tdsls900.odat<br />
+  db.update(ttdsls400, db.retry)<br />
+  commit.transaction()<br />
+endselect<br />
+<br />
+<br />
+You’ll need a where-clause to specify the datasets you want to change. Values taken from “outside” of the select will be starting with “:”. <br />
+So :tdsls900.orno is a variable (the value of the field tdsls900.orno, but not the field itself).<br />
+In selectdo a new value is assigned to the specified field. The value of tdsls900.odat is assigned to tdsls400.odat. No need to use a “:” here. The compiler will handle fields as variables here. <br />
+To write this change into the database you need to perform an update. db.update(..) will do just that (or db.insert(..) or db.delete()..)), well – kind of – we need to talk transactions first.<br />
+A transaction is a bunch of changes in the database. You’ll want to write these changes together in the database, or – in case of an error – you do not want to update at all (this is called “rollback” – throwing away all changes in case of an error).<br />
+A transaction starts with a retry point. Updates will follow the retry point and will be “closed” by a commit-statement. (commit.transaction()). In case of an error, when writing data into the database, LN will perform a rollback and return to the retry point.<br />
+This is one way to modifying a dataset. This is the old BaanIV style. In LN you can also use DAL functions to modify or create a dataset. DAL functions will call DAL hooks in the background. These hooks can modify fields when needed.<br />
+<br />
+But in your example, there’s no need to store the tdsls900 fields in the other tables. You can just print the tdsls900 fields in the report.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">8th October 2019, 17:02</div></div><div class="posttext">Thanks, but I tried your code and gave me an error: <br />
+<br />
+error 206 : Record is not locked on tdsls900121 in db.update</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th October 2019, 19:06</div></div><div class="posttext">Did you make sure your code has &quot;from tdsls400 for update&quot;.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">9th October 2019, 08:46</div></div><div class="posttext">Thanks, but I tried your code and gave me an error: <br />
+<br />
+error 206 : Record is not locked on tdsls900121 in db.update<br />
+Please post your code. In my code there's no update of table tdsls900.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">9th October 2019, 10:16</div></div><div class="posttext">Hi, <br />
+this is my code:<br />
+<br />
+function insert_field_table(){<br />
+			db.retry.point()<br />
+			select tdsls900.* , tdsls400.ofbp, tdsls400.odat, tccom100.nama, <br />
+		tdsls401.orno, tdsls401.cups, tdsls401.item , tdsls401.qoor<br />
+			from <br />
+			tdsls900, tdsls401, tdsls400, tccom100 for update<br />
+			where tdsls900.bpid = tdsls400.ofbp<br />
+			 and    tdsls900.nama = tccom100.nama<br />
+			 and 	tdsls900.item = tdsls401.item <br />
+			 and 	tdsls900.cuni   = tdsls401.cups<br />
+			 and 	tdsls900.odat   =  tdsls400.odat <br />
+			 and    tdsls900.orno  = tdsls401.orno<br />
+			 and 	tdsls900.qoor = tdsls401.qoor<br />
+				selectdo<br />
+				<br />
+			 <br />
+				<br />
+				db.update(ttdsls900, db.retry)<br />
+				commit.transaction()<br />
+				<br />
+				<br />
+			 <br />
+			rprt_send()<br />
+			endselect<br />
+				<br />
+<br />
+}<br />
+<br />
+<br />
+<br />
+This function is into function section :<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{<br />
+    select tdsls400.orno, tdsls401.item, tdsls401.ofbp, tdsls401.odat<br />
+	from tdsls400, tdsls401<br />
+	<br />
+    where   tdsls400._index1 inrange {:orno.f}<br />
+                                  and {:orno.t}<br />
+    and tdsls401.orno = tdsls400.orno<br />
+	group by tdsls400.orno , tdsls401.item, tdsls401.ofbp , tdsls401.odat<br />
+	<br />
+	<br />
+	<br />
+	<br />
+	<br />
+	selectdo<br />
+	sum_period()<br />
+	 sum_period()<br />
+	 insert_field_table()<br />
+       rprt_send()<br />
+  endselect<br />
+}<br />
+<br />
+<br />
+<br />
+My purpose is to insert the existing table values ​​into a new empty table I created.<br />
+Regards,<br />
+RavCoder</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">9th October 2019, 15:22</div></div><div class="posttext">from tdsls900, tdsls401, tdsls400, tccom100 for update<br />
+<br />
+Please add &quot;for update&quot; to the table you want tu update. You're telling LN to update table tccom100 but not table tdsls900.<br />
+<br />
+So, try this:<br />
+<br />
+from tdsls900 for update, tdsls401, tdsls400, tccom100<br />
+<br />
+And add a &quot;:&quot; in the where clause:<br />
+<br />
+where tdsls900.bpid = :tdsls400.ofbp<br />
+<br />
+Now LN will take the value of field tdsls400.ofbp selected in read.main.table().<br />
+<br />
+But you don't insert a dataset in table tdsls900, you're are updating an existing dataset. And your Code won't compile nor will it work the way you want it to work (I think).<br />
+<br />
+I’ll try to explain how a select statement in LN/Baan works:<br />
+The basic SELECT structure is like this:<br />
+<br />
+SELECT<br />
+- (from/where)<br />
+SELECTDO<br />
+- code to modify found data<br />
+SELECTEMPTY<br />
+- code to insert new data<br />
+ENDSELECT<br />
+SELECT is used to define/find the data of one or more tables. You cannot modify or add data in the SELECT section. This is a huge difference to other  SQL-languages.<br />
+Modifying or adding new data will require code in the SELECTDO and/or SELECTEMPTY section.<br />
+<br />
+Hint: this a verry simplified example!<br />
+<br />
+<br />
+db.retry.point()<br />
+select tdsls900.* <br />
+from tdsls900 for update<br />
+where tdsls900.bpid = :tdsls400.ofbp<br />
+selectdo<br />
+  |Code will be executed when dataset is found in tdsls900.<br />
+selectempty<br />
+  |This part will be executed if the select did not find any data.<br />
+  |So that’s the part where you insert a new dataset into the table.<br />
+<br />
+  |OK, lets start with initialising the fields of tdsls900:<br />
+  db.set.to.default(ttdsls900)<br />
+  |The field are now empty.<br />
+<br />
+  |No fill the fields with data:<br />
+  tdsls900.bpid = tdsls400.ofbp<br />
+  tdsls900.nama = tccom100.nama<br />
+  tdsls900.item = tdsls401.item <br />
+  tdsls900.cuni = tdsls401.cups<br />
+  tdsls900.odat =  tdsls400.odat <br />
+  tdsls900.orno = tdsls401.orno<br />
+  tdsls900.qoor = tdsls401.qoor<br />
+  |Now the data for the new datasat is set. Lets insert:<br />
+  db.insert(ttdsls900, db.retry)<br />
+  commit.transaction()<br />
+endselect		<br />
+<br />
+<br />
+You will find tdsls900.nama to be empty after inserting. That’s because tccom100 is not read yet. You will need to add a select on tccom100, too.<br />
+<br />
+Btw: my code is untested, and I have not compiled it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">9th October 2019, 18:22</div></div><div class="posttext">Hi,<br />
+Thanks, the error is gone, but I still don't see my data and it takes a lot to load the report.<br />
+Regards,<br />
+RavCoder</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">11th October 2019, 08:20</div></div><div class="posttext">Is the missing data stored in tdsls900? Or do you have empty fields in the created datasets?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">11th October 2019, 10:22</div></div><div class="posttext">Hi,<br />
+I don't understand exactly you mean, but the table tdsls900 is a empty table that I created ,while the others table were created yet by other. <br />
+I thought that used db.update  and then used db.insert should work. I used also your code, but nothing change.<br />
+Regards,<br />
+RavCoder</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">11th October 2019, 11:06</div></div><div class="posttext">Check the data flow from select in session script to report. For example: are the input fields set in the report and filled before rprt_send? The layout section is triggert and the print expression is ok?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">11th October 2019, 11:20</div></div><div class="posttext">I think that I put input field correctly and insert my session script:<br />
+<br />
+|******************************************************************************<br />
+|* tdsls4400  0  VRC B61U 10 stnd<br />
+|* Visualizza ordini bp<br />
+|* Installation User                                                                                                       <br />
+|* 2017-05-17<br />
+|******************************************************************************<br />
+|* Main table tdsls400 Ordini di vendita, Form Type 4<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+<br />
+  table   ttdsls400 | Ordini di vendita<br />
+  table   ttdsls401 | Righe ordini di vendita <br />
+  table   ttdsls900 | Nuova tabella che prende i record della tabella tdsls401<br />
+  table   ttccom100<br />
+   extern  domain  tcorno           orno.f    fixed<br />
+   extern  domain  tcorno           orno.t    fixed<br />
+   extern  domain  tcyesno  txta.txt<br />
+   extern  domain  tcyesno  txtb.txt<br />
+   extern string tdsls900.bpid<br />
+   extern string tdsls900.nama<br />
+   extern string tdsls900.item<br />
+   extern string tdsls900.cuni<br />
+   extern long tdsls900.odat<br />
+   extern string tdsls900.orno<br />
+   extern double tdsls900.qoor<br />
+  <br />
+   <br />
+  <br />
+   extern domain  tdsmo     somma  <br />
+   extern domain  tdqper     quantita_periodo<br />
+   <br />
+   <br />
+      <br />
+|****************************** program section ********************************<br />
+<br />
+<br />
+<br />
+ <br />
+<br />
+<br />
+|****************************** group section **********************************<br />
+<br />
+group.1:<br />
+init.group:<br />
+   get.screen.defaults()<br />
+   <br />
+<br />
+	<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+   execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+   if rprt_open() then<br />
+       read.main.table()<br />
+	  <br />
+	   <br />
+	     sum_order()<br />
+	   sum_period()<br />
+	   <br />
+	   insert_field_table()<br />
+	  <br />
+       rprt_close()<br />
+   else<br />
+       choice.again()<br />
+   endif<br />
+<br />
+<br />
+|****************************** field section *********************************<br />
+<br />
+field.orno.f:<br />
+when.field.changes:<br />
+   orno.t = orno.f<br />
+<br />
+<br />
+  <br />
+<br />
+ <br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{<br />
+    select tdsls400.orno, tdsls401.item, tdsls401.ofbp, tdsls401.odat<br />
+	from tdsls400, tdsls401<br />
+	<br />
+    where   tdsls400._index1 inrange {:orno.f}<br />
+                                  and {:orno.t}<br />
+    and tdsls401.orno = tdsls400.orno<br />
+	group by tdsls400.orno , tdsls401.item, tdsls401.ofbp , tdsls401.odat<br />
+	<br />
+	<br />
+	<br />
+	<br />
+	<br />
+	selectdo<br />
+	sum_period()<br />
+	 sum_period()<br />
+	 insert_field_table()<br />
+       rprt_send()<br />
+  endselect<br />
+}<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+function sum_order() {<br />
+	db.retry.point()<br />
+	somma = 0<br />
+	select tdsls401.ofbp,tdsls401.item<br />
+	from   tdsls401 <br />
+	<br />
+	group by tdsls401.ofbp,tdsls401.item<br />
+	<br />
+	selectdo<br />
+		select tdsls401.qoor<br />
+		from tdsls401<br />
+		where tdsls401.item = :tdsls401.item<br />
+		 and tdsls401.ofbp = :tdsls401.ofbp<br />
+		<br />
+		selectdo<br />
+			somma = somma + tdsls401.qoor <br />
+			<br />
+<br />
+		endselect<br />
+	<br />
+		rprt_send()<br />
+	endselect<br />
+	<br />
+	<br />
+<br />
+<br />
+}<br />
+<br />
+<br />
+function sum_period() <br />
+{<br />
+	db.retry.point()<br />
+	quantita_periodo = 0<br />
+	select tdsls401.ofbp, tdsls401.odat<br />
+			from tdsls401<br />
+			group by tdsls401.ofbp, tdsls401.odat<br />
+			selectdo<br />
+				select tdsls401.qoor<br />
+				from tdsls401<br />
+				where tdsls401.ofbp = :tdsls401.ofbp<br />
+				and tdsls401.odat  =  :tdsls401.odat<br />
+				<br />
+				selectdo<br />
+				quantita_periodo = quantita_periodo + tdsls401.qoor<br />
+				endselect<br />
+			rprt_send()<br />
+			<br />
+			endselect<br />
+}<br />
+<br />
+<br />
+function insert_field_table(){<br />
+		db.retry.point()<br />
+select tdsls900.* <br />
+from tdsls900 for update<br />
+where tdsls900.bpid = :tdsls400.ofbp<br />
+selectdo<br />
+<br />
+selectempty<br />
+ tdsls900.bpid = &quot;&quot;<br />
+tdsls900.nama = &quot;&quot;<br />
+tdsls900.item =&quot;&quot;<br />
+tdsls900.cuni = &quot;&quot;<br />
+ tdsls900.odat = 0<br />
+  tdsls900.orno = &quot;&quot;<br />
+   tdsls900.qoor = 0<br />
+  db.set.to.default(ttdsls900)<br />
+ <br />
+<br />
+  <br />
+  tdsls900.bpid = tdsls400.ofbp<br />
+  tdsls900.nama = tccom100.nama<br />
+  tdsls900.item = tdsls401.item <br />
+  tdsls900.cuni = tdsls401.cups<br />
+  tdsls900.odat =  tdsls400.odat <br />
+  tdsls900.orno = tdsls401.orno<br />
+  tdsls900.qoor = tdsls401.qoor<br />
+ <br />
+  db.insert(ttdsls900, db.retry)<br />
+  commit.transaction()<br />
+endselect<br />
+				<br />
+<br />
+}<br />
+<br />
+<br />
+<br />
+If there were other things I have to add  or show, write well and I'll try to put (I'm inexperienced on this technology, for me it's all new)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">11th October 2019, 11:39</div></div><div class="posttext">table   ttdsls900 | Nuova tabella che prende i record della tabella tdsls401<br />
+  (..)<br />
+   extern string tdsls900.bpid<br />
+   extern string tdsls900.nama<br />
+   extern string tdsls900.item<br />
+   extern string tdsls900.cuni<br />
+   extern long tdsls900.odat<br />
+   extern string tdsls900.orno<br />
+   extern double tdsls900.qoor<br />
+<br />
+Why did you do that? What's it supposed to do?  <br />
+If a table is declared, the fields are automatically declared too. <br />
+I've never seen something like this in a LN script before.<br />
+<br />
+You're sending data three times to the report.<br />
+<br />
+<br />
+function read.main.table()<br />
+{<br />
+    select tdsls400.orno, tdsls401.item, tdsls401.ofbp, tdsls401.odat<br />
+	from tdsls400, tdsls401<br />
+  (..)	<br />
+	selectdo<br />
+	  sum_period() |(-&gt; function uses rprt_send())  <br />
+	  sum_period() |(-&gt; function uses rprt_send())<br />
+	  insert_field_table()<br />
+          rprt_send()    |3 times rprt_send() in one select<br />
+  endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">11th October 2019, 12:49</div></div><div class="posttext">table   ttdsls900 | Nuova tabella che prende i record della tabella tdsls401<br />
+  (..)<br />
+   extern string tdsls900.bpid<br />
+   extern string tdsls900.nama<br />
+   extern string tdsls900.item<br />
+   extern string tdsls900.cuni<br />
+   extern long tdsls900.odat<br />
+   extern string tdsls900.orno<br />
+   extern double tdsls900.qoor<br />
+<br />
+Why did you do that? What's it supposed to do?  <br />
+If a table is declared, the fields are automatically declared too. <br />
+I've never seen something like this in a LN script before.<br />
+<br />
+You're sending data three times to the report.<br />
+<br />
+<br />
+function read.main.table()<br />
+{<br />
+    select tdsls400.orno, tdsls401.item, tdsls401.ofbp, tdsls401.odat<br />
+	from tdsls400, tdsls401<br />
+  (..)	<br />
+	selectdo<br />
+	  sum_period() |(-&gt; function uses rprt_send())  <br />
+	  sum_period() |(-&gt; function uses rprt_send())<br />
+	  insert_field_table()<br />
+          rprt_send()    |3 times rprt_send() in one select<br />
+  endselect<br />
+}<br />
+<br />
+to answer your question: I don't really know why I declared the external variables again, I thought it was a way to see them.<br />
+As for the fact of having used rprt_send three times was that if I do not add it to my methods it does not send anything to the report.<br />
+Moreover, as I have already said in other posts on this platform, I am not an LN expert and there are no sufficient sources, not even from other parts, except for the documentation that I just can't understand.<br />
+Not even so exactly which paradigm uses LN.Imperative, procedural, object-oriented?<br />
+What language do you approach? Java? Pascal? (which I've never seen)<br />
+So forgive me if I make these mistakes or when you say certain things, I honestly don't understand them.<br />
+I apologize again.<br />
+Regards,<br />
+RavCoder</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">11th October 2019, 13:27</div></div><div class="posttext">I always considered Baan 3GL/4GL to be a wild mixture of Basic and Pascal. It’s old school 1980th procedural mixed with Dynamic SQL.<br />
+When Infor introduced LN with DAL-Hooks, it may have been the right time to take the turn to a more modern object-orientated highway, but they didn’t.<br />
+<br />
+This may have changed with the introduction of “extensions”, but I doubt Infor will label it “object-orientated”. (I still haven’t worked with extensions. But this will change shortly, Training is on the way..)<br />
+<br />
+I think, you do now the documentation of solution KB 22924522. There’s also a “Infor LN Development Tools Development Guide“ available in the Tools section in the documentation browser of Infor Support. It is available for all releases of Infor LN. You may want to dig into “To create reports” and “Overview of Software Components/Reports”. This chapters will provide a rough overview on how to create printing sessions. (I’m into a version called U8883L US for Infor LN 10.2.1 right now.)<br />
+<br />
+In the old days there’s been training provided by Infor called “Application Administration” (AA) and “Application Customisation” (AC) – the names may have changed in other countries. Maybe you can find old training documentation; it may come in handy too.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">11th October 2019, 13:48</div></div><div class="posttext">I've already tried to see if there were resources on the Internet except the one you say, but they are scarce and I really don't understand them.<br />
+I tried to delete the things you said were additional, but still don't let me see the data.<br />
+I have also tried to debug and I have seen that it does not even insert the values, rather it skips the execution of my function.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

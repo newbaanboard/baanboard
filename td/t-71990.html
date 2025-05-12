@@ -1,0 +1,181 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Call copy item using AFS in Baan IV, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Call copy item using AFS in Baan IV Tools Development" />
+	
+	<title>Call copy item using AFS in Baan IV [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Call copy item using AFS in Baan IV</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">pradeepcr</div><div class="date">13th June 2019, 17:54</div></div><div class="posttext">Hello,<br />
+I am trying to call the main session tiitm0101m000 through AFS and then invoke the session tiitm0202s000 using the copy button on the tiitm0101m000 form. I tried stpapi.form.command() but does not work probably because this is Baan IV. Any ideas on how I can achieve this using AFS.<br />
+<br />
+Thanks,<br />
+PC</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">14th June 2019, 01:34</div></div><div class="posttext">I think you're on the right track, but probably with the wrong prerequisites?<br />
+Like did you search the record, marked it, perform the form command (if it fails, read the error stack, functional and technical) and tried the AFS_LOG option? What did it teach you?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pradeepcr</div><div class="date">14th June 2019, 16:52</div></div><div class="posttext">stpapi.form.command() is not work in Baan IV. Program script gives a compilation error. AFS guide also clearly says it is only supported in Baan ERP and Ln. It says alternative to that is continue.process() in Baan IV but there is no continue button on tiitm0101m000. <br />
+<br />
+What I am trying to achive - from custom session I need to pass the item code and call maintain item data and from there invoke the copy button which opens tiitm0202s000 to copy the item. All this through AFS.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th June 2019, 04:14</div></div><div class="posttext">When I get to work tomorrow I will look thru my code.  I think I did something for this sub-session at one time.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th June 2019, 15:48</div></div><div class="posttext">Well I can't find any code but in 4c4 you would use stpapi.application.option.  I am waiting to get our test server backup.  Maybe I only wrote test code.  Every since we converted they seem to like to ignore our old baan servers.  :)  <br />
+<br />
+<br />
+SYNTAX<br />
+void stpapi.application.option(string session, long form, long option, ref string err.mesg)<br />
+ARGUMENTS<br />
+session	Name of the session this command is executed on.<br />
+form	Form number on which user option must be executed. User options (the commands on the Special menu) are defined per form.<br />
+option	The option number to be executed. User options appear as choice.user.x options in the Baan 4GL code where x is a number that ranges from 0 to 9. The value of x that corresponds to the option that you want to activate is provided as the value of this parameter.<br />
+err.mesg	This parameter will contain the text of the error message if the function cannot complete normally</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pradeepcr</div><div class="date">17th June 2019, 16:31</div></div><div class="posttext">Thanks a lot for checking. stpapi.application.option can only be used for user defined options 0 to 9 in choice.user.o/9 section. It does not support the standard copy option 16(dupl.occur) in this case.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th June 2019, 22:45</div></div><div class="posttext">Yep - you are correct.  I see a bunch of zoom.to's on the session, but in production I am not seeing any stpapi code. <br />
+<br />
+Have you tried just running the session directly.  Maybe setting the tiitm001.item before calling the session.  I know on the zoom.to we include copy.item = zoom.to$(&quot;tiitm0202s000&quot;,z.session,&quot;tiitm001.item&quot;, &quot;copy.item&quot;,0) where the copy.item is set to tiitm001.item.  You might have to change the session type since it will might not let you activate a subsession.<br />
+<br />
+Or another alternative is to create your own calling session.  All it would have to do is set the original item and activate tiitm0202s000.  I did that for another session - I had to do that so I could control the subsession that it launched automatically.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pradeepcr</div><div class="date">18th June 2019, 23:20</div></div><div class="posttext">Mark, I want that subsession to run automatically for a set of original items without manual intervention. I guess that is not possible with the solutions that you are suggesting.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">19th June 2019, 15:34</div></div><div class="posttext">Not sure I get that.  If you create a session to launch the tiitm0202m000 then no manual intervention would be needed.  I can show you an example of one I did - so if you run tpptc9820m00c on our system it automatically runs tpptc9110m00c.  I could never get control of the tpptc9110m00c session it ran.  So I cheated.  I created a new session called tpptc9831m000.  This session has one input field x and all it does is launch the session I want to use tpptc9110m00c.<br />
+<br />
+declaration:<br />
+	long	child.id<br />
+	extern	domain	tcmcs.str1	x<br />
+|****************************** PROGRAM     SECTION ***************************<br />
+before.program:<br />
+	child.id = 0<br />
+<br />
+|****************************** ZOOM FROM   SECTION ***************************<br />
+|****************************** FORM	     SECTION ***************************<br />
+|****************************** CHOICE      SECTION ***************************<br />
+choice.cont.process:<br />
+on.choice:<br />
+	if(child.id&lt;&gt;0) then<br />
+		kill(child.id)<br />
+	endif<br />
+	child.id=activate(&quot;tpptc9110m00c&quot;)<br />
+	switch.to.process(child.id)<br />
+| Cannot use zoom because tpptc9110m00c is waiting for a<br />
+| switch.to.process<br />
+	execute(end.program)<br />
+<br />
+choice.interrupt:<br />
+before.choice:<br />
+	execute(end.program)<br />
+	<br />
+choice.abort.program:<br />
+before.choice:<br />
+	execute(end.program)<br />
+<br />
+choice.end.program:<br />
+before.choice:<br />
+	kill(child.id)<br />
+<br />
+<br />
+So what I am proposing is let say you create a session tiitm9999m000 - 1 input field the item.  Then it does the zoom to as I mentioned above.  It should all remain in the background.  So what you would see if you looked at your process would be your copy session as the parent, then tiitm9999m000 as a child and then tiitm0202s000 as a child of tiitm9999m000.  Then you should be able to put the new item and set the text flags.  It does not hurt to give it a try.  There should be no manual intervention.<br />
+<br />
+And yes 2 days and I am still waiting on our test system to be started. Or maybe fix my user ID so I can putty into the servers.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pradeepcr</div><div class="date">19th June 2019, 19:20</div></div><div class="posttext">Thanks Mark.<br />
+<br />
+&quot;Then you should be able to put the new item and set the text flags.&quot; How can I pass these values from Activate(tiitm0202s000)?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pradeepcr</div><div class="date">20th June 2019, 00:26</div></div><div class="posttext">Mark,<br />
+This is what I tried. I created a new session with one field 'Item' on it and a 'Continue' button.<br />
+<br />
+On choice.continue:<br />
+zoom.to$(&quot;tiitm0202s000&quot;,z.session,&quot;tiitm001.item&quot;, &quot;copy.item&quot;,0)<br />
+<br />
+In the copy item range session I call the new session using AFS:<br />
+<br />
+stpapi.put.field(&quot;awitm0230m003&quot;, &quot;tiitm001.item&quot;, strip$(awitm030.item))<br />
+stpapi.handle.subproc(&quot;awitm0230m003&quot;, &quot;tiitm0202s000&quot;, &quot;add&quot;)<br />
+stpapi.zoom.option(&quot;awitm0230m003&quot;, 1, &quot;tiitm0202s000&quot;, error.msg)<br />
+stpapi.put.field(&quot;tiitm0202s000&quot;, &quot;copy.item&quot;, strip$(awitm030.part))<br />
+stpapi.put.field(&quot;tiitm0202s000&quot;, &quot;copy.alt.items&quot;, str$(etol(tcyesno.no)))<br />
+stpapi.put.field(&quot;tiitm0202s000&quot;, &quot;copy.alt.suppl&quot;, str$(etol(tcyesno.no)))<br />
+stpapi.put.field(&quot;tiitm0202s000&quot;, &quot;copy.erela&quot;, str$(etol(tcyesno.no)))<br />
+stpapi.continue.process(&quot;tiitm0202s000&quot;, error.msg)<br />
+stpapi.end.session(&quot;tiitm0202s000&quot;)<br />
+stpapi.end.session(&quot;awitm0230m003&quot;)<br />
+<br />
+error.msg on the continue process (in bold) says &quot;Session not available&quot;.<br />
+<br />
+Any idea?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th June 2019, 14:26</div></div><div class="posttext">I would try stpapi.continue after these 2 lines like this:<br />
+stpapi.put.field(&quot;awitm0230m003&quot;, &quot;tiitm001.item&quot;, strip$(awitm030.item))<br />
+stpapi.handle.subproc(&quot;awitm0230m003&quot;, &quot;tiitm0202s000&quot;, &quot;add&quot;)<br />
+stpapi.continue.process(&quot;awitm0230m003&quot;, error.msg)<br />
+<br />
+Based on the where you put the zoom to in in the new session - it was in the continue on the new session:<br />
+On choice.continue:<br />
+ zoom.to$(&quot;tiitm0202s000&quot;,z.session,&quot;tiitm001.item&quot;, &quot;copy.item&quot;,0)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pradeepcr</div><div class="date">20th June 2019, 16:11</div></div><div class="posttext">It works!!! You rock!!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th June 2019, 17:12</div></div><div class="posttext">Well I got the test system back today - finally.  What I actually tested was adding it to the zoom menu. I new I had tried something once before. So if I ran tiitm0101m000 and did tools zoom I see copy item.<br />
+<br />
+function copy_item()<br />
+{<br />
+	long ret, count<br />
+	stpapi.put.field(&quot;tppdm0110m000&quot;,&quot;tiitm001.item&quot;, &quot;MYTEST91528&quot;)<br />
+	ret = stpapi.find(&quot;tppdm0110m000&quot;)<br />
+	stpapi.handle.subproc(&quot;tppdm0110m000&quot;, &quot;tiitm0202s000&quot;, &quot;add&quot;)<br />
+	stpapi.handle.subproc(&quot;tppdm0110m000&quot;, &quot;mtiitm000090011&quot;, &quot;7&quot;)<br />
+	stpapi.zoom.option(&quot;tppdm0110m000&quot;,1,&quot;tiitm0202s000&quot;,err)<br />
+	stpapi.put.field(&quot;tiitm0202s000&quot;, &quot;copy.item&quot;, &quot;mark345&quot;)<br />
+	stpapi.enum.answer(&quot;tiitm0202s000&quot;, &quot;tiitm0101t&quot;, tcyesno.yes)<br />
+	stpapi.continue.process(&quot;tiitm0202s000&quot;,err)<br />
+	|stpapi.insert(&quot;tppdm0110m000&quot;,1,err)<br />
+	stpapi.end.session(&quot;tiitm0202s000&quot;)<br />
+	if(ret &lt;&gt; 1) then<br />
+		message(&quot;err&quot;)<br />
+	endif<br />
+	|stpapi.enum.answer(&quot;tppdm0110m000&quot;, &quot;tiitm01012&quot;, tcyesno.yes)	<br />
+	|stpapi.delete(&quot;tppdm0110m000&quot;,1,err)<br />
+	message(err)<br />
+	stpapi.end.session(&quot;tppdm0110m000&quot;)<br />
+	<br />
+}<br />
+<br />
+<br />
+So another option if needed.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pradeepcr</div><div class="date">21st June 2019, 16:34</div></div><div class="posttext">Thanks for sharing the other option.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,193 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Compare Records in different Table with same structure, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Compare Records in different Table with same structure Tools Development" />
+	
+	<title>Compare Records in different Table with same structure [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Compare Records in different Table with same structure</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">25th July 2016, 13:08</div></div><div class="posttext">Hello there<br />
+<br />
+i want to compare records from different tables using record buffer but i am not able to see anything in the record buffer.<br />
+<br />
+PS: Both the tables have same structure.Heres my code below.<br />
+<br />
+<br />
+<br />
+	db.retry.point()<br />
+	tfgld110_id = db.bind(&quot;ttfgld110&quot;,rcd.ttfgld110)<br />
+	select 	tfgld110.*<br />
+	from	tfgld110<br />
+	where	tfgld110._index6 inrange {:bpid.f,:hold.comp} and  <br />
+		{:bpid.t,:hold.comp}<br />
+	and	tfgld110.dcdt inrange	:date.f and :date.t<br />
+	and	tfgld110.vlac inrange	:led.f and :led.t<br />
+	and	tfgld110.pvat &lt;&gt; 0<br />
+	|order by tfgld110.vlac,tfgld110.bpid ASC<br />
+	selectdo		<br />
+		ret = db.columns.to.record(tfgld110_id)<br />
+		hold.gld.110 = rcd.ttfgld110<br />
+		tfkmv110_id = db.bind(&quot;ttfkmv110&quot;,rcd.ttfkmv110)<br />
+		select	tfkmv110.* <br />
+		from	tfkmv110 for update<br />
+		where 	tfkmv110._index1 = {:tfgld110.cono,:tfgld110.ttyp,:tfgld110.docn,<br />
+					    :tfgld110.lino,:tfgld110.serl,:tfgld110.sern}<br />
+		selectdo<br />
+			ret = db.columns.to.record(tfkmv110_id)<br />
+			hold.kmv.110 = rcd.ttfkmv110<br />
+			|if rcd.ttfgld110 &lt;&gt; rcd.ttfkmv110 then<br />
+			if hold.gld.110 &lt;&gt; hold.kmv.110 then<br />
+				populate.temporary.tax.table()<br />
+			endif<br />
+		selectempty<br />
+			populate.temporary.tax.table()			<br />
+		endselect		<br />
+	endselect<br />
+	commit.transaction()<br />
+<br />
+<br />
+<br />
+Why i am not able to see anything in Record Buffer?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th July 2016, 15:07</div></div><div class="posttext">Not sure I get the question.  What do you mean you are not seeing anything in the record buffer?  You should be able to display table fields to make sure the code is working.  Not sure if ln is different or not.  In 4c4 I use this to set record buffers - before the subroutine is called I have found a record.  Granted I am not comparing it to another record buffer, but this is how I set them up.<br />
+<br />
+	string		record.buf(1)	based<br />
+<br />
+function store.tpppc291.record.buffer()<br />
+{<br />
+	if not record.len then<br />
+		db.row.length(ttpppc291, record.len)<br />
+		alloc.mem(record.buf, record.len)<br />
+	endif<br />
+	record.buf = rcd.ttpppc291<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">25th July 2016, 15:52</div></div><div class="posttext">after binding the record Buffer to the Pointer to the table and transferring data from column to record buffer using db.columns.to.record ,the record buffer is still empty..<br />
+<br />
+rcd.ttfkmv110=&quot;&quot; and rcd.ttfgld110 = &quot;&quot;<br />
+<br />
+Not sure if get the binding and the db.columns.to.record command right. If anybody can confirm?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th July 2016, 16:40</div></div><div class="posttext">Comment out one of the db.columns.to.record commands and just check like rcd.ttfgld110.  From reading the help I am not sure the command is necessary - see below - it mentions db.bind.<br />
+<br />
+The record buffer of a table is used for reading records from that table. When you bind to a table (see db.bind()) and specify that the default record buffer is to be used, the contents of the table fields are automatically copied to the buffer. This does not happen when you specify a record buffer other than the default buffer. Consequently, you must call this function to copy the field values to the buffer if you have filled the fields before reading from the database.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">25th July 2016, 16:57</div></div><div class="posttext">commented out but its not coming as expected. The default buffers still come as blank..</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th July 2016, 17:50</div></div><div class="posttext">I am beginning to think the db.bind might need to be inside the loop.  I found another example which shows it inside the selectdo statement with only db.bind(tablename) since the other parameters are optional.  Try that for the first select statement.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">26th July 2016, 09:22</div></div><div class="posttext">Have included db.bind in the select statement as well as tried the below code which declares the variable as base and assigns memory location on runtime.<br />
+<br />
+<br />
+<br />
+string		rec.tfgld110(1) based,rec.tfkmv110(1) based<br />
+	long		rec.length.gld110,rec.length.kmv110<br />
+<br />
+	db.retry.point()<br />
+	<br />
+	select 	tfgld110.*<br />
+	from	tfgld110<br />
+	where	tfgld110._index6 inrange {:bpid.f,:hold.comp} and  <br />
+		{:bpid.t,:hold.comp}<br />
+	and	tfgld110.dcdt inrange	:date.f and :date.t<br />
+	and	tfgld110.vlac inrange	:led.f and :led.t<br />
+	and	tfgld110.pvat &lt;&gt; 0<br />
+	|order by tfgld110.vlac,tfgld110.bpid ASC<br />
+	selectdo		<br />
+		tfgld110_id = db.bind(&quot;ttfgld110&quot;)<br />
+		db.row.length(ttfgld110,rec.length.gld110)<br />
+		alloc.mem(rec.tfgld110,rec.length.gld110)<br />
+		rec.tfgld110 = rcd.ttfgld110<br />
+		select	tfkmv110.* <br />
+		from	tfkmv110 for update<br />
+		where 	tfkmv110._index1 = {:tfgld110.cono,:tfgld110.ttyp,:tfgld110.docn,<br />
+					    :tfgld110.lino,:tfgld110.serl,:tfgld110.sern}<br />
+		selectdo<br />
+			tfkmv110_id = db.bind(&quot;ttfkmv110&quot;)<br />
+			db.row.length(ttfkmv110,rec.length.kmv110)<br />
+			alloc.mem(rec.tfkmv110,rec.length.kmv110)<br />
+			rec.tfkmv110 = rcd.ttfkmv110<br />
+			if rec.tfgld110 &lt;&gt; rec.tfkmv110 then<br />
+				populate.temporary.tax.table()<br />
+			endif<br />
+		selectempty<br />
+			populate.temporary.tax.table()			<br />
+		endselect		<br />
+	endselect<br />
+<br />
+	commit.transaction()<br />
+<br />
+<br />
+<br />
+The db.columns.to.record and the db.record.to.column doesnt seem to be working, i dont know why...<br />
+<br />
+I just want to compare records from different table. Both have exactly the same structure. If any field in the table differ, there it should give me a boolean value , Yes or No. Thats it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th July 2016, 14:23</div></div><div class="posttext">I think you will have to wait for someone to show up that is familiar with those commands - I have never used them.  In 4c4 I can just select a record and the rcd buffer is available for me to use.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">26th July 2016, 14:32</div></div><div class="posttext">You mean you can actually see the value of the Record buffer? Like the Values inside?<br />
+<br />
+if Yes, then please post any value of the Record Buffer, of course according to your time and convenience.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th July 2016, 15:18</div></div><div class="posttext">I could not get it to work using just the rcd buffer in 4c4.  I found a record in tdpur041 and set like record.buf1 =rcd.ttdpur041 and then found another record in tdpur041 and stored it off in record.buf2.  Then compared the two record buffers and they are always equal.<br />
+<br />
+PS - no I could not see any values in rcd.tdpur041 or record.buf1.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">26th July 2016, 16:48</div></div><div class="posttext">Okkkk... I could finally compare records in different tables. I used db.record.changed command.<br />
+<br />
+<br />
+tfkmv110_id = db.bind(&quot;ttfkmv110&quot;)<br />
+db.columns.to.record(ttfkmv110)<br />
+db.store.record(ttfkmv110)<br />
+if records.unequal() then<br />
+<br />
+.....................<br />
+<br />
+function domain tcbool records.unequal()<br />
+{<br />
+<br />
+	rcd.ttfkmv110 = rcd.ttfgld110<br />
+	db.record.to.columns(ttfkmv110)<br />
+	if db.record.changed(ttfkmv110) then<br />
+		return(true)<br />
+	endif<br />
+	return(false)	<br />
+<br />
+}<br />
+<br />
+<br />
+First used db.store.record<br />
+Then assigned the Record Buffer to the Buffer i wanted to compare it with.<br />
+Then used db.record.to.columns<br />
+Then i used db.record.changed command to check whether the record buffer has been changed. It has worked..<br />
+<br />
+The record buffer values are not shown but it does contain values.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th July 2016, 17:55</div></div><div class="posttext">Nice solution.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

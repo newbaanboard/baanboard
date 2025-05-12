@@ -1,0 +1,354 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Error 606 on Select, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Error 606 on Select Tools Development" />
+	
+	<title>Error 606 on Select [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Error 606 on Select</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ImmuBaan</div><div class="date">6th December 2003, 18:26</div></div><div class="posttext">I'm running a correction script to rebuild tdsls040, tdsls041, and tdsls045 from the history tables.<br />
+<br />
+The correction program worked in 2 test companies and is working for the majority of the sales orders in the live company.  However, I'm getting an Error 606 (Reference does not exist) on tdsls041100 on SELECT for some of the Sales Orders.  I'm not sure why, but I've stepped through the code.  The error is thrown on a select on the 041 table obviously, but there should not be a record on the select and the code should enter the selectempty section.  It does this most of the orders, but on certain orders it blows up with the above error???  Any thoughts?  The error occurs on the 4th line of a paticular sales order.  So the 4th itteration of the select tdsls041.*.  I've verified that this record doesn't exist in the 040, 041, or 045 tables.  <br />
+<br />
+Here is some of the code:<br />
+<br />
+function insert.tsls041.record()<br />
+{<br />
+	prev.pono = 0<br />
+	select	tdsls051.*<br />
+	from	tdsls051<br />
+	where	tdsls051._index1 = {:tdsls050.orno}<br />
+	and	tdsls051.ckor = 3 <br />
+	order by tdsls051._index1<br />
+	selectdo<br />
+		select	tdsls041.*<br />
+		from	tdsls041<br />
+		where	tdsls041._index1 = {:tdsls051.orno, :tdsls051.pono}<br />
+		as set with 1 rows<br />
+		selectdo<br />
+			if prev.pono &lt;&gt; tdsls041.pono then<br />
+				valid.record = false <br />
+			endif<br />
+		selectempty<br />
+			create.tsls041.record()<br />
+			prev.pono = tdsls051.pono<br />
+			first.sequence = true<br />
+			max.srnb = 0<br />
+			valid.record = true<br />
+		endselect<br />
+		if valid.record then<br />
+			rebuild.tsls045.record()<br />
+		endif<br />
+	endselect<br />
+<br />
+<br />
+<br />
+Thanks for any suggestions!  <br />
+<br />
+Jeremy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">LittleJohn</div><div class="date">7th December 2003, 03:50</div></div><div class="posttext">Hi Jeremy,<br />
+Pls post the other part of ur code on the tdsls040 select as well.<br />
+For this specific Order, Has the record already been inserted in the tdsls040 table ?<br />
+Have you checked on the placement of your commit.transaction(). <br />
+<br />
+Cheers<br />
+Minhaaj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ImmuBaan</div><div class="date">7th December 2003, 15:33</div></div><div class="posttext">Here's the rest of the code  (I've attached it in notepad b/c of formatting).  As you can see the commit.trans doens't take place until the 040, 041, and then 045 is built.<br />
+<br />
+No, there is not a SO record in any of the above tables currently.<br />
+<br />
+Thanks again!<br />
+<br />
+<br />
+<br />
+function read.main.table()<br />
+{<br />
+	db.retry.point()<br />
+<br />
+<br />
+	select	tdsls050.*<br />
+	from	tdsls050<br />
+	where	tdsls050._index1 inrange {:orno.f} and {:orno.t}<br />
+	order by tdsls050._index1<br />
+	selectdo<br />
+		insert.tsls040.record()<br />
+		if valid.record and update.mode = tcyesno.yes then<br />
+			commit.transaction()<br />
+			valid.record = false<br />
+		else<br />
+			valid.record = false<br />
+			abort.transaction()<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+|******************************** Update Functions *****************************<br />
+<br />
+function insert.tsls040.record()<br />
+{<br />
+	select	tdsls040.*<br />
+	from	tdsls040<br />
+	where	tdsls040._index1 = {:tdsls050.orno}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	selectempty<br />
+		tdsls040.orno = tdsls050.orno<br />
+		tdsls040.odat = tdsls050.trdt<br />
+		tdsls040.comp = tdsls050.comp<br />
+		tdsls040.cotp = tdsls050.cotp<br />
+		tdsls040.cuno = tdsls050.cuno<br />
+		tdsls040.corg = tdsls050.corg<br />
+		tdsls040.cper = tdsls050.cper<br />
+		tdsls040.cpay = tdsls050.cpay<br />
+		tdsls040.ccur = tdsls050.ccur<br />
+		tdsls040.fcrt = tdsls050.fcrt<br />
+		tdsls040.rats = tdsls050.rats<br />
+		tdsls040.ratf = tdsls050.ratf<br />
+		tdsls040.ccor = tdsls050.ccor<br />
+		tdsls040.cdel = tdsls050.cdel<br />
+		tdsls040.crep = tdsls050.crep<br />
+		tdsls040.cfcg = tdsls050.cfcg<br />
+		tdsls040.cvyn = tdsls050.cvyn<br />
+		tdsls040.ccrs = tdsls050.ccrs<br />
+		tdsls040.cfrw = tdsls050.cfrw<br />
+		tdsls040.cpls = tdsls050.cpls<br />
+		tdsls040.pldd = tdsls050.pldd<br />
+		tdsls040.pcpr = tdsls050.pcpr<br />
+		tdsls040.ccty = tdsls050.ccty<br />
+		tdsls040.clan = tdsls050.clan<br />
+		tdsls040.cdec = tdsls050.cdec<br />
+		tdsls040.crte = tdsls050.crte<br />
+		tdsls040.ddat = tdsls040.odat<br />
+		tdsls040.futo = tdsls050.futo<br />
+		tdsls040.cbrn = tdsls050.cbrn<br />
+		tdsls040.creg = tdsls050.creg<br />
+		tdsls040.refa = tdsls050.refa<br />
+		tdsls040.refb = tdsls050.refb<br />
+		tdsls040.bkyn = tcyesno.no<br />
+		tdsls040.cblc = 0<br />
+		tdsls040.prno = tdsls050.prno<br />
+		tdsls040.scom = tdsls050.scom<br />
+		tdsls040.prdt = tdsls040.odat <br />
+		tdsls040.ctrj = &quot;&quot; <br />
+		tdsls040.txta = tdsls050.txta<br />
+		tdsls040.txtb = tdsls050.txtb<br />
+		tdsls040.ccno = tdsls050.ccno		|#immucor.sn<br />
+		tdsls040.chna = tdsls050.chna<br />
+		tdsls040.cexp = tdsls050.cexp<br />
+		tdsls040.user = tdsls050.user<br />
+		tdsls040.tele = tdsls050.tele<br />
+		tdsls040.rd.acct = tdsls050.rd.acct<br />
+		tdsls040.rd.cfrw = tdsls050.rd.cfrw<br />
+		tdsls040.inst = tdsls050.inst<br />
+		tdsls040.rman = tdsls050.rman<br />
+		tdsls040.inlv = tdsls050.inlv		|#immucor.en<br />
+		db.insert(ttdsls040, db.retry)<br />
+		insert.tsls041.record()<br />
+	endselect<br />
+}<br />
+<br />
+function insert.tsls041.record()<br />
+{<br />
+	prev.pono = 0<br />
+	select	tdsls051.*<br />
+	from	tdsls051<br />
+	where	tdsls051._index1 = {:tdsls050.orno}<br />
+	and	tdsls051.ckor = 3 <br />
+	order by tdsls051._index1<br />
+	selectdo<br />
+		select	tdsls041.*<br />
+		from	tdsls041<br />
+		where	tdsls041._index1 = {:tdsls051.orno, :tdsls051.pono}<br />
+		as set with 1 rows<br />
+		selectdo<br />
+			if prev.pono &lt;&gt; tdsls041.pono then<br />
+				valid.record = false <br />
+			endif<br />
+		selectempty<br />
+			create.tsls041.record()<br />
+			prev.pono = tdsls051.pono<br />
+			first.sequence = true<br />
+			max.srnb = 0<br />
+			valid.record = true<br />
+		endselect<br />
+		if valid.record then<br />
+			rebuild.tsls045.record()<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+function create.tsls041.record()<br />
+{<br />
+	db.set.to.default(ttdsls041)<br />
+	tdsls041.orno = tdsls051.orno<br />
+	tdsls041.pono = tdsls051.pono<br />
+	tdsls041.cuno = tdsls051.cuno<br />
+	tdsls041.drct = tdsls051.drct<br />
+	tdsls041.item = tdsls051.item<br />
+	get.item.cpcp()<br />
+	tdsls041.cntr = tdsls051.cntr<br />
+	tdsls041.opol = tdsls051.opol<br />
+	tdsls041.cpva = tdsls051.cpva<br />
+	tdsls041.sdsc = tdsls051.sdsc<br />
+	tdsls041.pric = tdsls051.pric<br />
+	tdsls041.stpr = tdsls041.pric<br />
+	tdsls041.plev = tdsls051.plev<br />
+	tdsls041.cups = tdsls051.cups<br />
+	tdsls041.cvps = tdsls051.cvps<br />
+	tdsls041.citg = tdsls051.citg<br />
+	tdsls041.csgs = tdsls051.csgs<br />
+	tdsls041.odat = tdsls051.odat<br />
+	tdsls041.ddta = tdsls051.ddta<br />
+	get.order.quantity()<br />
+	tdsls041.oqua = oqua<br />
+	tdsls041.cuqs = tdsls051.cuqs<br />
+	tdsls041.cvqs = tdsls051.cvqs<br />
+	tdsls041.leng = tdsls051.leng<br />
+	tdsls041.disc = tdsls051.disc<br />
+	tdsls041.ldam = tdsls051.ldam<br />
+	tdsls041.dlev = tdsls051.dlev<br />
+	tdsls041.cdis = tdsls051.cdis<br />
+	tdsls041.dmth = tdsls051.dmth<br />
+	tdsls041.amta = tdsls051.amta<br />
+	list.price = tdsls041.pric<br />
+	get.currency.rounding()<br />
+	tdsls.dll0022.calc.net.amount(tdsls041.cvqs,<br />
+				      tdsls041.cvps,<br />
+				      tdsls041.oqua,<br />
+				      list.price,<br />
+				      tdsls040.ccur,<br />
+				      crnd.orno,<br />
+				      tdsls041.dmth,<br />
+				      tdsls041.disc,<br />
+				      tdsls041.ldam,<br />
+				      dummy.amta,<br />
+				      dummy.ldam)<br />
+	tdsls.dll0022.calc.single.disc(tdsls041.amta,<br />
+				       dummy.ldam,<br />
+				       list.discount)<br />
+	tdsls041.stdc = list.discount <br />
+	tdsls041.dqua = tdsls051.qana<br />
+	tdsls041.bqua = 0<br />
+	tdsls041.ccty = tdsls051.ccty<br />
+	tdsls041.cvat = tdsls051.cvat<br />
+	tdsls041.cwar = tdsls051.cwar<br />
+	tdsls041.cprj = tdsls051.cprj<br />
+	tdsls041.isss = tdsls051.isss<br />
+	tdsls041.**** = tdsls051.****<br />
+	tdsls041.ppon = tdsls051.ppon<br />
+	tdsls041.cono = tdsls051.cono<br />
+	tdsls041.posi = tdsls051.posi<br />
+	tdsls041.qono = tdsls051.qono<br />
+	tdsls041.qpon = tdsls051.qpon<br />
+	tdsls041.ttyr = tdsls051.ttyr<br />
+	tdsls041.invr = tdsls051.invr<br />
+	tdsls041.revi = tdsls051.revi<br />
+	tdsls041.lsel = tdsls051.lsel<br />
+	tdsls041.clot = tdsls051.clot<br />
+	tdsls041.scom = tdsls051.scom<br />
+	tdsls041.cdel = tdsls051.cdel<br />
+	tdsls041.ctrj = tdsls051.ctrj<br />
+	tdsls041.prdt = tdsls051.prdt<br />
+	tdsls041.citt = mcs0002.default.customer.item.code(tdsls040.cuno)<br />
+	if isspace(tdsls041.citt) then<br />
+		tdsls041.citt = tdsls000.citt<br />
+	endif<br />
+	tdsls041.txta = tdsls051.txta<br />
+	tdsls041.zpcd = tdsls051.zpcd			|#immucor.sn<br />
+	tdsls051.tkno = tdsls051.tkno<br />
+	tdsls041.act_cfrw = tdsls051.act_cfrw<br />
+	tdsls041.cfrw = tdsls051.cfrw<br />
+|	tdsls041.crte = tdsls051.crte<br />
+	tdsls041.code = tdsls051.code<br />
+	tdsls041.cscd = tdsls051.cscd<br />
+	tdsls041.inlv = tdsls051.inlv<br />
+	tdsls041.pcpr = tdsls051.pcpr			|#immucor.en<br />
+	db.insert(ttdsls041, db.retry)<br />
+|	if not db.retry.hit() then			|jeremy.sn<br />
+	if db.retry.hit() then				|jeremy.en<br />
+		print.changes(tdsls040.orno, 0,0,<br />
+			      &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, 0.0, 0, &quot;&quot;, &quot;tdsls040&quot;) <br />
+	endif<br />
+	if not db.retry.hit() then<br />
+		print.changes(tdsls041.orno, tdsls041.pono, 0, <br />
+			      tdsls041.cprj, tdsls041.item, tdsls041.cntr,<br />
+			      tdsls041.cwar, tdsls041.oqua, 0, &quot;&quot;, &quot;tdsls041&quot;)<br />
+	endif<br />
+}<br />
+<br />
+function rebuild.tsls045.record()<br />
+{<br />
+	db.set.to.default(ttdsls045)<br />
+	tdsls045.orno = tdsls051.orno<br />
+	tdsls045.pono = tdsls051.pono<br />
+	if first.sequence then<br />
+		tdsls045.srnb = 0<br />
+		first.sequence = false<br />
+	else<br />
+		get.max.srnb()<br />
+		tdsls045.srnb = max.srnb + 1<br />
+	endif<br />
+	tdsls045.cuno = tdsls051.cuno<br />
+	tdsls045.cprj = tdsls051.cprj<br />
+	tdsls045.item = tdsls051.item<br />
+	tdsls045.cntr = tdsls051.cntr<br />
+	tdsls045.cwar = tdsls051.cwar<br />
+	tdsls045.cpcp = tiitm001.cpcp<br />
+	tdsls045.ddat = tdsls051.ddtb<br />
+	tdsls045.oqua = tdsls051.qana<br />
+	tdsls045.dqua = tdsls051.qana<br />
+	tdsls045.bqua = 0<br />
+	tdsls045.recq = 0 <br />
+	tdsls045.pino = 0<br />
+	tdsls045.dino = 0<br />
+	tdsls045.invd = tdsls051.invd<br />
+	tdsls045.invn = tdsls051.invn<br />
+	tdsls045.ttyp = tdsls051.ttyp<br />
+	tdsls045.fono = 0<br />
+	tdsls045.torn = 0<br />
+	tdsls045.tpon = 0<br />
+	tdsls045.tsrn = 0<br />
+	tdsls045.ssls = 9 <br />
+	get.pmsk.from.ordertype()<br />
+	update.activities.as.executed()<br />
+	tdsls045.pmsk = pmsk <br />
+	tdsls045.copr = tdsls051.copr<br />
+	tdsls045.coop = tdsls051.coop<br />
+	tdsls045.pric = tdsls051.pric<br />
+	tdsls045.disc = tdsls051.disc<br />
+	tdsls045.amnt = tdsls051.amta<br />
+	tdsls045.damt = tdsls051.ldam<br />
+	tdsls045.rats = tdsls051.rats<br />
+	tdsls045.ratf = tdsls051.ratf<br />
+	tdsls045.cono = tdsls051.cono<br />
+	tdsls045.posi = tdsls051.posi<br />
+	tdsls045.opri = 999999<br />
+	tdsls045.inlv = tdsls051.inlv			|#immucor.n<br />
+	db.insert(ttdsls045, db.retry)<br />
+	if not db.retry.hit() then<br />
+		print.changes(tdsls045.orno, tdsls045.pono, tdsls045.srnb,<br />
+			      tdsls045.cprj, tdsls045.item, tdsls045.cntr,<br />
+			      tdsls045.cwar, tdsls045.dqua, tdsls045.invn,<br />
+			      tdsls045.ttyp, &quot;tdsls045&quot;)<br />
+	endif<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

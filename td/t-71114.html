@@ -1,0 +1,91 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Compare 2 tables for missing records, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Compare 2 tables for missing records Tools Development" />
+	
+	<title>Compare 2 tables for missing records [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Compare 2 tables for missing records</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">dromeo</div><div class="date">29th May 2018, 00:24</div></div><div class="posttext">Hello!<br />
+<br />
+I'm trying to compare 2 tables, for missing records, and then filter the results to show on a custom report only the records that match, excluding the missing / deleted records. The problem is that the report has already a structured logic (it's the report that shows the Hours for the General Tasks and the Production Hours). <br />
+<br />
+Now, the standard report takes the information from the bptmm100 table, but when some records are deleted from the General Tasks session, through the session, for some reason they don't get deleted from the bptmm100, but only from the bptmm111, resulting in showing on the report bad information for the users (hours that were already deleted). I want to filter that information. <br />
+<br />
+On the details of the script I was thinking in something like this:<br />
+<br />
+<br />
+detail.9:<br />
+before.layout:<br />
+            select   bptmm111.*<br />
+	    from     bptmm111<br />
+	    where   bptmm111.emno = :bptmm100.emno      |Employee Code<br />
+	    and      bptmm111.year = :bptmm100.year          |Year  <br />
+	    and      bptmm111.peri = :bptmm100.peri            | Period<br />
+	    and      bptmm111.type = bptmm.type.general    |General Tasks<br />
+            and      bptmm111.hrea(8) = :bptmm100.hrea       |Hours, Comparing the 8th number on the array<br />
+            selectdo<br />
+                        if isspace(bptmm111.emno) then   |when the hours are not found in the bptmm111, the query <br />
+                                                                               |returns an empty string in the employee code, so this is how I <br />
+                                                                               |filter the hours that I don't want to show on the report<br />
+                        lattr.print = false<br />
+                        endif<br />
+            endselect<br />
+<br />
+<br />
+The problem with this code, is that for some records it works, and I'm able to NOT show the REAL missing hours, but for some reason, I don't know if because a recursive search is needed, considering also how the data it's sorted differently in both tables (bptmm111 &amp; bptmm100) and the sequence numbers are different (bptmm100.seqn &amp; bptmm111.seqn)...so for some reason in some cases it also filter (doesn't show) the hours that are in both tables, so it also filter the REAL hours that I need to show on the report.<br />
+<br />
+Any advices???<br />
+<br />
+Thank you very much,<br />
+<br />
+Daniel Romeo</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">29th May 2018, 01:28</div></div><div class="posttext">You say the records are only deleted successfully from the bptmm111 table - so that means there is still something in the 100 table.  Yet the query shows an empty employee number.  So are the records really deleted or is it just clearing the employee number? I am not familiar with these tables and my first thought is why couldn't you just query 111 for an empty employee number?  Yeah - it might mean full table scan and be slow, but if it got you data to fix it might be worth it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dromeo</div><div class="date">29th May 2018, 16:56</div></div><div class="posttext">You say the records are only deleted successfully from the bptmm111 table - so that means there is still something in the 100 table.  Yet the query shows an empty employee number.  So are the records really deleted or is it just clearing the employee number? I am not familiar with these tables and my first thought is why couldn't you just query 111 for an empty employee number?  Yeah - it might mean full table scan and be slow, but if it got you data to fix it might be worth it.<br />
+<br />
+Hello Mark,<br />
+<br />
+Thank you very much for your reply :)<br />
+<br />
+So, the whole records are really being deleted from the table bptmm111 while they are not for the table bptmm100 --&gt; regarding the empty employee, I just understood, while doing some other tests, that it's because of the logic of the report, that carries also the logic from the session --&gt; so if you print from the session of the Hours Accounting, that doesn't have any specified employee, with the logic of the query that I added, it throws an empty string for the employee when it doesn't find the match of the hours on both tables, that is also part of my problem: that the query I added is not matching hours (so records) that really exists on both tables, for the same employee, year and period... that maybe are sorted differently on the tables???? I don't know :( <br />
+<br />
+Example 1. --&gt; Printing from the session with a specific user on the session. Notice how I want the report printed for the employee code 1026, but when the query doesn't find the match returns on the report the employee code from the session, that is bsp in this case.<br />
+<br />
+https://ibb.co/eVhQfy<br />
+<br />
+https://ibb.co/errzqy<br />
+<br />
+Example 2. --&gt; Printing from the session with a blank user on the session. Notice now, how I always specified for the report the employee code 1026, but this time instead, when the query doesn't find the match for the hours, returns an empty string. <br />
+<br />
+https://ibb.co/m3UNcd<br />
+<br />
+https://ibb.co/mPPzOJ<br />
+<br />
+Now, on the table bptmm111 for the same employee, same year and period, there are 5 records...for the table bptmm100 for the same employee, same year and period, there are 8 records...so 3 more from the table bptmm111. So the whole point is that I don't want the report to show these 3 extra records, that have already been deleted.<br />
+<br />
+Thank you very much!!!<br />
+<br />
+Daniel Romeo</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">30th May 2018, 15:07</div></div><div class="posttext">Can you attach the JPG's straight to the post.  I can't see them using the link.  You can do this clicking on go advanced, manage attachments. I do not have these tables to look at. Without being able to see the table structures it makes it tough to figure out how to go from one to the other to see what records it has and how they match up.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

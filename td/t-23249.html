@@ -1,0 +1,160 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Retrieve input from a display session, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Retrieve input from a display session Tools Development" />
+	
+	<title>Retrieve input from a display session [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Retrieve input from a display session</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">renzosing</div><div class="date">22nd February 2005, 17:29</div></div><div class="posttext">I have a dynamic display session that allows a user <br />
+to input a quantity and the shortage will be adjusted by that quantity.<br />
+Once the session is up and the quantity is entered and the user tabs out, I need to have the session update the shortage field. I tried different 4GL sections and subsections, but once the display session is up, it doesn't execute any of the code that I've tried. Is there anyway this can be done?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">22nd February 2005, 19:40</div></div><div class="posttext">Hiyas - a screen shot would be helpful - though I already had my peek.   What your session looks like is this:<br />
+<br />
+Item:   xxxxxxxx<br />
+Quantity:    1<br />
+-----------------------------------------------------------------<br />
+  BOM Component__________Required Quantity________Shortage<br />
+-----------------------------------------------------------------<br />
+<br />
+  ITEMA________________________2_____________________2<br />
+  ITEMB _______________________1_____________________1<br />
+<br />
+(forgive the formatting) When you change the quantity on the view, which is accomplished through a 'Start Set' command, you want the detailed quantities to update for each line.  <br />
+<br />
+It depends on how they are getting calculated.  My advice is to have them calculate in the 'before.display' section for each field, like:<br />
+<br />
+<br />
+required.quantity:<br />
+before.display:<br />
+    calculate.required.quantity()<br />
+<br />
+<br />
+Then, when you change the Quantity in the header, the screen will have to refresh because of the Start Set, then they should all recalculate.  Does that not happen?   At worst you may have to call a display.all() or similar call.  (this would be the choice.new.group / after.choice section)<br />
+<br />
+Let's see how you are calculating the quantities, post the code for that if this does not help.<br />
+<br />
+Good luck</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">renzosing</div><div class="date">22nd February 2005, 21:37</div></div><div class="posttext">I tried the before.display, but had no luck with it. I tried using the display options. The field for the quantity is &quot;shortage&quot;. The code is below, table tibom010 is the main table.<br />
+<br />
+<br />
+declaration:<br />
+<br />
+	table	ttibom010	| Production BOMs<br />
+	table	ttiipd001	             | Item Production Data<br />
+	table	ttcibd001	             | General Item Data<br />
+	table	ttcmcs003	| Warehouses<br />
+	table	twhwmd215	| Inventory by warehouse<br />
+	table	twhinr140	| Inventory<br />
+<br />
+	extern	domain	tcdsca	mitm.dsca<br />
+	extern	domain	tcqiv1	on.hand<br />
+	extern	domain	tcqiv1	hard.alloc<br />
+	extern	domain	tcqiv1	shortage<br />
+	extern	domain	tcqiv1	require<br />
+	extern	domain	tcqiv1	avail<br />
+	extern	domain	tcqiv1	qty.make<br />
+	<br />
+|****************************** program section **************<br />
+|****************************** form section ****************<br />
+|****************************** choice section ***************<br />
+|****************************** zoom section ****************<br />
+|****************************** field section *****************<br />
+<br />
+field.tibom010.mitm:<br />
+before.display:<br />
+|	qty.make = 1	    |022105<br />
+after.display:<br />
+	select	tcibd001.dsca:mitm.dsca<br />
+	from	tcibd001	<br />
+	where	tcibd001.item = :tibom010.mitm<br />
+	selectdo<br />
+		display(&quot;mitm.dsca&quot;)<br />
+	endselect<br />
+<br />
+field.tibom010.sitm:<br />
+after.display:<br />
+	select  whwmd215.stoc:on.hand,<br />
+		whwmd215.allo:require <br />
+	from	whwmd215<br />
+	where	whwmd215.cwar = :tibom010.cwar<br />
+	 and	whwmd215.item = :tibom010.sitm<br />
+	selectdo<br />
+		display(&quot;on.hand&quot;)<br />
+	selectempty<br />
+		on.hand = 0<br />
+		display(&quot;on.hand&quot;)<br />
+	endselect<br />
+<br />
+	select	whinr140.item,<br />
+		whinr140.cwar, 	<br />
+		sum(whinr140.stka):hard.alloc<br />
+	from	whinr140<br />
+	where	whinr140.item = :tibom010.sitm<br />
+	 and	whinr140.cwar = :tibom010.cwar<br />
+	group by whinr140.item,<br />
+		 whinr140.cwar<br />
+	order by whinr140.item,<br />
+		 whinr140.cwar<br />
+	selectdo<br />
+		avail = on.hand - hard.alloc<br />
+|		shortage = tibom010.qana-avail <br />
+|		if shortage &lt;= 0 then<br />
+|			shortage = 0<br />
+|		endif	<br />
+	selectempty<br />
+		avail = on.hand<br />
+|		shortage = tibom010.qana-avail <br />
+|		if shortage &lt;=0 then<br />
+|			shortage = 0<br />
+|		endif<br />
+		hard.alloc=0<br />
+	endselect<br />
+	<br />
+ field.shortage:<br />
+ before.display:<br />
+    shortage = (tibom010.qana * qty.make)-avail <br />
+    if shortage &lt;= 0 then<br />
+        shortage = 0<br />
+    endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">22nd February 2005, 22:08</div></div><div class="posttext">I do not see where you set qty make.  When running in debug mode are all of the fields set correctly? <br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">renzosing</div><div class="date">22nd February 2005, 22:14</div></div><div class="posttext">qty.make is the variable that holds the value of the field Quantity, if you look at the post lbencic did it gives a layout of the display session. qty.make is initialize to 1, but whenever the user changes the value, I want to change the value of shortage (shortage = (tibom010.qana * qty.make)-avail )</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">22nd February 2005, 23:38</div></div><div class="posttext">Okay.  Then what Lisa posted would update the field the first time through with your script.  On the after.input section of the make.qty I think you can do a display.all() and it should roll through the other fields recalculating the qty.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">renzosing</div><div class="date">22nd February 2005, 23:42</div></div><div class="posttext">No luck with that either.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd February 2005, 17:00</div></div><div class="posttext">Did you try refresh?  Basically what you are asking the session to do is allow you to input the make.qty and then loop through all of the display fields again.  I would have expected display.all() to kick it off, but maybe a refresh will work.  <br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Physical reorg of informix chunks, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Physical reorg of informix chunks Operating Systems &amp; Databases" />
+	
+	<title>Physical reorg of informix chunks [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Physical reorg of informix chunks</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mdenham</div><div class="date">10th September 2002, 22:08</div></div><div class="posttext">I am planning a migration of a Baan database instance from some old 2/4gb drives to 4 36 gb drives.<br />
+<br />
+Initially I was planning on dd'ing the data from the old devices to the new, repointing the symbolic links and bringing the informix instance online. Initially this is just for a test. The old instance will still remain intact and need to be returned to operational status afterwards.<br />
+<br />
+Are there any files that Baan maintains, external to the database which will cause problems for this approach. We are planning on running several jobs through the system to verify the performance of the new drives.<br />
+<br />
+The purpose of the pre-test is to determine if the performance of the new devices is sufficient, without the need to physically reloading the database and gaining additional performance improvements from recreating the instance and reducing extents etc.<br />
+<br />
+Thanks<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Badre Alam</div><div class="date">18th September 2002, 11:31</div></div><div class="posttext">Hi, Mark<br />
+<br />
+BaaN is maintaining a file &quot;inf_storage&quot; which is used during creation of the tables, where new tables to be created in which dbspace and what would be Extent size.<br />
+<br />
+If you have installed  new devices for database, then how r u planning to move data from old device to new one, I don't think just repointing the links will work.<br />
+<br />
+We are having 200 GB of data on raw devices, and planning to switch over on ALPHA ES-40 server very soon, so, all data neds to be shifted to new device. <br />
+<br />
+Procedure I am going to adopt,  will  take 0-level backup and then restore it on new device, before this all dbspace needs to be created on new device with same size of chunks as in old devices.<br />
+<br />
+Any suggestion from your side will be appreciated.<br />
+<br />
+Rgds</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mdenham</div><div class="date">18th September 2002, 17:33</div></div><div class="posttext">Restoring is one way of doing it. If you have used relative pathnames then this should be fine. If you have used full pathnames then you are not going to be able to replace the devices as easily. When using relative pathnames, all you have to do is create a new directory tree with the same device names as listed in your existing production env. Assuming you are using ontape, when you start the restore you must cd to the directory that is the 'parent'. So, if your devices are named something like ./mydb/rootdbs, you must cd to the directory that contains mydb directory. Issue the ontape restore command and go get a cup of java, its that simple.<br />
+<br />
+Since the new instance will look the same as the original, baan will be ignorant that the data is now in a different location.<br />
+<br />
+<br />
+Alternatively you could use dd in place of a restore. Make a backup [preferably restore it somewhere to prove its good] and then use dd to copy the chunks. I have done this on numerous occassions without any problems whatsoever. <br />
+<br />
+With fullpathnames you have more of a problem because this information is stored within the rootdbs - in the 1st 12 pages. I think its on page #3. I have used a binary editor to mess with this in the past, but do not recommend it. There are only 2 ways to deal with this, symbolic links and a physical rebuild. A physical rebuild is a good idea if you are trying to solve some other performance issues, otherwise why bother?<br />
+<br />
+Hopefully you used symlinks when establishing the system initially. Point the devices listed in onstat -d to where you want them to be. If you get it wrong, your going to be embarrassed very fast unless you can restore the pointers to where they were meant to be and restore. Make sure you have a script that can put the links back as they should be...<br />
+<br />
+In this instance, I recommend you test you scripts etc on a separate machine. It is the only way to be 100% confident that they are correct.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mdenham</div><div class="date">18th September 2002, 17:36</div></div><div class="posttext">Just a thought, are you switching to a new box with a different architecture to the current one? If that is the case then your only choice is a rebuild from unloaded data.<br />
+<br />
+The restore/dd will only work if all you are changing are the disks. Its not necessarily the way to go if anything else is being changed.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Badre Alam</div><div class="date">19th September 2002, 06:19</div></div><div class="posttext">yes, we are changing to new architecture, so restore/dd can't be used, only way is either restore the whole database after 0-level backup onto the new device or can go for  data export/import.<br />
+<br />
+Badre</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mdenham</div><div class="date">19th September 2002, 06:54</div></div><div class="posttext">Restore cannot be used for the same reason that dd is unusable. The backup contains physical pages that are dependant upon the architecture.<br />
+<br />
+I think that you will find that the only way forward is to rebuild. The easiest, and fastest way is to connect the 2 servers and copy the data server-to-server.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Badre Alam</div><div class="date">19th September 2002, 07:09</div></div><div class="posttext">HI, Mark,<br />
+<br />
+we r using raw devices for informix database, so data can't be copied like any other files from one server to another. <br />
+<br />
+Now a days taking 0-level backup time is approx. 5-6 hrs in our case and then its restoration will take approx. 16-18 hrs. A year back when we were having only 60-65 Gb of data restoration takes 10 hrs.<br />
+<br />
+anyway I will explore all the possibilities very soon before actually migrating to new server.<br />
+<br />
+Badre</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JamesV</div><div class="date">11th October 2002, 23:02</div></div><div class="posttext">I know this may seem elementary but please keep in mind the distinction between the onbar &quot;whole&quot; backup and the level 0 backup.  A whole backup is required if you are going to be moving the data to another server.  <br />
+<br />
+-- Jim</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

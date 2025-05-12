@@ -1,0 +1,120 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Very nasty work around for an ugly problem AFS finds and updates WRONG RECORD, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Very nasty work around for an ugly problem AFS finds and updates WRONG RECORD AFS/DDC/OLE: Function servers" />
+	
+	<title>Very nasty work around for an ugly problem AFS finds and updates WRONG RECORD [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Very nasty work around for an ugly problem AFS finds and updates WRONG RECORD</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">23rd July 2015, 18:17</div></div><div class="posttext">I want to share a solution with you for a situation mentioned several times on this board:<br />
+I want to use AFS in a session where I could not manage to select the right record to update although the syntax in AFS is correct.	    ret = stpapi.sort.by(&quot;tdisa0601m000&quot;, &quot;1&quot;, o.err.msg)<br />
+	    stpapi.put.field(&quot;tdisa0601m000&quot;, &quot;tdisa001.item.segment2&quot;,<br />
+					trim$(tdisa001.item))<br />
+	    ret = stpapi.find(&quot;tdisa0601m000&quot;, o.err.msg)<br />
+	    if ret = 1 then| But once here it appears that something is DEAD WRONG<br />
+Note: I thought that the session had to be started (and finding the default record selection would be done after the index selection) before I do a put on the session, but that does not help.		stpapi.get.field(&quot;tdisa0601m000&quot;, &quot;tdisa001.item&quot;, item)| item is not the same as tdisa001.item but *another*<br />
+<br />
+So I figured out the solution offered on the board, using browse.set (or browse.view, depending on the session type) but it takes an awful lot of time to get things done since we have loads of items to sell:		if not ( trim$(item) = trim$(tdisa001.item) ) then<br />
+		    repeat<br />
+			if item &lt; tdisa001.item then<br />
+			    ret = stpapi.browse.set(&quot;tdisa0601m000&quot;, &quot;next.set&quot;,<br />
+		    			o.err.msg)<br />
+			else<br />
+			    ret = stpapi.browse.set(&quot;tdisa0601m000&quot;, &quot;prev.set&quot;,<br />
+		    			o.err.msg)<br />
+			endif<br />
+			stpapi.get.field(&quot;tdisa0601m000&quot;, &quot;tdisa001.item&quot;, item)<br />
+		    until ( trim$(item) = trim$(tdisa001.item) or ret = 0 )<br />
+		endifThis works for sure, but it has to browse through all items before it may continue with the correct one. And this has to be done many times for all items on my to-do list.<br />
+<br />
+When running a DBS log I noticed that the record marked as *another* item was the *saved default* item (or after I removed my defaults it appeared to be the *first* item).<br />
+<br />
+Now I added a trick :D<br />
+Before the first AFS call on the session where I need the record, I trick the 4GL session by setting the defaults in the stored session defaults to my current record -&gt; 	update.current.tools(&quot;tdisa0601m000&quot;, &quot;tdisa001.item:=&quot; &amp; <br />
+				quoted.string(tdisa001.item), ttyeno.yes)<br />
+Where the function is defined like:functions:<br />
+function update.current.tools(		domain	ttst13	i.sess,<br />
+					domain	ttst200	i.rcrd,<br />
+					domain	ttyeno	i.socc)<br />
+{	| Note: i.socc = yes means single occ (no = multi occ)<br />
+	table	tttadv990<br />
+	long	companion<br />
+	companion = get.compnr()<br />
+	if compnr.check(000) then<br />
+		db.retry.point()<br />
+		select	ttadv990.*<br />
+		from	ttadv990 for update<br />
+		where	ttadv990._compnr = 000<br />
+		and	ttadv990._index1 = {:logname$, :companion, :i.sess}<br />
+		selectdo<br />
+			db.delete(tttadv990, db.retry)<br />
+		endselect<br />
+		commit.transaction()<br />
+		db.retry.point()<br />
+		select	ttadv990.*<br />
+		from	ttadv990 for update<br />
+		where	ttadv990._compnr = 000<br />
+		and	ttadv990._index1 = {:logname$, :companion, :i.sess}<br />
+		selectdo<br />
+		selectempty<br />
+			ttadv990.user = logname$<br />
+			ttadv990.comp = companion<br />
+			ttadv990.sess = i.sess<br />
+			ttadv990.sequ = 1<br />
+			ttadv990.socc = i.socc<br />
+			ttadv990.rcrd = i.rcrd<br />
+			db.insert(tttadv990, db.retry)<br />
+		endselect<br />
+		commit.transaction()<br />
+	endif<br />
+	if compnr.check(companion) then<br />
+	endif<br />
+}It seems to work fine for me ;) Please tell me if it works for you too :cool:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">23rd July 2015, 19:21</div></div><div class="posttext">Quite a hack! :)<br />
+<br />
+What if we simply clear the defaults before running the AFS and not saving any defaults? Because, there are instances when even the device details are stored by users as defaults and which does cause problems.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">23rd July 2015, 20:55</div></div><div class="posttext">Quite a hack! :)<br />
+<br />
+What if we simply clear the defaults before running the AFS and not saving any defaults? Because, there are instances when even the device details are stored by users as defaults and which does cause problems.<br />
+<br />
+Removing all defaults will lead to finding the first topmost record and thus not solve the problem. We force the wrong RIGHT found record to be presented as the first by session defaults.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">24th July 2015, 11:03</div></div><div class="posttext">Hi,<br />
+<br />
+I think I had a similiar problem with a session that had start option 44 &quot;get defaults&quot;. I got around by copying the session and changing the start Option.<br />
+But I'm on Baan IV.<br />
+<br />
+Regards<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th July 2015, 15:24</div></div><div class="posttext">Nice hack and thanks for sharing it.  I can't remember which session it was that I did where the stpapi.browse would move to the next record but would not make it current(no stpapi.mark did not work) - all the actions tried to happen on the first record.  I believe what I did was stpapi.browse, get fields, then execute a stpapi.find to make it current.  But this is a hack I never thought of - great solution.<br />
+<br />
+Same here Gunther.  Then one of the first things I do it a user calls and says one function servers is not working is to delete all user defaults for all sessions.<br />
+<br />
+Plus it looks like I need to get some updated documention.  I did not even know about the stpapi.sort.by option.  I might have to see if that even compiles on our 4c4 system.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">17th August 2015, 13:21</div></div><div class="posttext">I think I had a similiar problem with a session that had start option 44 &quot;get defaults&quot;. I got around by copying the session and changing the start Option.<br />
+Yes Günther, that should also work, but I want to leave the standard functionality and operation as is without making even the slightest change.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

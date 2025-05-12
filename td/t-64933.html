@@ -1,0 +1,146 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="If not insert records then update them, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] If not insert records then update them Tools Development" />
+	
+	<title>If not insert records then update them [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; If not insert records then update them</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">abaninas</div><div class="date">12th November 2013, 13:43</div></div><div class="posttext">Dear All,<br />
+<br />
+Could u plz advice me how to write a code to copy records from 2 tables, if the record is there, the record must be updated</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th November 2013, 15:30</div></div><div class="posttext">I think much more information is needed.  What tables are you looking at copying from?  And what is meant by if the record is there it must be updated?  More details are needed even to post a quick piece of sample code.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">abaninas</div><div class="date">12th November 2013, 15:40</div></div><div class="posttext">Dear Mark,<br />
+<br />
+I'm trying to copy the sales forecast (timrp001) to a customized table (timrp002). I have create a new update session that will insert all the lines from timrp001 to timrp002, but when I changed the Quantity in timrp001, I want this change reflected to timrp002.<br />
+<br />
+I mean, IF NOT INSERT THEN UPDATE, How I can do it by code.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manish_patel</div><div class="date">12th November 2013, 16:35</div></div><div class="posttext">Write the statement for insert in SELECTEMPTY block and for update in SELECTDO block <br />
+<br />
+SELECT timrp002.*<br />
+FROM timrp002 for update<br />
+WHERE &lt;where condition&gt;<br />
+SELECTDO<br />
+|***update statements<br />
+SELECTEMPTY<br />
+|**insert statements<br />
+ENDSELECT</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">abaninas</div><div class="date">12th November 2013, 16:46</div></div><div class="posttext">But where timrp001? where I will copy timrp001 to timrp002?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">abaninas</div><div class="date">12th November 2013, 17:00</div></div><div class="posttext">I'm trying this, but its not working:<br />
+<br />
+<br />
+db.retry.point()<br />
+<br />
+select * from timrp001<br />
+selectdo<br />
+	timrp002.item = timrp001.item<br />
+	timrp002.mnth = lval(sprintf$(&quot;%D(%m)&quot;, timrp001.fdat))<br />
+	timrp002.year = lval(sprintf$(&quot;%D(%Y)&quot;, timrp001.fdat))<br />
+	timrp002.fqan = timrp001.fqan<br />
+<br />
+	IF NOT DB.INSERT(ttimrp002,db.exit.on.dupl) then<br />
+<br />
+		SELECT timrp002.*<br />
+		FROM timrp002 for update<br />
+<br />
+		SELECTDO<br />
+		|***update statements<br />
+			timrp002.fqan = timrp001.fqan<br />
+			DB.UPDATE(ttimrp002,DB.RETRY)<br />
+			COMMIT.TRANSACTION()<br />
+		<br />
+		ENDSELECT<br />
+		<br />
+			<br />
+		<br />
+	ENDIF<br />
+	<br />
+<br />
+endselect<br />
+	<br />
+<br />
+	COMMIT.TRANSACTION()<br />
+	<br />
+	message(&quot;Update is completed&quot;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">12th November 2013, 19:39</div></div><div class="posttext">Hello,<br />
+something like :<br />
+<br />
+<br />
+select *<br />
+from table1<br />
+where &lt;your condition&gt;<br />
+selectdo<br />
+     update.table2()<br />
+endselect<br />
+<br />
+function update.table2()<br />
+{<br />
+select *<br />
+from table2<br />
+where &lt;your condition&gt;<br />
+selectdo<br />
+     db.update(.......)<br />
+selectempty<br />
+     db.insert(.....)<br />
+endselect<br />
+<br />
+}<br />
+<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th November 2013, 20:06</div></div><div class="posttext">I do it just like bernd displayed.  From looking at your code I think maybe if you just add a where clause to the update it might work.<br />
+<br />
+	select	tdudi040.*<br />
+	from	tdudi040 for update<br />
+	where	tdudi040._index1 = {:tdpur040.orno}<br />
+	selectdo<br />
+		if hold.mast.ordr &lt;&gt; mast.ordr then<br />
+			if hold.mast.ordr &lt;&gt; 0 then<br />
+				update.forecast.qty(hold.mast.ordr,-1)<br />
+			endif<br />
+			tdudi040.morn = mast.ordr<br />
+			if mast.ordr &lt;&gt; 0 then<br />
+				update.forecast.qty(mast.ordr,1)<br />
+			endif<br />
+		endif<br />
+		tdudi040.acko = ack.order<br />
+		db.update(ttdudi040,db.retry)<br />
+	selectempty<br />
+		tdudi040.orno = tdpur040.orno<br />
+		tdudi040.morn = mast.ordr<br />
+		tdudi040.acko = ack.order<br />
+		if mast.ordr &lt;&gt; 0 then<br />
+			update.forecast.qty(mast.ordr,1)<br />
+		endif<br />
+		db.insert(ttdudi040,db.retry)<br />
+	endselect</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

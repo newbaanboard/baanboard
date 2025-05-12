@@ -1,0 +1,131 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Sum of a field in session script, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Sum of a field in session script Tools Development" />
+	
+	<title>Sum of a field in session script [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Sum of a field in session script</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">12th November 2002, 07:09</div></div><div class="posttext">I am trying to get the sum of a field (timps30.demf) for a range of plan codes and plan levels. This sum is to print by plan date (timps300.pdat)<br />
+<br />
+When I try to get sum in the session script, the values on the report are not sums<br />
+<br />
+This is what I have <br />
+<br />
+functions:<br />
+function read.main.table()<br />
+{<br />
+	select	timps300.*, timps100.*, timps200.*<br />
+	from	timps300, timps100, timps200<br />
+	where   timps300._index1 inrange {:plnc.f, :plvl.f, :plni.f, <br />
+		:plct.f, :pdat.f}<br />
+	and {:plnc.t, :plvl.t, :plni.t, :plct.t, :pdat.t}<br />
+	and	timps300.plnc refers to timps100<br />
+	and     timps300._index1 refers to timps200<br />
+	and	timps200.seak inrange :seak.f and :seak.t<br />
+	order by timps300.pdat<br />
+	selectdo<br />
+		select sum(timps300.demf)<br />
+		from timps300<br />
+		where   timps300._index1 inrange {:plnc.f, :plvl.f, :plni.f, <br />
+		:plct.f, :pdat.f}<br />
+	        and {:plnc.t, :plvl.t, :plni.t, :plct.t, :pdat.t}<br />
+		 <br />
+		selectdo<br />
+			rprt_send()<br />
+		endselect<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tjbyfield</div><div class="date">12th November 2002, 09:10</div></div><div class="posttext">Itannous<br />
+<br />
+You need a group by statement with timps300.pdat in it and also a variable bound to the sum(...)<br />
+domain timps.qpdl g.demf    | outside the sql <br />
+<br />
+select sum(timps300.demf):g.demf<br />
+from timps300<br />
+where timps300_index1 = {:...}<br />
+group by timps300.pdat<br />
+selectdo<br />
+endselect<br />
+<br />
+Is it possible to do the sum in the outer sql loop ? If not then the inner loop should probably use an alias for the table<br />
+such as .... from timps300 mps<br />
+<br />
+<br />
+Hope this helps<br />
+<br />
+Terry</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tools123</div><div class="date">12th November 2002, 14:12</div></div><div class="posttext">Terry,<br />
+ You are right. You are better off using a varibale to hold the sum.<br />
+ I think there is a space after the (sumtablenamefieldname) and<br />
+ before the varibale.<br />
+ Also, you may just give the date range in a AND clause without the need for having/group by.<br />
+ Make sure the variable is initialized each time you get into the inner loop.you may want to send the data out to report<br />
+each time if you like that.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">12th November 2002, 18:31</div></div><div class="posttext">The session will not run after I created run time.<br />
+<br />
+This is what I uderstood from your email(s). <br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{<br />
+	domain timps.qpd1 g.demf<br />
+	<br />
+	select	timps300.*, timps100.*, timps200.*<br />
+	from	timps300, timps100, timps200<br />
+	where   timps300._index1 inrange {:plnc.f, :plvl.f, :plni.f, <br />
+		:plct.f, :pdat.f}<br />
+	            and {:plnc.t, :plvl.t, :plni.t, :plct.t, :pdat.t}<br />
+	and	timps300.plnc refers to timps100<br />
+	and     timps300._index1 refers to timps200<br />
+	and	timps200.seak inrange :seak.f and :seak.t<br />
+	order by timps300._index1<br />
+	selectdo<br />
+	<br />
+		select sum (timps300.demf) :g.demf<br />
+		from timps300 mps<br />
+where   timps300._index1 inrange {:plnc.f, :plvl.f, :plni.f,:plct.f, :pdat.f}<br />
+	          and {:plnc.t, :plvl.t, :plni.t, :plct.t, :pdat.t}<br />
+	selectdo<br />
+	rprt_send()<br />
+	endselect<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tools123</div><div class="date">13th November 2002, 02:34</div></div><div class="posttext">Ltannous,<br />
+   I think the problem was not very clear at first.<br />
+  I understand that you need to sum a p'lar field for each date.<br />
+ If this is correct,there is no need for a variable and no need for the second select.<br />
+  just use the first select and the rprt_send() in the selectdo<br />
+  In the  report layouts define a before field for the date field<br />
+ (you will have to define it as sort field in the report input fields<br />
+ first) and an after field:<br />
+  In the  after field section of that field,go to the field attributes<br />
+  and select the &quot;TOTAL&quot; aggregate function and you are all set.<br />
+ Compile the report.<br />
+Note:You can use a variable if you wish to sum up in the program script but in that case it is difficult if the records are not<br />
+ sorted by date.SO STICK WITH THE REPORT TOTAL function here.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Can I capture the user's default device so I can set it back, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Can I capture the user's default device so I can set it back Tools Administration &amp; Installation" />
+	
+	<title>Can I capture the user's default device so I can set it back [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Can I capture the user's default device so I can set it back</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rwhisenant</div><div class="date">20th January 2015, 18:57</div></div><div class="posttext">Hello all,<br />
+<br />
+I'm writing a program script that allows the user to decide (excel.output) if they want output to excel.<br />
+<br />
+if excel.output = tcyesno.yes<br />
+then<br />
+     spool.device = &quot;EXCEL&quot;<br />
+endif<br />
+<br />
+This would bring up the select device as EXCEL for the user.<br />
+<br />
+What I want to do is capture whatever the user's saved device is and put it back like it was so it wil come back up as their default after the excel output.<br />
+<br />
+Right now I'm doing save.spool.device = spool.device before my rprt_open and am getting nothing.<br />
+<br />
+BTW, I'm LN.  Is there anyway I can capture the default device?<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">20th January 2015, 20:03</div></div><div class="posttext">Hi,<br />
+<br />
+Can you check the table ttadv990(uset defaults)? <br />
+<br />
+Dont have access to my system right now but you can check if this table helps.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st January 2015, 18:37</div></div><div class="posttext">I never recommend saving defaults for ttstpsplopen - has causing issues with us in the past.  When a user has a printing issue first thing I do is delete defaults to ttstpsplopen.  So you might be able to parse ttadv990 like bushan mentioned for ttstpsplopen, but I prefer setting defaults for user in Maintain Device Preferences (ttaad306).<br />
+<br />
+Thinking about this - spool.device is not set until the first report is run and ttstpsplopen is launched.  Which spool.device would it use - the one you just set to excel or the user default they saved?  Interesting - got to go try this.  And if your users do not save defaults in the session - then you would not have a spool.device to restore to.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st January 2015, 18:48</div></div><div class="posttext">That was easy - I save defaults in ttstpsplopen to D66.  Added the below into a report session.  ttstpsplopen opened with excel.  Spool.device was empty until I explicitly set it below.  When the ttstpsplopen session came up the device was excel.  Then when I took the line out spool.device stays empty until after the ttstpsplopen session.  So at that point you could(if really necessary) go parse ttadv990 looking for userid and session ttstpsplopen.  Then parse the record (rcrd) for the device.<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+spool.device = &quot;EXCEL&quot;<br />
+	if rprt_open() then<br />
+		on case sort.by<br />
+		case	tppss.9401sort.group:<br />
+			select.master.schedule.data.by.group()<br />
+			break<br />
+		case	tppss.9401sort.program:<br />
+			select.master.schedule.data.by.program()<br />
+			break<br />
+		case	tppss.9401sort.site:<br />
+			select.master.schedule.data.by.site()<br />
+		endcase<br />
+		rprt_close()<br />
+	else<br />
+		choice.again()<br />
+	endif</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

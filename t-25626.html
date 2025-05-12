@@ -1,0 +1,131 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Nested AFS calls., baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Nested AFS calls. AFS/DDC/OLE: Function servers" />
+	
+	<title>Nested AFS calls. [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Nested AFS calls.</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">r_nagu</div><div class="date">14th November 2005, 18:14</div></div><div class="posttext">Hi,<br />
+	I have a strange problem with some AFS calls.<br />
+<br />
+	I have a session say X and I am calling session Y through AFS from session X which in-turn calls session Z (session Y calls session Z through AFS). Everything works fine but the session X hangs after all the work and I have to manually kill session Y to get the control back to session X. <br />
+<br />
+	Is there anything wrong with calling sessions through AFS that in-turn calls another session using AFS? <br />
+<br />
+	Any advice? Appreciate your help.<br />
+<br />
+Thanks,<br />
+NS</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th November 2005, 18:21</div></div><div class="posttext">There is nothing wrong with this as long as you close the sessions in the correct order. I have add to manually kill sessions to get control back - the code is in this forum(probably a search on kill would find it).  Other things I have done is to clone sessions so I could control them - not sure what sessions you are talking about, but the actual session names might help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">r_nagu</div><div class="date">14th November 2005, 20:06</div></div><div class="posttext">Mark,<br />
+	Thanks for the quick response.<br />
+<br />
+	I have written a session that takes an Engineering Item and a Revision as input and releases that revision using the session tiedm1101m000 (Maintain Engineering Item Revisions). I have also modified the session tiedm1101m000 to do the following when a revision gets released.<br />
+<br />
+-	Generate EBOM copy data (tiedm1230m000)<br />
+-	Finalize Engineering data (tiedm3240m000)<br />
+-	Update Sales Orders lines (tdsls4102s000)<br />
+<br />
+	Each of the above session is closed as soon as they are done. The problem I am having is that the control hangs after executing the above three sessions at session tiedm1101m000 and the control never returned to the original session that called the session tiedm1101m000. If I kill the session tiedm1101m000, the control is returned to the original session.<br />
+<br />
+	Like you said, I am thinking of adding a line in the session tiedm1101m000 to kill it if its running in the api mode. <br />
+	<br />
+<br />
+Thanks,<br />
+NS</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th November 2005, 20:33</div></div><div class="posttext">Something to try is to remove tdsls4102s000 and see if control returns to tiedm1101m000.  I am wondering if one of these three sessions is leaving something &quot;open&quot; and this causes tiedm1101m000 to appear hung after they have completed.  Just a guess, but I usually do not run sub-sessions directly and you do not mention tdsls4101m000 which I think is used to launch tdsls4102s000.  Just curious if this might be what is causing the problem.<br />
+<br />
+Another thing I have run into using sub-sessions like tdsls4102s000 is that they use a display session to do the top part of the form.  I have seen problems when I try to end these display sessions.  In the last service pack release I had to go thru and remove the stpapi.end for these sessions.  Just some thoughts.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">r_nagu</div><div class="date">15th November 2005, 21:45</div></div><div class="posttext">Mark,<br />
+	Thanks again for your response. I tried running the session without updating the sales order lines and it still ended up hanging. <br />
+<br />
+	To reconfirm whats happing I just wrote a little script with entirely different sessions and it also gave me the same results.<br />
+<br />
+	Heres what I did:<br />
+Custom session (the following code gets executed on cont.process)<br />
+_____________________________________________________________________<br />
+stpapi.put.field(&quot;tccom1101m000&quot;, &quot;tccom010.cuno&quot;, &quot;505641&quot;)<br />
+ret = stpapi.find(&quot;tccom1101m000&quot;)<br />
+if ret = 1 then<br />
+	stpapi.put.field(&quot;tccom1101m000&quot;, &quot;tccom010.namf&quot;, str$(date.num()) &amp; str$(time.num()))<br />
+	stpapi.update(&quot;tccom1101m000&quot;, true, err.msg)<br />
+endif<br />
+stpapi.end.session(&quot;tccom1101m000&quot;)<br />
+_____________________________________________________________________<br />
+<br />
+Now, in the session tccom1101m000, I have added this piece of code under choice.update.db (also tried it under after.update.db.commit section)<br />
+_____________________________________________________________________<br />
+stpapi.put.field(&quot;tcmcs0145m000&quot;, &quot;tcmcs045.creg&quot;, &quot;ACG&quot;)<br />
+ret = stpapi.find(&quot;tcmcs0145m000&quot;)<br />
+if ret = 1 then<br />
+	stpapi.put.field(&quot;tcmcs0145m000&quot;, &quot;tcmcs045.dsca&quot;, str$(date.num()) &amp; str$(time.num()))<br />
+	stpapi.update(&quot;tcmcs0145m000&quot;, true, err.msg)<br />
+endif<br />
+stpapi.end.session(&quot;tcmcs0145m000&quot;)<br />
+_____________________________________________________________________<br />
+<br />
+So, when I run my custom session, it goes into tccom1101m00, updates the description, then it calls tcmcs0145m000, updates the description there but when it executes line stpapi.update(&quot;tcmcs0145m000&quot;, true, err.msg) it just hangs. When I kill the session tccom1101m000, the control comes back to the custom session.<br />
+<br />
+I am not sure if I am overlooking something simple.<br />
+<br />
+Thanks,<br />
+NS</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">r_nagu</div><div class="date">15th November 2005, 22:32</div></div><div class="posttext">One interesting note is that, if I put the AFS code that is in the session tccom1101m000 in any of the sections that deals with updating the table (such update.db, after.update.db.commit, before.rewrite) it hangs. If I put the same code say in init.form or choice.end.program it works fine.  I tried to play with the true/false flag in the stpapi.update function without any luck.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">16th November 2005, 16:42</div></div><div class="posttext">I put this code into a program today:<br />
+<br />
+choice.update.db:<br />
+after.choice:<br />
+| 	check.all.input()<br />
+| 110 Expense Order<br />
+stpapi.put.field(&quot;tcmcs0145m000&quot;, &quot;tcmcs045.creg&quot;, &quot;110&quot;)<br />
+ret = stpapi.find(&quot;tcmcs0145m000&quot;)<br />
+if ret = 1 then<br />
+stpapi.put.field(&quot;tcmcs0145m000&quot;, &quot;tcmcs045.dsca&quot;, str$(date.num()) &amp; str$(time.num()))<br />
+stpapi.update(&quot;tcmcs0145m000&quot;, true, err.msg)<br />
+endif<br />
+stpapi.end.session(&quot;tcmcs0145m000&quot;)<br />
+stpapi.put.field(&quot;tccom1101m000&quot;, &quot;tccom010.cuno&quot;, &quot;000100&quot;)<br />
+ret = stpapi.find(&quot;tccom1101m000&quot;)<br />
+if ret = 1 then 	| CA<br />
+stpapi.put.field(&quot;tccom1101m000&quot;, &quot;tccom010.namf&quot;, str$(date.num()) &amp; str$(time.num()))<br />
+stpapi.update(&quot;tccom1101m000&quot;, true, err.msg)<br />
+endif<br />
+stpapi.end.session(&quot;tccom1101m000&quot;)<br />
+<br />
+<br />
+It ran just fine for me - we are on service pack 19, porting set 6.1c.07.04 - not sure what tools version.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">17th November 2005, 07:41</div></div><div class="posttext">The procedure in EDM module can often indeed be too lengthy. I've used AFS to create shortcuts too, but I use different method. Instead of using AFS to control tiedm1101m000 which in turn controls tiedm1230m000, tiedm3240m000 and tdsls4102s000, how about creating an AFS-based program that controls all four directly? It may sounds less daunting from technical programming point of view, but, as for me, I like it simple. I did it in BaanERP, by the way, not in BaanIV like what you have<br />
+<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

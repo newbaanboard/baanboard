@@ -1,0 +1,300 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Sql ???, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Sql ??? Tools Development" />
+	
+	<title>Sql ??? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Sql ???</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">BigJohn</div><div class="date">7th February 2002, 01:58</div></div><div class="posttext">Hi,<br />
+   SQL question ....<br />
+<br />
+I want to select all po lines having back order if the<br />
+total back order qty on the order (all lines) is within a range.<br />
+<br />
+For e.g.<br />
+Range = 100 - 200<br />
+<br />
+Order Line BackOrder<br />
+1     10   30 <br />
+1     20   30<br />
+1     30   30<br />
+<br />
+2     10   50<br />
+2     20   100<br />
+2     30   0<br />
+<br />
+3     10   250<br />
+3     20   100<br />
+<br />
+In the above example the following lines will be picked up<br />
+Order Line BackOrder<br />
+2     10   50<br />
+2     20   100<br />
+<br />
+I do not want to do a validation and do a continue in the SELECTDO<br />
+All recs &quot;entering&quot; the SELECTDO must be valid ones.<br />
+I do not want to filter them out further in the SELECTDO.<br />
+<br />
+table  <br />
+	tdpur041<br />
+fields <br />
+	Purchase Order tdpur041.orno<br />
+	Position       tdpur041.pono<br />
+         Back Order     tdpur041.bqua</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">isimeon</div><div class="date">7th February 2002, 13:14</div></div><div class="posttext">1.<br />
+	select tdpur041.orno,tdpur041.pono,tdpur041.bqua<br />
+	from   tdpur041<br />
+	where 100&lt;=(select sum(a.bqua) from tdpur041 a where a.orno=tdpur041.orno)<br />
+	and   200&gt;=(select sum(a.bqua) from tdpur041 a where a.orno=tdpur041.orno)<br />
+<br />
+<br />
+but next is faster <br />
+<br />
+2.<br />
+	domain tcorno 	temp.orno<br />
+	domain tcbool 	corect.orno<br />
+	double		sum.bqua	<br />
+<br />
+	temp.orno=0<br />
+	corect.orno=false<br />
+	select tdpur041.orno,tdpur041.pono,tdpur041.bqua<br />
+	from   tdpur041<br />
+	selectdo<br />
+		if temp.orno&lt;&gt;tdpur041.orno then<br />
+			select sum(a.bqua):sum.bqua<br />
+			from tdpur041 a <br />
+			where a.orno=:tdpur041.orno<br />
+			endselect<br />
+			if sum.bqua&gt;=100 and sum.bqua&lt;=200 then<br />
+				corect.orno=true<br />
+			else<br />
+				corect.orno=false<br />
+			endif<br />
+			temp.orno=tdpur041.orno<br />
+		endif	<br />
+		if corect.orno then<br />
+			....<br />
+		endif		<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tsanchez</div><div class="date">7th February 2002, 14:13</div></div><div class="posttext">I guess the first query could also be written as follows...<br />
+<br />
+select tdpur041.orno,tdpur041.pono,tdpur041.bqua <br />
+from tdpur041 <br />
+where (select sum(a.bqua)<br />
+            from tdpur041 a<br />
+            where a.orno=tdpur041.orno) &gt;= 100 and &lt;= 200 )<br />
+selectdo<br />
+endselect<br />
+<br />
+...which undoubtfully would be better than doing the<br />
+same subquery twice.<br />
+<br />
+Tomas Sanchez Tejero<br />
+tsanchez@consultant.com</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">isimeon</div><div class="date">7th February 2002, 14:37</div></div><div class="posttext">It would be good if it was possible. The compiler gives error message:<br />
+<br />
+Syntax error: 'select' not expected</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dkorst</div><div class="date">7th February 2002, 16:42</div></div><div class="posttext">You need to but the exists clause in the select<br />
+<br />
+Select tdpur041.orno, tdpur041.pono, tdpur041.bqua<br />
+from    tdpur041<br />
+where exists  (select sum(a.bqua)<br />
+                        from  tdpur041 a<br />
+                        where a.orno = tdpur041.orno <br />
+                        and     a.bqua &gt;= 100<br />
+                        and     a.bqua &lt;= 200)<br />
+selectdo<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">isimeon</div><div class="date">7th February 2002, 17:00</div></div><div class="posttext">The problem is to select order positions where total backorder quantity for order is in ranges, not position backorder quantity.<br />
+<br />
+The solition is next:<br />
+<br />
+select tdpur041.orno,tdpur041.pono,tdpur041.bqua <br />
+from tdpur041 <br />
+where exists (select a.orno, sum(a.bqua) from tdpur041 a where a.orno=tdpur041.orno group by a.orno having sum(a.bqua) inrange 100 and 200) <br />
+<br />
+Unfortunatelly, BAAN does not support this.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BigJohn</div><div class="date">7th February 2002, 23:47</div></div><div class="posttext">Hi ... Thanks for the answers<br />
+But ... none of 'em solve the problem.<br />
+<br />
+isimeon ... your answer won't work coz i can't have something like<br />
+100&lt;=(select sum(a.bqua) from tdpur041 a where a.orno=tdpur041.orno) <br />
+it's gonna spit out errors while compiling.<br />
+<br />
+tsanchez ... <br />
+where (select sum(a.bqua) <br />
+from tdpur041 a <br />
+where a.orno=tdpur041.orno) &gt;= 100 and &lt;= 200 ) <br />
+That's gonna spit errors.<br />
+<br />
+drkost .... your answer won't work coz <br />
+the range is to be applied to the sum of the bquas of all the order lines.<br />
+(not for each line).<br />
+<br />
+Hence ... looks like this question is still open.<br />
+Calling for SQL gurus :)<br />
+<br />
+Thx</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">~Vamsi</div><div class="date">8th February 2002, 02:08</div></div><div class="posttext">isimeon ... your answer won't work coz i can't have something like <br />
+100&lt;=(select sum(a.bqua) from tdpur041 a where a.orno=tdpur041.orno) <br />
+it's gonna spit out errors while compiling. <br />
+<br />
+BigJohn, is it &quot;gonna&quot; or did it spit errors? For the spec you wrote, isimeon had all the answers. Atleast on my machine the code compiled and worked as specified.<br />
+<br />
+Tomas' solution would have worked if Baan allowed (a &gt; 100 and &lt; 200) as a valid expression (Python (http://www.python.org) does - 100 &lt; a &lt; 200).<br />
+<br />
+dkorst's solution while technically correct does not solve the functional problem at hand. That solution pulls all order lines where there is atleast one line which matches the condition tdpur401.bqua &gt; 100 and tdpur401.bqua &lt; 200.<br />
+<br />
+	table		ttdpur401<br />
+		long	fp, ret<br />
+	#define PUT(...) ret = seq.puts(..., fp)<br />
+function main()<br />
+{<br />
+	fp = seq.open(&quot;baanboard.txt&quot;, &quot;w&quot;)<br />
+	PUT(&quot;|************** Output from isimeon1() *******************&quot;)<br />
+	isimeon1()<br />
+	PUT(&quot;|************** End Output from isimeon1() ***************&quot;)<br />
+	PUT(&quot;&quot;)<br />
+	PUT(&quot;&quot;)<br />
+	PUT(&quot;|************** Output from isimeon2() *******************&quot;)<br />
+	isimeon2()<br />
+	PUT(&quot;|************** End Output from isimeon2() ***************&quot;)<br />
+	PUT(&quot;&quot;)<br />
+	PUT(&quot;&quot;)<br />
+	PUT(&quot;|************** Output from tsanchez() *******************&quot;)<br />
+|	tsanchez()<br />
+	PUT(&quot;|************** End Output from tsanchez() ***************&quot;)<br />
+	PUT(&quot;&quot;)<br />
+	PUT(&quot;&quot;)<br />
+	PUT(&quot;|************** Output from dkorst() *******************&quot;)<br />
+	dkorst()<br />
+	PUT(&quot;|************** End Output from dkorst() ***************&quot;)<br />
+	PUT(&quot;&quot;)<br />
+	PUT(&quot;&quot;)<br />
+	PUT(&quot;|************** Output from isimeon3() *******************&quot;)<br />
+|	isimeon3()<br />
+	PUT(&quot;|************** End Output from isimeon3() ***************&quot;)<br />
+	ret = seq.close(fp)<br />
+}<br />
+function isimeon1()<br />
+{<br />
+	select tdpur401.orno,tdpur401.pono,tdpur401.bqua<br />
+	from tdpur401<br />
+	where 100&lt;=(select sum(a.bqua) from tdpur401 a where a.orno=tdpur401.orno)<br />
+	and 200&gt;=(select sum(a.bqua) from tdpur401 a where a.orno=tdpur401.orno)<br />
+	selectdo<br />
+		PUT(sprintf$(&quot;%s  %d   %d&quot;, tdpur401.orno, tdpur401.pono, tdpur401.bqua))<br />
+	endselect<br />
+}<br />
+<br />
+function isimeon2()<br />
+{<br />
+		domain tcorno temp.orno<br />
+<br />
+		domain tcbool corect.orno<br />
+		double sum.bqua<br />
+<br />
+|	temp.orno=0	vamsi.o - This is a string domain in BaanERP<br />
+	temp.orno=&quot;&quot;<br />
+	corect.orno=false<br />
+<br />
+	select tdpur401.orno,tdpur401.pono,tdpur401.bqua<br />
+	from tdpur401<br />
+	selectdo<br />
+		if temp.orno&lt;&gt;tdpur401.orno then<br />
+			select sum(a.bqua):sum.bqua<br />
+			from tdpur401 a<br />
+			where a.orno=:tdpur401.orno<br />
+			endselect<br />
+			if sum.bqua&gt;=100 and sum.bqua&lt;=200 then<br />
+				corect.orno=true<br />
+			else<br />
+				corect.orno=false<br />
+			endif<br />
+			temp.orno=tdpur401.orno<br />
+		endif<br />
+		if corect.orno then<br />
+			PUT(sprintf$(&quot;%s  %d   %d&quot;, tdpur401.orno, tdpur401.pono, tdpur401.bqua))<br />
+		endif<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">~Vamsi</div><div class="date">8th February 2002, 02:09</div></div><div class="posttext">|function tsanchez()<br />
+|{<br />
+|	select tdpur401.orno,tdpur401.pono,tdpur401.bqua<br />
+|	from tdpur401<br />
+|	where (select sum(a.bqua)<br />
+|	from tdpur401 a<br />
+|	where a.orno=tdpur401.orno) &gt;= 100 and &lt;= 200 )<br />
+|	selectdo<br />
+|		PUT(sprintf$(&quot;%s  %d   %d&quot;, tdpur401.orno, tdpur401.pono, tdpur401.bqua))<br />
+|	endselect<br />
+|}<br />
+|Tomas, in Baan the expression (a &gt; 10 and &lt; 20) is not legal.<br />
+|The construct has to be (a &gt; 10 and a &lt; 20).<br />
+<br />
+function dkorst()<br />
+{<br />
+	select tdpur401.orno, tdpur401.pono, tdpur401.bqua<br />
+	from tdpur401<br />
+	where exists (select sum(a.bqua)<br />
+	from tdpur401 a<br />
+	where a.orno = tdpur401.orno<br />
+	and a.bqua &gt;= 100<br />
+	and a.bqua &lt;= 200)<br />
+	selectdo<br />
+		PUT(sprintf$(&quot;%s  %d   %d&quot;, tdpur401.orno, tdpur401.pono, tdpur401.bqua))<br />
+	endselect<br />
+}<br />
+<br />
+|function isimeon3()<br />
+|{<br />
+|	select tdpur401.orno,tdpur401.pono,tdpur401.bqua<br />
+|	from tdpur401<br />
+|	where exists (select a.orno, sum(a.bqua) from tdpur401 a where a.orno=tdpur401.orno group by a.orno having sum(a.bqua) inrange 100 and 200)<br />
+|	selectdo<br />
+|		PUT(sprintf$(&quot;%s  %d   %d&quot;, tdpur401.orno, tdpur401.pono, tdpur401.bqua))<br />
+|	endselect<br />
+|}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">isimeon</div><div class="date">8th February 2002, 09:40</div></div><div class="posttext">Hi BigJohn,<br />
+<br />
+I have compiled solution 1. and 2.  without errors. Post your full code or e-mail me. What Baan version and  portingset you use?<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">isimeon</div><div class="date">8th February 2002, 10:14</div></div><div class="posttext">Are you compiling query 1.  in SQL Queries (session ttadv3180m000)? There are some SQL limitations and query 1. does not work.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

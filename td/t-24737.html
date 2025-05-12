@@ -1,0 +1,346 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="updating 2nd table in multi-occ session, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] updating 2nd table in multi-occ session Tools Development" />
+	
+	<title>updating 2nd table in multi-occ session [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; updating 2nd table in multi-occ session</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">fallguyjg</div><div class="date">2nd August 2005, 22:29</div></div><div class="posttext">Baan Friends,<br />
+<br />
+I have need of maintaining a 2nd table (which is basically an extension) of the main table, in a multi-occ session.<br />
+<br />
+I have done some experimenting with the main.table.io sections, but there seems to be issues with multi-occ.<br />
+<br />
+Has any one done this?<br />
+<br />
+Thanks,<br />
+fallguyjg</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd August 2005, 22:47</div></div><div class="posttext">What kind of problem are you running into? Maybe if you explain the problem someone can recommend a solution. I can not recall doing a mutli-occ session, but I would expect that you could do a do.occ to make sure the second table was updated correctly.  Or even roll through all occurances to make sure the second table was updated.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fallguyjg</div><div class="date">2nd August 2005, 23:00</div></div><div class="posttext">Hi Mark,<br />
+<br />
+My form (type 3) is like this.<br />
+<br />
+     maintable.viewfld<br />
+<br />
+     maintable.fld1     maintable.fld2     2ndtable.fld1<br />
+     maintable.fld1     maintable.fld2     2ndtable.fld1<br />
+     maintable.fld1     maintable.fld2     2ndtable.fld1<br />
+     maintable.fld1     maintable.fld2     2ndtable.fld1<br />
+     maintable.fld1     maintable.fld2     2ndtable.fld1<br />
+<br />
+I use read.2ndtable() in main.table.io.after.read:<br />
+       write.2ndtable() in main.table.io.after.write:<br />
+     rewrite.2ndtable() in main.table.io.after.rewrite:<br />
+      delete.2nd.table() in main.table.io.after.delete:<br />
+<br />
+The issue seems to be in multi-occ part of things,<br />
+because it seems to work OK for single occ.<br />
+<br />
+Standard program is handling the occurrences of the main table, but is NOT doing the same for the 2nd table.<br />
+<br />
+Thanks,<br />
+fallguyjg</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd August 2005, 23:19</div></div><div class="posttext">What I was thinking was that you could do something like this:<br />
+<br />
+<br />
+| Find how many are being deleted<br />
+	for i = 1 to filled.occ<br />
+		if(mark.table(i)) then<br />
+			do.occ(i,delete.second.table)<br />
+		endif<br />
+	endfor<br />
+<br />
+<br />
+or <br />
+<br />
+	for i = 1 to filled.occ<br />
+		do.occ(i,update.second.table)<br />
+	endfor<br />
+<br />
+<br />
+The second routine could be used for both rewrite and write.  The do.occ would pass the key fields from the form to the subroutine for a select for update on table 2.  I also think for both routines you would not do the commit and the standard program would actually perform the commits.<br />
+<br />
+Example:<br />
+<br />
+	select	table2.fields<br />
+	from	table2<br />
+	where	table1._index1 = {:table1.fields)<br />
+	selectdo<br />
+		| would update only the table2 field on form<br />
+		db.update(ttable2,db.retry)<br />
+	selectempty<br />
+		| Data field already on the form.<br />
+		table2.keyfield = table1.field<br />
+		db.insert(ttable2,db.retry)<br />
+	endselect<br />
+<br />
+<br />
+At least I think something like this would work. I do something like this on one session where I use two baan tables to display data.  The user can then select and transfer records into a new purchase order or add a line to an existing purchase order.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fallguyjg</div><div class="date">3rd August 2005, 00:31</div></div><div class="posttext">Mark,<br />
+<br />
+I get the idea.<br />
+<br />
+My experimenting has shown that the table2 form fields are not being kept in the occurrences arrays, like the main table.<br />
+<br />
+When I execute do.occ.without.update(...), the table2 form fields are not the correct values.<br />
+<br />
+Please see my attached file, showing screen shots and script.<br />
+<br />
+Thanks,<br />
+fallguyjg</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd August 2005, 15:40</div></div><div class="posttext">Try adding the read.addendum in the after.display of fixed sequence.  What I think is happening is the after.read,after.write,etc. is hit only after all records have been processed.  You can also try the after.input section of addendum description to do updating.  Also in the after.read section you can always have it insert a blank record on the second table in the select empty.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dnnslbrwn</div><div class="date">3rd August 2005, 22:55</div></div><div class="posttext">When I have tried this, I seem to recall that I don't actually display the 2nd table.  Instead create form fields set up to display multiple times and fill those in the manner you mention above.  Then when you write, get the values out of the form field and write it to the 2nd table.  But this was so long ago, I can't find an example of if to post.<br />
+<br />
+-Dennis</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th August 2005, 14:32</div></div><div class="posttext">On the one multi-occ display session I changed like this I did use the actual table field name.  On all of the maintain session (seems like all are single-occ) I did like Dennis suggested and used a different form field name.  I also can't remember why I did this.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fallguyjg</div><div class="date">4th August 2005, 19:56</div></div><div class="posttext">After some experimenting, I got the following to work.<br />
+<br />
+|******************************************************************************<br />
+|* tized9900  0  VRC B40C c4 ps  <br />
+|* Maintain ECO Procedures                                               <br />
+|* 2005-08-02<br />
+|******************************************************************************<br />
+|* Main table tiedm301 ECO Procedures, Form Type 2<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+<br />
+	table	ttiedm301	| ECO Procedures<br />
+	table	ttized911	| Addendum<br />
+<br />
+	domain	tcmcs.str80	zed911.edsc(20)<br />
+	domain	tcbool		zed911.edsc.changed(20)<br />
+<br />
+<br />
+|****************************** before program section ************************<br />
+<br />
+before.program:<br />
+	clear.zed911()<br />
+<br />
+|****************************** form section **********************************<br />
+<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+after.update.db.commit:<br />
+	clear.zed911()<br />
+<br />
+|****************************** field section *********************************<br />
+<br />
+field.tized911.edsc:<br />
+before.display:<br />
+	if not zed911.edsc.changed(actual.occ) then<br />
+		read.addendum()<br />
+	endif<br />
+<br />
+before.input:<br />
+	tized911.edsc = zed911.edsc(1,actual.occ)<br />
+<br />
+when.field.changes:<br />
+	zed911.edsc(1,actual.occ) = tized911.edsc<br />
+	zed911.edsc.changed(actual.occ) = true<br />
+<br />
+|****************************** main.table.io section *************************<br />
+<br />
+main.table.io:<br />
+after.write:<br />
+	write.addendum()<br />
+<br />
+after.rewrite:<br />
+	rewrite.addendum()<br />
+<br />
+after.delete:<br />
+	delete.addendum()<br />
+<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function read.addendum()<br />
+{<br />
+	select	tized911.edsc<br />
+	from	tized911<br />
+	where	tized911._index1 = {:tiedm301.prcd}<br />
+	selectdo<br />
+	selectempty<br />
+		tized911.edsc = &quot;&quot;<br />
+	endselect<br />
+	zed911.edsc(1,actual.occ) = tized911.edsc<br />
+}<br />
+<br />
+function write.addendum()<br />
+{<br />
+	tized911.prcd = tiedm301.prcd<br />
+	tized911.edsc = zed911.edsc(1,actual.occ)<br />
+	tized911.txta = 0<br />
+	db.insert(ttized911, db.retry, db.skip.dupl)<br />
+}<br />
+<br />
+function rewrite.addendum()<br />
+{<br />
+	select	tized911.*<br />
+	from	tized911 for update<br />
+	where	tized911._index1 = {:tiedm301.prcd}<br />
+	selectdo<br />
+		tized911.edsc = zed911.edsc(1,actual.occ)<br />
+		db.update(ttized911, db.retry)<br />
+	endselect<br />
+}<br />
+<br />
+function delete.addendum()<br />
+{<br />
+	select	tized911.*<br />
+	from	tized911 for update<br />
+	where	tized911._index1 = {:tiedm301.prcd}<br />
+	selectdo<br />
+		db.delete(ttized911, db.retry)<br />
+	endselect<br />
+}<br />
+<br />
+function clear.zed911()<br />
+{<br />
+	set.mem(zed911.edsc, &quot;&quot;)<br />
+	set.mem(zed911.edsc.changed, false)<br />
+}<br />
+<br />
+Thanks for all your suggestions.<br />
+fallguyjg</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ankita</div><div class="date">5th May 2008, 11:45</div></div><div class="posttext">i have to delete record from the other tables based on the key of the selected record of main table in a multi-occ session. I am calling the fucntion for a particular occurance using do.occ in the before.choice of mark.delete section. The problem is, it deletes record from the other tables but error comes that record is not locked on the main table. What can be the solution for the same. Reply ASAP.<br />
+<br />
+Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th May 2008, 15:33</div></div><div class="posttext">Post your code Ankita.  You probably just need to get the retry points and commit transactions in the right spots.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">5th May 2008, 16:24</div></div><div class="posttext">If you put a commit.transaction() on the before.choice of the mark.delete, the main table isn't locked anymore... try moving the deletion of the secondary table in the after.choice instead.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ankita</div><div class="date">6th May 2008, 06:48</div></div><div class="posttext">When i put a commit.transaction() on the after.choice of the mark.delete, then the error is &quot;transaction is on, can't continue&quot;.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ankita</div><div class="date">6th May 2008, 06:57</div></div><div class="posttext">Code:<br />
+<br />
+choice.mark.delete:<br />
+before.choice:<br />
+	long i<br />
+	<br />
+	for i=1 to filled.occ<br />
+		if mark.table(i) then<br />
+			do.occ(i,delete.lines)<br />
+		endif<br />
+	endfor<br />
+<br />
+main.table.io:<br />
+after.delete:<br />
+            commit.transaction()<br />
+<br />
+function delete.lines()<br />
+{	<br />
+	message(&quot;Deleting function: &quot; &amp; str$(kpoes042.orno) &amp; &quot; | &quot; &amp; str$(kpoes042.pono))<br />
+	<br />
+|	delete from kpoes002 Lines<br />
+		<br />
+	select kpoes002.* <br />
+	from kpoes002 for update<br />
+	<br />
+	where nbdn in <br />
+	(select nbdn <br />
+  	from kpoes043 <br />
+	where kpoes043._index1 ={:kpoes042.orno})<br />
+		<br />
+	and itmn in <br />
+	(select itmn <br />
+	from tdoes042 <br />
+	where tdoes042._index1 ={:kpoes042.orno,:kpoes042.pono})<br />
+<br />
+	order by kpoes002._index1<br />
+	selectdo<br />
+		db.delete(tkpoes002,db.retry)<br />
+		message(&quot;Deleted from kpoes002&quot;)<br />
+			<br />
+		| Deleting from kpoes042 also<br />
+			<br />
+		select tdoes042.* <br />
+		from tdoes042 for update<br />
+		where tdoes042._index1 ={:kpoes042.orno,:kpoes042.pono}<br />
+		selectdo<br />
+			db.delete(ttdoes042,db.retry)<br />
+			message(&quot;Deleted from tdoes042&quot;)<br />
+		endselect<br />
+	selectempty<br />
+	endselect<br />
+}                           <br />
+<br />
+Main table is kpoes042 for the multi-occ session... Once records from kpoes042 table are selected for deletion, the corresponding records should get deleted from the table kpoes002 table and tdoes042 table.<br />
+<br />
+This gives me error that &quot;Record is not locked on kpoes042&quot;. And when i kept the code in after.choice then error is &quot;transaction is on, can't continue&quot;.<br />
+What can be the possile solution for same?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">wiggum</div><div class="date">6th May 2008, 15:11</div></div><div class="posttext">Delete the commit.transaction() in the main.table.io section the standard program will commit the transaction for you.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th May 2008, 15:13</div></div><div class="posttext">I am not sure you need the delete for kpoes042 - you have already selected them to be deleted and hit the delete key.  That was the first thing I thought of.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ankita</div><div class="date">7th May 2008, 06:28</div></div><div class="posttext">wiggum,<br />
+<br />
+I removed the commit.transaction() in the main.table.io section but the error is &quot;transaction is on, can't continue&quot;. Now, how can i proceed?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ankita</div><div class="date">7th May 2008, 06:33</div></div><div class="posttext">mark, <br />
+<br />
+there are two tables: one is kpoes042 which is the main table for the session and another one is tdoes042 from where i am deleting records corresponding to the selected records of kpoes042 table in multi-occ session.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ankita</div><div class="date">7th May 2008, 11:11</div></div><div class="posttext">The problem is solved by removing commit.transaction() form after.delete event of main.table.io section. I also wrote commit.transaction() and also db.retry.point in the function.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">7th May 2008, 12:03</div></div><div class="posttext">There is another interesting entry point <br />
+main.table.io/after.update.db.commit which has been discussed here (http://www.baanboard.com/baanboard/showthread.php?t=6236).<br />
+<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th May 2008, 15:18</div></div><div class="posttext">mark, <br />
+<br />
+there are two tables: one is kpoes042 which is the main table for the session and another one is tdoes042 from where i am deleting records corresponding to the selected records of kpoes042 table in multi-occ session.<br />
+Okay - I could have swore yesterday that code had a kpoes042 in the last delete, but now is says tdoes042.  Just too many oes042's for my old eyes. :)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

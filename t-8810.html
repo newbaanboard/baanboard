@@ -1,0 +1,100 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Calling subsession from subsession in AFS hangs, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Calling subsession from subsession in AFS hangs AFS/DDC/OLE: Function servers" />
+	
+	<title>Calling subsession from subsession in AFS hangs [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Calling subsession from subsession in AFS hangs</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">fmorais</div><div class="date">10th February 2003, 19:09</div></div><div class="posttext">Hi everybody,<br />
+<br />
+Trying to create an session to insert Purchase Invoices with AFS. I call <br />
+<br />
+tfgld1101m000 which then calls <br />
+tfacp1110s000 which calls <br />
+tfacp1120s000<br />
+<br />
+I can go untill tfacp1110s000 and the record is correctly inserted on this session. The problem is that when I call tfacp1120s000 the session hangs. This happens either using or not using debugger.<br />
+<br />
+Nothing relevant appears on the afs.log:<br />
+&gt;tfacp1110s000 put.field:tfacp200.ninv 21010037<br />
+&gt;tfacp1110s000 put.field:tfacp200.suno 295<br />
+&gt;tfacp1110s000 put.field:tfacp200.docd 730516<br />
+&gt;tfacp1110s000 put.field:tfacp200.ccur EUR<br />
+&gt;tfacp1110s000 put.field:screen.amnt 33.02<br />
+&gt;tfacp1110s000 put.field:tfacp200.dued 730559<br />
+&gt;tfacp1110s000 insert<br />
+35-&gt;add.set+save<br />
+36&lt;-api.child.startedtfacp1120s00035<br />
+<br />
+It seems the program is not controlling well the tfacp1120s000 session.<br />
+<br />
+I already tried to insert an extra save before calling tfacp1120s000.<br />
+<br />
+The relevant part of the code is:<br />
+<br />
+stpapi.handle.subproc(&quot;tfacp1110s000&quot;,&quot;tfacp1120s000&quot;,&quot;add&quot;)<br />
+stpapi.continue.process(&quot;tfacp1110s000&quot;, error.msg)<br />
+	<br />
+|Companhia<br />
+stpapi.put.field(&quot;tfacp1120s000&quot;,&quot;tfgld102.tcom&quot;,str$(companhia))<br />
+|Conta<br />
+stpapi.put.field(&quot;tfacp1120s000&quot;,&quot;tfgld102.leac&quot;,&quot;AB&quot;)<br />
+|Valor<br />
+stpapi.put.field(&quot;tfacp1120s000&quot;,&quot;amount&quot;,str$(valor))<br />
+<br />
+retval = stpapi.insert(&quot;tfacp1120s000&quot;, do.save, erro)<br />
+<br />
+stpapi.end.session(&quot;tfacp1120s000&quot;)<br />
+<br />
+Can somebody give a hand? (quickly please)<br />
+<br />
+Thanks a lot <br />
+Fred</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th February 2003, 20:32</div></div><div class="posttext">Is it doing an activate or a zoom?  I am not familiar with this session and how it gets activated.  I did find this thread (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=7098&amp;highlight=tfacp1120s000) and maybe it will help.  Do you own source where you can put the tfacp sessions in debug mode?<br />
+<br />
+Also might want to make sure you have the latest tools solution and session solution.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fmorais</div><div class="date">10th February 2003, 23:36</div></div><div class="posttext">Mark,<br />
+<br />
+Thanks for your help.<br />
+Looking at the thread you suggested and testing a bit more gave some new ideas and...<br />
+<br />
+I found out that if you interactivelly do a save (not clicking continue) in session tfacp1110s000, it automatically calls tfacp1120s000...<br />
+<br />
+The problem was really in stpapi.insert in tfacp1110s000. (perhaps because the do.save option was true, tfacp1120s000 was being called without the respective handling, which was only done after).<br />
+<br />
+So I altered the code: <br />
+<br />
+|Insert record in tacp1110s000<br />
+|kill tfacp1120s000 if it appears<br />
+stpapi.handle.subproc(&quot;tfacp1110s000&quot;,&quot;tfacp1120s000&quot;,&quot;kill&quot;)<br />
+retval = stpapi.insert(&quot;tfacp1110s000&quot;, do.save, erro)<br />
+<br />
+|Call tfacp1120s000 <br />
+stpapi.handle.subproc(&quot;tfacp1110s000&quot;,&quot;tfacp1120s000&quot;,&quot;add&quot;)<br />
+stpapi.continue.process(&quot;tfacp1110s000&quot;, error.msg)<br />
+<br />
+Now it works ok.<br />
+Fred</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

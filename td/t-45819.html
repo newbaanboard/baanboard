@@ -1,0 +1,137 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Printing text (tttxt010) in crystal report, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Printing text (tttxt010) in crystal report Tools Development" />
+	
+	<title>Printing text (tttxt010) in crystal report [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Printing text (tttxt010) in crystal report</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">VishalMistry</div><div class="date">13th December 2007, 13:42</div></div><div class="posttext">Hi all,<br />
+     <br />
+     We are using Baan IVc4 on Windows 2003 and MS SQL 2000. Baan stores texts in tttxt010 table in encrypted form. The text prints correctly in report as long as the report is developed in Baan Tools but what if I want to print the text report which is created in Crystal Report (Outside baan).<br />
+<br />
+     If anybody has done it, pl guide.<br />
+<br />
+Thanking in advance,<br />
+Vishal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">SeargantD</div><div class="date">18th December 2007, 16:31</div></div><div class="posttext">Which version of Crystal?  In XI, you can use a sql expression like a formula.  <br />
+CAST(&quot;ttttxt010100&quot;.&quot;t_text&quot; AS varchar(240))<br />
+If you are using a stored procedure or command, use CAST(&quot;ttttxt010100&quot;.&quot;t_text&quot; AS varchar(240)) in your select statement.  There are some uglier ways to do this in older versions too, let me know if you need help with that.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">chaporon</div><div class="date">24th December 2007, 14:14</div></div><div class="posttext">Here is my stored function to retrieve baan text. <br />
+<br />
+You give the text number and the language number.<br />
+<br />
+You have to change the name of the table ttttxt010999 by 'tttxt010' + your company number.<br />
+<br />
+Good luck<br />
+<br />
+<br />
+CREATE OR REPLACE FUNCTION LFU_TxtBaaN_Lang ( Pi_Ctxt  NUMBER, Vs_clan CHAR) RETURN VARCHAR2 IS<br />
+<br />
+    Vs_TxtBaaN             VARCHAR2(3000);<br />
+	Vs_Txt				   VARCHAR2(3000);<br />
+	Vn_debut			   INTEGER;<br />
+	Vn_fin				   INTEGER;<br />
+<br />
+    CURSOR Vc_Txt IS<br />
+	    SELECT   t$text, t$ctxt<br />
+		  FROM   ttttxt010999<br />
+		  WHERE  t$ctxt = Pi_Ctxt and t$clan = Vs_clan<br />
+		  ORDER BY t$seqe;<br />
+<br />
+BEGIN<br />
+	 Vs_TxtBaan := NULL;<br />
+<br />
+	 FOR Vr_Txt IN Vc_Txt LOOP<br />
+		Vs_Txt := Vr_Txt.t$text;<br />
+		-- Suppression des lignes avec un inférieur<br />
+		WHILE INSTR(Vs_Txt, '&lt;') &gt; 0 LOOP<br />
+			Vn_debut := instr(Vs_Txt, '&lt;');<br />
+			Vn_fin := instr(Vs_Txt, chr(10), Vn_debut);<br />
+			IF (Vn_fin = 0) THEN<br />
+			   Vn_fin := length(Vs_Txt);<br />
+			END IF;<br />
+			Vs_Txt := replace(Vs_Txt, substr(Vs_Txt,Vn_debut,Vn_fin-Vn_debut+1), '');<br />
+		END LOOP;<br />
+		Vs_TxtBaan := Vs_TxtBaan || Vs_Txt;<br />
+	END LOOP;<br />
+<br />
+	IF ( Vs_TxtBaan IS NULL ) THEN<br />
+	   RETURN NULL;<br />
+	ELSE<br />
+	   RETURN rtrim(Vs_TxtBaaN);<br />
+	END IF;<br />
+<br />
+	EXCEPTION<br />
+			 WHEN OTHERS THEN<br />
+			 	  RETURN 'Erreur LFU_TxtBaaN_Lang : '  || SQLERRM;<br />
+END;</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">VishalMistry</div><div class="date">27th December 2007, 06:19</div></div><div class="posttext">Which version of Crystal?  In XI, you can use a sql expression like a formula.  <br />
+CAST(&quot;ttttxt010100&quot;.&quot;t_text&quot; AS varchar(240))<br />
+If you are using a stored procedure or command, use CAST(&quot;ttttxt010100&quot;.&quot;t_text&quot; AS varchar(240)) in your select statement.  There are some uglier ways to do this in older versions too, let me know if you need help with that.<br />
+<br />
+Thanks a lot. It resolved my issue.<br />
+<br />
+Vishal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ianglen</div><div class="date">25th January 2012, 15:21</div></div><div class="posttext">I can pull the Baan text into a CR 2011 report using the 'case' starement. My probelm is that for this particular text I have 2 records in tttxt010. The report only pulls the secondf record so I loose the first half of the text?<br />
+<br />
+Thanks<br />
+<br />
+Ian</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">SeargantD</div><div class="date">26th January 2012, 23:46</div></div><div class="posttext">You have a couple choices.  You can restrict the pull to the first text by setting t_seqe = 1.  Likewise, the second text will have t_seqe = 2 and so on.  <br />
+<br />
+After reviewing the text usage in our database, I found that we rarely had more than 3 text records with the same t_ctxt value.  I built a view on the sql database that concatenates the first 3 text records:<br />
+Once you create the view, you can join it to tables by the t_ctxt column.<br />
+<br />
+ALTER VIEW [dbo].[MultiText_Three]<br />
+<br />
+AS<br />
+SELECT MultiText = CASE WHEN T1.t_text IS NULL THEN ''<br />
+		WHEN T2.t_text IS NULL THEN RTRIM(CAST(T1.t_text AS varchar(240)))<br />
+		WHEN T3.t_text IS NULL THEN RTRIM(RTRIM(CAST(T1.t_text AS varchar(240))) + space(1) + RTRIM(CAST(T2.t_text AS varchar(240))))<br />
+		ELSE RTRIM(RTRIM(CAST(T1.t_text AS varchar(240))) + space(1) + RTRIM(CAST(T2.t_text AS varchar(240))) + space(2) + RTRIM(CAST(T3.t_text AS varchar(240))))<br />
+		END,<br />
+	T1.t_ctxt<br />
+FROM (SELECT t_text, <br />
+	t_ctxt<br />
+FROM ttttxt010100<br />
+WHERE t_seqe = 1) T1<br />
+LEFT OUTER JOIN (SELECT t_text, <br />
+			t_ctxt<br />
+		FROM ttttxt010100<br />
+		WHERE t_seqe = 2) T2<br />
+	ON T1.t_ctxt = T2.t_ctxt<br />
+LEFT OUTER JOIN (SELECT t_text, <br />
+			t_ctxt<br />
+		FROM ttttxt010100<br />
+		WHERE t_seqe = 3) T3<br />
+	ON T1.t_ctxt = T3.t_ctxt</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ianglen</div><div class="date">30th January 2012, 15:10</div></div><div class="posttext">Many thanks - works great.  Ian</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

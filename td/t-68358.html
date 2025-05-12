@@ -1,0 +1,103 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Converting umlaute during text file creation out of LN Reporting, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Converting umlaute during text file creation out of LN Reporting Tools Development" />
+	
+	<title>Converting umlaute during text file creation out of LN Reporting [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Converting umlaute during text file creation out of LN Reporting</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">BaBernd</div><div class="date">11th November 2015, 09:40</div></div><div class="posttext">Hello to All,<br />
+<br />
+I create a text file (csv/txt) out of a multibyte field during executing a report. The correct umlaute (ü,ä,ö) will be transformed into (›¼ü, ›¼ä, ›¼ö). Where does these additional signs (›¼) come from?<br />
+<br />
+for text file creation I use the following code:<br />
+<br />
+declaration:<br />
+	string buf(1,1) based |dynamic Array<br />
+	string filename(512) |file name<br />
+	string textbuffer(4096) | buffer for item text<br />
+	long xml.text<br />
+	long xml.fp |XML-Filepointer<br />
+	long xml.root |root-Node<br />
+	long xml.item |article-Node<br />
+	long xml.ret |return value<br />
+<br />
+<br />
+Detail.1:<br />
+before.layout:<br />
+	textbuffer = &quot;&quot;<br />
+	free.mem(buf) |reinit from array buffer<br />
+	select tttxt002.nlin<br />
+	from tttxt002<br />
+	where tttxt002._index1 = {:tcibd001.txta, :lattr.textlang$}<br />
+	selectdo<br />
+	endselect<br />
+<br />
+		alloc.mem(buf,132,tttxt002.nlin)<br />
+		xml.ret = text.to.buf(&quot;tcibd001.txta&quot;,lattr.textlang$,tttxt002.nlin,buf)<br />
+		for xml.i = 1 to tttxt002.nlin<br />
+			textbuffer = textbuffer &amp; trim$(buf(1,xml.i)) &amp; &quot; &quot;<br />
+		endfor<br />
+<br />
+		xml.text = xmlnewdataelement(&quot;ARTIKELBEZ&quot;,trim$(textbuffer), xml.item)<br />
+<br />
+| creating the file <br />
+after.program:<br />
+	if xml.root then<br />
+		filename = &quot;ITEMS-&quot; &amp; trim$(sprintf$(&quot;%u(%04Y-%02m-%02d-)%U(%02h-%02m-%02s)&quot;,utc.num(),utc.num())) &amp; &quot;-&quot; &amp; logname$ &amp; &quot;.xml&quot;<br />
+		xml.fp = seq.open(filename, &quot;wt+&quot;)<br />
+		xml.ret = xmlwritepretty(xml.fp, xml.root, 0)<br />
+		xml.fp = seq.close(xml.fp)<br />
+		xml.ret = server2client(filename, &quot;c:\temp\&quot; &amp; filename, true)<br />
+		xml.ret = start.application.local(&quot;excel.exe c:\temp\&quot; &amp; filename, false, xml.ret)<br />
+	endif<br />
+<br />
+<br />
+It's not the full code but the important parts (I think so):<br />
+- text.to.buf()<br />
+- xmlwritepretty()<br />
+<br />
+From which one of These functions I will get These additional signs &quot;›¼&quot;?<br />
+<br />
+Best Regards<br />
+Bernd</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">11th November 2015, 11:10</div></div><div class="posttext">Hi,<br />
+<br />
+Try adding BOM sequence to the file i.e. 3 special characters as the start of the file data. Also, you might need to convert the data using utf8.export()<br />
+<br />
+Excel doesn't handle the data without adding the sequence.<br />
+<br />
+Refer this thread - Similar Thread (http://www.baanboard.com/baanboard/showthread.php?t=62724)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaBernd</div><div class="date">11th November 2015, 15:02</div></div><div class="posttext">Hello Bhushan,<br />
+<br />
+again you have the solution for me :-).<br />
+<br />
+Only inserting BOM =&gt; also some strange signs for the umlaute<br />
+Only using utf8.export() =&gt; also some other strange signs for the umlaute<br />
+<br />
+But using both: BOM and utf8.export() was successful as you predicted.<br />
+<br />
+Thanks a lot!<br />
+<br />
+Best Regards<br />
+Bernd</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

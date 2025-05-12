@@ -1,0 +1,157 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Record is not locked, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Record is not locked Tools Development" />
+	
+	<title>Record is not locked [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Record is not locked</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">eric.dizon</div><div class="date">9th January 2014, 20:04</div></div><div class="posttext">I added this function in my cxmkt010 table DAL.   I am trying to undo some stats and field values that were generated from adding new records on the same DAL.  But when I execute this command I get Error 206 Record not locked for cxmkt010.  Can you please help what I can do about it?<br />
+<br />
+<br />
+function extern long before.destroy.object()<br />
+{<br />
+   ret = undo_optedout(cxmkt010.emno)<br />
+   return(0)<br />
+}<br />
+<br />
+<br />
+function long undo_optedout(domain tcorno l.emno)<br />
+{<br />
+   db.retry.point()<br />
+   select * from<br />
+   tccom600<br />
+   where tccom600.emno = {:l.emno} and (tccom600.resp = 40 or tccom600.resp = 30)<br />
+   selectdo<br />
+         select tccom140.*<br />
+         from tccom140 for update<br />
+         where tccom140._index1 = {:tccom600.ccnt}<br />
+         selectdo<br />
+            if etol(tccom600.resp) = 40 then<br />
+               tccom140.opou = ltoe(2)<br />
+            else<br />
+               if etol(tccom600.resp) = 30 then   |bounce<br />
+                  tccom140.boun = tccom140.boun - 1<br />
+               endif<br />
+            endif<br />
+            db.update(ttccom140,db.retry)<br />
+            commit.transaction()<br />
+         endselect<br />
+   endselect<br />
+   return(0)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">9th January 2014, 21:07</div></div><div class="posttext">Hi,<br />
+<br />
+Not using DAL? Anyway, try this:-<br />
+<br />
+extern domain tcpono flag<br />
+function long undo_optedout(domain tcorno l.emno)<br />
+{<br />
+<br />
+flag = 0<br />
+select tccom600.* from<br />
+tccom600<br />
+where tccom600.emno = {:l.emno} and (tccom600.resp = 40 or tccom600.resp = 30)<br />
+selectdo<br />
+db.set.to.default(ttccom140)<br />
+select tccom140.*<br />
+from tccom140 for update<br />
+where tccom140._index1 = {:tccom600.ccnt}<br />
+selectdo<br />
+if etol(tccom600.resp) = 40 then<br />
+tccom140.opou = ltoe(2)<br />
+else<br />
+if etol(tccom600.resp) = 30 then |bounce<br />
+tccom140.boun = tccom140.boun - 1<br />
+endif<br />
+endif<br />
+db.update(ttccom140,db.retry,elocked)<br />
+flag = 1<br />
+endselect<br />
+endselect<br />
+<br />
+if flag = 1 then<br />
+commit.transaction()<br />
+endif<br />
+return(0)<br />
+}<br />
+<br />
+Also check the board for similar threads. There are many.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eric.dizon</div><div class="date">9th January 2014, 21:31</div></div><div class="posttext">Thanks for your reply.<br />
+Hi this code is actually inside my cxmkt010 DAL and I tried the code you've illustrated I am still getting same error  <br />
+<br />
+Fatal error : Error 206 (Record is not locked) on cxmkt010600 in db_delete(51)<br />
+Cannot continue in cxmkt0010m00 in DLL : ottspstandard (rcdset.delete) [db.delete]<br />
+<br />
+<br />
+function long undo_optedout(domain tcorno l.emno)<br />
+{<br />
+   flag = 0<br />
+   db.retry.point()<br />
+   select * from<br />
+   tccom600<br />
+   where tccom600.emno = {:l.emno} and (tccom600.resp = 40 or tccom600.resp = 30)<br />
+   selectdo<br />
+      db.set.to.default(ttccom140)<br />
+      select tccom140.*<br />
+      from tccom140 for update<br />
+      where tccom140._index1 = {:tccom600.ccnt}<br />
+      selectdo<br />
+         if etol(tccom600.resp) = 40 then<br />
+            tccom140.opou = ltoe(2)<br />
+         else<br />
+            if etol(tccom600.resp) = 30 then   |bounce<br />
+               tccom140.boun = tccom140.boun - 1<br />
+            endif<br />
+         endif<br />
+         db.update(ttccom140,db.retry,elocked)<br />
+         flag = 1<br />
+      endselect<br />
+   endselect<br />
+<br />
+   if flag=1 then<br />
+      commit.transaction()<br />
+   endif<br />
+   return(0)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">9th January 2014, 21:41</div></div><div class="posttext">Hi,<br />
+<br />
+Try removing the commit.transaction().<br />
+<br />
+Also, try something like this:-<br />
+<br />
+Thread! (http://www.baanboard.com/baanboard/showthread.php?t=6236)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eric.dizon</div><div class="date">9th January 2014, 21:46</div></div><div class="posttext">That worked by the way.  Thanks a lot.  Can you please enlighten me why I didn't need the commit.transaction for this instance?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">9th January 2014, 21:54</div></div><div class="posttext">Hi,<br />
+<br />
+May be because there involves commit's in the DLL which also commits the table which you are trying to update. So, it locks the table for any further commits. Hence causing the error.<br />
+<br />
+Initially I thought, its a standalone DAL for a session. But, as the error shows, something else was involved too.<br />
+<br />
+Anyway, glad it worked for you!</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

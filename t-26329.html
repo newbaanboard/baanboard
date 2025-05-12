@@ -1,0 +1,114 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="A Method of Sending Data to Baan, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] A Method of Sending Data to Baan AFS/DDC/OLE: Function servers" />
+	
+	<title>A Method of Sending Data to Baan [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; A Method of Sending Data to Baan</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jhargett</div><div class="date">6th February 2006, 17:34</div></div><div class="posttext">I have had some success with this, so I thought I would pass it along. Especially since I got a lot of ideas from this board. This is a method I have used to integrate with Baan IVc4 without using OpenWorld or other (expensive) packages. You can actually write a Baan AFS script that can be called from the unix command line and pass data to it.<br />
+<br />
+Here is the general flow of the process:<br />
+<br />
+ Create a simple ASCII file containing the data to modify Baan. I use a simple format that can be parsed easily by a Baan function. For instance, for sales order data, something like this:<br />
+<br />
+HEAD|017605|5XA|2/01/2006<br />
+LINE|1|1001783|10<br />
+LINE|2|1001821|20<br />
+<br />
+Each line can be parsed in Baan using the string.scan function.<br />
+ At the Unix command line, you can now call a Baan AFS script that you have created. I wrote a small shell script to do this. What this code does is, call a Baan script with 2 arguments. The first is the path to the data file that you created in step 1, and the second is a path to a new file that Baan can use to write data to.<br />
+<br />
+#/usr/bin/sh<br />
+# all BAAN and ORACLE env variables are set here<br />
+. /baan/bse/bin/baan.env<br />
+<br />
+PATH=$BSE/bin:$PATH<br />
+export PATH<br />
+BASE_DIR=/apps/integration/so_integration<br />
+DATA_FILES=${BASE_DIR}/data_files<br />
+<br />
+COMM_FILE=/tmp/soint_${$}.txt<br />
+echo ${COMM_FILE}<br />
+APP=$1<br />
+FILE=$2<br />
+CONO=$3<br />
+INPUT_FILE=${DATA_FILES}/${APP}/${FILE}<br />
+<br />
+echo &quot;Input file:${INPUT_FILE}&quot;<br />
+echo &quot;Executing Baan session&quot;<br />
+echo &quot;bshell6.1 -nodebug -server -set BSE_COMPNR=$CONO otdzls0201 $INPUT_FILE $COMM_FILE&quot;<br />
+bshell6.1 -nodebug -server -set BSE_COMPNR=$CONO otdzls0201 $INPUT_FILE $COMM_FILE<br />
+echo &quot;Baan session executed. Reading results...&quot;<br />
+{ while read myline;do<br />
+   echo $myline<br />
+done } &lt; $COMM_FILE<br />
+rm $COMM_FILE<br />
+mv $INPUT_FILE ${DATA_FILES}/${APP}/processed/<br />
+<br />
+  The Baan script that is called is a 3GL program script in Baan with no form. This can be done in session ttaad2130m000 - Maintain Program Scripts. This script can contain normal AFS function calls. Make sure you create a function called main, this is the entry point for the script.<br />
+Here is a big piece of the puzzle, this main function can have arguments! Inside the main function, do this<br />
+<br />
+    // Baan 3GL code<br />
+    string input_file(128)<br />
+    string output_file(128)<br />
+<br />
+    | command line arguements<br />
+    input_file = argv$(1)<br />
+    output_file = argv$(2)<br />
+<br />
+input_file is the ASCII file that you created in step 1. output_file will be a way for this script to communicate with the calling unix script.<br />
+  In the this Baan script, parse the input file that you created and use AFS to insert the data in to Baan. Any data that you want to pass back to the calling unix script, you write to the output file using seq.puts()<br />
+<br />
+<br />
+That's it in a nutshell. More info on creating AFS scripts can be found all over this forum and there is also some info on calling Baan objects from the command line using the bshell. Really the only thing that I discovered (which may also have been published somewhere, so I probably can't even take credit for) is that you can pass arguments to the Baan script from the command line. This is the key to passing data to the function and returning what it did. Granted, it is not the easiest method in the world, but it is cheap!<br />
+<br />
+Hope it helps,<br />
+Jon</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">anthony peiris</div><div class="date">22nd January 2011, 17:53</div></div><div class="posttext">Jon, What you proposed is great, keep on it..</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jhargett</div><div class="date">24th January 2011, 16:41</div></div><div class="posttext">The original post was quite old, but thanks! We have been using this method for the past 4 years with great success. We cut reliance on 3rd party applications. It scaled surprisingly well too. We are able to thousands of transactions a month with this method. It seems that soon we will finally be upgrading to Baan LN so this will no longer be needed, but it worked well when we did.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th January 2011, 17:18</div></div><div class="posttext">The original post was quite old, but thanks! We have been using this method for the past 4 years with great success. We cut reliance on 3rd party applications. It scaled surprisingly well too. We are able to thousands of transactions a month with this method. It seems that soon we will finally be upgrading to Baan LN so this will no longer be needed, but it worked well when we did.<br />
+<br />
+Why won't you need it for LN?  Just curious.  Since this method is a good way to interface systems.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jhargett</div><div class="date">24th January 2011, 17:23</div></div><div class="posttext">That was said out of pure ignorance :)<br />
+<br />
+Other people in my company are working on the Baan LN upgrade. I am told by them that we have other options for integrations. Perhaps they purchased a piece that allows integration. I have no idea.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">27th January 2011, 10:06</div></div><div class="posttext">I've been using this method for years, too. Since I normally use &quot;ba6.1 &lt;object&gt;&quot; instead of &quot;bshell6.1 -nodebug -server &lt;object&gt;&quot;, I made a simple timing measurement. And: Wow! Your way takes 0.59 seconds, my way takes about 3 seconds (on a very old test system).<br />
+ <br />
+Are there any other differences between these to versions to keep in mind?<br />
+ <br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dhowells</div><div class="date">6th September 2013, 18:53</div></div><div class="posttext">Has anyone accomplished this on Windows NT?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">6th September 2013, 21:23</div></div><div class="posttext">Hi,<br />
+<br />
+Yes it can be done in Windows. You can also use VB script to update , insert, delete data in tables.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

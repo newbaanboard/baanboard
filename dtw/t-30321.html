@@ -1,0 +1,168 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Latest and average purchase price reset to 0, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Latest and average purchase price reset to 0 Distribution, Transportation &amp; Warehousing" />
+	
+	<title>Latest and average purchase price reset to 0 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Distribution, Transportation &amp; Warehousing</a> &gt; Latest and average purchase price reset to 0</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">thieuf</div><div class="date">23rd January 2007, 15:25</div></div><div class="posttext">Hello,<br />
+<br />
+We have the following problem with our latest and average purchase prices for some items. For some reason or other, these fields get reset to &quot;0&quot;. We do no have any clue on how this is possible. <br />
+<br />
+The items have stock and are current; They were recently purchased with current purchase prices.<br />
+<br />
+We can not du-plicate the same result in our test company,<br />
+BaaN IV SP 14 (I believe).<br />
+<br />
+We do have a multi finance structure and just turned on single logistics multi finance for this company. Purchase is fulle integrated with finance. Perhaps this is the problem?<br />
+<br />
+Has anyone experienced similar problems?<br />
+Any help ore pointers would be greatly appreciated..! <br />
+<br />
+Best regards,<br />
+<br />
+thieuf</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kozure Ohashi</div><div class="date">23rd January 2007, 16:02</div></div><div class="posttext">Dear thieuf,<br />
+<br />
+as far as i remember you will get a 0 price if the stock is negativ.<br />
+<br />
+The reason for this could be, purchase orders having values for tdpur45.stsd (status &lt;&gt; fully approved) are NOT calculated for the current stock.<br />
+<br />
+OR: tdpur041.quap (quantity approved) is unequal order quantity.<br />
+<br />
+Example:<br />
+<br />
+On Stoc: 10 Item A<br />
+<br />
+Order with orderquantity 15 Item A (Status &lt;&gt; fully approved), 5 are on backorderquantity.<br />
+<br />
+Current stock for calculation of average purchase price = 10  - 15 = - 5 -&gt; baan calculates with current stock = 0.<br />
+<br />
+If you now have e.g. a purchase order with negativ orderquantity, e.g. sending back  5 bad goods to the supplier, the calculation is:<br />
+<br />
+current stock * current.avpr + orderquan * purchase_price<br />
+---------------------------------------------------------<br />
+current stock + orderquan<br />
+<br />
+0 * 10 USD + -5 * 11 USD     0 + 0   (negative gets 0)<br />
+-------------------------- = ------                           = 0<br />
+0 - 5                          1  (negative gets 1)<br />
+<br />
+if the result is negativ baan gives 0 USD for the avpr (which results in wrong cost calculation for the inventory).<br />
+<br />
+Another reason could be that you use purchase orders instead of purchase  contracts (wrong business process).<br />
+<br />
+Example:<br />
+<br />
+You buy 10.000 Units in one order position, which will be send in units by 100 per month. The whole 10.000 Units are not taken into account for the stoc calculation until all 10.000 Units are delivered -&gt; Status: all aproved.<br />
+<br />
+Whe had resulting 0 prices and also strong fluctuating prices.<br />
+That was the reasons i found (after lot of debugging).<br />
+<br />
+For further investigation you could set the fields ltpr and avpr (tiitm001) under audit management, so you get information what date (approval of purchase invoice) the values are changed.<br />
+<br />
+Regards,<br />
+<br />
+Kozure</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">thieuf</div><div class="date">23rd January 2007, 17:52</div></div><div class="posttext">Hello,<br />
+<br />
+thanks for the reply.<br />
+<br />
+I am not able to follow your calculation, but we use current stock to calculate<br />
+the average price. the stock level of the items i tested has not been negative for quit a few years now so that should not be the problem.<br />
+<br />
+We do have some strange invoiced records in tdpur051, related to very old orders, but with a date of december 2006.<br />
+<br />
+Thanks again...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kozure Ohashi</div><div class="date">24th January 2007, 11:05</div></div><div class="posttext">Dear thieuf,<br />
+<br />
+sorry for confusing you (i am more programmer).<br />
+<br />
+The point is:<br />
+<br />
+If you use current stock -&gt; baan calculates the current stock without quantities on stock which originates from purchase order if the position is not all aproved.<br />
+<br />
+Exampel:<br />
+<br />
+Current Stock (inv report): 100 Units<br />
+<br />
+Within this 100 Units there are 10 Units originating from an orderposition with 15 Units. So 10 are already in the stock, 5 are on backorder quantity.<br />
+<br />
+Now Baan calculates like this:<br />
+<br />
+Current stock 100 Units - all order positions (status &lt;&gt; all aproved) 15 units = current stock for calculating the avpr = 100 - 15 = 85 Units. (NOT 100 Units).<br />
+<br />
+If you have low stock e.g. 10 Units, and large orderpositions e.g. 100 Units (Status &lt;&gt; all aproved) BaaN calculates: 10 - 100 = - 90 (if negativ, BaaN calculates with current stock = 0 therefore the current inventory is evaluated with 0 * old avpr = 0 USD -&gt; you loose the historical avpr, the ltpr has 100 % effect to the new avpr.<br />
+<br />
+It is not enough to show INV or ILC Reports with historical inventory, you have to lower the values with orderpositions (status not all aproved) from the historical stock.<br />
+<br />
+Hope this helps.<br />
+<br />
+Regards,<br />
+<br />
+Kozure</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">thieuf</div><div class="date">24th January 2007, 11:11</div></div><div class="posttext">Dear Kozure,<br />
+<br />
+thenk you for your reply,<br />
+<br />
+I checked you calculation against some of the items and orders and this would indeed explain the &quot;0&quot; for average price. However we also have a &quot;0&quot; on the latest purchase price. This price is also getting reset???<br />
+<br />
+ANy ideas?<br />
+<br />
+thanks in advance<br />
+<br />
+regards thieuf</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kozure Ohashi</div><div class="date">24th January 2007, 11:55</div></div><div class="posttext">Do you have orderpositions with 0 prices (better solution is: price with 100 % discount -&gt; so the late price is not overwritten with 0 -&gt; the cost price is also good -&gt; the inventory value is also ok).<br />
+<br />
+This field is calculated within the tdpurdll0019.<br />
+<br />
+The procedure is: <br />
+<br />
+latest price = amount / quantity<br />
+<br />
+The total stoc has to be &gt; 0 while calculating otherwise the field tiitm001.avrp = 0!<br />
+<br />
+As fas as i remember the user is interactively asked if the current purchase price should be transfered to the item master table (tiitm001).<br />
+<br />
+We have the following implementation:<br />
+<br />
+purchase price in item master always 0.01 (because of EDI, likes no zero values).<br />
+<br />
+The prices are stored in price lists per supplier.<br />
+<br />
+So if a purchase price of 0.01 appears the user knows it does not originates from a price liste -&gt; user has to update the pricelist.<br />
+<br />
+<br />
+Regards,<br />
+<br />
+Kozure</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">giyer@baan</div><div class="date">5th April 2007, 21:30</div></div><div class="posttext">What is the parameter set for the calculation of Average purchase price?</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

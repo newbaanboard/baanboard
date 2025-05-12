@@ -1,0 +1,149 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="exchanging data/changing data URGENT, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] exchanging data/changing data URGENT Tools Administration &amp; Installation" />
+	
+	<title>exchanging data/changing data URGENT [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; exchanging data/changing data URGENT</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">shrikantc</div><div class="date">12th April 2003, 08:25</div></div><div class="posttext">We are using Baan4c4  database tbase6.1<br />
+<br />
+<br />
+We  would like to extract item master outside the baan and  change the value of field purchase price i.e tiitm001.prip and again we want to replace the data into Baan.<br />
+<br />
+We will not allow any user to work during this period.<br />
+<br />
+<br />
+This we want to do this for item stock valuation.<br />
+<br />
+OR if any body can have any other solution for the same.<br />
+<br />
+I want to change purchase price using some formula.<br />
+that is purchase price * 1.1 something like that.<br />
+<br />
+Shrikant</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">estotz</div><div class="date">12th April 2003, 20:25</div></div><div class="posttext">If you have a single formula where all purchase prices for all items is purp * 1.1 (or whatever), I would generate a quick update session on the item master and code the update program script to do the necessary calculation and update using db.update().<br />
+<br />
+If on the other hand, each item may be different, the best option would be to use exchange and extract the data into a flat file (delimted or whatever works for you), edit the flat file according to your pricing and pump it back into Baan using exchange.<br />
+<br />
+You could bring the first file into Excel if desired, or any editor, and save it back as delimited and then reimport back using exchange.<br />
+<br />
+Regards<br />
+Eric</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shrikantc</div><div class="date">14th April 2003, 12:31</div></div><div class="posttext">I had tried using exchange scheme delimter as &quot;|&quot;.  Then write a vb program to update the prices with formula when had created text file using same vb program.<br />
+<br />
+When it exporte data of some field as 0000035 in excel it is taking as 35 excel.  So while putting back data in Baan it is giving error.<br />
+<br />
+Attaching here with a text file first 8 lines are from baan data and next 8 lines which are created thru vb.<br />
+<br />
+<br />
+Can you explain how to do it with db.update()<br />
+<br />
+Shrikant</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">14th April 2003, 15:54</div></div><div class="posttext">Hi shrikantc,<br />
+<br />
+you are working on a unix system.<br />
+So why bother to use excel and or vb?<br />
+Dump the data with bdbpre6.1 (-t&quot;|&quot; -Ntiitm001 -pPACKCOMB <br />
+-oOUTPUTDIR -CCOMPYNYNUMBER )<br />
+Then write an awk &quot;program&quot; like the following<br />
+-----afile----<br />
+BEGIN{FS=&quot;|&quot;;OFS=&quot;|&quot;}<br />
+{if ($3==&quot;A&quot;) $70=$70*1.25}<br />
+{if ($3==&quot;B&quot;) $70=$70*1.1 + 0.25}<br />
+{print}<br />
+----end of afile-----<br />
+(This example assumes that field no 70 contains price and field no 3 some ABC code)<br />
+then call<br />
+awk -f afile ttiitm001xxx.S &gt; ttiitm001xxx.S.new<br />
+rename ttiitm001xxx.S.new to ttiitm001xxx.S<br />
+(replace xxx with companynumber)<br />
+Now do a bdbpre6.1 to reread created file into baan.<br />
+(bdbpost6.1 -f -k -n -m - -t&quot;|&quot; -pPACKCOMB -DDIRECTORYNAME -cCOMPNO)<br />
+This <br />
+a) is a 10.000 times faster than anything else (ok, a baan-program won`t be much slower, I have to admit that)<br />
+b) doesn`t give you any confusion with ascii/ansi conversion<br />
+c) is very easy to maintain/change<br />
+d) is perfect for automation in a nightly job<br />
+ and cool anyway (*g*)<br />
+<br />
+Feel free to ask if you encounter problems<br />
+<br />
+regards<br />
+<br />
+Norbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cmandal</div><div class="date">14th April 2003, 19:11</div></div><div class="posttext">Easier way is to do an update using the SQL statement of database. I am not quite sure of tbase6.1 but we have oracle and it is very easy to do an mass update with SQL statement like<br />
+update ttiitm001(companynr) set t$pric = t$pric * 1.1<br />
+followed by commit.<br />
+<br />
+Other way is to EXPORT  the data from tiitm001 with only 2 fields <br />
+<br />
+1. item number<br />
+2. purchase price.<br />
+<br />
+using BaaN exchange , a PIPE &quot;|&quot; delimeter file. e.g. tiitm001.txt<br />
+<br />
+Open the text file in excel making sure that the Item number column is imported as type &quot;TEXT&quot; other wise leading zero will be removed. Change the price based on the calulcations required.<br />
+<br />
+Once done save the file as csv (Comma separated) excel does'nt allow &quot;|&quot;. <br />
+<br />
+In Baan write an IMPORT exchange scheme with above 2 fields and make sure that on the table relation session the flag &quot;add record = NO&quot; and also in the field relation for &quot;item&quot; field &quot;overwite and update&quot; is set to &quot;NO&quot;<br />
+<br />
+This works very well and is ver easy.<br />
+<br />
+Hope this help</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">estotz</div><div class="date">14th April 2003, 19:26</div></div><div class="posttext">All methods that the previous posters mentioned work.  I would use the method you are most comfortable with.<br />
+<br />
+If you are using excel to import and create a delimited file, when you import it in set that column as text instead of numeric so the leading 0's don't get removed.<br />
+<br />
+Either way, you would need to use exchange or bdbpost to put the data back in.<br />
+<br />
+For the update method using db.update(), simply generate an update session on the table.  Edit the program script that is created and you will see the syntax.  FOr the field(s) you want to change, put in the appropriate code.  I can not detail BaanIV programming for you here.<br />
+<br />
+Either way, as someone may have mentioned, changing prices affects standard costs, so be careful.  Make sure you take a good backup of your target table first.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shrikantc</div><div class="date">26th April 2003, 13:35</div></div><div class="posttext">norwim,<br />
+<br />
+Thanks,<br />
+<br />
+I had worked  on Hp ux in 1995 -96, that time I had used awk shells very few time. Now from last 6 -7 years we are working on Power builder and VB so I was not in touch with awk shells. <br />
+<br />
+AND MOST Importat Thing I had a very very small knowledge about the Baan. thanks a lot for information about the same now I will start using more and more unix related programs. <br />
+<br />
+I had already written shell scripts for coping daily dump files to current dates and crontab to copy same to dat drive.<br />
+<br />
+Thanks once again,<br />
+<br />
+Shrikant</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RamSundar</div><div class="date">1st May 2003, 22:40</div></div><div class="posttext">Hope this helps,<br />
+<br />
+Ram.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

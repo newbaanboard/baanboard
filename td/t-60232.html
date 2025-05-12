@@ -1,0 +1,138 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="On Hand as on Date, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] On Hand as on Date Tools Development" />
+	
+	<title>On Hand as on Date [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; On Hand as on Date</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">fmchong</div><div class="date">16th March 2011, 10:16</div></div><div class="posttext">Dear Baan Experts,<br />
+I would like to create a stock aging report. I did Create a new session and new report. Now i stuck in how write the script to get my on hand Qty.<br />
+<br />
+Session   User Key in a Aging Date - DATE<br />
+Table whltc105  - (Master Table in report)  Item , Lot , WH<br />
+Table whinr100  - (to get the Inventory After Transaction) Item, Lot, WH,Transaction Date, Inventory After Transaction.<br />
+<br />
+Example <br />
+Session input Aging Date as on 12/3/2011<br />
+<br />
+Table whinr100<br />
+Item    Lot     WH   Transaction Date   Inventory After Transaction<br />
+A        Lot1    FG     14/9/2010              1000<br />
+A        Lot1    FG     10/10/2010             800<br />
+A        Lot1    FG     24/2/2011               400<br />
+B        Lot2    PH      5/5/2010                9000<br />
+B        Lot2    PH      4/8/2010                500<br />
+B        Lot2    PH      2/2/2011                450<br />
+B        Lot2    PH      30/3/2011              200<br />
+<br />
+Report Result:-<br />
+whltc105.Item       Whltc105.lot           whltc105.cwar     Inv after transac<br />
+A                           Lot1                       FG                     800<br />
+B                           Lot2                       PH                     450 <br />
+<br />
+1) How to get the Inventory After Transaction as on date 12/3/2011?<br />
+2) How to link Inventory After Transaction result to whltc105?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">16th March 2011, 20:52</div></div><div class="posttext">I don't see a reason to link to table whltc105,  table whinr100 has all the fields you might need.  The problem I run into at looking at your request is that I see no way to narrow the records down based off that date.  It looks like no matter what is selected you will need to do a full table scan.  That is not a good idea if the table is large. Other wise you could just select the warehouse, item, qty and max transaction date.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fmchong</div><div class="date">18th March 2011, 05:49</div></div><div class="posttext">Dear Baan Expert,<br />
+I already created session and report with table whinr100. Now i facing problem on how to get appear the latest transaction date&lt;=Aging Date.<br />
+<br />
+my report sorting is by 1=WH 2=Item<br />
+ <br />
+Example <br />
+Session input Aging Date as on 12/3/2011<br />
+<br />
+Table whinr100<br />
+Item Lot WH Transaction Date Inventory After Transaction<br />
+A Lot1 FG 14/9/2010 1000<br />
+A Lot1 FG 10/10/2010 800<br />
+A Lot1 FG 24/2/2011 400<br />
+<br />
+B Lot2 PH 5/5/2010 9000<br />
+B Lot2 PH 4/8/2010 500<br />
+B Lot2 PH 2/2/2011 450<br />
+B Lot2 PH 30/3/2011 200<br />
+<br />
+D Lot5 FG 9/7/2010 400<br />
+D Lot5 FG 10/11/2010 600<br />
+D Lot5 FG 2/2/2011 700<br />
+<br />
+Report Result:-<br />
+Item      lot         Inv after transac<br />
+WH= FG<br />
+A     LOT=Lot1     Qty =800<br />
+D     LOT=Lot5     Qty=700<br />
+WH=PH <br />
+B     LOT=Lot2    Qty =450 <br />
+<br />
+1) How to get the Inventory After Transaction as on date 12/3/2011?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th March 2011, 21:15</div></div><div class="posttext">Try something like this:<br />
+<br />
+<br />
+select whinr100.item, whinr100.cwar, whiinr100.lot, max(whinr100.date):max.date<br />
+from whinr100<br />
+where whinr100.date&lt;= :input.date<br />
+group by whinr100.item,whinr100.cwar, whiinr100.lot<br />
+selectdo<br />
+    select a.qty:lot.qty<br />
+    from whinr100 a<br />
+    where a._index1 = {:whinr100.item, :whinr100.cwar, :whiinr100.lot,:maxdate}<br />
+    as set with 1 rows<br />
+    selectdo<br />
+    endselect<br />
+    | set to report<br />
+    rprt_send()<br />
+endselect<br />
+<br />
+You can take care of looking up the format for using the max function and declaring the necessary variables.  But something like this should work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fmchong</div><div class="date">23rd March 2011, 11:14</div></div><div class="posttext">Dear Mark_h,<br />
+Thank you so much for the script. It's work. now i would like to link max date transaction with table whltc100 to get the lot receipt date but my data incorrect. please help.<br />
+<br />
+below is my script:<br />
+<br />
+select whinr100.item, whinr100.cwar, whinr100.lot, max(whinr100.date):max.date<br />
+from whinr100<br />
+where whinr100.date&lt;= :input.date<br />
+group by whinr100.item,whinr100.cwar, whinr100.lot<br />
+selectdo<br />
+    select a.qty:lot.qty<br />
+    from whinr100 a<br />
+    where a._index1 = {:whinr100.item, :whinr100.cwar, :whinr100.lot,:maxdate}<br />
+    as set with 1 rows<br />
+    selectdo<br />
+select whltc100.* from whltc100<br />
+where whltc100.item=:whinr100.item<br />
+and whltc100.clot=:whinr100.clot<br />
+selectdo<br />
+endselect<br />
+    endselect<br />
+    | set to report<br />
+    rprt_send()<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd March 2011, 16:03</div></div><div class="posttext">I am not familiar with these tables so I can't really assist.  All I can do is recommend that  you make sure you have all the fields necessary to do the select on whltc100.  I would assume just using item and lot would return multiple records.  I really don't know since we do not use LN.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

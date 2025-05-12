@@ -1,0 +1,109 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Add New Text, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Add New Text Tools Development" />
+	
+	<title>Add New Text [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Add New Text</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">10th November 2015, 17:42</div></div><div class="posttext">I'm trying to write a session that will add or update the item text (tiitm001.txta) when the user changes the signal code. <br />
+<br />
+This works fine if there is already text in tiitm001.txta, but not if there is no text. <br />
+<br />
+This is a type 1 form, main table is tiitm001. <br />
+<br />
+The code I'm using:<br />
+<br />
+choice.update.db:<br />
+after.choice:<br />
+    do.update()<br />
+<br />
+functions:<br />
+function do.update()<br />
+{<br />
+    nr.lines = text.read(&quot;tiitm001.txta&quot;, language$, <br />
+            kw1, kw2, kw3, kw4, tg, topt, new.txt, 0)<br />
+        <br />
+    .... CODE TO UPDATE TEXT ....<br />
+<br />
+    if tiitm001.txta &gt; 0 then<br />
+        nr.lines = text.rewrite(&quot;tiitm001.txta&quot;, language$, <br />
+            kw1, kw2, kw3, kw4, tg, topt, new.txt)<br />
+    else        <br />
+        nr.lines = text.write(&quot;tiitm001.txta&quot;, language$, <br />
+            kw1, kw2, kw3, kw4, tg, topt, new.txt)<br />
+    endif<br />
+}<br />
+<br />
+<br />
+I thought text.rewrite() was supposed to add new text or replace existing, but that didn't work if there was no existing text, so I tried using both, but that did not work. <br />
+<br />
+I tried changing &quot;after.choice&quot; in &quot;choice.update.db&quot; to &quot;before.choice&quot;, but this caused a &quot;TRANSACTION ON&quot; error. <br />
+<br />
+I wanted to use main.table.io instead, but that isn't working in this session at all.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">10th November 2015, 18:45</div></div><div class="posttext">Hi,<br />
+<br />
+Did you do a commit after the update/insert? Did you checked with record locking? Also, there have been issues with the the file name variable declaration. How are you declaring it?<br />
+<br />
+Many possible reasons for this behavior. Check the following related threads - <br />
+<br />
+1 (http://www.baanboard.com/baanboard/showthread.php?t=265)<br />
+2 (http://www.baanboard.com/baanboard/showthread.php?t=61888)<br />
+3 (http://www.baanboard.com/baanboard/showthread.php?t=23194)<br />
+4 (http://www.baanboard.com/baanboard/showthread.php?t=9968)<br />
+5 (http://www.baanboard.com/baanboard/showthread.php?t=12237)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">10th November 2015, 19:09</div></div><div class="posttext">Thanks. I thought the update.db section would handle the commit, but I guess not. I did get it to work by using the after.update.db.commit:<br />
+<br />
+after.update.db.commit:<br />
+    if form.dirty &lt;&gt; 0 then<br />
+        update.text()<br />
+    endif<br />
+<br />
+choice.modify.set:<br />
+before.choice:<br />
+    form.dirty = 1<br />
+<br />
+functions:<br />
+function update.text()<br />
+{<br />
+    form.dirty = 0<br />
+    nr.lines = text.read(&quot;tiitm001.txta&quot;, language$, <br />
+            kw1, kw2, kw3, kw4, tg, topt, new.txt, 0)<br />
+        <br />
+    .... CODE TO UPDATE TEXT ....<br />
+<br />
+    select tiitm001.*<br />
+    from tiitm001 for update<br />
+    where tiitm001._index1 = {:tiitm001.item}<br />
+    selectdo<br />
+        if tiitm001.txta &gt; 0 then<br />
+            nr.lines = text.rewrite(&quot;tiitm001.txta&quot;, language$, <br />
+                     kw1, kw2, kw3, kw4, tg, topt, new.txt)<br />
+        else        <br />
+            nr.lines = text.write(&quot;tiitm001.txta&quot;, language$, <br />
+                kw1, kw2, kw3, kw4, tg, topt, new.txt)<br />
+        endif<br />
+        db.update(ttiitm001, db.retry)<br />
+        commit.transaction()<br />
+    endselect<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,228 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="skip record in report, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] skip record in report Tools Development" />
+	
+	<title>skip record in report [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; skip record in report</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Svidos29</div><div class="date">14th September 2018, 13:50</div></div><div class="posttext">Hi all,<br />
+<br />
+i've a problem in a after field custom that i've created, it is sorted by a field that i've inserted in input fields and i want that if that field is blank, the report mustn't print that row. How can i manage it ?<br />
+<br />
+this is my function : <br />
+after.orco.1:													<br />
+before.layout:	<br />
+	select 	tdsls401.*<br />
+	from	tdsls401<br />
+	where	tdsls401._index1 = {:tdsls400.orno}<br />
+	and		tdsls401.pono &gt; :r.pono<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		get.ccde()<br />
+		get.item.count()<br />
+		get.item.wght()<br />
+		get.ccde.dsca()<br />
+		r.pono = tdsls401.pono<br />
+	selectempty<br />
+		lattr.print = false<br />
+	endselect<br />
+<br />
+after.layout:<br />
+		if lattr.print = true then	<br />
+			layout.again()<br />
+		endif			<br />
+<br />
+In this way it prints all the rows that it finds, but also the one's with the blank record.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th September 2018, 16:36</div></div><div class="posttext">I am not sure I get your request.  From the looks of the code it continues to print until it finds an empty records.  If you are not wanting to print based off an input field then just put an if then around the select statement and make lattr.print = false.  Then in the after layout put another if then around the layout. again.   I typically do no use lattr.print to see if I need print a layout again - I usually use a variable of some sort.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Svidos29</div><div class="date">17th September 2018, 16:44</div></div><div class="posttext">Hi,<br />
+<br />
+sorry but i should explain better, my problem is in the get.ccde() function that is this:<br />
+function void get.ccde()			<br />
+{<br />
+	r.ccde = &quot;&quot;<br />
+	no.ccde = false<br />
+	<br />
+	select  tcibd001.ccde:r.ccde<br />
+	from    tcibd001<br />
+	where   tcibd001._index1 = {:tdsls401.item}<br />
+	group by tcibd001.ccde	<br />
+	selectdo<br />
+		if isspace(r.ccde) then		<br />
+			no.ccde = true<br />
+		endif<br />
+	selectempty	<br />
+	endselect<br />
+}<br />
+There i group my codes by the field .ccde, there i want that if a .ccde is empty, the system have to skip the record to the next that is not empty. The problem is that if i put lattr.print = false ( in this function get.ccde) it will not print the last record that is NOT empty..<br />
+<br />
+I hope explained myself, in case, answer to the thread. I will give u any information..<br />
+<br />
+Thanks!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th September 2018, 17:03</div></div><div class="posttext">Rather than using lattr.print for the layout again.  Can you use something else?  Then inside the get.ccde you could set lattr.print to false. to just skip this records.  I mean if just check to see if another r.pono exists before the layout again. Something like this - probably needs some tweaks since I was winging it.<br />
+<br />
+<br />
+after.orco.1:													<br />
+before.layout:	<br />
+	select 	tdsls401.*<br />
+	from	tdsls401<br />
+	where	tdsls401._index1 = {:tdsls400.orno}<br />
+	and		tdsls401.pono &gt; :r.pono<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		get.ccde()<br />
+                if no.ccde then<br />
+                    lattr.print = false<br />
+                    continue<br />
+                else<br />
+                    lattr.print = true<br />
+                endif<br />
+		get.item.count()<br />
+		get.item.wght()<br />
+		get.ccde.dsca()<br />
+		r.pono = tdsls401.pono<br />
+	selectempty<br />
+		lattr.print = false<br />
+	endselect<br />
+<br />
+after.layout:<br />
+        select 	tdsls401.*<br />
+	from	tdsls401<br />
+	where	tdsls401._index1 = {:tdsls400.orno}<br />
+	and		tdsls401.pono &gt; :r.pono<br />
+	as set with 1 rows<br />
+        selectdo<br />
+                 found.one = true<br />
+        selectempty<br />
+                 found.one = false<br />
+        endselect<br />
+        if found.one then<br />
+           layout.again()<br />
+        endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Svidos29</div><div class="date">18th September 2018, 10:30</div></div><div class="posttext">I'll try it today, thanks. I have some doubts for the use of lattr.print = false in the before.layout, because if i pass by the lattr.pint = false, it would not pass by the after.layout. <br />
+<br />
+I will update the post asap. <br />
+<br />
+Thanks again.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Svidos29</div><div class="date">18th September 2018, 10:47</div></div><div class="posttext">It seems it's not working. Because (via debug) i see that if the system passes through the lattr.print= false , it will exclude all the thing after and it passes directly to the next layout..</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th September 2018, 14:33</div></div><div class="posttext">So it skips the after layout?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th September 2018, 14:40</div></div><div class="posttext">I wonder if something like this might work - notice I commented out the as set with 1 rows. For some reason in all my years of coding I do not think I have used break inside a selectdo statement.<br />
+<br />
+after.orco.1:													<br />
+before.layout:	<br />
+	select 	tdsls401.*<br />
+	from	tdsls401<br />
+	where	tdsls401._index1 = {:tdsls400.orno}<br />
+	and		tdsls401.pono &gt; :r.pono<br />
+|	as set with 1 rows<br />
+	selectdo<br />
+		get.ccde()<br />
+                if no.ccde then<br />
+                    continue<br />
+               endif<br />
+		get.item.count()<br />
+		get.item.wght()<br />
+		get.ccde.dsca()<br />
+		r.pono = tdsls401.pono<br />
+                break<br />
+	selectempty<br />
+		lattr.print = false<br />
+	endselect<br />
+<br />
+after.layout:<br />
+        select 	tdsls401.*<br />
+	from	tdsls401<br />
+	where	tdsls401._index1 = {:tdsls400.orno}<br />
+	and		tdsls401.pono &gt; :r.pono<br />
+	as set with 1 rows<br />
+        selectdo<br />
+                 found.one = true<br />
+        selectempty<br />
+                 found.one = false<br />
+        endselect<br />
+        if found.one then<br />
+           layout.again()<br />
+        endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">18th September 2018, 14:58</div></div><div class="posttext">As Mark said, should have a strange behavior.<br />
+<br />
+Index 1 of tdsls401 is orno , pono , sqnb<br />
+<br />
+so the select should be inrange.<br />
+<br />
+[/QUOTE]<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Svidos29</div><div class="date">18th September 2018, 15:48</div></div><div class="posttext">Finally i did it ! Thanks Mark! Here below i'm attaching the code! <br />
+after.orco.1:													<br />
+before.layout:	<br />
+	select 	tdsls401.*<br />
+	from	tdsls401<br />
+	where	tdsls401._index1 = {:tdsls400.orno}<br />
+	and	tdsls401.pono &gt; :r.pono<br />
+|	as set with 1 rows<br />
+	selectdo<br />
+		lattr.print = true<br />
+		get.ccde()<br />
+		if no.ccde then<br />
+			lattr.print = false<br />
+			continue<br />
+		endif<br />
+		get.item.count()<br />
+		get.item.wght()<br />
+		get.ccde.dsca()<br />
+		r.pono = tdsls401.pono<br />
+		break<br />
+	selectempty<br />
+		lattr.print = false<br />
+	endselect<br />
+<br />
+after.layout:<br />
+	select  tcibd001.ccde:r.ccde<br />
+	from    tcibd001<br />
+	where   tcibd001._index1 = {:tdsls401.item}<br />
+	and	tcibd001.ccde &lt;&gt; &quot;&quot;<br />
+	group by tcibd001.ccde	<br />
+	selectdo<br />
+		found.one = true<br />
+	selectempty<br />
+		found.one = false<br />
+	endselect<br />
+	<br />
+|	if lattr.print = true then<br />
+	if found.one then<br />
+		layout.again()<br />
+	endif</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

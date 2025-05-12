@@ -1,0 +1,392 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Job Daemon Hanging / Using crontab to run sessions from command line?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Job Daemon Hanging / Using crontab to run sessions from command line? Tools Administration &amp; Installation" />
+	
+	<title>Job Daemon Hanging / Using crontab to run sessions from command line? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Job Daemon Hanging / Using crontab to run sessions from command line?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">16th March 2004, 15:04</div></div><div class="posttext">Hello All;<br />
+<br />
+Running Triton 3.1 (port 6.1b.05.01) on a HPUX 11.0 box; <br />
+<br />
+I have logged a case with Baan support on the issue and while they have provided me all the &quot;latest&quot; objects, I am still having problems with the job daemon hanging from time to time.  Their last resort answer is &quot;upgrade the porting set&quot;.<br />
+<br />
+Typically, I'll get a couple weeks out of the job daemon before it'll hang again.  When it does hang, stoping/restarting doesn't always work, and it's likely to die again within a week of restarting it (if it does restart properly).  <br />
+<br />
+For example, it died last Friday, I rebooted the server on the weekend, and it died again last night.<br />
+<br />
+At baan's insistance, I have replaced the rc.startjobdm &amp; rc.stopjobdm scripts.  rc.stopjobdm never works.  I've asked baan to investigate but they haven't been helpfull - &quot;upgrade the porting set&quot;<br />
+<br />
+I have also replaced the objects with the latest (according to baan):<br />
+<br />
+ostpsplopen<br />
+ostpsplclose<br />
+ostprepdll<br />
+ottstpconv<br />
+ottaad5203 <br />
+ottaad5206 <br />
+<br />
+I may have loaded others, but off the top of my head I can't remember what.  I believe these are the core objects required.<br />
+<br />
+If anyone has any ideas other then &quot;upgrade the porting set&quot;, I would greatly appreciate it.  When the job daemon dies, it mucks the entire day up since the night jobs (ie DRP/MRP/PRP) take 4 times longer when users are in the system.<br />
+<br />
+*************************<br />
+<br />
+I am also curious about running sessions from the command line (ie: ba6.1 trdrp0212m000).   <br />
+<br />
+I wonder if I could invoke sessions like DRP/MRP/PRP from crontab - except I can't find any documentation on how to pass the arguments required to complete the form fields.  <br />
+<br />
+I searched the forum yesterday and found there was lots of information on ba6.1 but no examples of passing the form fields.<br />
+<br />
+If anyone could help me with this - I may investigate replacing jobs in the job daemon with sessions manually invoked from the crontab since it's more reliable.  (and apparently multithreads better)  <br />
+<br />
+Thank you for your help &amp; ideas; anything suggestions is greatly appreciated.  If there is information I have neglected to include, please let me know and I'll post it asap.<br />
+<br />
+Thanks again.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Caner.B</div><div class="date">16th March 2004, 16:12</div></div><div class="posttext">Hello,<br />
+<br />
+Is your job daemon hanging/stopping or the session you schedule?<br />
+<br />
+if it is the session is the session running normal  out from the  job?<br />
+<br />
+Deleting application locks of the job daemon can cause to stop the daemons.<br />
+<br />
+<br />
+<br />
+Caner</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">16th March 2004, 16:17</div></div><div class="posttext">Caner<br />
+<br />
+Thanks, I neglected to mention:<br />
+<br />
+Yes, the sessions run fine outside of the scheduled job.  <br />
+<br />
+It's definately the job daemon hanging - it hangs on various jobs and not always the same job.  <br />
+<br />
+Typically the jobs that hang contain sessions that take longer (30mins to 1 hour) to run.<br />
+<br />
+We do not delete the jobdm application lock until we run rc.stopjobdm and it fails.  <br />
+<br />
+Thanks again.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nneilitz</div><div class="date">16th March 2004, 16:36</div></div><div class="posttext">We found a lot of problems with running the job scheduler for many jobs.   Especially if one crashes.  Instead we directly call jobs as unix cron job.  This take much better use of OS and they work faster and more reliable. <br />
+<br />
+Below is example cron job and script<br />
+<br />
+In addition we have added customizations that will warn if a job fails and automatically emails.  Let me know if you are interested and I will provided<br />
+<br />
+<br />
+#  BAAN -  Nightly Finance Jobs<br />
+00 19 * * 0-4 /usr/local/bin/db.cron /baan/bse/etc/rc.startjob FIN001 batch<br />
+50 5 * * 1-5 /usr/local/bin/db.cron /baan/bse/etc/rc.startjob ACR001 batch<br />
+<br />
+#####  DB-SVR BAAN JOBS<br />
+# BAAN - PURCHASING REPORTS ETC<br />
+30 3 * * 1-5 /usr/local/bin/app.cron /baan/bse/etc/rc.startjob PRP001 batch<br />
+40 3 * * 6 /usr/local/bin/app.cron /baan/bse/etc/rc.startjob PRP002 batch<br />
+0 5 * * 1-5 /usr/local/bin/app.cron /baan/bse/etc/rc.startjob MRP001 batch<br />
+15 5 * * 1-5 /usr/local/bin/app.cron /baan/bse/etc/rc.startjob PUR001 batch<br />
+0 1 * * 1-5 /usr/local/bin/app.cron /baan/bse/etc/rc.startjob ILC001 batch<br />
+0 1 * * 6 /usr/local/bin/db.cron /baan/bse/etc/rc.startjob INV001 batch<br />
+0 22 * * 2,4 /usr/local/bin/db.cron /baan/bse/etc/rc.startjob SLS001 batch<br />
+<br />
+==============================================<br />
+<br />
+#set -xv        # uncomment for debug<br />
+# rc.startjob, should be located in $BSE/etc<br />
+# version 94/06/29 (Erwin Derksen)<br />
+#  * added setting of TERM to this file<br />
+# version 94/04/21 (initial version)<br />
+#<br />
+# script to start a job in the background<br />
+# BAMODE=1 : No output to screen.<br />
+# Be sure to define the BSE, BSE_TMP and PATH variable, because when started<br />
+# from the crontab these variables often are not defined<br />
+<br />
+BSE=/baan/bse<br />
+BSE_TMP=/baan/bse/tmp<br />
+export BSE BSE_TMP<br />
+PATH=$BSE/bin:$PATH<br />
+export PATH<br />
+<br />
+# It turned out that the TERM variable could be unset when running in a cron<br />
+TERM=vt100              ;export TERM<br />
+<br />
+# If you want to use several companies you can create several users for e.g.<br />
+# root who probably is running this script. If so, copy this script and use<br />
+# the next line to define the USER variable (&lt;root100&gt; is just an example).<br />
+#USER=&lt;root100&gt;         ;export USER<br />
+#NN 2/20/01 Set user to second parameter<br />
+USER=$2                 ;export USER<br />
+<br />
+if [ $# -lt 2 ];then<br />
+<br />
+<br />
+      echo &quot;Usage : rc.startjob &lt;jobname&gt; &lt;baanuser&gt;&quot;<br />
+        exit 1<br />
+fi<br />
+if [ $1 = &quot;-U&quot; -o $1 = &quot;-u&quot; ];then<br />
+        echo &quot;Usage : rc.startjob &lt;jobname&gt; [jobok_file]&quot;<br />
+        exit 1<br />
+fi<br />
+<br />
+#jobok_file contains the characters &quot;OK&quot; if the job was successful !<br />
+#If jobok_file is not specified, then  output is written to $BSE/tmp/job<br />
+<br />
+BAMODE=1                ;export BAMODE<br />
+DS_SERVER=ba            ;export DS_SERVER<br />
+BSH_JOB=$1              ;export BSH_JOB<br />
+<br />
+#Always write to $BSE/tmp/job<br />
+#if [ $# -gt 1 ];then<br />
+#       BSH_JOBOK=$2    ;export BSH_JOBOK<br />
+#       echo $BSH_JOBOK<br />
+#fi<br />
+<br />
+ba6.1 ttaad5203m000 2&gt;${BSE_TMP}/rc.startjoberr</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">victor_cleto</div><div class="date">16th March 2004, 16:51</div></div><div class="posttext">Seach for more information about jobs in the tools section.<br />
+Defenetely using cron to schedule Baan jobs is way more reliable that the jobdaemon.<br />
+- Disable the jobdaemon<br />
+- Keep your existing Baan job setup as normally but set the period to a smaller value than the jobdaemon schedule (you can even set it to 1 minute)<br />
+- Then setup the rc.startjob (or similar like mentioned in the previous reply) and set them in the cron of the job user.<br />
+<br />
+The cron will do the same as the jobdaemon, the rest is the same as previoulsy, just have to remember to keep that period small than the old schedule.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">16th March 2004, 20:53</div></div><div class="posttext">Ok:<br />
+<br />
+I checked my rc.startjob script to find it was the same minus the USER temp variable (so I added it)<br />
+<br />
+I also picked a quick simple job to test with and changed the period to &quot;1 minute&quot;.  <br />
+<br />
+I stopped the job daemon and tried invoking the script from the command line.  (to test prior to adding it to the crontab)<br />
+<br />
+It seemingly did not work.<br />
+The $BSE_TMP/rc.startjoberr reads:<br />
+<br />
+Connecting with bshell...<br />
+Connection established.  <br />
+<br />
+The job did not run according to history (ttaad5511m000). <br />
+I have tried invoking it with the job both &quot;In Queue&quot; and &quot;Free&quot;.<br />
+<br />
+Any ideas of what I might be doing wrong?<br />
+<br />
+nneilitz - I'd like to see your db.cron &amp; app.cron scripts and any other information you might have to add.<br />
+<br />
+thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nneilitz</div><div class="date">16th March 2004, 22:58</div></div><div class="posttext">yes, <br />
+<br />
+sorry about that.  We run in a service guard environment and these are just a crude way of letting me keep the crontabs in sync between the two server.   they really just run the /baan/bse/etc/rc.startjob script<br />
+<br />
+SYSTEM=`hostname`<br />
+APPSVR=`cmviewcl -p app-pkg |tail -1 | awk -F &quot; &quot; '{print$5}'`<br />
+DBSVR=`cmviewcl -p svr-pkg |tail -1 | awk -F &quot; &quot; '{print$5}'`<br />
+if [  &quot;$DBSVR&quot; =  &quot;$SYSTEM&quot; ]<br />
+then<br />
+     echo &quot;DB&quot;<br />
+     $1 $2 $3 $4 $5 $6 $7 $8 $9 $10<br />
+fi</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nneilitz</div><div class="date">16th March 2004, 23:02</div></div><div class="posttext">What status does the job show in the system, if it is waiting then you will need to cancel and set the next execution date / time before current date and time.   Also make sure jobs are marked &quot;periodically&quot; with one minute as previously suggested.  Status should be &quot;free&quot;</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nneilitz</div><div class="date">16th March 2004, 23:07</div></div><div class="posttext">Also...<br />
+<br />
+No job waiting after execution.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nneilitz</div><div class="date">16th March 2004, 23:21</div></div><div class="posttext">Note, you probably are close, I get the same message in rc.startjoberr when the job runs</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">17th March 2004, 20:53</div></div><div class="posttext">nneilitz;<br />
+<br />
+The status of the job was 'Free'.   It hadn't executed yet.<br />
+As I said, the 'Period' was set to &quot;1 Minute&quot; and 'Periodical' was set to &quot;Yes&quot;.  The job daemon is deactivated.<br />
+<br />
+I received that message however the job does not seem to run or appear as if it had looking in job history.<br />
+<br />
+If the job daemon was active, and I called rc.startjob, the job would activate and then go to status &quot;Waiting&quot; when it was complete.  I couldn't get it to run otherwise.<br />
+<br />
+Maybe I'm missing something here; Ideas?<br />
+<br />
+What about Automatic Repeat?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nneilitz</div><div class="date">18th March 2004, 00:54</div></div><div class="posttext">You can run ttaad5203m000 from the main menu (this is what the job does&quot;.   If job is &quot;waiting&quot;, the execution date/time is after current date and time.  Cancel the job and set next date/time before current date and time</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">18th March 2004, 15:54</div></div><div class="posttext">Ok;  <br />
+<br />
+I realize calling rc.startjob is the same as running the session ttaad5203m000.  I also knew that that's how the job daemon invoked a job.  My problem isn't with this.<br />
+<br />
+According to what I've caught off this thread, the steps for running a job from the command line or a cron job are as following:<br />
+<br />
+1. Deactivate the job daemon completly.<br />
+2. Set desired job as &quot;Free&quot; with Periodical = &quot;Yes&quot; and Period = &quot;1 Minute&quot;.<br />
+3. Start the job - by calling rc.startjob or running ttaad5203m000.<br />
+<br />
+When I was piloting this, I found that trying to start the job, it would appear like it should work, but then the job doesn't seem to execute (I can't see it as &quot;Running&quot; when looking at the job), and there's no history of it running in ttaad5511m000.<br />
+<br />
+Trying to invoke the job by calling &quot;rc.startjob XMLOUT&quot; appears as if it is working, however, looking at $BSE/log/log.startjob, the last entry is:<br />
+<br />
++++031804091115 Job: XMLOUT   root<br />
+Job XMLOUT does not exist         <br />
++++031804091115 Job: XMLOUT   root<br />
+<br />
+Now - the problem is, there IS a job in ttaad5100m000 called &quot;XMLOUT&quot;:<br />
+<br />
+ ttaad5100m000                                  single-occ (1)      Form 1-1    <br />
+-------------------------------------------------<br />
+   Maintain Job Data                                               Comp : 100  <br />
+-------------------------------------------------<br />
+   Job                           : XMLOUT                                      <br />
+   Description                   : XML OUTPUT FOR NAUTILUS                     <br />
+   User                          : rmarles                                            <br />
+   Creation Date                 : 03-10-00                                    <br />
+                                                                               <br />
+   Periodical                    : Yes                                         <br />
+   Automatic Repeat              : Yes                                         <br />
+   Calendar                      :                                             <br />
+   Period                        :  1       Minutes                            <br />
+  Finish Date                   :                                            <br />
+<br />
+  Next Execution Date           : 03-18-04 09:51                              <br />
+  Maximum Duration              :    00:00                                    <br />
+  Last Execution Date           : 03-18-04 05:51                              <br />
+  Status                        : Free                                        <br />
+                                                                              <br />
+                                                                Choice: .     <br />
+-------------------------------------------------<br />
+<br />
+so - I guess, since it's obvious I'm missing something, what is it?<br />
+<br />
+Now that the job daemon is de-activated, if I goto ttaad5203m000 and pull up the specific job, it runs, goes to waiting and runs again on it's own after a minute.<br />
+<br />
+Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">18th March 2004, 18:07</div></div><div class="posttext">Finally, some progress;<br />
+<br />
+This is what I've found.  I set &quot;Automatic Repeat&quot; to no. <br />
+ttaad5203m000 then executes the job and returns it to &quot;Free&quot;.<br />
+<br />
+As *myself* (or our job user jobdm), I was then able to invoke rc.startjob xmlout;  It ran as if I had called ttaad5203m000 from within a bshell.<br />
+<br />
+When I change to superuser and try to invoke the job (since cron invokes jobs as superuser), the job does not run.<br />
+<br />
+Checking the log file /triton/bse/log/log.startjob I see:<br />
+<br />
++++031804105948 Job: XMLOUT   root<br />
+Job XMLOUT does not exist         <br />
++++031804105948 Job: XMLOUT   root<br />
+<br />
+So I tried changing the USER variable in the rc.startjob script to the jobdm user (same permissions as myself).<br />
+<br />
+Again, as superuser calling rc.startjob xmlout, job again doesn't run, no message in /triton/bse/log/log.startjob this time, but checking /triton/bse/tmp/rc.startjoberr:<br />
+<br />
+Connecting with bshell...                                 <br />
+Connection established.                                   <br />
+ba6.1: Not authorized to run as user 'jobdm'              <br />
+Error [main                     ]: Can't connect to bshell<br />
+<br />
+Ideas?<br />
+<br />
+Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">18th March 2004, 18:18</div></div><div class="posttext">Sweet;<br />
+<br />
+Success!<br />
+<br />
+Since the root user can't invoke the job using rc.startjob for whatever wierd reason, I created a crontab for the jobdm user (which could).<br />
+<br />
+It seems to be working from the cron scheduler now.<br />
+<br />
+I have moved over all my jobs and will begin watching to ensure everything transitioned smoothly.   (They've already started running)<br />
+<br />
+On another note, I created a document explaining my actions so that the others in my team who create jobs will know how to make new jobs now.  If someone is trying to get this working, please contact me and I can pass the document over.<br />
+<br />
+One more cron related command (probably a stupid one)<br />
+<br />
+One of my jobs was set to run every 4 hours instead of on the minute/hour/day.  Any ideas of how to set up a revolving cronjob?<br />
+<br />
+Thanks for all your help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nneilitz</div><div class="date">18th March 2004, 22:55</div></div><div class="posttext">0 0,4,8,12,16,20 * * * <br />
+<br />
+As the beginning of line should do it (minutes,hours,<br />
+ day of month, month,weekdays).   <br />
+<br />
+* is all values<br />
+comma for multiple values<br />
+dash to run all values in between<br />
+(i.e. 0-5 in last column would = sunday thru friday.   )</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">victor_cleto</div><div class="date">20th March 2004, 17:47</div></div><div class="posttext">I forgot to mention that you should setup a su - &lt;jobuser&gt; ... if you use a root crontab or, best, use the &lt;jobuser&gt; crontab to trigger the jobs.<br />
+<br />
+Regarding MC/SG clusters I build a /etc/cmcluster/run_if_local.ksh with parameters &lt;package&gt; &lt;script&gt; to run scripts only if the package is running and locally. chmod 755 on it to be usable by all and setup the same entries on all nodes crontabs, thus, when the package switches, all works without manual intervention. Like that you avoid making [most of] your scripts cluster aware.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">22nd March 2004, 14:48</div></div><div class="posttext">Thanks all for the feedback;  <br />
+<br />
+Everything has been running smooth since I made the changeover on Thursday.  <br />
+<br />
+Some jobs have been performing even better (less time).<br />
+<br />
+Thanks again.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">prasad_m_p</div><div class="date">2nd April 2004, 10:22</div></div><div class="posttext">Hi,<br />
+<br />
+It will be nice if you can share document prepared by you.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">2nd April 2004, 16:08</div></div><div class="posttext">Send me an email message or a private message with your email address and i'll send the document.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">divyadebi</div><div class="date">21st October 2016, 13:27</div></div><div class="posttext">Hi , I have unix script for to run a JOB of exchange schema which will import the data into ERP LN Tables but i dont know how to link these unix scripts to that job. Anybody could help for this as i am not aware of this shell scripting and LN also?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Premahari</div><div class="date">6th June 2018, 14:47</div></div><div class="posttext">Hi i saw your post. I was trying to create new job. I created in LN(Infor10.5).<br />
+In windows scheduler also i created task and added bat file. In scheduler task history it's showing task completed. But IN LN status is always free. Can u please help how to run job?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">neel_2012</div><div class="date">29th September 2020, 09:55</div></div><div class="posttext">can you pls share the Document as we are facing similar issue.Unable to trigger the jobs via crontab</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">neel_2012</div><div class="date">29th September 2020, 10:01</div></div><div class="posttext">Hi,<br />
+can you please share the Document pls.<br />
+we are facing similar Kind of issue where our baan IV jobs are not getting triggered via crontab.<br />
+This is my personal email id -<br />
+nikkijhs1992@gmail.com<br />
+<br />
+Thanks in Advance.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

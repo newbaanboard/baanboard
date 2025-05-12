@@ -1,0 +1,639 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Temporary File?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Temporary File? Tools Development" />
+	
+	<title>Temporary File? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Temporary File?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">2nd May 2002, 22:14</div></div><div class="posttext">I have a request from a user to modify a current Baan report.  We do not have source code.  <br />
+<br />
+I can dump the data that the Baan session script gets into an interim table and then read from that table to re-sort and do the 'extras' requested then spit the new report out.  <br />
+<br />
+Is there a way to do this without creating an entire new table.  Can I have the script stream data into a file and then read that file to then be processed into a new report?  If so, how and what commands/functions do I need?<br />
+<br />
+Thanks for any help!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gguymer</div><div class="date">2nd May 2002, 22:57</div></div><div class="posttext">We don't have the source code either, but we have modified a number of Baan reports. If you don't have to deal with data from tables other than those used, and then you can re-work the report. Baan SQL statements almost always include a SELECT * or get all columns.  That means that it is possible to add other columns for the report. To modify the report, copy it up to your own VRC. You can then modify the layout and add the other fields to the Input Fields section of the report. Re-compile it and see what happens. You also have the option of adding or modifying the report script as well, but it may cause performance to degrade on the report depending on how you change it.<br />
+<br />
+If they just want its appearance modified, then you have an easier task.<br />
+<br />
+Gilbert Guymer<br />
+Database Administrator<br />
+Lufkin Industries, Inc.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">2nd May 2002, 23:06</div></div><div class="posttext">The problem is that too much data is coming into the report.  For example the report prints information based on purchase orders, but they want to be able to segregate by buyer.  I can't modify session script, so I have a before.program section of the report script prompt another session where the user can enter the buyer number.  That is imported into the report script.  I was then trying to set lattr.print to false if the imported buyer number didn't match the PO's buyer number.  There are about 10 different layouts in the vanilla Baan report and there are flags all over the place to print different things (mostly different texts).  I can't see what some of the flags are for since they are assigned in the session script.  I was hoping to just dump it all into a table, and then rprt_send() only records where the buyer matched.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd May 2002, 23:26</div></div><div class="posttext">You can actually read the input file in the report and delete the records you do not want to print. I will post an example of how something like this could be done.  In the case below I am actually adding a sort field to the report. Beware that the character in the sort and concat is the &quot;STX&quot; character.<br />
+<br />
+In your case you could just read in the records and delete the ones you do not need. Then write the temp file.<br />
+<br />
+Mark<br />
+<br />
+<br />
+declaration:<br />
+	table	ttipgc001<br />
+	long	l,r.o,first<br />
+<br />
+|detail.1:<br />
+|before.layout:<br />
+after.receive.data:<br />
+	if(first=0) then<br />
+		r.o = seq.open (r.datafile$ &amp; &quot;.tmp&quot;,&quot;w&quot;)<br />
+		r.reccount = 0<br />
+		while e = 0<br />
+			select tipgc001.cplb<br />
+			from tipgc001<br />
+			where tipgc001._index1 = {:tisfc001.ccot.a,<br />
+                      :tisfc001.mitm}<br />
+			selectdo<br />
+			endselect<br />
+			l = seq.puts(concat$(&quot;&quot;,<br />
+				tipgc001.cplb,<br />
+				tisfc001.pdno,<br />
+				tisfc001.ccot.a,<br />
+				tisfc001.mitm,<br />
+				error.message,r.reccount),r.o)<br />
+			r.reccount = r.reccount + 1<br />
+			r.read.seq.file()<br />
+		endwhile<br />
+		l = seq.flush (r.o)<br />
+		l = seq.close (r.lfn)<br />
+		l = seq.close (r.o)<br />
+		l = run.baan.prog( &quot;sort&quot;,&quot;-t +0n<br />
+ -1 +1n -2 &quot; &amp; r.datafile$ &amp; &quot;.tmp -o &quot; &amp; <br />
+r.datafile$ &amp; &quot;.tmp&quot;, RP_WAIT)<br />
+		r.lfn = seq.open (r.datafile$ &amp; &quot;.tmp&quot; ,&quot;a+&quot;)<br />
+		r.read.seq.file()<br />
+		first = 1<br />
+	endif<br />
+<br />
+after.program:<br />
+	l = seq.unlink(r.datafile$ &amp; &quot;.tmp&quot;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">6th May 2002, 17:04</div></div><div class="posttext">Mark,<br />
+<br />
+This is one of the lines from the above code:<br />
+<br />
+l = run.baan.prog( &quot;sort&quot;,&quot;-t +0n -1 +1n -2 &quot; &amp; r.datafile$ &amp; &quot;.tmp -o &quot; &amp; r.datafile$ &amp; &quot;.tmp&quot;, RP_WAIT)<br />
+<br />
+I believe that this is the actual line that re-sorts your original data.  Can you define some of the variables in this line?  If I had three items in a record, say First Name, Last Name and favorite website:<br />
+<br />
+EddieMonsterwww.baanboard.com<br />
+JohnSmithwww.yahoo.com<br />
+BobJoneswww.msn.com<br />
+<br />
+How are you defining which field you are sorting on?<br />
+<br />
+Are there any other types of 'executions' that you can use with the run.baan.prog() function?<br />
+<br />
+One more question...What is the error.message variable.  When I compile my program it says that it isn't declared.  If I declare it as a string, does the function return a value for that variable?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th May 2002, 18:25</div></div><div class="posttext">I guess I should have mentioned that this is running on Sun solaris box.  The sort is the Unix sort command.  The -t is the field separator for the records - in this case the &quot;STX&quot; character. The sort fields are defined with +n -m fields.  So +0n is skip 0 fields, -1 sort by first field and +1n is skip one field, -2 is sort by second field. In our case we were adding a primary sort field.<br />
+<br />
+I am not sure what you mean by other &quot;executions&quot; of the run.baan.prog().  I believe I have used it with script files and with awk/sed scripts.<br />
+<br />
+Hope this helps.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">6th May 2002, 18:30</div></div><div class="posttext">As far as 'executions', I didn't realize that 'sort' was a unix command (I don't use unix very much as all), I thought it was a Baan function and there may have been other functionality or commands to use with it.<br />
+<br />
+Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">6th May 2002, 19:09</div></div><div class="posttext">I also found baan executeable in <br />
+<br />
+$BSE/bin/sort6.2 <br />
+<br />
+I think it works the same as the unix sort, I never used it yet.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">6th May 2002, 19:13</div></div><div class="posttext">Mark,<br />
+<br />
+From your original script I made the following modifications:<br />
+<br />
+Imported a variable ccon.f which represents a user defined buyer for PO's.<br />
+<br />
+modified your select statement and l=seq.puts(...) line to the following:<br />
+<br />
+	select	tdpur040.ccon<br />
+	from	tdpur040<br />
+	where	tdpur040.orno = :tdpur041.orno<br />
+	selectdo<br />
+	endselect<br />
+	if tdpur040.ccon = ccon.f then<br />
+		l = seq.puts(concat$(&quot;~&quot;,<br />
+			tdpur040.ccon,<br />
+			suco,<br />
+			ipur.ccor.dsca,<br />
+			tdpur000.erdc.4,<br />
+			tdpur041.cntr,<br />
+			tdpur041.revi,<br />
+			tiitm012.aitc,<br />
+			itemline,<br />
+			itm.dsca,<br />
+			itm.kitm,<br />
+			itm.oltm,<br />
+			note.date,<br />
+			nr.copy,<br />
+			stand.desc,<br />
+			tccom000.city,<br />
+			tccom000.namc,<br />
+			tccom020.ctit,<br />
+			tccom020.nama,<br />
+			tccom020.namb,<br />
+			tccom020.namc,<br />
+			tccom020.namd,<br />
+			tccom020.name,<br />
+			tccom020.namf,<br />
+			tcmcs007.dsun,<br />
+			tcmcs019.dsca,<br />
+			tdpur021.itsu,<br />
+			tdpur041.cprj,<br />
+			tdpur041.ddta,<br />
+			tdpur041.ddtc,<br />
+			tdpur041.item,<br />
+			tdpur041.oqua,<br />
+			tdpur041.orno,<br />
+			tdpur041.suno,<br />
+			tdpur041.txta,<br />
+			tipcs020.dsca,<br />
+			txtn.ptr,<br />
+			error.message,r.reccount),r.o)<br />
+		else<br />
+		endif<br />
+<br />
+All of the fields are the I got from debugging the report except for tdpur040.ccon which I added.<br />
+<br />
+I'm getting an error when I run the script:<br />
+<br />
+Error in reading sort file record: 1 fields scanned, 36 expected.  What does that tell me?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th May 2002, 19:39</div></div><div class="posttext">It means that when it is doing the string scan it is looking for 36 fields and not 1.  I notice that you have a &quot;~&quot; character in the concat command.  My change makes use of the Baan generated r.seq.read.file() routine and this expects the STX character or a ctrl-b.  So if you debug the report and check the above routine you should see the error from a string.scan command.<br />
+<br />
+Basically you are switching the temp files on the r.seq.read.file routine.  You should be able to see the field separator in debug mode.<br />
+<br />
+I did not know there is a baan sort program. When I was developing the script I was working with a consultant who said that it was running the Unix sort. I guess I never really paid attention to the actual sort command.  So dis-regard what I said before - I use the run.prog for the unix stuff and run.baan.prog to run Baan's sort routine.  My sincere apologies for the mistake. <br />
+<br />
+And NPRao is correct the baan sort program is equivalent to the unix sort command.  At least that is what the documentation says.<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">6th May 2002, 23:57</div></div><div class="posttext">Thanks for the help Mark,  I had to tweak it a little, but finally got everything I needed.  Thanks again!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th May 2002, 17:24</div></div><div class="posttext">Glad to see it is working for you eric.  My appologies again about the confusion on the run.baan.prog command.<br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">7th May 2002, 18:19</div></div><div class="posttext">Mark,<br />
+<br />
+You mentioned in your first entry to this post that you would be able to provide a sample of how to delete the records that you wouldn't want to print.  Would you still post that?<br />
+<br />
+Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ulrich.fuchs</div><div class="date">7th May 2002, 19:33</div></div><div class="posttext">The code Mark prestened here is sure one of the greatest Baan hacks I've ever seen. So it get's my special wandering price for Baan wizadry. ~Vamsi, please hand it over to him! That's really cool!<br />
+<br />
+BUT:<br />
+<br />
+Don't do this at home. Let's go back to the original problem: A user want's to filter the records in a report by his/her buyer id. The source code is not available. <br />
+<br />
+Well guys, why don't we just get the source code then????<br />
+<br />
+Having the sourcecode we have to put four(!) additional lines in the source, recompile it, put two additional fields on the form and we are done.<br />
+<br />
+<br />
+And what are we doing here? We need a new session for entering our values. We hack the report script with more than fifty lines of code. (If another user requires a new report with ohter fields, but filtered equally, we do the same in this other report again.) We use a Baan-internal executable to resort the report. Any new porting set could make this hacked report not working any longer.<br />
+<br />
+Say, which solution will be easier (and that is: cheaper) to maintain? This (really genious) hack, or a clean and small modification in the program script? <br />
+<br />
+May the source be with you!<br />
+<br />
+Uli</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th May 2002, 21:42</div></div><div class="posttext">This &quot;hack&quot; was not completely my own - I had an excellent D&amp;T consultant who helped me work this out.<br />
+<br />
+Next ulrich.fuchs said:<br />
+Well guys, why don't we just get the source code then???? <br />
+<br />
+Because my company refuses to buy the source.  Things would be so much easier if we bought the source.  So yes I do agree that if you owned the source it would be easier to make the changes, but not everybody can get the source.<br />
+<br />
+And I believe both are just about as hard to maintain.  Our consultant left some Baan code with us and with each new release we have to port these changes into the new release.  <br />
+<br />
+So it is a toss up to me.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Juergen</div><div class="date">27th January 2003, 11:20</div></div><div class="posttext">Thanks to mark (and of course to the unknown consultant) for that great pice of code how to manipulate the report input file.<br />
+<br />
+With help of this example we solved a difficult user request.<br />
+<br />
+Regards,<br />
+Juergen</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">9th October 2003, 16:29</div></div><div class="posttext">Good stuff, guys!<br />
+<br />
+I also had done some *special* customizations on reports and tried to discuss it, but the response was poor:<br />
+<br />
+http://www.baanboard.com/baanboard/showthread.php?threadid=9090<br />
+<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">9th October 2003, 17:08</div></div><div class="posttext">I do remember your other thread.  I just have never had the opportunity or the need to try it.  I thought it was a good solution.  I actually have some bookmarks to certains threads - this is one. <br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">24th November 2003, 14:56</div></div><div class="posttext">Hello,<br />
+<br />
+Trying to use this technique to sort a BOM report by planner code and it appears to be working reasonably well. However <br />
+<br />
+The sort is occuring but I have a problem in that the first record being printed is not being sorted correctly. The report then works perfectly and even reprints the first record in the correct position in the sort.<br />
+<br />
+I suspect I may have my receive.data section in the wrong position in the script. Where should the receive.data section be put to ensure that the first record is sorted correctly.<br />
+<br />
+Regards<br />
+Neal Matthews<br />
+Intier Automotive - IT Support Analyst</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th November 2003, 16:37</div></div><div class="posttext">Not sure there is a wrong spot for this.  Can you post your after.receive.data code?  I would certainly put it in debug mode and check the temp files - before and after the sort.  Need to make sure those are working correctly and that first record is not in their twice. <br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">24th November 2003, 17:32</div></div><div class="posttext">Thanks Mark,<br />
+<br />
+I'll have a careful look at the tmp file and what's going on in the debugger.<br />
+<br />
+Nothing too different about the code just several other fields in the seq.puts statement. See attached text file.<br />
+<br />
+Cheers<br />
+Neal<br />
+<br />
+after.receive.data:<br />
+	if(first=0) then<br />
+		r.o = seq.open (r.datafile$ &amp; &quot;.tmp&quot;,&quot;w&quot;)<br />
+		r.reccount = 0<br />
+		while e = 0<br />
+			select tdpsc001.item, tdpsc001.cpln<br />
+			from tdpsc001<br />
+			where tdpsc001._index3 = {:sitm.topl}<br />
+			selectdo<br />
+				select tccom001.emno, tccom001.nama<br />
+				from tccom001<br />
+				where tccom001.emno =:tdpsc001.cpln<br />
+				selectdo<br />
+				endselect<br />
+			endselect		<br />
+	<br />
+			l = seq.puts(concat$(&quot;&quot;,<br />
+				tccom001.emno,<br />
+				sitm.topl,<br />
+				tibom010.mitm,<br />
+				widt.ext,<br />
+				cuni.mitm,<br />
+				cuni.sitm,<br />
+				cycle.detected,<br />
+				datearr(1),<br />
+				datearr(2),<br />
+				datearr(3),<br />
+				datearr(4),<br />
+				datearr(5),<br />
+				dayarr(1,1),<br />
+				dayarr(1,2),<br />
+				dayarr(1,3),<br />
+				dayarr(1,4),<br />
+				dayarr(1,5),<br />
+				dsca.mitm,<br />
+				dsca.sitm,<br />
+				dum.chain,<br />
+				gqan.ext,<br />
+				leng.ext,<br />
+				m_arrears,<br />
+				m_arrears1,<br />
+				m_arrears2,<br />
+				m_date,<br />
+				m_date1,<br />
+				m_date2,<br />
+				m_date3,<br />
+				m_invhand,<br />
+				m_invhand1,<br />
+				m_invhand2,	<br />
+				m_invtopl,<br />
+				m_monday,<br />
+				m_monday2,<br />
+				m_pursched,<br />
+				m_stocdays,<br />
+				message.to.brp,<br />
+				nqan.ext,<br />
+				sort.dim,<br />
+				tccom001.nama,<br />
+				tccom010.nama,<br />
+				tccom020.nama,	<br />
+				tdinv001.stoc,<br />
+				tdpsc003.dtwk,<br />
+				tdpsc003.endt,<br />
+				tdpsc003.item,<br />
+				tdpsc003.qtos,<br />
+				tdssc003.cdel,<br />
+				tdssc003.cuno,<br />
+				tdssc003.dqty(1),<br />
+				tdssc003.dqty(2),<br />
+				tdssc003.dqty(3),	<br />
+				tdssc003.dqty(4),<br />
+				tdssc003.dqty(5),	<br />
+				tdssc003.dqty(6),<br />
+				tdssc003.dqty(7),<br />
+				tdssc003.dtwk,<br />
+				tdssc003.item,<br />
+				tdssc003.reqf,<br />
+				tdssc003.reqt,<br />
+				tibom000.buom,<br />
+				tiitm001.cuni,<br />
+				tiitm001.dsca,<br />
+				tiitm001.suno,<br />
+				level.overflow,<br />
+				message.counter,<br />
+				noun.ext,<br />
+				r.reccount),r.o)<br />
+			r.reccount = r.reccount + 1<br />
+			r.read.seq.file()<br />
+		endwhile<br />
+		l = seq.flush (r.o)<br />
+		l = seq.close (r.lfn)<br />
+		l = seq.close (r.o)<br />
+		l = run.baan.prog( &quot;sort&quot;,&quot;-t +0n -1 +1n -2 &quot; &amp; r.datafile$ &amp; &quot;.tmp -o &quot; &amp; r.datafile$ &amp; &quot;.tmp&quot;, RP_WAIT)<br />
+		r.lfn = seq.open (r.datafile$ &amp; &quot;.tmp&quot; ,&quot;a+&quot;)<br />
+		r.read.seq.file()<br />
+		first = 1<br />
+	endif<br />
+<br />
+|*************************************************************</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th November 2003, 18:12</div></div><div class="posttext">Well I certainly do not see anything in the code. Hopefully running in debug mode and looking at the temp file will provide some better clues.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">28th November 2003, 12:18</div></div><div class="posttext">Hello Mark,<br />
+<br />
+Still struggling with this I'm afraid. I had to take some time off to get the unsorted version of the report to the user.<br />
+<br />
+Anyway looking at the temp file what should excatly happen after the sort command;<br />
+<br />
+l = run.baan.prog( &quot;sort&quot;,&quot;-t +0n -1 +1n -2&quot; &amp; r.datafile$ &amp; &quot;.tmp -o &quot; &amp; r.datafile$ &amp; &quot;.tmp&quot;, RP_WAIT)<br />
+<br />
+After I execute this line the tmp file is recreated as a file of zero bytes. Is this correct ?<br />
+<br />
+Cheers<br />
+Neal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">28th November 2003, 21:05</div></div><div class="posttext">I believe at that point it should not be 0 bytes. With the seq.flush and seq.close I would expect the file to have some data in it.  I was hoping that right after the seq.close and before the sort you could do a more on the file to see what data was in it.  I have not run ours in a long time, but I will give it a try.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">28th November 2003, 21:31</div></div><div class="posttext">On my system I stopped it on the sort and went to the tmp directory. My &quot;.tmp&quot; file did have data in it.  I stepped through the sort and it still had more than 0 bytes.  Even on the next seq.open it still had data.  From this I would conclude that your file should also have data.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">9th December 2003, 18:32</div></div><div class="posttext">Hi Mark<br />
+<br />
+Just to finish this one off couldn't get the sort working. I think the problem may be related to the fact that I had two layouts in my report and was trying to sort across the two layouts.<br />
+<br />
+The performance of the report was also a little suspect so I've now changed tack and to get a planner / supplier sort I'm using a Purchase Contract report and drilling through the bom in the script.<br />
+<br />
+I'll bookmark this post and hope to use this technique in the future.<br />
+<br />
+Cheers<br />
+Neal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">10th December 2003, 12:35</div></div><div class="posttext">In nutshell, the solution is excellent to bring non-input-variable information from other tables probably customized  and then sort it on such information if there are no other sort  layouts (before field &amp; after fields) and no sort breaks are required on such out-of-the-report sort field. This solution may give wrong results when after field / before fields layouts exist.<br />
+<br />
+Please correct me if wrong .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">10th December 2003, 18:49</div></div><div class="posttext">Correct and very well summed up.<br />
+<br />
+After playing with this code so much I am detemined to find a use for it somewhere but sadly not today.<br />
+<br />
+Thanks to everyone involved in this thread.<br />
+<br />
+Cheers<br />
+Neal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Amit_Jain</div><div class="date">6th March 2010, 13:18</div></div><div class="posttext">Mark<br />
+<br />
+I just copied your code in one of the report we need to customise at on the basis of item group, made some changes and got the error above mentioned error message.<br />
+<br />
+after.receive.data:<br />
+	if(first=0) then<br />
+		r.o = seq.open (r.datafile$ &amp; &quot;.tmp&quot;,&quot;w&quot;)<br />
+		r.reccount = 0<br />
+		while e = 0<br />
+			select	tcibd001.citg<br />
+			from	tcibd001<br />
+			where	tcibd001._index1 = {:whina112.item}<br />
+			as set with 1 rows<br />
+			selectdo<br />
+			endselect<br />
+			<br />
+			l = seq.puts(concat$(&quot;&quot;,<br />
+				tcibd001.citg,<br />
+				error.message,r.reccount),r.o)<br />
+			r.reccount = r.reccount + 1<br />
+			r.read.seq.file()<br />
+		endwhile<br />
+		l = seq.flush (r.o)<br />
+		l = seq.close (r.lfn)<br />
+		l = seq.close (r.o)<br />
+		l = run.baan.prog( &quot;sort&quot;,&quot;-t +0n -1 +1n -2 &quot; &amp; r.datafile$ &amp; &quot;.tmp -o &quot; &amp;r.datafile$ &amp; &quot;.tmp&quot;, RP_WAIT)<br />
+		r.lfn = seq.open (r.datafile$ &amp; &quot;.tmp&quot; ,&quot;a+&quot;)<br />
+		r.read.seq.file()<br />
+		first = 1<br />
+	endif<br />
+<br />
+after.program:<br />
+	l = seq.unlink(r.datafile$ &amp; &quot;.tmp&quot;)<br />
+<br />
+<br />
+<br />
+On looking at the temp files, I found out that the file with ext .tmp contained  the record with fields in following sequence <br />
+(item group, STX,error.message STX, r.reccount)<br />
+that clarifies the error that its waiting for a total 55 fields but got only 3<br />
+<br />
+I also found out that total report input field counted to 55. So my question are<br />
+<br />
+1. Why the rest of the data not copied to our file.<br />
+<br />
+2. Are there some prerequisites for applying your solution, like Do we need to add the new sort field(item group) in the report input field.<br />
+<br />
+also let me know what changes I should make in the &quot;run.baan.prog&quot; to make it applicable in my case (&quot;-t +0n -1 +1n -2 &quot;  part)<br />
+<br />
+Thanks in Advance</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th March 2010, 04:35</div></div><div class="posttext">You need to add all 55 fields into the concat statement to get all the input fields.  I believe, but am not positive that I added the new field into the input fields.  And I can not remember what all the sort parameters are - I will check at work tomorrow to see if I can find some help.  I believe they are identical to the UNIX sort command, but not positive.  So what are your sort fields in the order of the sort?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Amit_Jain</div><div class="date">8th March 2010, 09:27</div></div><div class="posttext">Mark<br />
+<br />
+I added all 55 fields into the concat statement, the input file (.tmp) now contains all data fields. but the error message(It still looks for 55 fields and is able to read only one) is still there.<br />
+<br />
+I already have four sort fields on the report, I want item group (tcibd001.citg) to overide other four sort fileds in the report; the sort fields are as follows:<br />
+<br />
+whina112.cwar	1	tc	cwar	Ascending	1<br />
+whina112.trdt	1	tc	date	Ascending	2<br />
+whina112.item	1	tc	item	Ascending	3<br />
+whina112.seqn	1	tc	mcs.long	Ascending	4<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">8th March 2010, 10:51</div></div><div class="posttext">Amit,<br />
+ <br />
+I think that maintaining 55 inpuit fields is a pain and I would suggest a different approach. I have a very little report sample to give you the idea:<br />
+ <br />
+<br />
+| simple report script<br />
+|<br />
+| assumptions:<br />
+| 1. The report MUST at least have one sorting field (so that the function<br />
+| r.write.seq.file will be generated).<br />
+| 2. Additional / missing fields should be added as INPUT fields, and given<br />
+| their value before the calling of r.write.seq.file().<br />
+declaration:<br />
+#define ORIGINAL.FUNCTION() originally.generated.r.write.seq.file()<br />
+#define r.write.seq.file() ORIGINAL.FUNCTION()<br />
+ <br />
+functions:<br />
+#undef r.write.seq.file()<br />
+function extern r.write.seq.file()<br />
+{<br />
+  | Code her to give the addition / missing fields their value, e.g.<br />
+  a = rnd.i(10)<br />
+  b = rnd.i(10)<br />
+ <br />
+  | Now continue with the regular report flow ...<br />
+  ORIGINAL.FUNCTION()<br />
+}<br />
+<br />
+ <br />
+Would you try that?<br />
+ <br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Amit_Jain</div><div class="date">8th March 2010, 11:48</div></div><div class="posttext">A very short, simple and effective solution indeed, It solved my problem. Gunther you really made my day and even my night(I can have a sound sleep now). Just can't stop wandering that how the solutions to the worst problems can be so simple<br />
+<br />
+Thanks a lot mate.<br />
+<br />
+But I will still wait for mark's solution, now not driven by urgency but by curiosity.<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th March 2010, 16:11</div></div><div class="posttext">Interesting solution Gunther. If I ever have to do something like this again I will try it.  Looks much simplier than what we did.<br />
+<br />
+As to the original question - yes I added my new field as the primary sort on the input fields form.  And my sort command defined two sort fields.  If you wanted one then you could have subtracted the second from the posted code.  If you wanted it to have 5 then you would have to define 5.  All that besides defining all the fields - in my case I only have 5 fields.  One of them was the error.message field passed from the script.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ailisee</div><div class="date">14th February 2012, 11:12</div></div><div class="posttext">Dear Mark,<br />
+<br />
+I am successfully sorted the field in my report. But the field is not GROUPING even I set it as before.field. <br />
+<br />
+Refer to attachment for details.<br />
+<br />
+Please help.<br />
+<br />
+<br />
+<br />
+You can actually read the input file in the report and delete the records you do not want to print. I will post an example of how something like this could be done.  In the case below I am actually adding a sort field to the report. Beware that the character in the sort and concat is the &quot;STX&quot; character.<br />
+<br />
+In your case you could just read in the records and delete the ones you do not need. Then write the temp file.<br />
+<br />
+Mark<br />
+<br />
+<br />
+declaration:<br />
+	table	ttipgc001<br />
+	long	l,r.o,first<br />
+<br />
+|detail.1:<br />
+|before.layout:<br />
+after.receive.data:<br />
+	if(first=0) then<br />
+		r.o = seq.open (r.datafile$ &amp; &quot;.tmp&quot;,&quot;w&quot;)<br />
+		r.reccount = 0<br />
+		while e = 0<br />
+			select tipgc001.cplb<br />
+			from tipgc001<br />
+			where tipgc001._index1 = {:tisfc001.ccot.a,<br />
+                      :tisfc001.mitm}<br />
+			selectdo<br />
+			endselect<br />
+			l = seq.puts(concat$(&quot;&quot;,<br />
+				tipgc001.cplb,<br />
+				tisfc001.pdno,<br />
+				tisfc001.ccot.a,<br />
+				tisfc001.mitm,<br />
+				error.message,r.reccount),r.o)<br />
+			r.reccount = r.reccount + 1<br />
+			r.read.seq.file()<br />
+		endwhile<br />
+		l = seq.flush (r.o)<br />
+		l = seq.close (r.lfn)<br />
+		l = seq.close (r.o)<br />
+		l = run.baan.prog( &quot;sort&quot;,&quot;-t +0n<br />
+ -1 +1n -2 &quot; &amp; r.datafile$ &amp; &quot;.tmp -o &quot; &amp; <br />
+r.datafile$ &amp; &quot;.tmp&quot;, RP_WAIT)<br />
+		r.lfn = seq.open (r.datafile$ &amp; &quot;.tmp&quot; ,&quot;a+&quot;)<br />
+		r.read.seq.file()<br />
+		first = 1<br />
+	endif<br />
+<br />
+after.program:<br />
+	l = seq.unlink(r.datafile$ &amp; &quot;.tmp&quot;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th February 2012, 17:10</div></div><div class="posttext">You may want to double check the sort is working.  After adding the field and sorting the data - go look at the temprorary report file that is generated. So debug the report, make sure the records are sorted correctly and they are being read in correctly.<br />
+<br />
+You may also want to look at the post by gunther on page two - here is thelink (http://www.baanboard.com/baanboard/showthread.php?threadid=9090).</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS Problem with stpapi.find(), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS Problem with stpapi.find() AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS Problem with stpapi.find() [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS Problem with stpapi.find()</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ipineda</div><div class="date">11th March 2011, 00:07</div></div><div class="posttext">Hi my friends,<br />
+<br />
+I'm working with AFS to the session tisfc0205m000 and this is what i have get.<br />
+<br />
+<br />
+	stpapi.put.field(&quot;tisfc0205m000&quot;, &quot;tisfc001.grid&quot;, current.grid)<br />
+<br />
+	g.ret = stpapi.find(&quot;tisfc0205m000&quot;, g.error)<br />
+	<br />
+	if g.ret = 2 then<br />
+		stpapi.put.field(&quot;tisfc0205m000&quot;, &quot;tisfc001.grid&quot;, current.grid)<br />
+		g.ret = stpapi.find(&quot;tisfc0205m000&quot;, g.error)<br />
+	endif<br />
+<br />
+<br />
+In the first call of stpapi.find() the return value is 2, even when i know the register exits, and if i call the function again the problem is solved and 1 is returned.<br />
+<br />
+I used the api.log file to see what is going on and i found this:<br />
+<br />
+<br />
+	26dll-&gt;serv (start tisfc0205m000 1  0 0)<br />
+	55serv&lt;-4gl (api.child.startedtisfc0205m00026)<br />
+	55serv&lt;-4gl (init.ready)<br />
+	tisfc0205m000(55)-RUNNING:<br />
+	&gt;tisfc0205m000(55) put.field:tisfc001.grid G90000023<br />
+	&gt;tisfc0205m000 Find<br />
+	26dll-&gt;serv (def.find 55)<br />
+	tisfc0205m000(55)-RUNNING:def.find<br />
+	55serv&lt;-4gl (def.find 0 0)<br />
+	<br />
+	tisfc0205m000(55)-RUNNING:<br />
+	&lt;tisfc0205m000 an other record found (2)<br />
+	<br />
+	&gt;tisfc0205m000(55) put.field:tisfc001.grid G90000023<br />
+	&gt;tisfc0205m000 Find<br />
+	26dll-&gt;serv (def.find 55)<br />
+	tisfc0205m000(55)-RUNNING:def.find<br />
+	55serv&lt;-4gl (def.find 0 1)<br />
+	tisfc0205m000(55)-RUNNING:<br />
+	&lt;tisfc0205m000 record found (1)<br />
+<br />
+<br />
+I see that a value differes in the following lines<br />
+<br />
+	55serv&lt;-4gl (def.find 0 0)    |* AFS returns 2, does not find the record<br />
+	55serv&lt;-4gl (def.find 0 1)    |* AFS returns 1, find the record<br />
+<br />
+But i don't kwon what the values in the log file means, maybe someone knows what this means or what this problem is about.<br />
+<br />
+It is not the first time this problem occurs and i would really like to know the reason for it.<br />
+<br />
+Thanks for any help you could give me.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">11th March 2011, 12:19</div></div><div class="posttext">The &quot;problem&quot; is that the key of session tisfc0205m000 contains two fields: the order group and the order. The first stpapi.find tries to find the record with an empty order number, so the one that is found is always another one. When you do the second find, it uses the found order number of the first find, so in that case the correct record is found. <br />
+So, in your case the return value 2 is a good situation. I would program this in a defending way. Just put also the order number field (with value &quot;&quot;) and be prepared for a return value 2. But check also the tisfc001.grid after the find call, to be sure you have the correct group.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ipineda</div><div class="date">11th March 2011, 18:02</div></div><div class="posttext">Thanks for the aswer.<br />
+<br />
+I understand what you mean, it makes a lot of sense. But i have one more question... as you can see i put an &quot;if&quot; statement to check the return value of the stpapi.find() that is because sometimes in the first call of the stpapi.find() it finds the record, what i mean is that the problem does not occurs always even when i never put the value of the field tisfc001.pdno that is what you suggest me to do. Does it have an explanation?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">11th March 2011, 18:13</div></div><div class="posttext">Maybe it has to do with the rows that were displayed when you used the normal session. When the session is restarted it starts at the row that was on top last time. If AFS fires up the session it may see the right order group or not. Makes that sense?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th March 2011, 06:24</div></div><div class="posttext">Missed this thread somehow - there was at least one case with a multi-occurence session that I had to do the find twice.  But that was everytime - I just put the records twice and did the find twice.  I can't remember what session that was - not the one mentioned in the thread, but another.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ipineda</div><div class="date">21st March 2011, 15:35</div></div><div class="posttext">Hi friends,<br />
+<br />
+I found the reason why the AFS's was finding the record in some cases and not in others. The reason is that I was searching in a scenario like the following:<br />
+<br />
+G90000001<br />
+G90000002<br />
+G90000003<br />
+G90000004<br />
+G91000001<br />
+G91000002<br />
+G91000003<br />
+<br />
+When I search the group G90000004 the AFS's returns 2 because it finds the record G91000001, but when I look G91000003 it returns 1, it finds the record. The logic is that when the record you are looking for is the last record of the table the AFS's doesn't need the two parts of the index. This problem was not detected before because we were using only one group series so I was always looking for the last record.<br />
+<br />
+Conclusion: Solved, thanks friends for your help.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

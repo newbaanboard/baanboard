@@ -1,0 +1,456 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="stpapi and Maintain Receipts, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] stpapi and Maintain Receipts AFS/DDC/OLE: Function servers" />
+	
+	<title>stpapi and Maintain Receipts [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; stpapi and Maintain Receipts</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">vsevilla</div><div class="date">26th June 2002, 19:44</div></div><div class="posttext">Hi All<br />
+<br />
+I was reading a samples about Maintain Receipts whit stpapi, and i was testing the sample code attached, but i only can use with a purchase orden with one line, because the command stpapi.continue.process(&quot;tdpur4224s000&quot;, err) automatically create the records in table tpur045 for all lines of the order with the field srnb=1, so when i update the record with ret.code = stpapi.update(&quot;tdpur4120m020&quot;, true, err) for the second line in the order i receive the error &quot;The order is linked to other Receipt Number&quot;.<br />
+<br />
+Could you help me please<br />
+<br />
+vsevilla<br />
+<br />
+|******************************************************************************<br />
+|* tdpur4120m021  0  VRC B40c c2 mcr2<br />
+|* Recepciones de O/C desde archivo ASCII<br />
+|* Vinicio Sevilla Quevedo<br />
+|* 2002-04-08<br />
+|******************************************************************************<br />
+|* Main table tdpur045 Recepciones de O/C<br />
+|******************************************************************************<br />
+<br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+<br />
+	#pragma used dll ottstpapihand		|Baan API handler<br />
+<br />
+	table	ttdpur980	| Archivos procesados en Interface<br />
+   table	ttdinv981	| Parámetros Interface<br />
+   table	ttcmcs001<br />
+   table	ttdpur041<br />
+   table	ttdpur045<br />
+<br />
+<br />
+	extern	domain	tcdate		m.fecha	| Fecha de procesamiento<br />
+	extern	domain	tclogn		m.user	| Usuario<br />
+   extern   domain   tcsrnb      m.srnb<br />
+   extern	domain	tcmcs.str60	m.plog	| Path de Archivos Logs<br />
+	extern	domain	tcmcs.str60	m.prec	| Path de Archivos Recibidos<br />
+	extern	domain	tcmcs.str60	m.pgen	| Path de Archivos Procesados<br />
+<br />
+	extern	string               m.file1(100)<br />
+   extern	string               m.file2(100)<br />
+   extern	string               m.file3(100)<br />
+   extern	string               m.guia(50)<br />
+<br />
+	string	reno(50)                         |* Receipt Serie<br />
+   string	dino(50)                         |* Nota de Entrega<br />
+	string	orno(50)                         |* Order No<br />
+	string	pono(50)			                  |* Pono No<br />
+	string	qstr(50)                         |* Quantity<br />
+<br />
+   extern   domain   tcmcs.str60 que.accion<br />
+<br />
+	domain	tcbool all.ok<br />
+	long	file.fp<br />
+	long	err.fp<br />
+	long	rec.read<br />
+	long	rec.writ<br />
+	long	rec.rej<br />
+	long	ret.code<br />
+   long	r<br />
+<br />
+	string	err.line(132)<br />
+	string	data.line(2048)<br />
+	string	err(50)<br />
+	string  dat(12) | Store current date and time in format MMDDYYHHMMSS<br />
+	domain   tcorno   m.orno<br />
+   domain   tcpono   m.pono<br />
+<br />
+|****************************** form section **********************************<br />
+before.program:<br />
+<br />
+   que.accion = &quot;Iniciando Proceso&quot;<br />
+	|Carga Parámetros de la Interface<br />
+	carga.param()<br />
+<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+   genera.nombres()<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+   main.processing()<br />
+   genera.nombres()  | Genera el nombre del archivo a leer<br />
+after.choice:<br />
+   execute(end.program)<br />
+<br />
+<br />
+|****************************** field section *********************************<br />
+field.m.user:<br />
+before.input:<br />
+   attr.input = false<br />
+<br />
+field.m.fecha:<br />
+before.input:<br />
+   attr.input = false<br />
+<br />
+|field.m.guia:<br />
+|check.input:<br />
+|	genera.nombres()  | Genera el nombre del archivo a leer<br />
+<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function main.processing()<br />
+{<br />
+	rec.read = 0<br />
+	rec.writ = 0<br />
+	rec.rej = 0<br />
+	file.fp = 0<br />
+	err.fp = 0<br />
+   dino = &quot;&quot;<br />
+	error.report.header()<br />
+<br />
+	| Inicializar variables<br />
+   que.accion=&quot;Verificando.....&quot; &amp; m.file1<br />
+   display(&quot;que.accion&quot;)<br />
+   refresh()<br />
+	| Aun no sube este archivo<br />
+	que.accion=&quot;Buscando.....&quot; &amp; m.file1<br />
+	display(&quot;que.accion&quot;)<br />
+	refresh()<br />
+<br />
+   file.fp = seq.open( m.file1 ,&quot;r&quot;)<br />
+	if file.fp &lt; 1 then<br />
+		err = &quot;El archivo &quot; &amp; m.file1 &amp; &quot;nopuede ser abierto&quot;<br />
+		write.err.record()<br />
+		return<br />
+	endif<br />
+<br />
+   ret.code = seq.gets(data.line, 2048, file.fp)<br />
+<br />
+   while seq.eof(file.fp) = 0<br />
+      rec.read = rec.read + 1<br />
+		all.ok = true<br />
+      read.record()<br />
+     	if check.consistencia()&gt;0 then<br />
+         run.main.sess()<br />
+      endif<br />
+      seq.gets(data.line, 2048, file.fp)<br />
+   endwhile<br />
+<br />
+   ret.code = seq.close(file.fp)<br />
+   actualiza.generado()<br />
+	error.report.totals()<br />
+   que.accion =&quot;Finalizado Proceso de Carga de Archivos&quot;<br />
+	display(&quot;que.accion&quot;)<br />
+	refresh()<br />
+   ret.code = seq.close(err.fp)<br />
+   | Muevo los archivos<br />
+	r = shell(&quot;cp &quot; &amp; m.file1 &amp; &quot; &quot; &amp; m.file2, 0)<br />
+	r = shell(&quot;rm &quot; &amp; m.file1, 0)<br />
+<br />
+}<br />
+<br />
+function run.main.sess()<br />
+{<br />
+|*** This function invokes session tdrpl0122m000<br />
+<br />
+   que.accion=&quot;Procesando.....&quot; &amp; sprintf$(&quot;O/C: %s Pos.: %s &quot;,orno,pono)<br />
+	display(&quot;que.accion&quot;)<br />
+	refresh()<br />
+<br />
+   stpapi.put.field(&quot;tdpur4120m020&quot;, &quot;tdpur045.reno&quot;, reno)<br />
+   stpapi.put.field(&quot;tdpur4120m020&quot;, &quot;form.dino&quot;, dino)<br />
+<br />
+   stpapi.handle.subproc( &quot;tdpur4120m020&quot;, &quot;tdpur4224s000&quot;, &quot;add&quot;)<br />
+   ret.code = stpapi.change.view(&quot;tdpur4120m020&quot;)<br />
+   if ret.code &gt; 0 then<br />
+      stpapi.put.field(&quot;tdpur4224s000&quot;, &quot;form.orno&quot;, orno)<br />
+      stpapi.continue.process(&quot;tdpur4224s000&quot;, err)<br />
+      if(strip$(err)&lt;&gt;&quot;&quot; and strip$(err)&lt;&gt;&quot;Process is gone&quot;) then<br />
+         Message(&quot;Child process error = %s&quot;,err)<br />
+      else<br />
+         | No matter what kill the session.<br />
+         stpapi.end.session(&quot;tdpur4224s000&quot;)<br />
+         | Now get the receipt number just created.<br />
+         stpapi.get.field(&quot;tdpur4120m020&quot;,&quot;tdpur045.reno&quot;,reno)<br />
+         | At this point you could update receipt fields.<br />
+<br />
+         stpapi.put.field(&quot;tdpur4120m020&quot;, &quot;tdpur045.orno&quot;, orno)<br />
+         stpapi.put.field(&quot;tdpur4120m020&quot;, &quot;tdpur045.pono&quot;, pono)<br />
+         stpapi.put.field(&quot;tdpur4120m020&quot;, &quot;tdpur045.diqu&quot;, qstr)<br />
+         stpapi.put.field(&quot;tdpur4120m020&quot;, &quot;tdpur045.date&quot;, str$(m.fecha))<br />
+         stpapi.put.field(&quot;tdpur4120m020&quot;, &quot;tdpur045.dqua&quot;, qstr)<br />
+<br />
+         ret.code = stpapi.update(&quot;tdpur4120m020&quot;, true, err)<br />
+<br />
+         if ret.code &lt;&gt; 1 then<br />
+            err = &quot;La Orden de Compra no encontrada para la Orden No &quot;<br />
+            err = err &amp; orno<br />
+            write.err.record()<br />
+         endif<br />
+      endif<br />
+   endif<br />
+	stpapi.end.session(&quot;tdpur4120m020&quot;)<br />
+<br />
+	if all.ok then<br />
+		rec.writ = rec.writ + 1<br />
+	else<br />
+		rec.rej = rec.rej + 1<br />
+	endif<br />
+<br />
+}<br />
+<br />
+<br />
+function read.record()<br />
+{<br />
+|*** This function extracts the individual fields from the current record in<br />
+|*** the input ASCII file.<br />
+<br />
+   reno = extract.field()<br />
+   orno = extract.field()<br />
+   pono = extract.field()<br />
+	qstr = extract.field()<br />
+   m.orno = lval(orno)<br />
+   m.pono = lval(pono)<br />
+}<br />
+<br />
+function string extract.field()<br />
+{<br />
+|*** This function searches for the 'pipe' delimiter and extracts the next<br />
+|*** field in the current record in the input ASCII file<br />
+<br />
+   string extracted.field(50)<br />
+   long pointer<br />
+   long flag<br />
+   string character(1)<br />
+<br />
+   pointer = 0<br />
+   flag = FALSE<br />
+<br />
+   while flag = FALSE<br />
+      pointer = pointer + 1<br />
+      character = data.line(pointer; 1)<br />
+      if data.line(pointer;1) = &quot;|&quot; or data.line(pointer;1) = &quot;&quot; then<br />
+         flag = TRUE<br />
+      endif<br />
+   endwhile<br />
+<br />
+   extracted.field = data.line(1;pointer - 1)<br />
+   data.line = data.line(pointer+1; 2048)<br />
+<br />
+   return(extracted.field)<br />
+<br />
+}<br />
+<br />
+function write.err.record()<br />
+{<br />
+|*** This function writes an error message to the error ASCII file<br />
+<br />
+	all.ok = false<br />
+<br />
+	err.line = &quot;Registro Número &quot; &amp; str$(rec.read) &amp; &quot; Error: &quot;<br />
+	err.line = err.line &amp; err<br />
+<br />
+   ret.code = seq.puts(err.line, err.fp)<br />
+}<br />
+<br />
+function error.report.header()<br />
+{<br />
+|*** This function writes the current date and time into the start of the<br />
+|*** error ASCII file<br />
+<br />
+   err.fp = seq.open(m.file3 ,&quot;w+&quot;)<br />
+	dat = dte$()<br />
+	err.line = &quot;Reporte de Control: Fecha &quot;<br />
+	err.line = err.line &amp; dat(3;2) &amp; &quot;/&quot; &amp; dat(1;2) &amp; &quot;/&quot; &amp; dat(5;2)<br />
+	err.line = err.line &amp; &quot; Time &quot;<br />
+	err.line = err.line &amp; dat(7;2) &amp; &quot;:&quot; &amp; dat(9;2) &amp; &quot;:&quot; &amp; dat(11;2)<br />
+   ret.code = seq.puts(err.line, err.fp)<br />
+}<br />
+<br />
+<br />
+function error.report.totals()<br />
+{<br />
+|*** This function writes the control totals (number of records read, rejected<br />
+|*** and written) at the end of the error ASCII file.<br />
+<br />
+	err.line = &quot;Registros Leídos: &quot; &amp; str$(rec.read)<br />
+   ret.code = seq.puts(err.line, err.fp)<br />
+	err.line = &quot;Registros Procesados: &quot; &amp; str$(rec.writ)<br />
+   ret.code = seq.puts(err.line, err.fp)<br />
+	err.line = &quot;Registros Rechazados: &quot; &amp; str$(rec.rej)<br />
+   ret.code = seq.puts(err.line, err.fp)<br />
+<br />
+}<br />
+<br />
+| Funcion que chequea la consistencia de los datos almacenados en<br />
+| las tablas temporales.<br />
+function extern long check.consistencia()<br />
+{<br />
+	long ret<br />
+	long	m.ed<br />
+<br />
+	ret=1<br />
+	m.ed = 0<br />
+<br />
+	if lval(qstr) &lt;= 0 then<br />
+		err = sprintf$(&quot;O/C: %s Pos: %s Cantidad a recepcionar negativa&quot;,orno,pono)<br />
+		write.err.record()<br />
+		ret=-1<br />
+	endif<br />
+<br />
+	select	tdpur045.*<br />
+	from	tdpur045<br />
+	where	tdpur045._index1 = {:m.orno, :m.pono}<br />
+	order by tdpur045._index1 DESC<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		if tdpur045.pmsk(3;1) = &quot;y&quot; then<br />
+			select	tdpur041.*<br />
+			from	tdpur041<br />
+			where	tdpur041._index1 = {:m.orno, :m.pono}<br />
+			selectdo<br />
+				if tdpur041.sorn &lt;&gt; 0 and tdpur041.cwar = &quot;   &quot; then<br />
+					m.ed = 1<br />
+				endif<br />
+			endselect<br />
+      else<br />
+			err = sprintf$(&quot;O/C: %s Pos: %s Orden entregada&quot;,orno,pono)<br />
+			write.err.record()<br />
+			ret = -1<br />
+		endif<br />
+	selectempty<br />
+		err = sprintf$(&quot;O/C: %s Pos: %s No hay orden por entregar&quot;,orno,pono)<br />
+		write.err.record()<br />
+		ret = -1<br />
+	endselect<br />
+	return(ret)<br />
+}<br />
+<br />
+function genera.nombres()<br />
+{<br />
+	long   que.anio, que.mes, que.dia<br />
+	num.to.date(m.fecha,que.anio,que.mes,que.dia)<br />
+<br />
+   |Archivo que se recibe<br />
+	m.file1 = sprintf$(&quot;%s&quot;,m.prec)<br />
+	m.file1 = m.file1 &amp; sprintf$(&quot;/RC%@99@&quot;,que.dia)<br />
+   m.file1 = m.file1 &amp; sprintf$(&quot;%@99@&quot;,que.mes)<br />
+   m.file1 = m.file1 &amp; sprintf$(&quot;%@9999@&quot;,que.anio)<br />
+   m.file1 = m.file1 &amp; &quot;.TXT&quot;<br />
+   m.file1 = tolower$(m.file1)<br />
+<br />
+   |Archivo que se procesa<br />
+	m.file2 = sprintf$(&quot;%s&quot;,m.pgen)<br />
+	m.file2 = m.file2 &amp; sprintf$(&quot;/RC%@99@&quot;,que.dia)<br />
+   m.file2 = m.file2 &amp; sprintf$(&quot;%@99@&quot;,que.mes)<br />
+   m.file2 = m.file2 &amp; sprintf$(&quot;%@9999@&quot;,que.anio)<br />
+   m.file2 = m.file2 &amp; &quot;.TXT&quot;<br />
+   m.file2 = tolower$(m.file2)<br />
+<br />
+   |Archivo de Log<br />
+	m.file3 = sprintf$(&quot;%s&quot;,m.plog)<br />
+	m.file3 = m.file3 &amp; sprintf$(&quot;/RC%@99@&quot;,que.dia)<br />
+   m.file3 = m.file3 &amp; sprintf$(&quot;%@99@&quot;,que.mes)<br />
+   m.file3 = m.file3 &amp; sprintf$(&quot;%@9999@&quot;,que.anio)<br />
+   m.file3 = m.file3 &amp; &quot;.ERR&quot;<br />
+   m.file3 = tolower$(m.file3)<br />
+<br />
+   display(&quot;m.file1&quot;)<br />
+   refresh()<br />
+}<br />
+function actualiza.generado()<br />
+{<br />
+        db.retry.point()<br />
+        tdpur980.nfil =  m.file1<br />
+        tdpur980.pdat =  m.fecha<br />
+        tdpur980.usua =  logname$<br />
+        tdpur980.ohor =  time.num()<br />
+        tdpur980.nreg =  rec.read<br />
+        db.insert(ttdpur980,db.retry)<br />
+        commit.transaction()<br />
+}<br />
+<br />
+| Función que carga los parámetros de la Interface a variables globales<br />
+function carga.param()<br />
+{<br />
+	m.fecha = date.num()<br />
+	m.user = logname$<br />
+	| Busca los parémtros de la Interface<br />
+	select	tdinv981.*<br />
+	from	tdinv981<br />
+	selectdo<br />
+		m.plog = shiftl$(shiftr$(tdinv981.plog))<br />
+		m.prec = shiftl$(shiftr$(tdinv981.prec))<br />
+		m.pgen = shiftl$(shiftr$(tdinv981.pgen))<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th June 2002, 20:33</div></div><div class="posttext">Here are my thoughts and I could be wrong because I am not real familiar with this session.  Also we are on 4c3 and this may not match yours. I thought in this session if you received line one of a three line purchase order then you had to back order the other two lines.  So from looking at your code it looks like you could possible receive line 1 and create a receipt. You update line one, but do not back order the other two lines.  So now you read the next record and attempt to update line 2, but it is still attached to the receipt you did on line 1 and has not been processed. So I was thinking that for each line you need to process all lines on the purchase order each time. So you would basically have a loop before you stpapi.update. In the loop you would check for your position number if it is not equal then backorder the quantity.  Once all lines were updated then you would do the update and process the receipt.<br />
+<br />
+<br />
+I could be wrong, but thought I would speculate a little.  Hopefully someone else will have the exact solution.<br />
+<br />
+Good Luck!<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vsevilla</div><div class="date">26th June 2002, 21:04</div></div><div class="posttext">Hi Mark<br />
+<br />
+The session is a copy of the standar session tdpur4120m000(Maintain Receipts) whit any changes.<br />
+<br />
+I maked a loop but i have errors.<br />
+<br />
+The form of the standar session is type 3 so you need move through the records with a loop and stpapi.find and updated one by one but with stpapi.update the standar session update all records in the form and the result is the same.<br />
+<br />
+And i f i use stpapi.browse.set(session,&quot;next.set&quot;, err) to move through the record the values for the last record is buffered for the rest not and when the command stpapi.update is executed, only the values for the last record is updated and for the prior record not.<br />
+<br />
+I ty to put stpapi.update(session, false, err) and at the end of loop put stpapi.save(session, flase, err) whe all records was updated but the result is the same becuse the stpapi.update update all records<br />
+<br />
+<br />
+Any idea?<br />
+<br />
+Thanks <br />
+<br />
+Vsevilla</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th June 2002, 23:19</div></div><div class="posttext">I think I see the problem - I was assuming that you processed the receipt completely through the maintain approval process. That way when you read the next line you could create a new receipt. So for a multiline receipt already exists. So the solution below is for just doing maintain receipts.  Now if you plan on processing each receipt as it is created then that would solve your problem also, because then the old receipt would not exist.<br />
+<br />
+One solution is to check to see if there is already a receipt.  I would create a simple query against the tdpur045 table and check for an open receipt. So when you read a record from the file go check and see if there is a current open receipt.  If yes modify that receipt for the part, otherwise create a receipt.  Then as you read each record from the file you either modify some existing receipt or create a new receipt.<br />
+<br />
+This way if they manually received lines 1 and 2 you could update line 3 by modifying the existing receipt.  OR you could create a new receipt, update your line with the new qty.  And set the other lines to 0.  Then when you read the next line your query would find an open receipt, you could do a find for the receipt,po and position. Then just update it.<br />
+<br />
+Hope I helped!<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,471 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Baan Messenger, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Baan Messenger Code &amp; Utilities" />
+	
+	<title>Baan Messenger [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Code &amp; Utilities</a> &gt; Baan Messenger</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">13th February 2006, 15:01</div></div><div class="posttext">As a result of this thread (http://www.baanboard.com/baanboard/showthread.php?t=26213), I was requested to post the session I created for sending messages to active Baan shells.<br />
+<br />
+It is a very simple and straight forward system, which is just activating the standard Baan messaging functionality (systemmess). <br />
+<br />
+IMPORTANT: In order for this session to work, first the mask pollmess should be active. This can be activated in session ttadv4188m000<br />
+Insert a new entry as follows:<br />
+mask: pollmess<br />
+session/object: ottstppollmess<br />
+automaticall add mask : yes<br />
+boot : yes<br />
+CONVERT TO RUNTIME DD.<br />
+<br />
+Attached are the (compressed) objects, exported via ttiex1280m000. So you can just place it on disc, and import the folder 'baan_messenger' using ttiex1280m000.<br />
+<br />
+I was lazy for the form and used hard-coded text instead of neat labels. You will see that the form is available for languages 1 &amp; 2 (Dutch &amp; English)<br />
+<br />
+Explanation of form-fields:<br />
+- There are 4 text fields; I don't think anyone will send longer messages than that, but of course you can add more...<br />
+- The option &quot;display message for coming x minutes&quot;: with this option the message will appear on any existing bshell, and on any new logon during the next x minutes. NOTE: when this option is selected the session stays active - and hourglass will appear - for the selected amount of minutes.<br />
+Without this option the message will be displayed on any current bshell and on any new logon, for unlimited amount of time, untill the message will be removed using option 'remove current message'.<br />
+- Option 'remove current message' removes a message placed previously. NOTE: when the message was placed only for x minutes, then it is not necessary to remove the file, for the file will be removed at the end of the x minutes.<br />
+<br />
+Hope this will be usefull. For any questions, of course feel free to ask me at any time!<br />
+<br />
+<br />
+Cheers,<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">~Vamsi</div><div class="date">13th February 2006, 18:35</div></div><div class="posttext">En,<br />
+<br />
+Could you please post the sources as well. If I remember the format of the dump files is not the same between the different Baan versions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">14th February 2006, 10:36</div></div><div class="posttext">Here is the code, in attachment you will find the form information including screenshots. Of course there may be differences between different Baan versions. Also, I developed this session in a Baan 5.0B environment. I can't think directly of a reason it shouldn't work in BaanIV for instance, but didn't try it. Would be happy to hear from others..<br />
+<br />
+<br />
+|******************************************************************************<br />
+|* Title	: tcrom3080 - Baan Messenger<br />
+|* Author	: Eli Nager<br />
+|* Date		: 13/02/2006<br />
+|******************************************************************************<br />
+|* Script Type	: 4GL<br />
+|* Copyright 2006 by Eli Nager<br />
+|* <br />
+|* All Rights Reserved <br />
+|* <br />
+|* Permission to use, copy, modify, and distribute this software and its<br />
+|* documentation for any purpose and without fee is hereby granted,<br />
+|* provided that the above copyright notice appear in all copies and that<br />
+|* both that copyright notice and this permission notice appear in<br />
+|* supporting documentation. <br />
+|* <br />
+|* ELI NAGER AND BAANBOARD.COM DISCLAIM ALL WARRANTIES WITH REGARD TO <br />
+|* THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY<br />
+|* AND FITNESS, IN NO EVENT SHALL ELI NAGER NOR BAANBOARD.COM BE LIABLE <br />
+|* FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES <br />
+|* WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, <br />
+|* WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER <br />
+|* TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE<br />
+|* OR PERFORMANCE OF THIS SOFTWARE.<br />
+|*                                                                                <br />
+|****************************** declaration section ***************************<br />
+<br />
+declaration:<br />
+<br />
+	extern	domain	tcmcs.str100	text1<br />
+	extern	domain	tcmcs.str100	text2<br />
+	extern	domain	tcmcs.str100	text3<br />
+	extern	domain	tcmcs.str100	text4<br />
+	extern	domain	tcyesno		opt.del<br />
+	extern	domain	tcyesno		del.mess<br />
+	extern	domain	tcmcs.long	minutes<br />
+<br />
+		domain	tcmcs.str35	filepath<br />
+		domain	tcmcs.long 	fileid<br />
+		domain	tcmcs.long	ret.val<br />
+		domain	tcmcs.long	hold.minutes<br />
+			string		mess.txt(400)<br />
+<br />
+	#define	FILENAME	&quot;systemmess&quot;<br />
+	#define	TR(x)		strip$(shiftl$(x))<br />
+<br />
+<br />
+|****************************** form section **********************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+	if opt.del &lt;&gt; tcyesno.yes then<br />
+		hold.minutes = minutes<br />
+		minutes = 0<br />
+		disable.fields(&quot;minutes&quot;)<br />
+		display(&quot;minutes&quot;)<br />
+	endif<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	filepath = bse.dir$()<br />
+	filepath = TR(filepath) &amp; &quot;/lib/&quot; &amp; FILENAME<br />
+<br />
+	if del.mess = tcyesno.yes then<br />
+		del.file()<br />
+	else<br />
+		if opt.del = tcyesno.yes and minutes &lt; 1 then<br />
+			message(&quot;Gelieve eerst aantal minuten te selecteren&quot;)<br />
+			choice.again()<br />
+		else<br />
+			display.mess()<br />
+		endif<br />
+	endif<br />
+<br />
+|****************************** field section *********************************<br />
+<br />
+field.opt.del:<br />
+when.field.changes:<br />
+	if opt.del = tcyesno.yes then<br />
+		enable.fields(&quot;minutes&quot;)<br />
+		minutes = hold.minutes<br />
+		if minutes &lt; 1 then<br />
+			minutes = 1<br />
+		endif<br />
+		display(&quot;minutes&quot;)<br />
+	else<br />
+		hold.minutes = minutes<br />
+		minutes = 0<br />
+		disable.fields(&quot;minutes&quot;)<br />
+		display(&quot;minutes&quot;)<br />
+	endif<br />
+<br />
+field.del.mess:<br />
+when.field.changes:<br />
+	if del.mess = tcyesno.yes then<br />
+		disable.fields(&quot;text1&quot;, &quot;text2&quot;, &quot;text3&quot;, &quot;text4&quot;, &quot;opt.del&quot;, &quot;minutes&quot;)<br />
+		display.all()<br />
+	else<br />
+		enable.fields(&quot;text1&quot;, &quot;text2&quot;, &quot;text3&quot;, &quot;text4&quot;, &quot;opt.del&quot;, &quot;minutes&quot;)<br />
+		display.all()<br />
+	endif<br />
+		<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function display.mess()<br />
+{<br />
+	del.file()<br />
+<br />
+	fileid = seq.open(filepath, &quot;wt&quot;)<br />
+	if fileid &lt; 0 then<br />
+		message(&quot;boodschap niet verzonden. Oorzaak: kon bestand niet aanmaken&quot;)<br />
+		choice.again()<br />
+	else<br />
+		mess.txt = TR(text1) &amp; &quot; &quot; &amp; TR(text2) &amp; &quot; &quot; &amp; TR(text3) &amp; &quot; &quot; &amp; TR(text4)<br />
+		ret.val = seq.puts(mess.txt, fileid)<br />
+		ret.val = seq.puts(&quot;-&quot;, fileid)<br />
+		ret.val = seq.close(fileid)<br />
+<br />
+		if opt.del = tcyesno.yes then<br />
+			suspend(60000 * minutes)<br />
+			del.file()<br />
+		endif<br />
+	endif<br />
+}<br />
+<br />
+<br />
+function del.file()<br />
+{<br />
+	ret.val = file.rm(filepath) 	|remove old message-file if present<br />
+}<br />
+<br />
+<br />
+<br />
+Regards,<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">deepaksachdeva</div><div class="date">25th March 2006, 08:20</div></div><div class="posttext">Dear En,<br />
+<br />
+do u have the same code for Baan IV c4 ?<br />
+<br />
+deepak</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">25th March 2006, 18:42</div></div><div class="posttext">Dear En,<br />
+<br />
+do u have the same code for Baan IV c4 ?<br />
+<br />
+deepak<br />
+<br />
+Hello deepack,<br />
+<br />
+i've seen no problems.<br />
+en's code should also do it's job on BaaN IV c4<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">27th March 2006, 12:08</div></div><div class="posttext">Indeed, as I have previously mentioned, I don't see any reason why it shouldn't work for Baan 4C4, please test and let us know...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">deepaksachdeva</div><div class="date">27th March 2006, 12:41</div></div><div class="posttext">while importing the dump, system throws an error <br />
+<br />
+error -13 during seq.open file &quot;/backup/baanmsn/installed.path&quot;<br />
+<br />
+pls comment.<br />
+<br />
+with regards<br />
+Deepak</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">~Vamsi</div><div class="date">27th March 2006, 18:26</div></div><div class="posttext">Deepak,<br />
+<br />
+See my earlier post in the same thread. The dump format is not the same. So go ahead and create the form manually and put in the code. Perhaps you can contribute the dump files for version 4 when you are done.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">deepaksachdeva</div><div class="date">28th March 2006, 06:46</div></div><div class="posttext">Vamsi,<br />
+<br />
+it would be nice, if u pls put up the screen shot of the form, it helps me to understand the layout.<br />
+<br />
+with best regards<br />
+Deepak</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">28th March 2006, 10:01</div></div><div class="posttext">Deepak,<br />
+<br />
+In attachment a screenshot of the form, with a little explanation to it.. Hope this will help..<br />
+<br />
+Feel free to ask if you need any further assistance<br />
+<br />
+<br />
+Regards,<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">deepaksachdeva</div><div class="date">28th March 2006, 10:15</div></div><div class="posttext">Deepak,<br />
+<br />
+In attachment a screenshot of the form, with a little explanation to it.. Hope this will help..<br />
+<br />
+Feel free to ask if you need any further assistance<br />
+<br />
+<br />
+Regards,<br />
+En<br />
+I think you have forgotten to attach the screenshot.<br />
+<br />
+could u pls attach again.<br />
+<br />
+with regards<br />
+Deepak</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">28th March 2006, 10:29</div></div><div class="posttext">My apologies; done.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gurmeetmakkar</div><div class="date">3rd April 2006, 09:04</div></div><div class="posttext">please solv my problem<br />
+<br />
+problem is <br />
+<br />
+how to group comment</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">3rd April 2006, 09:56</div></div><div class="posttext">gurmeetmakkar,<br />
+<br />
+Please be a little more specific; I don't understand your request...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">litrax</div><div class="date">28th April 2006, 12:28</div></div><div class="posttext">I tried to compile the Script from en@frrom. But the Error &quot;Unresolved reference to function 'disable.fields' &quot; appeared. Do you have any hint for me?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">28th April 2006, 12:35</div></div><div class="posttext">Hello Olaf,<br />
+<br />
+Functions disable.fields() and enable.fields() are available from Baan V only. For Baan IV you can replace it by using 'attr.input = FALSE'. This looks less nice than in Baan V since the background-colour of the field doesn't change to gray, but stays white as for an input field, however it meets its requirement and disables user from input<br />
+<br />
+Regards,<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">litrax</div><div class="date">28th April 2006, 13:36</div></div><div class="posttext">O.k. I expected that I have to do this, but I wanted to be sure, before I change the script.<br />
+Thanks...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">30th April 2006, 15:40</div></div><div class="posttext">I tried to compile the Script from en@frrom. But the Error &quot;Unresolved reference to function 'disable.fields' &quot; appeared. Do you have any hint for me?<br />
+<br />
+<br />
+Hello,<br />
+maybe disable.fields() is not working in BaaN IV.<br />
+Try to use attr.input = false instead.<br />
+<br />
+Sorry &quot;en&quot; , you've given this hint before.<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">30th September 2006, 13:25</div></div><div class="posttext">hi en@from ,<br />
+<br />
+  I wanted to compile your script so to use it wanted to create a session but wen i tried to generate a session with tc rom combination it gave an error saying module not found , is there any way by which we can generate a session wer in we dont have to specify the main table , plz comment <br />
+<br />
+Regards,<br />
+Niraj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">3rd October 2006, 11:21</div></div><div class="posttext">Hello Niraj,<br />
+<br />
+The module rom is not a standard Baan module. It is a module I use at our site for our customizations. You can add the session in any module you like (tccom etc), or alternatively create the module rom (which I wouldn't do just for this one session).<br />
+<br />
+Regards,<br />
+Eli</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">3rd October 2006, 11:32</div></div><div class="posttext">Hi EN@FROM ,<br />
+<br />
+Thank you <br />
+<br />
+But if want to generate a session without specifying the main table how can i do dat , or i'll have to create a new table for that , please comment .<br />
+<br />
+Regards ,<br />
+NIraj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">3rd October 2006, 11:37</div></div><div class="posttext">You don't need a main table, for you don't need any Baan table in this session. So you can just write any table, for instance tccom000 or so.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">3rd October 2006, 14:39</div></div><div class="posttext">Thank you EN@FROM <br />
+<br />
+Dats wot i wanted .<br />
+<br />
+Regards ,<br />
+Niraj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">3rd October 2006, 15:12</div></div><div class="posttext">I tried to compile the Script from en@frrom. But the Error &quot;Unresolved reference to function 'disable.fields' &quot; appeared. Do you have any hint for me?<br />
+<br />
+<br />
+Hello,<br />
+<br />
+maybe disable,fields() will not work on BaaN IV.<br />
+I don't know if it is backported.<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">3rd October 2006, 15:48</div></div><div class="posttext">?? bdittmar, what's your point to keep on repeating that point. As already explained several times, indeed these functions are available from Baan V only.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">18th October 2006, 08:30</div></div><div class="posttext">Hi En@From ,<br />
+<br />
+I modified your Baan Messenger a bit , wot i found in it was it was only updating  the systemmes file , but was not updating ttadv4188m000 so that user had to manually run that session , so i made a little modification so that this processess are automated i am  posting the modified code and the form snapshot .<br />
+<br />
+Regards,<br />
+Niraj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zakir_h</div><div class="date">18th October 2006, 14:12</div></div><div class="posttext">Hi,<br />
+i think u have to include the file &lt;bic_dam&gt; in your script ofcourse in baan v.<br />
+<br />
+Regards<br />
+<br />
+zakir</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Rammie</div><div class="date">19th October 2006, 18:53</div></div><div class="posttext">Hi all,<br />
+<br />
+I've been playing with this method of displaying a message on login, however most of our users use Worktop. For some reason when logging into worktop the message is displayed twice. Logging in via BECS it only appears once as required.<br />
+<br />
+Any thoughts?<br />
+<br />
+(For info we're BaanIVc4 on Windows Server 2000)<br />
+<br />
+Thanks,<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">19th October 2006, 20:17</div></div><div class="posttext">Dave,<br />
+<br />
+Check in Worktop -&gt; Tools -&gt; Options -&gt; View -&gt; Embed System Message in Work Area.<br />
+<br />
+Also, refer to the thread - BAAN welcome screen setup (http://www.baanboard.com/baanboard/showthread.php?t=26213&amp;highlight=embed)<br />
+<br />
+You can also change the options in - C:\Program Files\Baan\Worktop\Worktop.ini instead of individual worktop documents <br />
+<br />
+; Defines whether system messages must be showed embedded within the Information pane of Worktop.<br />
+; Options: 	0 = Never embed system messages<br />
+;			1 = Only embed messages if Work pane is visible<br />
+; 			2 = Always embed system messages<br />
+; Default: 1<br />
+ShowSystemMessages =1<br />
+<br />
+; Only applicable if ShowSystemMessages is set to 1. Define the SystemMessagesInterval variable <br />
+; to define the frequency of polling (in seconds) for new messages awaiting on the server.<br />
+; Default: 300 (= each 5 minutes)<br />
+SystemMessagesInterval =300</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">20th October 2006, 13:06</div></div><div class="posttext">Hi Niraj,<br />
+<br />
+First of all sorry for the late response; haven't been much around the last couple of weeks...<br />
+<br />
+As for your modification: ok, but I do not really understand why you had to put time in programming that update in ttadv4188m000. This is a parameter which needs to be set only once per environment (not even per company since its set in the Tools company)... Am I missing something...???</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">23rd October 2006, 07:15</div></div><div class="posttext">Hi en@from ,<br />
+<br />
+May be I am wrong but , In our company whenever we have to message BAAN users we send message using systemmess file and select the boot option in ttadv4188 so each time the user boots or login to Baan he gets the message and when we dont want the message to get displayed we remove the boot option , that is what i tried to do . <br />
+<br />
+Is there any other way other than changing the option in ttadv4188 , please comment<br />
+<br />
+Regards,<br />
+Niraj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">23rd October 2006, 10:12</div></div><div class="posttext">Hello Niraj,<br />
+<br />
+The way systemmess works, is that if the mask is activated, then there is a check in the ${BSE}/lib directory if the file systemmess exists. If yes, the message will be printed, if not, nothing happens.<br />
+<br />
+It is therefor enough to activate the mask once for the entire system (all companies, all users), and then creating and removing the file systemmess according to the need.<br />
+<br />
+I hope this clears things up.<br />
+<br />
+Regards,<br />
+Eli</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">23rd October 2006, 10:54</div></div><div class="posttext">Hi En@from ,<br />
+<br />
+ Ok , i got it now , what you mean to say is activate the mask and boot option once and dont change it and Whenever you want to display the message create a file systemmess and when you dont want the message to be displayed delete the systemmess file , am i right now .<br />
+<br />
+Regards,<br />
+Niraj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">23rd October 2006, 10:56</div></div><div class="posttext">Yes, exactly!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">23rd October 2006, 13:13</div></div><div class="posttext">Hi en@from ,<br />
+<br />
+  Is there any sort of BAAN chat client programmed by any one , utility for messaging both side full duplex , If not will it be possible to program it using Baan Tools alone .<br />
+<br />
+Regards,<br />
+Niraj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lorry.lu</div><div class="date">5th December 2006, 09:27</div></div><div class="posttext">I modify the script and add some new function! It works well in BaaNIVc4.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

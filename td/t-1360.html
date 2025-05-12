@@ -1,0 +1,251 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Preserve position of record pointer in report script, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Preserve position of record pointer in report script Tools Development" />
+	
+	<title>Preserve position of record pointer in report script [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Preserve position of record pointer in report script</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">13th March 2002, 18:04</div></div><div class="posttext">Hello,<br />
+<br />
+I am running Baan IVc3 and attempting to customise the session Print Receipt Log via a simple report script. The change I am adding is simply a date range and I am using the lattr.print variable in the script to supress the printing of records not included in the date range.<br />
+<br />
+I have found a way of supressing my before field by using a simple sql statement on tdpsc007 to check for the receipts against the supplier. However since I've added this statement the detail lines on the report have began to misbehave. It's as if somehow with the select statement I'm moving the record pointer on the main tdpsc007 table. <br />
+<br />
+So what I'm really looking for is a way to return to the previous record on the table before my SQL statement. Is there a 4GL statement which will preserve the position of the record pointer and then allow me to return to it after my sql.<br />
+<br />
+Regards<br />
+<br />
+Neal Matthews<br />
+Intier Automotive - IT Support Analyst</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th March 2002, 18:15</div></div><div class="posttext">Maybe in the report script you can just use an alias of the table.  Since your just using lattr.print this should stop the problem. The select in the script is probably filling in report variables that still need to be printed in the detail layouts.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">13th March 2002, 18:46</div></div><div class="posttext">There is no connection between the SQL record pointers in the report session (4GL) and the report script (3GL).<br />
+<br />
+It looks like you might be overlaying report fields with your report script date range SQL statement. Try returning a field that doesn't exist in your report, something like:<br />
+<br />
+<br />
+|example sql only<br />
+select tdpur045.date<br />
+from   tdpur045<br />
+where  tdpur045._index1 = {:tdpsc007.xxxx, ...}<br />
+  and  tdpur045.date between xxx and zzz<br />
+as set with 1 rows<br />
+selectdo<br />
+     lattr.print = true<br />
+selectempty<br />
+     lattr.print = false<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">msjumbu</div><div class="date">13th March 2002, 19:11</div></div><div class="posttext">if its still giving u error, you can as well use alias. Its better to be on the safer side always.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">14th March 2002, 09:47</div></div><div class="posttext">Thanks for your replies.<br />
+<br />
+How would I use an alias ?<br />
+<br />
+Neal Matthews<br />
+Intier Automotive - IT Support Analyst</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th March 2002, 15:22</div></div><div class="posttext">Like this:<br />
+<br />
+select tdpur045_a.date<br />
+from   tdpur045 tdpur045_a<br />
+where  tdpur045_a._index1 = {:tdpsc007.xxxx, ...}<br />
+and  tdpur045_a.date between xxx and zzz<br />
+as set with 1 rows<br />
+selectdo<br />
+        lattr.print = true<br />
+selectempty<br />
+        lattr.print = false<br />
+endselect<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">15th March 2002, 11:02</div></div><div class="posttext">Thanks for that chaps.<br />
+<br />
+In the end I had to look at table tdpur045 as I was still having problems even when using an alias. The only drawback with using this table is the fact that we archive tdpur045 but we should get away with it.<br />
+<br />
+Regards<br />
+Neal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">15th March 2002, 15:37</div></div><div class="posttext">You could always create a based variable to hold the record for the table (e.g., rcd.ttdsls045) and then restore it after your processing.  This has worked well for me in the past.  I have also had problems getting aliases to work for me consistently.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">15th March 2002, 16:03</div></div><div class="posttext">Hi Ed,<br />
+<br />
+Excuse my ignorance but how would this work exactly ?<br />
+<br />
+Cheers<br />
+Neal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">15th March 2002, 19:46</div></div><div class="posttext">Basically you store the value of the current record, do your processing, and then restore the record to its previous value.  Baan uses this in some of their scripts (e.g., tdsls4404).<br />
+<br />
+First, you declare a based variable to hold the record.  Then you allocate memory to the variable.  After that, you do the assignment.  When you are done, you free the memory.  For example,<br />
+<br />
+string	buf.tdsls045  based<br />
+long	row.length<br />
+...<br />
+db.row.length(ttdsls045,row.length)<br />
+alloc.mem(buf.tdsls045, row.length)<br />
+...<br />
+buf.tdsls045 = rcd.ttdsls045<br />
+(do processing)<br />
+rcd.ttdsls045 = buf.tdsls045<br />
+...<br />
+free(buf.tdsls045)<br />
+You could also save the table keys and do another select.  The record method avoids another database hit.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">18th March 2002, 11:00</div></div><div class="posttext">Thanks Ed,<br />
+<br />
+That seems to work pretty well.<br />
+<br />
+The only problem I've got is with freeing the memory as the compiler spits out the free() function as not being recognised. Is this a function you've put together yourself or is it a standard function I'm missing ?<br />
+<br />
+Regards<br />
+Neal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">18th March 2002, 11:19</div></div><div class="posttext">If you search for free in the online help you will see that the function is called free.mem and not free.<br />
+<br />
+(At least in 5.0)<br />
+<br />
+Han</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">18th March 2002, 11:40</div></div><div class="posttext">Thanks Han,<br />
+<br />
+The compiler is now happy.<br />
+<br />
+Regards<br />
+Neal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">18th March 2002, 15:44</div></div><div class="posttext">Sorry.  My mind was working faster than my keys.  the free.mem command is definitely what you want to use on 4 or 5.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">afierro</div><div class="date">15th January 2007, 21:28</div></div><div class="posttext">Wow! :D :D :D :D :D :D :D <br />
+<br />
+I was looking for something like this because my detail lines were messing a lot.<br />
+I tryied using aliases, and altought the compiler didn't return any error, when I ran the session it said: SELECT VARIABLE 'alias_name' (type 2) not defined<br />
+I don't know but I think the use of aliases in a report program cannot be used :confused: (think this because I use aliases in my program scripts and they work)<br />
+<br />
+I did it as evesely said so, and it works perfectly, thanks a lot!!!<br />
+<br />
+Now, if somebody can tell why BaaN returns that error in a report script :p <br />
+BaaN IV c4<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">15th January 2007, 21:48</div></div><div class="posttext">Not sure what you mean - I use aliases in report scripts.<br />
+<br />
+declaration:<br />
+| 20051004.st<br />
+	table	ttirou001		| Work Centers<br />
+	extern	domain	tchrs.amnt	req.resources<br />
+	extern	domain	tcnoru		main.resources		| 20051004.end<br />
+header.1:<br />
+| 20051004.st<br />
+before.layout:<br />
+	select	a.noru:main.resources<br />
+	from	tirou001 a<br />
+	where	a._index1 = {:tirou001.mnwc}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	endselect	| 20051004.end</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">afierro</div><div class="date">16th January 2007, 01:41</div></div><div class="posttext">Not sure what you mean - I use aliases in report scripts.<br />
+<br />
+declaration:<br />
+| 20051004.st<br />
+	table	ttirou001		| Work Centers<br />
+	extern	domain	tchrs.amnt	req.resources<br />
+	extern	domain	tcnoru		main.resources		| 20051004.end<br />
+header.1:<br />
+| 20051004.st<br />
+before.layout:<br />
+	select	a.noru:main.resources<br />
+	from	tirou001 a<br />
+	where	a._index1 = {:tirou001.mnwc}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	endselect	| 20051004.end<br />
+<br />
+<br />
+<br />
+If I put that code into one of my reports the compiler doesn't return any error, but when i run the report, in the BW Message windows it inmediatly says undefined symbol &quot;a&quot; SELECT VARIABLE 'alias_name' (type 2) not defined and it doesn't work<br />
+<br />
+Any Idea??<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">16th January 2007, 05:11</div></div><div class="posttext">Can you post the query?  I just ran this report today.  We are on SP20 4c4 - it might be a patch is just needed.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">afierro</div><div class="date">17th January 2007, 01:25</div></div><div class="posttext">Can you post the query?  I just ran this report today.  We are on SP20 4c4 - it might be a patch is just needed.<br />
+<br />
+Thanks Mark, this is the query:<br />
+        <br />
+before.inco.10:<br />
+before.layout:<br />
+select	t41.*,t45.*<br />
+from	tdsls041 t41, tdsls045 t45<br />
+where	t41._index1 = {:worea}<br />
+and	 t41._index1 refers to t45<br />
+and	 t45.ssls &gt; 5<br />
+selectdo<br />
+i = i + 1<br />
+selectempty<br />
+endselect<br />
+<br />
+Everything goes well when compiling, no errors, but when this query runs it return that messages.<br />
+<br />
+The curious thing is that this same query in a program script runs perfectly:confused: , no errors in the compiler nor executing it!!<br />
+<br />
+Thanks in advance...<br />
+<br />
+_____<br />
+Alex</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th January 2007, 16:54</div></div><div class="posttext">Is there is more to the query than you posted?  If not, I would use:<br />
+<br />
+select count(t41.orno):i<br />
+from tdsls041 t41, tdsls045 t45<br />
+where t41._index1 = {:worea}<br />
+and t41._index1 refers to t45<br />
+and t45.ssls &gt; 5<br />
+selectdo<br />
+endselect<br />
+<br />
+If there is more to the query I would try using at least some field names instead of the &quot;*&quot;.  I know it works in the session script and I think it should also work in the report script.  Is there more to the query?</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

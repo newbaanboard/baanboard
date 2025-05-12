@@ -1,0 +1,170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to compile and use 4GL Script, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to compile and use 4GL Script Tools Development" />
+	
+	<title>How to compile and use 4GL Script [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; How to compile and use 4GL Script</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">scough</div><div class="date">8th April 2011, 20:17</div></div><div class="posttext">I am not a Baan developer but in another post I asked about using 4GL code in a constraint and a user (EdHubbard) generously offered the following:<br />
+<br />
+!#pragma used dll otcmcsdll9988c<br />
+!table ttipcf500<br />
+!table ttccom010<br />
+!import(&quot;tipcf500.cuno&quot;, tipcf500.cuno)<br />
+!if (tcmcs.dll9988c.read.customer.master(tipcf500.cuno) ) then<br />
+! [custname] = tccom010.cuno(3;4)<br />
+!endif<br />
+<br />
+function extern domain tcbool<br />
+	tcmcs.dll9988c.read.customer.master(<br />
+	domain  tccuno pcuno<br />
+	)<br />
+{<br />
+	select tccom010.cuno,<br />
+		tccom010.nama,<br />
+		tccom010.ccty,<br />
+		tccom010.ccur,<br />
+		tccom010.cbrn,	<br />
+		tccom010.crat	<br />
+	from tccom010<br />
+	where tccom010._index1 = {:pcuno}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		return ( true )<br />
+	endselect<br />
+	return ( false )<br />
+}<br />
+<br />
+The problem is that I do not know how to go about compiling this script so that I can call the function.<br />
+<br />
+Can anyone provide any assistance? Like I said I am not a Baan developer so  using generalities will most likely not be enough information. I hoping someone might help with a step by step guide.<br />
+<br />
+Thanks!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th April 2011, 23:05</div></div><div class="posttext">What Ed recommended was using a DLL.  A DLL can be created in session ttadv2131m000.  This is the session where you can create and compile the DLL.  First you would hit insert, give the DLL a name, and then hit edit.  Enter the code, save and exit. Then just click on compile - that creates a library.<br />
+<br />
+Then in a session you can call the library function from a session.  You would include the library in the session script.  Using something like <br />
+<br />
+#pragma	used	dll	ottstpapihand	| Baan API Handler<br />
+<br />
+Or you could add them in the session script by clicking the libraries button and adding the library there.  At that point anywhere in the session script you can call the library function that you created.<br />
+<br />
+I did not review the code request or what was provided.  Just tried to provied some basic steps for creating and using a library.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">scough</div><div class="date">11th April 2011, 17:45</div></div><div class="posttext">Thank you for your help. Hopefully I will get a chance to try this out today!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">scough</div><div class="date">12th April 2011, 19:34</div></div><div class="posttext">Not having much luck.<br />
+<br />
+I am just trying get a simple test script to work but it keeps erroring out when I try to exit the constraint editor.<br />
+<br />
+<br />
+I created this script under:<br />
+Package: ti<br />
+Module  : pcf<br />
+Librady  : dllcits01<br />
+VRC      : B40P c4 cust<br />
+<br />
+<br />
+|******************************************************************************<br />
+|* tipcfdllcits01  0  VRC B40P c4 cust<br />
+|* Write messages from within contraint code to message tables.<br />
+|* baan<br />
+|* 04-12-11 [11:05]<br />
+|******************************************************************************<br />
+|* Script Type: Library<br />
+|******************************************************************************<br />
+<br />
+function extern domain tcbool<br />
+	tipcf.dllcits01.test(	)<br />
+{	<br />
+	return ( true )	<br />
+}<br />
+<br />
+It compiles fine so I tried using it in a validation constraint I am editing in the constraint editor:<br />
+<br />
+!#pragma used dll otipcfdllcits01<br />
+if [PRODFEAT] = &quot;Y&quot; then<br />
+<br />
+   !if (tipcf.dllcits01.test()) then<br />
+   !message = &quot;True&quot;<br />
+   !endif<br />
+<br />
+endif<br />
+<br />
+I get an error : Constraint expression cannot be executed (line # where !if (tipcf.... starts)<br />
+<br />
+In the BW messages window I see:<br />
+<br />
+Error : Syntax error in expression: value 0 assumed<br />
+<br />
+What am I doing wrong in this simple test?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th April 2011, 22:32</div></div><div class="posttext">!#pragma used dll otipcfdllcits01<br />
+if [PRODFEAT] = &quot;Y&quot; then<br />
+<br />
+   if (tipcf.dllcits01.test()) then<br />
+   message = &quot;True&quot;<br />
+   endif<br />
+<br />
+endif<br />
+<br />
+<br />
+Remove the ! infront of the test.  See above.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">scough</div><div class="date">12th April 2011, 22:46</div></div><div class="posttext">No go.... I removed the ! and I still get the error.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th April 2011, 22:51</div></div><div class="posttext">Can you post the whole session script and the exact error message?  I am not sure where you are putting this code.  I would expect it to be in a check field input or something like that.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">scough</div><div class="date">12th April 2011, 22:58</div></div><div class="posttext">This is not in a session script. This is being run in a validation constraint.<br />
+<br />
+That is why you saw the ! infront of the code.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th April 2011, 23:52</div></div><div class="posttext">Then you have my sincere apologies.  I have never used a validation constrait like this and you will need to wait for someone else to respond.  All of my DLL's I used through session scripts.  Once again my apologies.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">scough</div><div class="date">13th April 2011, 20:14</div></div><div class="posttext">No need to apologize. You were trying to help and it was appreciated!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">EdHubbard</div><div class="date">14th April 2011, 18:48</div></div><div class="posttext">To actually compile the PCF script you would use session tipcf2201m000 if your parameters are set to Object Version [check form 1 of tipcf0100m000].<br />
+<br />
+See what you get from checking those things out first.<br />
+<br />
+Ed</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">scough</div><div class="date">15th April 2011, 03:17</div></div><div class="posttext">Thanks Ed,<br />
+<br />
+I did compile the constraint and I have the &quot;Object Version&quot; selected.<br />
+<br />
+I am not sure what I was doing wrong as I am certain that I have had the option set to &quot;Object Version&quot; all along and I compile the code every time I make a change. I do that not only to make sure the compiled version is up to date, but for syntax checking as well:)<br />
+<br />
+In any event I was able to get some very simple code in the dll and I can call it from the constraint and get the results I expect.<br />
+<br />
+I will be working on expanding the code to do what I need.<br />
+<br />
+Thank you for your help.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,304 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Duda con AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Duda con AFS Forum español" />
+	
+	<title>Duda con AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">BB Language Forums</a> &gt; <a href="../index.html">Forum español</a> &gt; Duda con AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">fbernaus</div><div class="date">28th June 2004, 18:59</div></div><div class="posttext">Queremos automatizar mediante AFS la sesión de &quot;Introducir entregas para órdenes de fabricación&quot; (ticst01011m000). En esta sesión después de responder que los stock quieren entregarse inmediatamente, aparece y desaparece por sí sola una subsesión (tisfc0207s000). Y, a continuación, se muestra la pantalla de impresión.<br />
+<br />
+Mi problema es que no se como tratar con los AFS esa subsesión, pues realmente, en el proceso manual, no se la invoca para nada (aparece y desaparece por sí sola). He probado a no tratar la subsesión, pero en este caso, al tratar de cerrar la sesión padre, no se cierra. <br />
+Así que señalo a la sesión que se ocupe de la subsesión (modo &quot;add&quot;), pero en este caso, no acierto a que el programa haga lo que quiero que haga (realmente no hace nada, se supone que tendría que imputar a una determinada linea de una orden de fabricación una cierta cantidad de artículo) Si habeis tratado con algún caso parecido os agradecería cómo puedo arreglarlo. <br />
+<br />
+Muchas gracias por adelantado,<br />
+Un saludo a todos!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dorleta</div><div class="date">29th June 2004, 11:17</div></div><div class="posttext">Yo tuve que hacer algo parecido para deshacer unos movimientos realizados por error.<br />
+<br />
+Automaticé la sesión de mantener entregas de material ( ticst0101m000 ) pero sin intentar entregarlo y una vez que terminaba las operaciones con esa orden es cuando lanzaba la tisfc0207m000 (tambien automatizada) que hace lo mismo ( mas que nada para ganar tiempo ) .<br />
+<br />
+cuando automatices la tisfc0207m000 no olvides antes de llamar a la función de continuar proceso llamar a la de elegir listado<br />
+<br />
+function extern stpapi.print.report(<br />
+const string session(),<br />
+ref string err.mesg() )<br />
+Es un error bastante habitual y que te deja la sesión colgada</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fbernaus</div><div class="date">29th June 2004, 11:48</div></div><div class="posttext">Dorleta,<br />
+<br />
+¿Como automatizaste la sesión  ticst0101m000? No entiendo que utilidad te tenía automatizarla si finalmente no realizabas las entregas de stock.<br />
+<br />
+El problema que tengo es que esa subsesión llama a una subsesión que aparece y desaparece por sí sola, sin la intervención del usuario. No se como tratar esa subsesión en el programa AFS. <br />
+<br />
+Te paso el código para que veas como lo estamos intentando desarrollar:<br />
+<br />
+Dim OF As String = &quot;328385&quot;<br />
+        Dim linea As String = &quot;170&quot;<br />
+<br />
+<br />
+        Dim articulo As String = &quot;4600173&quot;<br />
+        Dim cantidad As String = &quot;10&quot;<br />
+<br />
+        Try<br />
+<br />
+            'Esta función realiza la asociación de un artículo con una OF en la cantidad especificada<br />
+            'Devuelve 1 si todo correcto. -1 en caso de error<br />
+<br />
+            Dim baanobj As Object<br />
+            baanobj = CreateObject(&quot;Baan4.Application.baanivc4&quot;) '501<br />
+            baanobj.Timeout = 300<br />
+            MsgBox(&quot;Creado AFS&quot;)<br />
+<br />
+            Dim sesion_baan As String = &quot;ticst0101m000&quot; 'Introducir entregas para órdenes de fabricación<br />
+            Dim save As Long = 1 'commit=true.Si no,luego se haría un &quot;save&quot;, si correspondiera<br />
+            Dim resul_AFS As String<br />
+<br />
+            '===========================================================================================================================================================================================<br />
+            '1.Localizar OF y linea de la OF<br />
+            baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;ticst001.pdno&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; OF &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;ticst001.pono&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; linea &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.find(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;)&quot;)<br />
+<br />
+            If baanobj.ReturnValue &lt;&gt; 1 Then 'será 1(si no encuentra ningún otra OF) o 2 (si encuentra otra OF, será la OF siguiente)<br />
+                baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.end.session(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;)&quot;)<br />
+                baanobj.Quit()<br />
+                baanobj = Nothing<br />
+                MsgBox(&quot;OF inexistente&quot;)<br />
+                Return<br />
+            End If<br />
+            '=================================================================================================================================================================================================<br />
+            MsgBox(&quot;OF Y LINEA encontradaS&quot;)<br />
+<br />
+<br />
+            'baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;ticst001.pdno&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; OF &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            'baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;ticst001.pono&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; linea &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            'MsgBox(&quot;linea puesta&quot;)<br />
+<br />
+            'baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;ticst001.sitm&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; articulo &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;issu.quan&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; cantidad &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            MsgBox(&quot;cantidad puesta&quot;)<br />
+<br />
+            'Responder que Sí a &quot;Entregar stocks inmediatamente?&quot; Un 1 es que si; un 2, no.<br />
+            baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.enum.answer(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;ticst01011&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; 1 &amp; &quot;)&quot;)<br />
+            MsgBox(&quot;Contestado Que SI&quot;)<br />
+<br />
+            baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.continue.process(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; resul_AFS &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            MsgBox(&quot;1 Continue process OK&quot;)<br />
+<br />
+            '=================================================================================================================================================================================<br />
+            'A PARTIR DE AQUI .....<br />
+<br />
+            'baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.change.view(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; resul_AFS &amp; Chr(34) &amp; &quot;)&quot;)<br />
+<br />
+            'baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;pdno.f&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; OF &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            'baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;pdno.t&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; OF &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            'baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;opno.f&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;0&quot; &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            'baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;opno.t&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;999&quot; &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            'MsgBox(&quot;Campos subsesion rellenos&quot;)<br />
+<br />
+            'baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.continue.process(&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; resul_AFS &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            'MsgBox(&quot;CP mandado a subsesion&quot;)<br />
+<br />
+            ''Creo que no vale para nada<br />
+            'baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.set.report(&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;rtisfc020701000&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;D&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; resul_AFS &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            'MsgBox(&quot;set report OK&quot;)<br />
+            'baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.continue.process(&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; resul_AFS &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            'MsgBox(&quot;Continue process Subsesion OK&quot;)<br />
+<br />
+            'Especificar manejo de subsesiones<br />
+            Dim subsesion As String = &quot;tisfc0207s000&quot;<br />
+            baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.handle.subproc(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;add&quot; &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            MsgBox(&quot;Gestion de sub.especificada&quot;)<br />
+<br />
+            'baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.end.session(&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            'MsgBox(&quot;Subsesión finalizada&quot;)<br />
+<br />
+            baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.end.session(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            MsgBox(&quot;Sesión finalizada&quot;)<br />
+<br />
+            baanobj.Quit()<br />
+            baanobj = Nothing<br />
+<br />
+            MsgBox(&quot;OK.Asociación hecha&quot;)<br />
+        Catch<br />
+            MsgBox(Err.Description)<br />
+        End Try</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fbernaus</div><div class="date">29th June 2004, 11:57</div></div><div class="posttext">Dorleta,<br />
+<br />
+¿Como automatizaste la sesión  ticst0101m000? No entiendo que utilidad te tenía automatizarla si finalmente no realizabas las entregas de stock.<br />
+<br />
+El problema que tengo es que esa sesión llama a una subsesión que aparece y desaparece por sí sola, sin la intervención del usuario. No se como tratar esa subsesión en el programa AFS. <br />
+<br />
+Te paso el código para que veas como lo estamos intentando desarrollar. Otra cosa, el listado de entregas resultante no nos interesa imprimirlo (ni por pantalla, ni por impresora). Muchas gracias por tu ayuda. Recibe un cordial saludo<br />
+<br />
+        Dim OF As String = &quot;328385&quot;<br />
+        Dim linea As String = &quot;170&quot;<br />
+        Dim cantidad As String = &quot;10&quot;<br />
+<br />
+            'Esta función realiza la asociación de un artículo con una OF en la cantidad especificada<br />
+   <br />
+            Dim baanobj As Object<br />
+            baanobj = CreateObject(&quot;Baan4.Application.baanivc4&quot;) '501<br />
+            baanobj.Timeout = 300<br />
+   <br />
+            Dim sesion_baan As String = &quot;ticst0101m000&quot; 'Introducir entregas para órdenes de fabricación<br />
+            Dim save As Long = 1 <br />
+            Dim resul_AFS As String<br />
+<br />
+            '1.Localizar OF y linea de la OF<br />
+            stpapi.put.field(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;ticst001.pdno&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; OF &amp; Chr(34) &amp; &quot;)<br />
+            stpapi.put.field(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;ticst001.pono&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; linea &amp; Chr(34) &amp; &quot;)<br />
+            stpapi.find(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;)<br />
+<br />
+            If baanobj.ReturnValue &lt;&gt; 1 Then 'será 1<br />
+                stpapi.end.session(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;)&quot;)<br />
+                baanobj.Quit()<br />
+                baanobj = Nothing<br />
+                MsgBox(&quot;OF inexistente&quot;)<br />
+                Return<br />
+            End If<br />
+            MsgBox(&quot;OF Y LINEA encontradaS&quot;)<br />
+<br />
+            stpapi.put.field(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;issu.quan&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; cantidad &amp; Chr(34) &amp; &quot;)<br />
+<br />
+            'Responder que Sí a &quot;Entregar stocks inmediatamente?&quot; Un 1 es que si; un 2, no.<br />
+            stpapi.enum.answer(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;ticst01011&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; 1 &amp; &quot;)<br />
+<br />
+           stpapi.continue.process(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; resul_AFS &amp; Chr(34) &amp; &quot;)<br />
+<br />
+'En este momento, en la sesión manual, aparecería sin que el usuario haga nada, la subsesión tisfc0207s000, que es la subsesión propietaria del listado de la entrega realizada. Es a partir del código que viene donde no veo como gestionar la subsesión.<br />
+            '===================================================<br />
+<br />
+            'Especificar manejo de subsesiones<br />
+            Dim subsesion As String = &quot;tisfc0207s000&quot;<br />
+            stpapi.handle.subproc(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;add&quot; &amp; Chr(34) &amp; &quot;)<br />
+<br />
+'==========Ahora excepto las últimas instrucciones, todo el código aparece comentado==================='<br />
+<br />
+            'stpapi.change.view(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; resul_AFS &amp; Chr(34) &amp; &quot;)<br />
+<br />
+            'stpapi.put.field(&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;pdno.f&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; OF &amp; Chr(34) &amp; &quot;)<br />
+            'stpapi.put.field(&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;pdno.t&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; OF &amp; Chr(34) &amp; &quot;)<br />
+            'stpapi.put.field(&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;opno.f&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;0&quot; &amp; Chr(34) &amp; &quot;)<br />
+            'stpapi.put.field(&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;opno.t&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;999&quot; &amp; Chr(34) &amp; &quot;)<br />
+            'MsgBox(&quot;Campos subsesion rellenos&quot;)<br />
+<br />
+            'stpapi.continue.process(&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; resul_AFS &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            <br />
+            'Creo que no vale para nada<br />
+            'stpapi.set.report(&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;rtisfc020701000&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;D&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; resul_AFS &amp; Chr(34) &amp; &quot;)<br />
+            'MsgBox(&quot;set report OK&quot;)<br />
+            'stpapi.continue.process(&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; resul_AFS &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            <br />
+            'stpapi.end.session(&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;)<br />
+            'MsgBox(&quot;Subsesión finalizada&quot;)<br />
+<br />
+            baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.end.session(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;)&quot;)<br />
+            MsgBox(&quot;Sesión finalizada&quot;)<br />
+<br />
+            baanobj.Quit()<br />
+            baanobj = Nothing<br />
+            MsgBox(&quot;OK.Asociación hecha&quot;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dorleta</div><div class="date">29th June 2004, 18:34</div></div><div class="posttext">Quizás no me he explicado bien.<br />
+<br />
+En un principio respondía que no a las actualizaciones aunque después si actualizaba. te pongo el código.<br />
+<br />
+function revertir.estandar()<br />
+{<br />
+	db.retry.point()<br />
+	<br />
+	select	tdinv700.*<br />
+	from	tdinv700 <br />
+	where   tdinv700.item between :item.f and :item.t<br />
+	and	tdinv700.trdt =:trdt.f<br />
+	and	tdinv700.orno between :orno.f and :orno.t            <br />
+|	and	tdinv700.kost = tckost.prd.mat.issue<br />
+	and	tdinv700.kost = tckost.stc.transfer<br />
+	and	tdinv700.logn =:login            <br />
+	|order by tdinv700._index1<br />
+	order by tdinv700.orno, tdinv700.pono<br />
+	selectdo<br />
+<br />
+		resp = &quot;&quot;<br />
+		resp = revertir.proceso2( tdinv700.orno, tdinv700.pono, tdinv700.quan)<br />
+<br />
+		if orden.tmp &lt;&gt; tdinv700.orno and orden.tmp &gt; 0 then <br />
+			proceso = wait.and.activate(&quot;tisfc0207snco&quot;)<br />
+		endif<br />
+	<br />
+		orden.tmp = tdinv700.orno<br />
+		pono.tmp = tdinv700.pono<br />
+<br />
+	endselect<br />
+<br />
+unction domain tcmcs.str80 revertir.proceso2( domain tcpdno pdno, domain tcpono pono, domain tcqiv1 cant)<br />
+{<br />
+	table ttisfc001<br />
+<br />
+	domain tiqcp1 pdte<br />
+	domain tcmcs.str80 ret<br />
+	domain tcmcs.str80 ret2<br />
+	<br />
+	ticst001.pdno = pdno<br />
+	ticst001.pono = pono<br />
+	tisfc001.pdno = pdno<br />
+<br />
+	orden = pdno<br />
+	posicion = pono<br />
+<br />
+	opno.tmp = 1<br />
+<br />
+	select	tisfc010.opno:opno.tmp<br />
+	from	tisfc010<br />
+	where	tisfc010._index1={:orden}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	endselect<br />
+<br />
+	export(&quot;orden&quot;, orden)<br />
+<br />
+	revertir.find()<br />
+	<br />
+	pdte = revertir.get.subsequent_delivery()<br />
+	revertir.put.Issue( cant )<br />
+	revertir.put.ticst001.opno(opno.tmp)<br />
+	revertir.put.subsequent_delivery( pdte + cant * -1) <br />
+<br />
+	revertir.update( 1, ret)<br />
+	if not isspace(ret) then<br />
+			cadena = str$(pdno) &amp; str$(pono) &amp; str$(cant)	<br />
+			test = seq.puts(cadena, fp)<br />
+	endif<br />
+	revertir.save(ret2)<br />
+	revertir.end()<br />
+	<br />
+	return(ret)<br />
+}<br />
+<br />
+Lo que hice en su momento ( hace un par de años y de manera un tanto cutre por las eternas prisas ) fue deshacer una serie de movimientos que alguien de mano ligera con los rangos realizó a través de la sesión tisfc0207m000. Como puedes ver deshace los movimientos pero no entrega y lanza la sesión tisfc0207mn00 cuando acaba de deshacer los mvtos de cada orden<br />
+Tuve que personalizar la  tisfc0207mn00 para cuando es llamada desde esta que programé importe los valores de la OF y lanzara el listado de entregas contra un fichero de texto. Es fácil y funciona aunque no muy elegante. De todas formas creo que la solución a tu problema y el de Vanessa creo que será mas bien debido a no facilitarle el listado y el dispositivo a elegir con la función que en el &quot;post&quot; anterior os dejé. de todas formas podeis depurar y ver en que punto exacto y en cual de las dos sesiones se os cuelga.<br />
+<br />
+Agur y suerte.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

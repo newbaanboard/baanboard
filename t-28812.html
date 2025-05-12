@@ -1,0 +1,105 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS of sales order not working in SSA ERP LN6.1, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS of sales order not working in SSA ERP LN6.1 AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS of sales order not working in SSA ERP LN6.1 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS of sales order not working in SSA ERP LN6.1</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">kathuria</div><div class="date">3rd December 2006, 10:43</div></div><div class="posttext">Hi,<br />
+<br />
+I wrote sales order AFS in SSA ERP 6.1. Any body can authenticate this asf code because this AFS is not working.<br />
+<br />
+ stpapi.put.field(&quot;tdsls4100m900&quot;,&quot;tdsls400.ofbp&quot;,&quot;CUS000003&quot;)  <br />
+   stpapi.put.field(&quot;tdsls4100m900&quot;,&quot;tdsls400.sotp&quot;,&quot;S01&quot;)  <br />
+   stpapi.put.field(&quot;tdsls4100m900&quot;,&quot;tdsls400.orno&quot;,&quot;DES&quot;)  <br />
+   stpapi.put.field(&quot;tdsls4100m900&quot;,&quot;tdsls400.cofc&quot;,&quot;SO&quot;)  <br />
+   stpapi.put.field(&quot;tdsls4100m900&quot;,&quot;tdsls400.ddat&quot;,str$(utc.num()))<br />
+   ret = stpapi.change.view(&quot;tdsls4100m900&quot;, w.err.msg)<br />
+   ret = stpapi.synchronize.dialog(&quot;tdsls4101m000&quot;, &quot;modify&quot;, w.err.msg)<br />
+   stpapi.put.field( &quot;tdsls4101m000&quot;, &quot;tdsls401.pono&quot;, &quot;1&quot; )  <br />
+   stpapi.put.field( &quot;tdsls4101m000&quot;, &quot;tdsls401.item.segment.2&quot;, &quot;0714-020D-01&quot; ) <br />
+   stpapi.put.field( &quot;tdsls4101m000&quot;, &quot;tdsls401.qoor&quot;, &quot;100&quot; )  <br />
+   stpapi.put.field( &quot;tdsls4101m000&quot;, &quot;tdsls401.cuqs&quot;, &quot;nos&quot; )  <br />
+   stpapi.put.field( &quot;tdsls4101m000&quot;, &quot;tdsls401.pric&quot;, &quot;100&quot; )  <br />
+   ret = stpapi.insert(&quot;tdsls4101m000&quot;, true, w.err.msg)  <br />
+   if not ret then      <br />
+        ret = stpapi.recover(&quot;tdsls4101m000&quot;, w.err.msg)  <br />
+   endif  <br />
+	stpapi.end.session(&quot;tdsls4101m000&quot;)<br />
+        stpapi.end.session(&quot;tdsls4100m900&quot;)	<br />
+<br />
+<br />
+Best Regards.<br />
+Sanjay Kathuria</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th December 2006, 15:21</div></div><div class="posttext">I can only point out the last post on this thread (http://www.baanboard.com/baanboard/showthread.php?t=25354&amp;highlight=tdsls4101m000).  It mentions using a library instead of AFS code.  You can search for tdsls4101m000 to see if any of the other threads apply.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kathuria</div><div class="date">5th December 2006, 05:51</div></div><div class="posttext">Hi,<br />
+<br />
+I have solved this problem by changed the natuer of session . This problem is only with SSA ERP LN 6.1 SP0. I am giving sequence in which i have solved th problem.<br />
+<br />
+Step 1 : Copy session tdsls4100m000 to tdsls4100mpol  and tdsls4101m000 to tdsls4101mpol<br />
+Step2  : Remove Session synchronization.<br />
+Step 3 : Chage session type from display to maintain.<br />
+<br />
+After that  I wrote the script on the basis of these sessions.  Code is <br />
+function extern generate.sales.order()<br />
+{<br />
+		stpapi.put.field(&quot;tdsls4100mpol&quot;, &quot;tdsls400.ofbp&quot;, &quot;CUS000003&quot;)<br />
+		stpapi.put.field(&quot;tdsls4100mpol&quot;, &quot;tdsls400.cofc&quot;, &quot;SO&quot;)<br />
+		stpapi.put.field(&quot;tdsls4100mpol&quot;, &quot;tdsls400.sotp&quot;, &quot;SNO&quot;) <br />
+		stpapi.put.field(&quot;tdsls4100mpol&quot;, &quot;tdsls400.orno&quot;, &quot;DES&quot;)<br />
+		ret = stpapi.insert(&quot;tdsls4100mpol&quot;, true, w.err.msg)<br />
+		stpapi.get.field(&quot;tdsls4100mpol&quot;, &quot;tdsls400.orno&quot;, m.orno)<br />
+		message(&quot;%s&quot;,m.orno)<br />
+	        stpapi.end.session(&quot;tdsls4100mpol&quot;, w.err.msg)<br />
+		fill.SO.lines()<br />
+   <br />
+}<br />
+function fill.SO.lines()<br />
+{	<br />
+		stpapi.put.field(&quot;tdsls4101mpol&quot;, &quot;tdsls401.orno&quot;, m.orno)<br />
+	        ret = stpapi.change.view(&quot;tdsls4101mpol&quot;, w.err.msg)<br />
+		ret = stpapi.synchronize.dialog(&quot;tdsls4101mpol&quot;, &quot;modify&quot;, w.err.msg)<br />
+	       	if ret then<br />
+		  stpapi.put.field(&quot;tdsls4101m000&quot;, &quot;tdsls401.orno&quot;, m.orno)		 <br />
+		  stpapi.put.field(&quot;tdsls4101m000&quot;, &quot;tdsls401.item.segment.1&quot;,&quot;         &quot; )<br />
+		  stpapi.put.field(&quot;tdsls4101m000&quot;, &quot;tdsls401.item.segment.2&quot;, &quot;SW-0371&quot;)<br />
+		  stpapi.put.field(&quot;tdsls4101m000&quot;, &quot;tdsls401.qoor&quot;, &quot;10&quot;)<br />
+		  ret = stpapi.insert(&quot;tdsls4101m000&quot;, true, w.err.msg)<br />
+ 	          stpapi.end.session(&quot;tdsls4101m000&quot;, w.err.msg)<br />
+	          stpapi.end.session(&quot;tdsls4101mpol&quot;, w.err.msg)<br />
+		endif<br />
+<br />
+<br />
+Regards,<br />
+Sanjay Kathuria</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th December 2006, 14:37</div></div><div class="posttext">Cool solution - hope this helps others.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">5th December 2006, 21:45</div></div><div class="posttext">Few concerns, Sanjay:<br />
+<br />
+tdsls4100m900 is a MMT session and AFS does not support MMT. Refer to the thread - AFS for Session Multi Main Table (http://www.baanboard.com/baanboard/showthread.php?t=28601&amp;highlight=MMT)<br />
+<br />
+Another good alternative solution is to implement is to use the DAL2 features/functions, refer to Evert's suggestions - Purchase order Upload SSA LN6.1 (http://www.baanboard.com/baanboard/showthread.php?t=25634&amp;highlight=DAL2)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

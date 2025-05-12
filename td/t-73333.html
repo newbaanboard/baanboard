@@ -1,0 +1,244 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="user exit script, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] user exit script Tools Development" />
+	
+	<title>user exit script [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; user exit script</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">KiranKrishna</div><div class="date">5th August 2020, 09:34</div></div><div class="posttext">Hi,<br />
+<br />
+Can anyone help me, how to place a condition against a specified field(tisfc001.xx)  in user exit script, it should be executed only when the field modifications is done and not disturbing other fields.<br />
+i wrote the condition in update section, but it is effected all the fields.<br />
+<br />
+my tools version is 7.6 a7<br />
+and TIV is 2340.<br />
+<br />
+Regards,<br />
+Kiran.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">5th August 2020, 11:07</div></div><div class="posttext">You can not do field level validations in UE. You can validate field value at record level in UE section before.before.save()</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">5th August 2020, 14:31</div></div><div class="posttext">I did something like this to reakt on changes of a single field only. It's taken from our tdpur401ue Skript:<br />
+<br />
+<br />
+table		ttdpur401 | Orderpositions<br />
+<br />
+domain	tcpric		old.pric | Check on update of tdpur401.pric<br />
+<br />
+nclude &lt;bic_dal&gt;<br />
+<br />
+function extern long ue.before.before.save.object(long mode)<br />
+{<br />
+	on case mode<br />
+	case DAL_NEW:<br />
+		old.pric = 0.0<br />
+		break<br />
+	case DAL_UPDATE:<br />
+		with.old.object.values.do(save.old.values)<br />
+		if old.pric&lt;&gt; tdpur401.pric then<br />
+		   price.has.changed()<br />
+		endif<br />
+		break<br />
+	endcase<br />
+	return(0)<br />
+}<br />
+<br />
+function save.old.values()<br />
+{<br />
+   old.pric = tdpur401.pric<br />
+}<br />
+<br />
+function void price.has.changed()<br />
+{<br />
+   do.whatever.is.needed()<br />
+}<br />
+<br />
+<br />
+Are you Looking for something like this?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">KiranKrishna</div><div class="date">6th August 2020, 07:26</div></div><div class="posttext">Hai,<br />
+<br />
+Thanks for your suggestions.<br />
+My requirement is that till going to process the report order completed in production it is zero, when report orders are completing with some value then it should consider the specified warehouse which i need.<br />
+<br />
+this should happen in after.before.save.object. is there any possibility.<br />
+<br />
+Regards,<br />
+Kiran.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">KiranKrishna</div><div class="date">6th August 2020, 15:33</div></div><div class="posttext">here the script.<br />
+function extern long ue.after.before.save.object(long mode)<br />
+{<br />
+	on case mode<br />
+	case DAL_NEW:<br />
+      		old.pric = 0.0<br />
+         break<br />
+	case DAL_UPDATE:<br />
+<br />
+<br />
+<br />
+		with.old.object.values.do(save.old.values)<br />
+		if old.pric&lt;&gt; tisfc001.qtdl then<br />
+		   price.has.changed()<br />
+		endif<br />
+   break<br />
+	endcase<br />
+	return(0)<br />
+}<br />
+<br />
+<br />
+function save.old.values()<br />
+{<br />
+   old.pric = tisfc001.qtdl<br />
+}<br />
+<br />
+function  price.has.changed()<br />
+{<br />
+   do.whatever.is.needed()<br />
+}<br />
+<br />
+function void do.whatever.is.needed()<br />
+{<br />
+ iswh = 0<br />
+ issu = 0<br />
+ subd = 0<br />
+                   comp = get.compnr()<br />
+                        if comp = 202 then<br />
+                                      if (tisfc001.qtdl = 0 or tisfc001.qtdl &gt; 0) then<br />
+                                                   select sum(ticst001.iswh):iswh, sum(ticst001.issu):issu, sum(ticst001.subd):subd<br />
+                                                   from   ticst001<br />
+                                                   where  ticst001.pdno = :tisfc001.pdno<br />
+                                                   and    :tisfc001.cwar = &quot;032500&quot;<br />
+                                                   as set with 1 rows<br />
+                                                   selectdo<br />
+                                                          if  ((iswh = 0) and (issu = 0) and (subd = 0)) then<br />
+                                                          else<br />
+                                                                                    dal.set.error.message(&quot;@Material Issue Pending...&quot;)<br />
+|                                                                                     return(DALHOOKERROR)<br />
+                                                          endif<br />
+                                                   selectempty<br />
+                                                             iswh = 0<br />
+                                                             issu = 0<br />
+                                                             subd = 0<br />
+                                                   endselect<br />
+                                      endif<br />
+                        endif<br />
+return(0)<br />
+}<br />
+<br />
+here the script which i wrote but it doesn't working.<br />
+just throwing he message and allowing to perform the report orders.<br />
+<br />
+regards,<br />
+Kiran.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">6th August 2020, 16:03</div></div><div class="posttext">You'll need to Exit ue.after.before.save.object (..) with a negative return value (not return(0)).<br />
+<br />
+My script was adding some protokoll data, when the Price was changing. It did not need to stop the save Operation.<br />
+<br />
+From the programmers guide:<br />
+<br />
+Return values<br />
+This hooks returns 0 if saving the record is permitted. It should return a negative value like DALHOOKERROR, in case of an error.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">KiranKrishna</div><div class="date">6th August 2020, 19:17</div></div><div class="posttext">Thank you.<br />
+<br />
+is this works only for the field tisfc001.qtbl when this performed?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">KiranKrishna</div><div class="date">7th August 2020, 10:24</div></div><div class="posttext">Hi,<br />
+<br />
+It is not allowing not return and still facing the same issue.<br />
+could anyone resolve the issue.<br />
+<br />
+Regards,<br />
+Kiran.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">10th August 2020, 16:35</div></div><div class="posttext">Your functions need to pass a return value. I've modified your Code, but I have not tested it.<br />
+<br />
+function extern long ue.after.before.save.object(long mode)<br />
+{<br />
+	on case mode<br />
+	case DAL_NEW:<br />
+      		old.pric = 0.0<br />
+         break<br />
+	case DAL_UPDATE:<br />
+<br />
+<br />
+<br />
+		with.old.object.values.do(save.old.values)<br />
+		if old.pric&lt;&gt; tisfc001.qtdl then<br />
+		   return(price.has.changed())<br />
+		endif<br />
+   break<br />
+	endcase<br />
+	return(0)<br />
+}<br />
+<br />
+<br />
+function save.old.values()<br />
+{<br />
+   old.pric = tisfc001.qtdl<br />
+}<br />
+<br />
+function long price.has.changed()<br />
+{<br />
+   return(do.whatever.is.needed())<br />
+}<br />
+<br />
+function long do.whatever.is.needed()<br />
+{<br />
+ iswh = 0<br />
+ issu = 0<br />
+ subd = 0<br />
+                   comp = get.compnr()<br />
+                        if comp = 202 then<br />
+                                      if (tisfc001.qtdl = 0 or tisfc001.qtdl &gt; 0) then<br />
+                                                   select sum(ticst001.iswh):iswh, sum(ticst001.issu):issu, sum(ticst001.subd):subd<br />
+                                                   from   ticst001<br />
+                                                   where  ticst001.pdno = :tisfc001.pdno<br />
+                                                   and    :tisfc001.cwar = &quot;032500&quot;<br />
+                                                   as set with 1 rows<br />
+                                                   selectdo<br />
+                                                          if  ((iswh = 0) and (issu = 0) and (subd = 0)) then<br />
+                                                          else<br />
+                                                                                    dal.set.error.message(&quot;@Material Issue Pending...&quot;)<br />
+|                                                                                     return(DALHOOKERROR)<br />
+                                                          endif<br />
+                                                   selectempty<br />
+                                                             iswh = 0<br />
+                                                             issu = 0<br />
+                                                             subd = 0<br />
+                                                   endselect<br />
+                                      endif<br />
+                        endif<br />
+return(0)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">KiranKrishna</div><div class="date">12th August 2020, 15:27</div></div><div class="posttext">Thank you.<br />
+cleared the issue.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

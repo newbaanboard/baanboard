@@ -1,0 +1,997 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="DEV: Create PDF using Java iText, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] DEV: Create PDF using Java iText Code &amp; Utilities" />
+	
+	<title>DEV: Create PDF using Java iText [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Code &amp; Utilities</a> &gt; DEV: Create PDF using Java iText</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ahulikavi</div><div class="date">25th February 2004, 06:05</div></div><div class="posttext">We have developed baan to pdf functionality using Java iText Class, Java class is executed through shell script which is called by 4GL baan script.<br />
+<br />
+More information at<br />
+http://www.lowagie.com/iText/ <br />
+<br />
+Following things are done presently :<br />
+<br />
+Any baan report is converted into PDF, page size/Font is chosen automatically based on report size.<br />
+<br />
+PDF is encrypted and only Print choice is enabled.<br />
+<br />
+Company Logo and Custom footer with Date/Time Stamp and User details added.<br />
+<br />
+Things not done :<br />
+<br />
+Font effects of report not carried over since basically its a text to PDF converter. (How to get formatting details ? (report XML could help ???)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">~Vamsi</div><div class="date">25th February 2004, 06:36</div></div><div class="posttext">Akshay,<br />
+<br />
+Is the code you developed open source? If it is please either post it to this forum or a  link to some other location.<br />
+<br />
+If it is not open source... I will move the announcement to a different forum.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ahulikavi</div><div class="date">25th February 2004, 08:14</div></div><div class="posttext">Hi,<br />
+<br />
+3 components are required<br />
+<br />
+1. Baan 3GL to convert report to ASCII and invoke shell scripts<br />
+2. Java Class to convert text to pdf<br />
+3. Shell scripts to invoke java class<br />
+4. Device Definition<br />
+<br />
+1. Baan 3GL  - Hope copyright is OK<br />
+<br />
+||******************************************************************************<br />
+|* tdtcdpdf	0  VRC B40C L ive		<br />
+|* Title	: PDF<br />
+|* Author	: Akshay Hulikavi<br />
+|* Date		: 2004-02-09 [09:17]<br />
+|******************************************************************************<br />
+|* License	:<br />
+|* Copyright 2004 by Akshay Hulikavi<br />
+|* <br />
+|* All Rights Reserved <br />
+|* <br />
+|* Permission to use, copy, modify, and distribute this software and its<br />
+|* documentation for any purpose and without fee is hereby granted,<br />
+|* provided that the above copyright notice appear in all copies and that<br />
+|* both that copyright notice and this permission notice appear in<br />
+|* supporting documentation. <br />
+|* <br />
+|* Akshay Hulikavi DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS<br />
+|* SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY<br />
+|* AND FITNESS, IN NO EVENT SHALL Akshay Hulikavi BE LIABLE FOR ANY<br />
+|* SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES <br />
+|* WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, <br />
+|* WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER <br />
+|* TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE<br />
+|* OR PERFORMANCE OF THIS SOFTWARE.<br />
+|******************************************************************************<br />
+	#pragma used dll ottdllbw<br />
+	<br />
+	long		ret, fp, zoomed	| general return variable<br />
+	extern	domain	tcmcs.str215	input.file, pdf.file, local.file	| input file - created by Baan<br />
+	extern	domain	tcmcs.str215	argument, argu1, argu4, argu0, argu2, argu3<br />
+	extern	domain	tcmcs.str215	argu5, argu6, argu7, argu8, argu9<br />
+	extern string	sh.string(1024), file.path(128), date.str(8), time.str(5), dat(12)<br />
+<br />
+function main()<br />
+{<br />
+ 	argu0 = argv$(0)<br />
+ 	argu1 = argv$(1)<br />
+ 	argu2 = argv$(2)<br />
+ 	argu3 = argv$(3)<br />
+	argu4 = argv$(4)<br />
+	zoomed = false<br />
+<br />
+	dat = dte$()<br />
+	date.str = dat(3;2) &amp; &quot;/&quot; &amp; dat(1;2)&amp; &quot;/&quot; &amp; dat(5;2)<br />
+	time.str = dat(7;2) &amp; &quot;:&quot; &amp; dat(9;2)<br />
+	<br />
+	if argu1 = &quot;&quot; and argu2= &quot;&quot; then	| Called from another program not spooler<br />
+	    import(&quot;argu1&quot;, argu1)<br />
+	    import(&quot;argu2&quot;, argu2)<br />
+	    import(&quot;argu3&quot;, argu3)<br />
+	    import(&quot;argu4&quot;, argu4)<br />
+	    zoomed = true<br />
+	endif    <br />
+	    <br />
+	file.path = getcwd()<br />
+ 	input.file = shiftl$(strip$(argu2))<br />
+	ret = wait.and.activate(&quot;ttstpconv&quot;, argu1, input.file, &quot;ASCII&quot;, &quot;wt&quot;)<br />
+<br />
+<br />
+	input.file = shiftl$(strip$(file.path))&amp;&quot;/&quot;&amp;shiftl$(strip$(input.file))<br />
+	pdf.file = input.file&amp;&quot;.pdf&quot;<br />
+	local.file = &quot;c:\&quot;&amp;shiftl$(strip$(argu2))&amp;&quot;.pdf&quot;<br />
+<br />
+	sh.string = &quot;&quot;<br />
+	sh.string = sh.string &amp;&quot; &quot;&amp;chr$(34)&amp;input.file&amp;chr$(34)<br />
+	sh.string = sh.string &amp;&quot; &quot;&amp;chr$(34)&amp;pdf.file&amp;chr$(34)<br />
+	sh.string = sh.string &amp;&quot; &quot;&amp;str$(spool.pg.length)<br />
+	sh.string = sh.string &amp;&quot; &quot;&amp;chr$(34)&amp;logname$&amp;&quot; on &quot;&amp; date.str &amp; &quot; at &quot;&amp; time.str&amp; chr$(34)<br />
+<br />
+	fp=seq.open(&quot;text2pdf.sh&quot;,&quot;r&quot;)	<br />
+	if fp &gt;= 1 then | text2pdf.sh file exists<br />
+		ret = shell( &quot;text2pdf.sh &quot; &amp; sh.string,0)<br />
+	else	<br />
+		fp=seq.open(&quot;text2pdf.sh&quot;,&quot;wt&quot;)	<br />
+		seq.puts(&quot;cd /baanIVc/c4/bse/tcd_email&quot;, fp)<br />
+		seq.puts(&quot;pdf.sh $@&quot;, fp)<br />
+		seq.close(fp)<br />
+		ret = shell( &quot;chmod 777 text2pdf.sh&quot;,0)<br />
+		ret = shell( &quot;text2pdf.sh &quot; &amp; sh.string,0)<br />
+	endif	<br />
+<br />
+	if ret = 0 then<br />
+		if zoomed = false then	| Called from another program not report<br />
+			ret =  server2client(pdf.file,local.file,  0, 0)  | Binary Mode Transfer<br />
+			if ret = 0 then<br />
+				ret =  app_start(local.file,&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;)<br />
+				ret = seq.unlink(input.file)<br />
+				ret = seq.unlink(pdf.file)<br />
+			else	<br />
+				message(&quot;File could sent to client !!!!&quot; &amp; str$(ret)&amp;local.file)<br />
+			endif	<br />
+		endif	<br />
+	else<br />
+		message(&quot;File could not be created !!!!&quot; &amp; str$(ret))<br />
+	endif	<br />
+<br />
+}<br />
+|*********************************** end of script ****************************<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+2. the java class tcd_text2pdf<br />
+<br />
+/*<br />
+Class to convert baan ascii report to pdf<br />
+Author : Akshay Hulikavi<br />
+Date    : 10.02.2004<br />
+<br />
+Requires : itext-x.jar - can be downloaded from www.lowagie.com/iText/<br />
+Source can be downloaded from www.lowagie.com/iText/<br />
+<br />
+Usage : java tcd_text2pdf  &lt;inputfile&gt; &lt;outputfile.pdf&gt; &lt;PageLength, Default = 60&gt;<br />
+<br />
+*/<br />
+import com.lowagie.text.*;<br />
+import com.lowagie.text.pdf.*;<br />
+import java.io.*;<br />
+<br />
+public class tcd_text2pdf <br />
+{<br />
+<br />
+public static void main(String[] args)<br />
+         throws IOException, DocumentException<br />
+	{<br />
+	String resultStr = &quot;&quot;, line=null, strFooter; <br />
+	int lncnt=1, i, j, pgcnt=0, fntSize=8, lineSpacing, strLength=0;	<br />
+<br />
+	//~ i = Integer.parseInt(args[2]);<br />
+	j = Integer.valueOf(args[2]).intValue();<br />
+		if (j &lt;= 0)<br />
+			j = 60;  // Default page length<br />
+<br />
+		if(args.length &lt; 2 ) {<br />
+			System.out.println(&quot;Usage : java tcd_text2pdf  &lt;inputfile&gt; &lt;outputfile.pdf&gt; &lt;PageLength, Default = 60&gt;&quot;); <br />
+			return;	<br />
+		}	<br />
+	<br />
+	Reader in = new InputStreamReader(new FileInputStream(args[0]));<br />
+	OutputStream os = new FileOutputStream(args[1]);<br />
+	Document doc= new Document();<br />
+	Image t_logo = Image.getInstance(&quot;logocolor.jpg&quot;);<br />
+	t_logo.scalePercent(75);  // scale image to 75%<br />
+	java.io.BufferedReader  br2  = new java.io.BufferedReader(in);   <br />
+<br />
+	// get length of the longest line 	<br />
+		try { <br />
+		    BufferedReader bufReader = new BufferedReader(new FileReader(args[0])); <br />
+		    while ((line=bufReader.readLine()) != null){ <br />
+					if (strLength &lt; line.length())<br />
+						strLength = line.length();<br />
+				}<br />
+		    bufReader.close(); <br />
+		<br />
+		} catch (IOException e) { <br />
+		    System.err.println(e); <br />
+		}<br />
+<br />
+<br />
+<br />
+	line = null;		<br />
+		i=1;<br />
+<br />
+/*<br />
+	Decide on Paper Size ,Orientation and Line Spacing based on max line length in report<br />
+	<br />
+*/<br />
+		if (strLength &lt;= 108)<br />
+			i = 1 ;	<br />
+		if (strLength &gt; 108 &amp;&amp; strLength &lt;= 127)<br />
+			i = 2 ;	<br />
+		if (strLength &gt; 127 &amp;&amp; strLength &lt;= 165)<br />
+			i = 3 ;	<br />
+		if (strLength &gt; 165 &amp;&amp; strLength &lt;= 176)<br />
+			i = 4 ;	<br />
+		if (strLength &gt; 176 &amp;&amp; strLength &lt;= 239)<br />
+			i = 5;	<br />
+		if (strLength &gt; 239)<br />
+			i = 6 ;	<br />
+			<br />
+	 switch (i) { <br />
+			case 1: <br />
+				doc = new Document(PageSize.A4, 36, 18, 72, 18); <br />
+				fntSize = 8;<br />
+				lineSpacing = fntSize;<br />
+				t_logo.setAbsolutePosition(535, 770);  // image margin 60 so 595-60 and 842-60<br />
+			break; 		<br />
+			case 2: <br />
+				doc = new Document(PageSize.A4, 36, 18, 72, 18); <br />
+				fntSize = 7;<br />
+				lineSpacing = 9;<br />
+				t_logo.setAbsolutePosition(535, 770);  <br />
+			break;		<br />
+			case 3:<br />
+				doc = new Document(PageSize.A4.rotate(), 36, 18, 72, 18); <br />
+				fntSize = 8;<br />
+				lineSpacing = fntSize;<br />
+				t_logo.setAbsolutePosition(770, 535);  <br />
+			break; <br />
+			case 4:<br />
+				doc = new Document(PageSize.A4.rotate(), 36, 18, 72, 18); <br />
+				fntSize = 7;<br />
+				lineSpacing = 9;<br />
+				t_logo.setAbsolutePosition(770, 535);  <br />
+			break;<br />
+			case 5:<br />
+				doc = new Document(PageSize.LEDGER, 36, 18, 72, 18); <br />
+				fntSize = 8;<br />
+				lineSpacing = fntSize;<br />
+				t_logo.setAbsolutePosition(1164, 732);  <br />
+			break;<br />
+			case 6:<br />
+				doc = new Document(PageSize.LEDGER, 36, 18, 72, 18); <br />
+				fntSize = 7;<br />
+				lineSpacing = 9;<br />
+				t_logo.setAbsolutePosition(1164, 732);  <br />
+			break;<br />
+			default:<br />
+				doc = new Document(PageSize.A4, 36, 36, 72, 18); <br />
+				fntSize = 8;<br />
+				lineSpacing = fntSize;<br />
+				t_logo.setAbsolutePosition(535, 770);  // image margin 85 so 595-85 and 842-85<br />
+			break;		<br />
+<br />
+			} <br />
+	<br />
+	<br />
+	// Add footer<br />
+	strFooter   = &quot;Thermax Limited Chemical Division : 97-E General Block MIDC Bhosari Pune 411026&quot;;<br />
+	strFooter +=&quot;\nPhone - 91-20-27120181, Fax - 91-20-27120206, URL - www.thermaxindia.com/chemical&quot;;<br />
+	strFooter +=&quot;\nGenerated by (BaaN Login) : &quot;;<br />
+	strFooter +=args[3];<br />
+	<br />
+	HeaderFooter footer = new HeaderFooter(new Phrase(strFooter,FontFactory.getFont(FontFactory.COURIER, 7)), false);<br />
+	<br />
+	PdfWriter docWriter = null;<br />
+	docWriter = PdfWriter.getInstance(doc, os);<br />
+        doc.setFooter(footer);<br />
+	docWriter.setEncryption(PdfWriter.STRENGTH40BITS, null, null,  PdfWriter.AllowPrinting);<br />
+	doc.addTitle(&quot;BaaN Report&quot;);<br />
+	doc.addSubject(&quot;Report Generated from BaaN System&quot;);<br />
+	doc.addKeywords(&quot;Thermax Limited Chemical Division : 97-E General Block MIDC Bhosari Pune 411026&quot;);<br />
+		<br />
+	doc.open();<br />
+            doc.add(t_logo);<br />
+	Paragraph p;<br />
+	java.io.BufferedReader  br  = new java.io.BufferedReader(in);   <br />
+<br />
+	try 	{ <br />
+		while ((line=br.readLine()) != null){ <br />
+			if (lncnt &gt; j)<br />
+			{	<br />
+				doc.newPage();<br />
+				lncnt = 0;<br />
+			}	<br />
+			p = new Paragraph(new Phrase(lineSpacing,line,FontFactory.getFont(FontFactory.COURIER, fntSize)));<br />
+			doc.add(p);<br />
+			lncnt++;	<br />
+			}<br />
+			br.close();<br />
+		} catch (IOException e) { <br />
+			System.out.println(&quot;IO Exception on Buffered Read :&quot; + e); <br />
+		}; <br />
+	<br />
+	doc.close();<br />
+	os.close();<br />
+}<br />
+<br />
+}<br />
+<br />
+<br />
+<br />
+3. Shell Scripts<br />
+a. text2pdf.sh in user home directory<br />
+cd /baanIVc/c4/bse/tcd_email<br />
+pdf.sh $@<br />
+<br />
+<br />
+b. pdf.sh in say $BSE or other convinient directory<br />
+CLASSPATH=.:/baanIVc/c4/bse/tcd_email/PeBSClasses.zip:/baanIVc/c4/bse/tcd_email/itext-1.01.jar:/usr/j2se/javamail/javamail-1.3/mail.<br />
+export CLASSPATH<br />
+java tcd_text2pdf $@<br />
+<br />
+<br />
+<br />
+4. Device Definition<br />
+Also need to define device called say PDF as follows<br />
+<br />
+Device type: Rewrite File<br />
+4GL Program : tdtcdpdf<br />
+Argument : %s<br />
+Page Length : 72<br />
+<br />
+<br />
+<br />
+regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">~Vamsi</div><div class="date">25th February 2004, 20:18</div></div><div class="posttext">Akshay,<br />
+<br />
+I split the posting into two threads so that there is more visibility. You get the advantage of 4066 views to start with ;).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">8th May 2004, 01:42</div></div><div class="posttext">Sean C. Sullivan works for our company and there was Portland Java User Group meeting here in April.<br />
+<br />
+Here is more info -<br />
+<br />
+Portland Java User Group Meeting Info (http://www.pjug.org/) <br />
+<br />
+The topic was - Generating reports with JasperReports and there is a ppt on the site for reference.<br />
+<br />
+Generating reports with JasperReports<br />
+JasperReports is an open source Java reporting tool. In this presentation, we will discuss the Jasper engine API, Jasper XML report templates, and Jasper datasources. We'll also look at JasperAssistant, a visual report designer tool.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sant123</div><div class="date">11th December 2004, 00:36</div></div><div class="posttext">hi, AKshay,<br />
+<br />
+I have implemented your idea, and it just works great!!<br />
+<br />
+Now I want to go one step further and color the report, any ideas??? I looked at iText library there seems to be the chunk java api which lets us specify the color for the paragraph? I am palnning to try that.<br />
+ <br />
+Any thoughts.<br />
+<br />
+Thanks<br />
+Sant</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">veyant</div><div class="date">1st June 2005, 08:36</div></div><div class="posttext">Hi ahulikavi ,<br />
+<br />
+I tried to implement your idea. but i am facing problem in it.<br />
+<br />
+as per your instructions, i have copied all 4 components and now when i give print on the new device(PDF), it gives me error &quot;File can't be created!!! 127&quot;<br />
+<br />
+actually in debugging i found that while existing command<br />
+<br />
+ret = shell(&quot;text2pdf.sh&quot; &amp; sh.string,0) it returns 127 value to ret.<br />
+<br />
+however, i tried to run text2pdf file on command prompt directly and it gives following error.<br />
+<br />
+pdf.sh[2]: CLASSPATH^M: this is not an identifier.<br />
+<br />
+is java needed to be installed on the server. i have java1.4 installed on the server.<br />
+<br />
+here is the code of pdf.sh which i modified.<br />
+<br />
+CLASSPATH=/app/baan4c4/bse/tcd_email/PeBSClasses.zip:/app/baan4c4/bse/tcd_email/itext-1.3.jar:/usr/java14/bin<br />
+export CLASSPATH<br />
+java tcd_text2pdf $@<br />
+<br />
+<br />
+PeBSClasses.zip file is not available on the path =/app/baan4c4/bse/tcd_email/<br />
+<br />
+actually this file doesn't exist. please advice why it is throwing 127 value in return.<br />
+<br />
+thanks<br />
+Sandy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ahulikavi</div><div class="date">2nd June 2005, 06:17</div></div><div class="posttext">Hi Sandy,<br />
+<br />
+pdf.sh is a script to ensure that classpath is set correctly, it needs to be modified based on your setup and where you placed the itext-1.03.jar file, please modify it accordingly. You can ignore other jars like PeBS..., these are not required for pdf. <br />
+<br />
+create pdf.sh in a common directory accessible by all users, with owner bsp. For our setup this is /tcd_email in bse path, change it as required by you.<br />
+<br />
+You will have to make same change in script...<br />
+seq.puts(&quot;cd your_directory_path_where_pdf.sh_is_present&quot;, fp)<br />
+<br />
+Run the shell script directly and check if CLASSPATH is set.<br />
+<br />
+As far as text2pdf.sh is concerned, ensure, that it has 777 permission.<br />
+<br />
+Lets see if it works now ....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">veyant1</div><div class="date">16th June 2005, 06:48</div></div><div class="posttext">hi,<br />
+<br />
+i have modified the pdf.sh and txt2pdf.sh shell scripts accordingly. but it still gives me error &quot;file can not be created!!!127&quot;.<br />
+<br />
+However, i tried to run the text2pdf.sh at shell itself in AIX.<br />
+<br />
+it activates pdf.sh and gives me error &quot;vaja not found'.<br />
+<br />
+however in pdf.sh on line 3 i am calling<br />
+<br />
+java text2pdf $@<br />
+<br />
+in AIX at /usr/java14/jre/bin , i have the java components available. i have declared these paths in CLASSPATH in pdf.sh.<br />
+<br />
+here are the codes for pdf.sh and text2pdf.sh.<br />
+<br />
+<br />
+pdf.sh:<br />
+=======================<br />
+<br />
+CLASSPATH = /app/baan4c4/bse/tcd_email/itext-1.3.jar:/usr/java14/jre/bin<br />
+export CLASSPATH<br />
+java tcd_text2pdf $@<br />
+=========================<br />
+<br />
+<br />
+txt2pdf,sh:<br />
+=======================================<br />
+cd /app/baan4c4/bse/tcd_email<br />
+pdf.sh $@<br />
+=======================================<br />
+<br />
+please help as txt2pdf.sh is working fine but pdf.sh is not working fine.<br />
+<br />
+however, need one more clarification.<br />
+<br />
+there is a file tcd_text2pdf which is a java class should this file be with .class extension or not.<br />
+<br />
+thanks<br />
+Sandeep Makan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">1st July 2005, 17:10</div></div><div class="posttext">Hello,<br />
+attached is an converter i use.<br />
+The shell script is built in converter and handles the java classes.<br />
+So you only need this converter and nothing else.<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">veyant1</div><div class="date">9th July 2005, 12:23</div></div><div class="posttext">Hi Akshay,<br />
+<br />
+I have still not got the break-thru in implementation of this utility.<br />
+here is what i have done.<br />
+<br />
+I created a new folder in $BSE with tcd_email name and placed text2pdf.sh,<br />
+pdf.sh, tcd_text2pdf class, i-text.jar and source code for i-text with all related class files in it.<br />
+<br />
+I copied your script in baan and attached it with a device. now when i try to check the utility, i found that it is failing in conversion. <br />
+<br />
+i have installed all source and related class files in the folder. but it gives error &quot;file can't be created&quot;. it fails in execuing pdf.sh.<br />
+<br />
+i checked it seprately on shell and found that while running tcd_text2pdf  it gives error com/lowagie/text/ELEMENT java class not found.<br />
+<br />
+however, i check the path and found that ELEment class is present in the folder.<br />
+<br />
+any clue please. can you let me know some tip on it.<br />
+<br />
+thanks<br />
+Sandeep Makan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">14th July 2005, 17:24</div></div><div class="posttext">Hi Akshay,<br />
+<br />
+I have still not got the break-thru in implementation of this utility.<br />
+here is what i have done.<br />
+<br />
+I created a new folder in $BSE with tcd_email name and placed text2pdf.sh,<br />
+pdf.sh, tcd_text2pdf class, i-text.jar and source code for i-text with all related class files in it.<br />
+<br />
+I copied your script in baan and attached it with a device. now when i try to check the utility, i found that it is failing in conversion. <br />
+<br />
+i have installed all source and related class files in the folder. but it gives error &quot;file can't be created&quot;. it fails in execuing pdf.sh.<br />
+<br />
+i checked it seprately on shell and found that while running tcd_text2pdf  it gives error com/lowagie/text/ELEMENT java class not found.<br />
+<br />
+however, i check the path and found that ELEment class is present in the folder.<br />
+<br />
+any clue please. can you let me know some tip on it.<br />
+<br />
+thanks<br />
+Sandeep Makan<br />
+<br />
+Hello,<br />
+is the CLASSPATH set to the lowagie dir ?<br />
+set the absolute path /..../bse/..../.... to this dir.<br />
+the subdir structure must be the lowagie structure :<br />
+<br />
+&quot;classpath dir&quot;<br />
+     |<br />
+     |----ant          <br />
+     |----com-----------|lowagie----|---bc++++++subdirs and files<br />
+     |                                           |---text+++++subdirs and files<br />
+     |----META-INF                        |---tools<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manojsharma</div><div class="date">23rd August 2005, 07:28</div></div><div class="posttext">Hi,<br />
+<br />
+I am facing the same problem as Veyant is facing i.e. 127. Bernad, I have used your script also but its giving the same error.<br />
+<br />
+Sant, how do you do that. Can anyone explain. Its urgent.<br />
+<br />
+Thanx in advance</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manojsharma</div><div class="date">24th August 2005, 06:56</div></div><div class="posttext">Hi Vamsi,<br />
+<br />
+seeking for help from your side</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ahulikavi</div><div class="date">24th August 2005, 07:09</div></div><div class="posttext">Hi,<br />
+<br />
+Only things I can think of are accuracy of<br />
+1. CLASSPATH ( Should also include required itext JAR's)<br />
+2. File Permissions (Execute permissions on script files and classes)<br />
+3. Directory permissions<br />
+4. path_names as defined in your system ( also adjust accordingly in JAVA, BaaN Program script and  OS Script files)<br />
+<br />
+Hope this resolves your problem, since it is working at other places.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">~Vamsi</div><div class="date">24th August 2005, 07:41</div></div><div class="posttext">Manoj,<br />
+<br />
+Please accept my apologies in not being of much assistance in the matter. When it comes to Java I am a complete novice. It took me days of perseverence to figure out the classpath stuff when I was experimenting with http://www.antlr.org/<br />
+<br />
+And from first looks at the problem it looks like a Classpath issue. Hopefully someone can help you with what needs to be set in the classpath variable. If you are researching yourself, I liked this page that comes very high in a google search - http://www.kevinboone.com/classpath.html</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">veyant</div><div class="date">24th August 2005, 09:51</div></div><div class="posttext">Hi,<br />
+<br />
+Thanks to all for the support. The Program has been sorted out. it was not because of CLASS PATH at all. Actually, it was throwing some exception s while running convertion script due to footer &amp; logo which is embedded in the script. after commenting the lines due to which exception msg was comming , problem has been resolnved and has been implemented successfully on Baan IVc4.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manojsharma</div><div class="date">24th August 2005, 11:13</div></div><div class="posttext">Thanx Akshay, Vamsi for your prompt reply. My problem solved. I was facing the same problem as veyant is facing<br />
+<br />
+Thanx all. <br />
+<br />
+Its a nice utility</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">deepaksachdeva</div><div class="date">14th December 2005, 08:36</div></div><div class="posttext">I had tried the same, but finding one error while executing print, can not read session or object tdapbpdf, i had made tdapbpdf as 3 gl prgram.<br />
+<br />
+could any one help me out where i am lacking.<br />
+<br />
+Regards<br />
+Deepak</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th December 2005, 15:05</div></div><div class="posttext">I think it should be otdapbpdf in the device program - try that.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">deepaksachdeva</div><div class="date">15th December 2005, 08:08</div></div><div class="posttext">Hi Manoj, <br />
+<br />
+could u please explain me the procedure, how u have mangaged to do this, we are also on the same platform as u are.<br />
+<br />
+Thanks Mark, your suggession for otdapbpdf has worked, but i m facing the problem which manoj has faced earlier.<br />
+<br />
+with Regards<br />
+Deepak</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manojsharma</div><div class="date">15th December 2005, 10:25</div></div><div class="posttext">Hi Deepak,<br />
+<br />
+I was facing problem in tcd_text2pdf file, just remove the lines which print logo and footer (e-mail etc.) from your script and it will work fine.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">deepaksachdeva</div><div class="date">15th December 2005, 11:13</div></div><div class="posttext">I had removed the logo and footer, but while running the file by using java tcd_text2pdf &lt;inputfile&gt; &lt;outputfile&gt; &lt;pagelength&gt; it is throwing following error :<br />
+<br />
+# java tcd_text2pdf pdf.sh deepak.pdf<br />
+The java class could not be loaded. java.lang.ClassFormatError: tcd_text2pdf (Ba<br />
+d magic number)<br />
+<br />
+can someone help me out on this.<br />
+<br />
+With Regards<br />
+Deepak</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">deepaksachdeva</div><div class="date">16th February 2006, 12:21</div></div><div class="posttext">hi akshay,<br />
+<br />
+i m facing the problem while applying your solution, i had debugged it and found there is a problem in running the program.<br />
+<br />
+could u pls help me out where i m wrong ?<br />
+<br />
+Deepak</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">awassif</div><div class="date">1st March 2006, 23:33</div></div><div class="posttext">Hi Deepak,<br />
+I am having the same problem. When I execute from command line I get (Bad magic number) error:<br />
+# /usr/java14/bin/java -cp ./itext-1.3.jar tcd_text2pdf.class test test.pdf<br />
+<br />
+Error:<br />
+====<br />
+The java class could not be loaded. java.lang.ClassFormatError: tcd_text2pdf (Bad magic number)<br />
+<br />
+Any one can help would be appreciated.<br />
+- Ameen</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">camilla</div><div class="date">21st March 2006, 09:54</div></div><div class="posttext">Hi, I had the same error: <br />
+bad magic number<br />
+ I search in Internet and I think that the problem is that the files are not compiled with the right version of java. Is it the problem? Can someone help me?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">camilla</div><div class="date">22nd March 2006, 08:58</div></div><div class="posttext">Hi,<br />
+I compiled the java class tcd_text2pdf and everything now works fine!<br />
+You have to rename the file tcd_text2pdf in tcd_text2pdf.java; then you can directly use the file pdf.sh to compile it, only making two step:<br />
+<br />
+1) modify the file pdh.sh:<br />
+instead of java you have to write:<br />
+ javac tcd_text2pdf.java $@<br />
+2) download from the iText site the not compiled library, unzip the file and copy as bin the files on the unix folder where you have pdf.sh<br />
+<br />
+then you have to execute pdh.sh, by the unix prompt:<br />
+./pdf.sh    <br />
+<br />
+That's all!<br />
+<br />
+The compiler will create to you a file: tcd_text2pdf.class<br />
+<br />
+Then you have to modify again the file pdf.sh and put it as before.<br />
+<br />
+Ciao<br />
+Cri</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">14th November 2006, 09:28</div></div><div class="posttext">It doesnt' work for me . I got some errors about JAVA code. I removed some lines from it.I compiled but I couldn't get PDF file.<br />
+ WHO do you know all about it ? <br />
+<br />
+<br />
+Thanks ...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jmathew</div><div class="date">26th June 2010, 14:16</div></div><div class="posttext">Hi Akshay,<br />
+Can you please help us how we could implement the same with Baan LN 6.1 FP5. The operating system is AIX 5.3. and the database is Oracle 9.2. Please let us know the steps in details. Thanks in advance.<br />
+<br />
+<br />
+Hi,<br />
+<br />
+3 components are required<br />
+<br />
+1. Baan 3GL to convert report to ASCII and invoke shell scripts<br />
+2. Java Class to convert text to pdf<br />
+3. Shell scripts to invoke java class<br />
+4. Device Definition<br />
+<br />
+1. Baan 3GL  - Hope copyright is OK<br />
+<br />
+||******************************************************************************<br />
+|* tdtcdpdf	0  VRC B40C L ive		<br />
+|* Title	: PDF<br />
+|* Author	: Akshay Hulikavi<br />
+|* Date		: 2004-02-09 [09:17]<br />
+|******************************************************************************<br />
+|* License	:<br />
+|* Copyright 2004 by Akshay Hulikavi<br />
+|* <br />
+|* All Rights Reserved <br />
+|* <br />
+|* Permission to use, copy, modify, and distribute this software and its<br />
+|* documentation for any purpose and without fee is hereby granted,<br />
+|* provided that the above copyright notice appear in all copies and that<br />
+|* both that copyright notice and this permission notice appear in<br />
+|* supporting documentation. <br />
+|* <br />
+|* Akshay Hulikavi DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS<br />
+|* SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY<br />
+|* AND FITNESS, IN NO EVENT SHALL Akshay Hulikavi BE LIABLE FOR ANY<br />
+|* SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES <br />
+|* WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, <br />
+|* WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER <br />
+|* TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE<br />
+|* OR PERFORMANCE OF THIS SOFTWARE.<br />
+|******************************************************************************<br />
+	#pragma used dll ottdllbw<br />
+	<br />
+	long		ret, fp, zoomed	| general return variable<br />
+	extern	domain	tcmcs.str215	input.file, pdf.file, local.file	| input file - created by Baan<br />
+	extern	domain	tcmcs.str215	argument, argu1, argu4, argu0, argu2, argu3<br />
+	extern	domain	tcmcs.str215	argu5, argu6, argu7, argu8, argu9<br />
+	extern string	sh.string(1024), file.path(128), date.str(8), time.str(5), dat(12)<br />
+<br />
+function main()<br />
+{<br />
+ 	argu0 = argv$(0)<br />
+ 	argu1 = argv$(1)<br />
+ 	argu2 = argv$(2)<br />
+ 	argu3 = argv$(3)<br />
+	argu4 = argv$(4)<br />
+	zoomed = false<br />
+<br />
+	dat = dte$()<br />
+	date.str = dat(3;2) &amp; &quot;/&quot; &amp; dat(1;2)&amp; &quot;/&quot; &amp; dat(5;2)<br />
+	time.str = dat(7;2) &amp; &quot;:&quot; &amp; dat(9;2)<br />
+	<br />
+	if argu1 = &quot;&quot; and argu2= &quot;&quot; then	| Called from another program not spooler<br />
+	    import(&quot;argu1&quot;, argu1)<br />
+	    import(&quot;argu2&quot;, argu2)<br />
+	    import(&quot;argu3&quot;, argu3)<br />
+	    import(&quot;argu4&quot;, argu4)<br />
+	    zoomed = true<br />
+	endif    <br />
+	    <br />
+	file.path = getcwd()<br />
+ 	input.file = shiftl$(strip$(argu2))<br />
+	ret = wait.and.activate(&quot;ttstpconv&quot;, argu1, input.file, &quot;ASCII&quot;, &quot;wt&quot;)<br />
+<br />
+<br />
+	input.file = shiftl$(strip$(file.path))&amp;&quot;/&quot;&amp;shiftl$(strip$(input.file))<br />
+	pdf.file = input.file&amp;&quot;.pdf&quot;<br />
+	local.file = &quot;c:\&quot;&amp;shiftl$(strip$(argu2))&amp;&quot;.pdf&quot;<br />
+<br />
+	sh.string = &quot;&quot;<br />
+	sh.string = sh.string &amp;&quot; &quot;&amp;chr$(34)&amp;input.file&amp;chr$(34)<br />
+	sh.string = sh.string &amp;&quot; &quot;&amp;chr$(34)&amp;pdf.file&amp;chr$(34)<br />
+	sh.string = sh.string &amp;&quot; &quot;&amp;str$(spool.pg.length)<br />
+	sh.string = sh.string &amp;&quot; &quot;&amp;chr$(34)&amp;logname$&amp;&quot; on &quot;&amp; date.str &amp; &quot; at &quot;&amp; time.str&amp; chr$(34)<br />
+<br />
+	fp=seq.open(&quot;text2pdf.sh&quot;,&quot;r&quot;)	<br />
+	if fp &gt;= 1 then | text2pdf.sh file exists<br />
+		ret = shell( &quot;text2pdf.sh &quot; &amp; sh.string,0)<br />
+	else	<br />
+		fp=seq.open(&quot;text2pdf.sh&quot;,&quot;wt&quot;)	<br />
+		seq.puts(&quot;cd /baanIVc/c4/bse/tcd_email&quot;, fp)<br />
+		seq.puts(&quot;pdf.sh $@&quot;, fp)<br />
+		seq.close(fp)<br />
+		ret = shell( &quot;chmod 777 text2pdf.sh&quot;,0)<br />
+		ret = shell( &quot;text2pdf.sh &quot; &amp; sh.string,0)<br />
+	endif	<br />
+<br />
+	if ret = 0 then<br />
+		if zoomed = false then	| Called from another program not report<br />
+			ret =  server2client(pdf.file,local.file,  0, 0)  | Binary Mode Transfer<br />
+			if ret = 0 then<br />
+				ret =  app_start(local.file,&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;)<br />
+				ret = seq.unlink(input.file)<br />
+				ret = seq.unlink(pdf.file)<br />
+			else	<br />
+				message(&quot;File could sent to client !!!!&quot; &amp; str$(ret)&amp;local.file)<br />
+			endif	<br />
+		endif	<br />
+	else<br />
+		message(&quot;File could not be created !!!!&quot; &amp; str$(ret))<br />
+	endif	<br />
+<br />
+}<br />
+|*********************************** end of script ****************************<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+2. the java class tcd_text2pdf<br />
+<br />
+/*<br />
+Class to convert baan ascii report to pdf<br />
+Author : Akshay Hulikavi<br />
+Date    : 10.02.2004<br />
+<br />
+Requires : itext-x.jar - can be downloaded from www.lowagie.com/iText/<br />
+Source can be downloaded from www.lowagie.com/iText/<br />
+<br />
+Usage : java tcd_text2pdf  &lt;inputfile&gt; &lt;outputfile.pdf&gt; &lt;PageLength, Default = 60&gt;<br />
+<br />
+*/<br />
+import com.lowagie.text.*;<br />
+import com.lowagie.text.pdf.*;<br />
+import java.io.*;<br />
+<br />
+public class tcd_text2pdf <br />
+{<br />
+<br />
+public static void main(String[] args)<br />
+         throws IOException, DocumentException<br />
+	{<br />
+	String resultStr = &quot;&quot;, line=null, strFooter; <br />
+	int lncnt=1, i, j, pgcnt=0, fntSize=8, lineSpacing, strLength=0;	<br />
+<br />
+	//~ i = Integer.parseInt(args[2]);<br />
+	j = Integer.valueOf(args[2]).intValue();<br />
+		if (j &lt;= 0)<br />
+			j = 60;  // Default page length<br />
+<br />
+		if(args.length &lt; 2 ) {<br />
+			System.out.println(&quot;Usage : java tcd_text2pdf  &lt;inputfile&gt; &lt;outputfile.pdf&gt; &lt;PageLength, Default = 60&gt;&quot;); <br />
+			return;	<br />
+		}	<br />
+	<br />
+	Reader in = new InputStreamReader(new FileInputStream(args[0]));<br />
+	OutputStream os = new FileOutputStream(args[1]);<br />
+	Document doc= new Document();<br />
+	Image t_logo = Image.getInstance(&quot;logocolor.jpg&quot;);<br />
+	t_logo.scalePercent(75);  // scale image to 75%<br />
+	java.io.BufferedReader  br2  = new java.io.BufferedReader(in);   <br />
+<br />
+	// get length of the longest line 	<br />
+		try { <br />
+		    BufferedReader bufReader = new BufferedReader(new FileReader(args[0])); <br />
+		    while ((line=bufReader.readLine()) != null){ <br />
+					if (strLength &lt; line.length())<br />
+						strLength = line.length();<br />
+				}<br />
+		    bufReader.close(); <br />
+		<br />
+		} catch (IOException e) { <br />
+		    System.err.println(e); <br />
+		}<br />
+<br />
+<br />
+<br />
+	line = null;		<br />
+		i=1;<br />
+<br />
+/*<br />
+	Decide on Paper Size ,Orientation and Line Spacing based on max line length in report<br />
+	<br />
+*/<br />
+		if (strLength &lt;= 108)<br />
+			i = 1 ;	<br />
+		if (strLength &gt; 108 &amp;&amp; strLength &lt;= 127)<br />
+			i = 2 ;	<br />
+		if (strLength &gt; 127 &amp;&amp; strLength &lt;= 165)<br />
+			i = 3 ;	<br />
+		if (strLength &gt; 165 &amp;&amp; strLength &lt;= 176)<br />
+			i = 4 ;	<br />
+		if (strLength &gt; 176 &amp;&amp; strLength &lt;= 239)<br />
+			i = 5;	<br />
+		if (strLength &gt; 239)<br />
+			i = 6 ;	<br />
+			<br />
+	 switch (i) { <br />
+			case 1: <br />
+				doc = new Document(PageSize.A4, 36, 18, 72, 18); <br />
+				fntSize = 8;<br />
+				lineSpacing = fntSize;<br />
+				t_logo.setAbsolutePosition(535, 770);  // image margin 60 so 595-60 and 842-60<br />
+			break; 		<br />
+			case 2: <br />
+				doc = new Document(PageSize.A4, 36, 18, 72, 18); <br />
+				fntSize = 7;<br />
+				lineSpacing = 9;<br />
+				t_logo.setAbsolutePosition(535, 770);  <br />
+			break;		<br />
+			case 3:<br />
+				doc = new Document(PageSize.A4.rotate(), 36, 18, 72, 18); <br />
+				fntSize = 8;<br />
+				lineSpacing = fntSize;<br />
+				t_logo.setAbsolutePosition(770, 535);  <br />
+			break; <br />
+			case 4:<br />
+				doc = new Document(PageSize.A4.rotate(), 36, 18, 72, 18); <br />
+				fntSize = 7;<br />
+				lineSpacing = 9;<br />
+				t_logo.setAbsolutePosition(770, 535);  <br />
+			break;<br />
+			case 5:<br />
+				doc = new Document(PageSize.LEDGER, 36, 18, 72, 18); <br />
+				fntSize = 8;<br />
+				lineSpacing = fntSize;<br />
+				t_logo.setAbsolutePosition(1164, 732);  <br />
+			break;<br />
+			case 6:<br />
+				doc = new Document(PageSize.LEDGER, 36, 18, 72, 18); <br />
+				fntSize = 7;<br />
+				lineSpacing = 9;<br />
+				t_logo.setAbsolutePosition(1164, 732);  <br />
+			break;<br />
+			default:<br />
+				doc = new Document(PageSize.A4, 36, 36, 72, 18); <br />
+				fntSize = 8;<br />
+				lineSpacing = fntSize;<br />
+				t_logo.setAbsolutePosition(535, 770);  // image margin 85 so 595-85 and 842-85<br />
+			break;		<br />
+<br />
+			} <br />
+	<br />
+	<br />
+	// Add footer<br />
+	strFooter   = &quot;Thermax Limited Chemical Division : 97-E General Block MIDC Bhosari Pune 411026&quot;;<br />
+	strFooter +=&quot;\nPhone - 91-20-27120181, Fax - 91-20-27120206, URL - www.thermaxindia.com/chemical&quot;;<br />
+	strFooter +=&quot;\nGenerated by (BaaN Login) : &quot;;<br />
+	strFooter +=args[3];<br />
+	<br />
+	HeaderFooter footer = new HeaderFooter(new Phrase(strFooter,FontFactory.getFont(FontFactory.COURIER, 7)), false);<br />
+	<br />
+	PdfWriter docWriter = null;<br />
+	docWriter = PdfWriter.getInstance(doc, os);<br />
+        doc.setFooter(footer);<br />
+	docWriter.setEncryption(PdfWriter.STRENGTH40BITS, null, null,  PdfWriter.AllowPrinting);<br />
+	doc.addTitle(&quot;BaaN Report&quot;);<br />
+	doc.addSubject(&quot;Report Generated from BaaN System&quot;);<br />
+	doc.addKeywords(&quot;Thermax Limited Chemical Division : 97-E General Block MIDC Bhosari Pune 411026&quot;);<br />
+		<br />
+	doc.open();<br />
+            doc.add(t_logo);<br />
+	Paragraph p;<br />
+	java.io.BufferedReader  br  = new java.io.BufferedReader(in);   <br />
+<br />
+	try 	{ <br />
+		while ((line=br.readLine()) != null){ <br />
+			if (lncnt &gt; j)<br />
+			{	<br />
+				doc.newPage();<br />
+				lncnt = 0;<br />
+			}	<br />
+			p = new Paragraph(new Phrase(lineSpacing,line,FontFactory.getFont(FontFactory.COURIER, fntSize)));<br />
+			doc.add(p);<br />
+			lncnt++;	<br />
+			}<br />
+			br.close();<br />
+		} catch (IOException e) { <br />
+			System.out.println(&quot;IO Exception on Buffered Read :&quot; + e); <br />
+		}; <br />
+	<br />
+	doc.close();<br />
+	os.close();<br />
+}<br />
+<br />
+}<br />
+<br />
+<br />
+<br />
+3. Shell Scripts<br />
+a. text2pdf.sh in user home directory<br />
+cd /baanIVc/c4/bse/tcd_email<br />
+pdf.sh $@<br />
+<br />
+<br />
+b. pdf.sh in say $BSE or other convinient directory<br />
+CLASSPATH=.:/baanIVc/c4/bse/tcd_email/PeBSClasses.zip:/baanIVc/c4/bse/tcd_email/itext-1.01.jar:/usr/j2se/javamail/javamail-1.3/mail.<br />
+export CLASSPATH<br />
+java tcd_text2pdf $@<br />
+<br />
+<br />
+<br />
+4. Device Definition<br />
+Also need to define device called say PDF as follows<br />
+<br />
+Device type: Rewrite File<br />
+4GL Program : tdtcdpdf<br />
+Argument : %s<br />
+Page Length : 72<br />
+<br />
+<br />
+<br />
+regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lchleong</div><div class="date">4th August 2011, 17:35</div></div><div class="posttext">Great idea. It works perfectly. But how do I draw lines or tables that i had drawn in LN report into PDF. Apparently, all the horizontal lines had been converted into dashed lines instead of straight lines.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

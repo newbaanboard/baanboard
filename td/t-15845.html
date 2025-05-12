@@ -1,0 +1,174 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Why doesn't &quot;not exists&quot; acts weird?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Why doesn't &quot;not exists&quot; acts weird? Tools Development" />
+	
+	<title>Why doesn't &quot;not exists&quot; acts weird? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Why doesn't &quot;not exists&quot; acts weird?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">2nd July 2004, 11:23</div></div><div class="posttext">I have to develop a report that has to reconcile finance transactions. A first select selects a part of the records. After that I have to make a selection again on the table but without the records from the first selection.<br />
+<br />
+I did use a 'not exists' for that. However the not exists acts very weird. Here is the select that I use:<br />
+<br />
+<br />
+	|* Manual transactions<br />
+	select	tfgld106.*<br />
+	where	tfgld106.leac = &quot;099500      &quot; <br />
+	and 	((tfgld106.fyer = :fyer.f and tfgld106.fprd &gt;= :fper.f)<br />
+	or	tfgld106.fyer &gt; :fyer.f)<br />
+	and	((tfgld106.fyer = :fyer.t and tfgld106.fprd &lt;= :fper.t)<br />
+	or	tfgld106.fyer &lt; :fyer.t)<br />
+	and	tfgld106.dim5 &lt;&gt; &quot;RECONCILED&quot;<br />
+	and	tfgld106.otyp &lt;&gt; &quot;230&quot;<br />
+	and	tfgld106.otyp &lt;&gt; &quot;221&quot;<br />
+	and not exists (<br />
+		select	tfgld106sp.*<br />
+		from	tdsls401, cisli245, tfgld418, tfgld106 tfgld106sp<br />
+		where	tfgld106sp.leac = &quot;099500      &quot; <br />
+		and	tdsls401._index1 between { :orno.f } and { :orno.t }<br />
+		and	tdsls401.citg between :citg.f and :citg.t<br />
+		and 	((tfgld106sp.fyer = :fyer.f and tfgld106sp.fprd &gt;= :fper.f)<br />
+		or	tfgld106sp.fyer &gt; :fyer.f)<br />
+		and	((tfgld106sp.fyer = :fyer.t and tfgld106sp.fprd &lt;= :fper.t)<br />
+		or	tfgld106sp.fyer &lt; :fyer.t)<br />
+		and	cisli245._index3 = { cisli.stat.posted, :curr.comp, <br />
+				cisli.ortp.sales, tdsls401.orno, tdsls401.pono,<br />
+				tdsls401.sqnb, tdsls401.shpm }<br />
+		and	tfgld418._index2 = { :curr.comp, tdsls401.cprj,<br />
+			tctror.sli.sales, tdsls401.orno, tdsls401.pono } <br />
+		and	tfgld418.sint = tfgld.sint.posted<br />
+		and	tfgld418.frot = tcfin.frto.to<br />
+		and	tfgld106sp.otyp = tfgld418.ttyp<br />
+		and	tfgld106sp.odoc = tfgld418.docn<br />
+		and	tfgld106sp.olin = tfgld418.lino<br />
+		and	tfgld106sp.dim5 &lt;&gt; &quot;RECONCILED&quot;<br />
+		and	tdsls401.dqua &gt; 0<br />
+		and	tfgld106sp.otyp &lt;&gt; &quot;230&quot;<br />
+		and	tfgld106sp.otyp &lt;&gt; &quot;221&quot;<br />
+	)<br />
+<br />
+<br />
+If it don't include the where clause otype &lt;&gt; &quot;230&quot; and otyp &lt;&gt; &quot;221&quot; in both select parts it doesn't find anything! <br />
+<br />
+Anyone has an idea what I am doing wrong?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rodichen</div><div class="date">2nd July 2004, 17:21</div></div><div class="posttext">Hi Han,<br />
+<br />
+could it be that by inserting the where otyp &lt;&gt; &quot;230&quot; ... the inner select allways returns nothing, hence you get the result of:<br />
+select	tfgld106.*<br />
+	where	tfgld106.leac = &quot;099500      &quot; <br />
+	and 	((tfgld106.fyer = :fyer.f and tfgld106.fprd &gt;= :fper.f)<br />
+	or	tfgld106.fyer &gt; :fyer.f)<br />
+	and	((tfgld106.fyer = :fyer.t and tfgld106.fprd &lt;= :fper.t)<br />
+	or	tfgld106.fyer &lt; :fyer.t)<br />
+	and	tfgld106.dim5 &lt;&gt; &quot;RECONCILED&quot;<br />
+	and	tfgld106.otyp &lt;&gt; &quot;230&quot;<br />
+	and	tfgld106.otyp &lt;&gt; &quot;221&quot;<br />
+	and True<br />
+<br />
+and if you get it out, it allways finds something, that probably does not have anything to do with the outer select, hence you have the equivalent of<br />
+<br />
+select	tfgld106.*<br />
+	where	tfgld106.leac = &quot;099500      &quot; <br />
+	and 	((tfgld106.fyer = :fyer.f and tfgld106.fprd &gt;= :fper.f)<br />
+	or	tfgld106.fyer &gt; :fyer.f)<br />
+	and	((tfgld106.fyer = :fyer.t and tfgld106.fprd &lt;= :fper.t)<br />
+	or	tfgld106.fyer &lt; :fyer.t)<br />
+	and	tfgld106.dim5 &lt;&gt; &quot;RECONCILED&quot;<br />
+	and	tfgld106.otyp &lt;&gt; &quot;230&quot;<br />
+	and	tfgld106.otyp &lt;&gt; &quot;221&quot;<br />
+	and False<br />
+<br />
+Maybe I'm overlooking something, but it looks 2 me like the link between the inner and the outher selects is missing.<br />
+<br />
+Don't have a BAAN env. at hand, hence just a generic explaination of what I mean with that link:<br />
+<br />
+select table.field1 :var1 , table.field2 :var2<br />
+from table<br />
+where &lt;conditions&gt;<br />
+and not exists ( <br />
+select tablealias.* <br />
+from table tablealias<br />
+where &lt;conditions&gt;<br />
+and tablealias.field1 = :var1 and tablealias.field2 = :var2)<br />
+<br />
+of course field1 and field2 are some unique index fields....<br />
+<br />
+Hope this helps,<br />
+<br />
+Cheers,<br />
+rodichen</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertB</div><div class="date">10th July 2004, 13:38</div></div><div class="posttext">Hi Hans,<br />
+<br />
+I think I would split the query into two parts: your outer query unchanged, and then an inner query for each record found. This inner query then uses a selectempty to get the records you need....<br />
+<br />
+<br />
+<br />
+|* Manual transactions<br />
+select	tfgld106.*<br />
+where	tfgld106.leac = &quot;099500      &quot; <br />
+and 	((tfgld106.fyer = :fyer.f and tfgld106.fprd &gt;= :fper.f)<br />
+or	tfgld106.fyer &gt; :fyer.f)<br />
+and	((tfgld106.fyer = :fyer.t and tfgld106.fprd &lt;= :fper.t)<br />
+or	tfgld106.fyer &lt; :fyer.t)<br />
+and	tfgld106.dim5 &lt;&gt; &quot;RECONCILED&quot;<br />
+and	tfgld106.otyp &lt;&gt; &quot;230&quot;<br />
+and	tfgld106.otyp &lt;&gt; &quot;221&quot;<br />
+selectdo<br />
+<br />
+<br />
+   select	tdsls401.*, cisli245.*, tfgld418.*<br />
+		from	tdsls401, cisli245, tfgld418<br />
+		where	tdsls401._index1 between { :orno.f } and { :orno.t }<br />
+		and	tdsls401.citg between :citg.f and :citg.t<br />
+		and	cisli245._index3 = {cisli.stat.posted, :curr.comp, <br />
+				cisli.ortp.sales, tdsls401.orno, tdsls401.pono,<br />
+				tdsls401.sqnb, tdsls401.shpm }<br />
+		and	tfgld418._index2 = { :curr.comp, tdsls401.cprj,<br />
+			tctror.sli.sales, tdsls401.orno, tdsls401.pono } <br />
+		and	tfgld418.sint = tfgld.sint.posted<br />
+		and	tfgld418.frot = tcfin.frto.to<br />
+		and	tfgld418.ttyp = :tfgld106.otyp<br />
+		and	tfgld418.docn = :tfgld106.odoc<br />
+		and	tfgld418.lino = :tfgld106.olin<br />
+		and	tdsls401.dqua &gt; 0<br />
+    selectdo<br />
+<br />
+      | Do nothing...<br />
+<br />
+    selectempty<br />
+<br />
+      | These are the records you want....<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+    endselect<br />
+<br />
+endselect<br />
+<br />
+<br />
+I haven't tried this - firstly because selecting on tfgld106 takes FOREVER here, but mainly 'coz I'm too lazy...<br />
+<br />
+<br />
+HTH, R</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

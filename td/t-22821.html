@@ -1,0 +1,130 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Error in query.extend, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Error in query.extend Tools Development" />
+	
+	<title>Error in query.extend [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Error in query.extend</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">monica1</div><div class="date">11th January 2005, 10:40</div></div><div class="posttext">I write a query in before.program and I don't find the error. Can you help me?<br />
+<br />
+<br />
+before.program:<br />
+import(&quot;tffas007.fasc&quot;, tffas007.fasc)<br />
+query = &quot;cafas080.fasc.d, cafas080.amnt, cafas080.date, cafas080.ttyp, cafas080.docn&quot;<br />
+query.extend.select(query, EXTEND_APPEND)<br />
+query.extend.from(&quot;cafas080&quot;, EXTEND_APPEND)<br />
+if strip$(tffas007.fasc) = &quot;&quot; then<br />
+    query =  &quot;cafas080.fasc.o refers to tffas007 unref CLEARUNREF&quot;<br />
+    query.extend.where(query)<br />
+else<br />
+    query = &quot;tffas007._index1 = {'&quot; &amp; tffas007.fasc &amp; &quot;'}&quot; <br />
+    query =  query &amp; &quot; and cafas080.fasc.o refers to tffas007 unref CLEARUNREF&quot;<br />
+    query.extend.where(query)<br />
+endif<br />
+rebuild.query()<br />
+<br />
+<br />
+The cafas080 table have the field cafas080.fasc.o in index1 and it's possible to have more than 1 records or 0 in this table for each record in tffas007.<br />
+<br />
+Thank you in advance,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">malutz</div><div class="date">11th January 2005, 12:16</div></div><div class="posttext">Hej,<br />
+<br />
+what kind of errormessage do you get?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">monica1</div><div class="date">11th January 2005, 12:47</div></div><div class="posttext">The errormessage is: Zero pointer: name ' ' in get_sval<br />
+The main table in my session is tfffas007.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">11th January 2005, 18:01</div></div><div class="posttext">...but here are a two tips:<br />
+<br />
+1. Lose the EXTEND_APPEND options. They serve no purpose but might cause trouble.<br />
+2. Lose the rebuild.query statement. The query is automatically rebuild at the end of the before.program section.<br />
+<br />
+If these don't do the trick, you can try to change your CLEARUNREFs into SKIPs.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">monica1</div><div class="date">11th January 2005, 18:20</div></div><div class="posttext">losing the EXTEND_APPEND options and the rebuild.query() the error is missing, but the session don´t work like I want. I expain it: <br />
+<br />
+Example1: In tffas007 I have one record fasc --&gt;REMA99-047<br />
+                                                     desc --&gt; Description<br />
+             In cafas080 I haven't record<br />
+   I wan't a 3rd type screen that in the group section appears REMA99-047 and the description and in the multiple records part is in blank.<br />
+<br />
+Example2: In tffas007 I have the same record and in cafas080 I have 2 records. fasc.o --&gt; REMA99-047   <br />
+            fasc.d --&gt; REMA99-047B<br />
+<br />
+            fasc.o --&gt; REMA99-047<br />
+            fasc.d --&gt; REMA99-047C<br />
+<br />
+   I wan't the same but in the multiple records part appears in one line REMA99-047B and in the second line REMA99-047C.<br />
+<br />
+Can you help me?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">11th January 2005, 20:27</div></div><div class="posttext">I think you make things overly complicated by using dynamic SQL for this problem.<br />
+Why not do this:<br />
+<br />
+<br />
+before.program:<br />
+import(&quot;tffas007.fasc&quot;, tffas007.fasc)<br />
+<br />
+select cafas080.fasc.d, cafas080.amnt, cafas080.date, cafas080.ttyp, cafas080.docn<br />
+from cafas080<br />
+where cafas080.fasc.o = :tffas007.fasc<br />
+selectdo<br />
+   | whatever you want to do with your record(s)<br />
+   my.variable = fasc.d<br />
+selectempty<br />
+   | what to do when there are no matching records<br />
+selecterror<br />
+   | trap errors<br />
+endselect<br />
+<br />
+<br />
+simple and robust :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gous99</div><div class="date">12th January 2005, 13:27</div></div><div class="posttext">In this part of your code;<br />
+<br />
+else<br />
+    query = &quot;tffas007._index1 = {'&quot; &amp; tffas007.fasc &amp; &quot;'}&quot; <br />
+    query =  query &amp; &quot; and cafas080.fasc.o refers to tffas007 unref CLEARUNREF&quot;<br />
+    query.extend.where(query)<br />
+<br />
+<br />
+You are missing the &quot;:&quot; before your variable tffas007.fasc</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">monica1</div><div class="date">12th January 2005, 13:39</div></div><div class="posttext">No, I don'`t miss : in the query, because the result of this assignament is:<br />
+query = &quot;tffas007._index1 = {'  REMA99-047'}&quot;</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Andreas</div><div class="date">12th January 2005, 19:10</div></div><div class="posttext">Hi Monica?,<br />
+if i understand right you have a display session (type 3) based on tffas007 where you wan't to show fas007 information in Header and Information from cafas080 in the multi occurence area.<br />
+In my opinion this will not work if you placed the cafas080 records on the form. Standard program is not able to handle this.<br />
+I think it is a multi main table problem (You can do such things in ERP LN).<br />
+If you like to do such a program you have to match the cafas080 records to your own array-variables and have to program the behaviour of the occourences by yourself (very tricky).<br />
+There is a standard session in Baan that do something similar. Have a look at cprrp0520m000.<br />
+<br />
+Hope this helps,<br />
+Andreas</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

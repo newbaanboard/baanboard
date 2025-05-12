@@ -1,0 +1,150 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Error 206, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Error 206 Tools Development" />
+	
+	<title>Error 206 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Error 206</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">JRussell</div><div class="date">30th October 2002, 11:35</div></div><div class="posttext">Hi,<br />
+<br />
+I have a problem with Error 206, Record is not locked. <br />
+<br />
+I will try to explain what I am doing: I am zooming from a session(A) to another session(B). In (B) I enter records and save. When I return to the main session (A) I want the sum of a field to be displayed in (A). To do this I have selected the table for session (B), read the corresponding records (like order header + lines would be linked), I total the field and I try to do a db.update and a commit.<br />
+<br />
+I have read the other threads on this in the forums, but still a bit confused. I understand the problem is to do with commit interfering with standard code, but if I remove the commit I get the message &quot;Transaction isn't on&quot;. I have placed my code below. <br />
+<br />
+Could someone have a look at it and give me some advise???<br />
+<br />
+Not sure how I could use after.update.db.commit??? <br />
+<br />
+Thanks for any help offered, very much appreaciated!! <br />
+<br />
+<br />
+after.zoom:<br />
+	|*** returning the total downtime hours<br />
+	temptotal = 0<br />
+	temptotal2 = 0<br />
+	wawti601.dthrstot = 0<br />
+	db.retry.point()<br />
+	select wawti611.*, wawti601.*<br />
+	from wawti611, wawti601 for update<br />
+	where wawti611.pono = :wawti601.pono<br />
+	and wawti601.pono = :wawti601.pono<br />
+	selectdo<br />
+		temptotal = temptotal + wawti611.dthrsact        <br />
+		temptotal2 = temptotal2 + wawti611.changeov + wawti611.startup + <br />
+			     wawti611.nomat + wawti611.noop + wawti611.adjustmt + wawti611.projects<br />
+	selecteos<br />
+		wawti601.dthrstot = temptotal + temptotal2<br />
+		wawti601.pdvolact = temp1<br />
+		wawti601.overwgt = temp2	<br />
+		db.update(twawti601, DB.RETRY)	<br />
+		commit.transaction()	<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">carice</div><div class="date">30th October 2002, 12:03</div></div><div class="posttext">1. What's the index of table wawti601 and wawti611?<br />
+2. You don't need to set wawti601.dthrstot = 0<br />
+3. Are you sure that in your session B , a commit.transaction is done? Maybe you can set a commit.transaction() before the db.retry.point().<br />
+4. I don't understand your where-clausule. Maybe you can put :wawti601.pono in a variable (before you go into your select) and use this variable. Are you sure your where clausule is right? (you want a link from the external variable to wawti601.pono to table wawti611 AND wawti601?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">30th October 2002, 12:14</div></div><div class="posttext">Dear JRussell,<br />
+<br />
+Just a thought; what if you perform the update of the total while still in the child session instead? For example, you can code them just before exiting with choice.end.session<br />
+<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JRussell</div><div class="date">30th October 2002, 13:06</div></div><div class="posttext">Hi Carice + Paul,<br />
+<br />
+Carice, the code works fine. The correct records are selected and everything is updated. All fields are updated, error occurs when I exit the session. When I go back in all neccessary have been updated with the correct values.<br />
+<br />
+This really is so confusing... and annoying. <br />
+<br />
+I have commited in the child session. <br />
+<br />
+Paul, I tried to update in the child but still get the record locking error......<br />
+<br />
+This is going to drive me mental!!!!<br />
+<br />
+:confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jvenderb</div><div class="date">31st October 2002, 23:16</div></div><div class="posttext">I don't know a answer to your question but you can encounter some problems with this code:<br />
+1. If the update fails the program returns to the db.retry.point() and starts all over again. But your variables are not set to zero and your totals will be doubled. To solve this:<br />
+<br />
+temp1 = 0<br />
+temp2 = 0<br />
+<br />
+db.retry.point()<br />
+<br />
+if db.retry.hit()<br />
+    temp1 = 0<br />
+    temp2 = 0<br />
+endif<br />
+<br />
+select statement<br />
+.....<br />
+<br />
+2. You want to update the last selected record? The update is done in the selecteos. It doesn't matter which record is the last one? I ask this because you don't use an order by. So you can't be sure what is the last record. To solve this:<br />
+<br />
+- First determine the totals (your code without the update stuff)<br />
+- Do a select on the table you want do update and select the record you want to update. <br />
+<br />
+Code<br />
+    db.retry.point()<br />
+<br />
+    (db.retry.hit is not needed anymore, totals are calculated)<br />
+<br />
+    select table.*<br />
+    from table for update<br />
+    where .....<br />
+    as set with 1 rows<br />
+    selectdo<br />
+         db.update(table, db.retry)<br />
+         commit.transaction()<br />
+    endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">1st November 2002, 03:22</div></div><div class="posttext">Dear JRussell,<br />
+<br />
+If all the records in that particular part of the code are updated successfully, then could it be that the error 206 is for another table in another part of your code?<br />
+<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evertsen</div><div class="date">1st November 2002, 04:06</div></div><div class="posttext">If you are trying to update a table other than the main table this could cause your error.  To confirm this, try this test... before you exit the session, hit the undo button and then exit.  If you don't receive the error then you might have to use the after.update.db.commit section.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tools123</div><div class="date">1st November 2002, 04:19</div></div><div class="posttext">It is most likely an error based on the &quot;other table&quot;.<br />
+ The other table is the table on which the calling session is based<br />
+and the type of form used.<br />
+Check and change these and you should be ok.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ayoobi</div><div class="date">1st November 2002, 07:57</div></div><div class="posttext">Hi , <br />
+<br />
+I think the best way to solve your problem is to update the totals in after.update.db.commit section of the child . <br />
+<br />
+Regards<br />
+Zubair</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

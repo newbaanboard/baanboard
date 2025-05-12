@@ -1,0 +1,144 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Inserting an Inverse Record from the same table using DAL, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Inserting an Inverse Record from the same table using DAL Tools Development" />
+	
+	<title>Inserting an Inverse Record from the same table using DAL [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Inserting an Inverse Record from the same table using DAL</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">eric.dizon</div><div class="date">22nd January 2014, 23:10</div></div><div class="posttext">Hello,<br />
+<br />
+   I am trying to insert inverse of a record using DAL.    I have two fields Item A and Item B.  What i need to achieve is when a user enters like   ABC in Item A and DEF in Item B.  Automatically inside the DAL I would like to create another new record for that table with an inverse value like   Item A: DEF  |  Item B: ABC.   The code below does not work, in the insert.inverse function; it does not return proper values and does not insert a new record. <br />
+<br />
+<br />
+table   tcxitm100    | Related Items<br />
+<br />
+domain tcmcs.long l.riid<br />
+<br />
+domain tcitem l.itma<br />
+domain tcitem l.itmb<br />
+<br />
+<br />
+function extern long before.save.object(long type)<br />
+{<br />
+<br />
+   on case type<br />
+      case DAL_NEW:<br />
+<br />
+         select max(cxitm100.riid):l.riid<br />
+         from<br />
+            cxitm100<br />
+         selectdo<br />
+            cxitm100.riid =  l.riid + 1<br />
+         selectempty<br />
+            cxitm100.riid =  1<br />
+         endselect<br />
+         l.itma = cxitm100.itma<br />
+         l.itmb = cxitm100.itmb<br />
+          break<br />
+<br />
+  <br />
+   endcase<br />
+	return(0)<br />
+}<br />
+<br />
+<br />
+<br />
+function extern void after.commit.transaction()<br />
+{<br />
+    long i.ctr<br />
+    insert.inverse(l.itma, l.itmb)<br />
+<br />
+<br />
+}<br />
+function  long insert.inverse(domain tcitem t.itma, domain tcitem t.itmb)<br />
+{<br />
+   long i.ctr<br />
+<br />
+  |db.retry.point()<br />
+   select cxitm100.*<br />
+   from cxitm100<br />
+   where cxitm100._index3 = {:t.itma, :t.itmb}<br />
+   selectempty<br />
+      cxitm100.itma  = t.itmb<br />
+      cxitm100.itmb  = t.itma<br />
+      db.insert(tcxitm100, DB.RETRY, elocked)<br />
+      commit.transaction()<br />
+   selectdo<br />
+      i.ctr = 1<br />
+<br />
+   endselect<br />
+   return(0)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">23rd January 2014, 04:32</div></div><div class="posttext">Hi,<br />
+<br />
+May be you are missing for update in your select. Try something like this if you want to capture the updates as well. If some error pops up, try commenting out the commit.transaction() statement.<br />
+<br />
+function extern long after.save.object(long mode)<br />
+{<br />
+   long i.ctr<br />
+    if mode = DAL_NEW then<br />
+       insert.inverse(l.itma, l.itmb)<br />
+    else<br />
+        update.inverse(l.itma, l.itmb)<br />
+    endif<br />
+}<br />
+<br />
+<br />
+function long insert.inverse(domain tcitem t.itma, domain tcitem t.itmb)<br />
+{<br />
+long i.ctr<br />
+<br />
+<br />
+select cxitm100.*<br />
+from cxitm100 for update<br />
+where cxitm100._index3 = {:t.itma, :t.itmb}<br />
+selectempty<br />
+cxitm100.itma = t.itmb<br />
+cxitm100.itmb = t.itma<br />
+db.insert(tcxitm100, DB.RETRY, elocked)<br />
+selectdo<br />
+commit.transaction()<br />
+i.ctr = 1<br />
+<br />
+endselect<br />
+return(0)<br />
+}<br />
+<br />
+function long update.inverse(domain tcitem t.itma, domain tcitem t.itmb)<br />
+{<br />
+long i.ctr<br />
+<br />
+<br />
+select cxitm100.*<br />
+from cxitm100 for update<br />
+where cxitm100._index3 = {:t.itma, :t.itmb}<br />
+selectempty<br />
+cxitm100.itma = t.itmb<br />
+cxitm100.itmb = t.itma<br />
+db.update(tcxitm100, DB.RETRY, elocked)<br />
+selectdo<br />
+commit.transaction()<br />
+i.ctr = 1<br />
+<br />
+endselect<br />
+return(0)<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

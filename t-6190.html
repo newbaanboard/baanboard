@@ -1,0 +1,338 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Page x of y: Jo Büche's solution., baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Page x of y: Jo Büche's solution. Code &amp; Utilities" />
+	
+	<title>Page x of y: Jo Büche's solution. [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Code &amp; Utilities</a> &gt; Page x of y: Jo Büche's solution.</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">~Vamsi</div><div class="date">13th August 2002, 04:11</div></div><div class="posttext">This solution first appeared on Baanfans on July 19, 1999 at 04:23:11 EST. It works only with Unix print queues and not with BWPrint (either Unix or Windows).<br />
+<br />
+~Vamsi<br />
+Mohanavamsi Potluru<br />
+<br />
+&lt;hr&gt;<br />
+ <br />
+&lt;h1&gt;&quot;Page of&quot; using Barcode-Functionality&lt;/h1&gt;<br />
+<br />
+A completly other way of printing the number of pages is to use Barcode-Functionality. <br />
+The Barcode-Feature (Warning : Works only for UNIX-Printers) is in fact a API-Interface for<br />
+printing. You can merge everything you want to an existing spool. And the merging ist done<br />
+after Baan has createed the whole printing, so Baan also knows the total amount of pages.<br />
+&lt;p&gt;<br />
+I tried my example with an Easy-SQL and it works really fine. <br />
+&lt;p&gt;<br />
+In short the example works like that:<br />
+&lt;ul&gt;<br />
+&lt;li&gt;Before printing I generate a unique Spool number and print it (!!) on the report in<br />
+a field, which is connected to a Barcode<br />
+&lt;li&gt;At the end of printing I write the unique number and the number of pages to an ASCII-File<br />
+&lt;li&gt;In the filter-Program of Baan (which puts the correct Escape-Sequences to a spool) I take the <br />
+Barcode-Script (which gets the unique number as parameter) and read the corresponding <br />
+number of pages. Instead of a barcode i merge the number of pages in the Spool - Output<br />
+&lt;p&gt;&lt;center&gt;&lt;b&gt;--&gt; there we are !!!!&lt;/b&gt;&lt;/center&gt;<br />
+&lt;/ul&gt;<br />
+&lt;p&gt;<br />
+The greatest problem is not getting the Page - number, but managing the unique numbers.<br />
+&lt;p&gt;<br />
+&lt;h2&gt; How to use the example&lt;/h2&gt;<br />
+&lt;ul&gt;<br />
+&lt;li&gt;Print in the header of your report something like &quot;Page : VVVVVVV of FFFFFFFF&quot;, <br />
+where FFFFFFFF is the new field <br />
+(in my example &lt;i&gt;int.unique.s&lt;/i&gt; of type tcmcs.str8 and with Barcode - Type 95)<br />
+Dont care of the warning : &quot;Input field not declared&quot; . &lt;b&gt;Do not declare the field as input field&lt;/b&gt;<br />
+&lt;li&gt;Warning: I think there is an error in the Baan-Barcode-API, because, when the Barcode-Field <br />
+is the last field in a line the Printer-Daemon gets mad, so i added a &quot;.&quot; (= point) after the <br />
+barcode-Field and everything works fine. (Note: a empty field of 1 Byte works also)<br />
+&lt;li&gt;paste the code on this site to the report-script <br />
+&lt;li&gt;create (once) a subdirectory under your $BSE_TMP-folder named &quot;printing&quot;. Make sure, that <br />
+everyone has accessrights for this directory. <br />
+&lt;li&gt;for each Baan-Printer(device), you have to connect the printer to a Baan- Printer-information-File<br />
+(see &quot;technical manual&quot; in the online help). Normally every UNIX-printer is <br />
+already connected to a Printer-Driver<br />
+&lt;li&gt;for each (unix-)printer you want to work with this feature you have to change <br />
+the printer driver file ($BSE/lib/printinf/.....), so that it contains a link to a <br />
+barcode-directory (there must be a line &quot;barcodedir=xxxxxxx,&quot;; dont forget the comma)<br />
+&lt;li&gt;In the barcode-directory ($BSE/lib/barcode/xxxxxx; xxxxx = name of the barcode-Directory) <br />
+create the shellscript (Name type95)<br />
+&lt;/ul&gt;<br />
+&lt;p&gt;&lt;p&gt;<br />
+&lt;h2&gt;Report-Script :&lt;/h2&gt;<br />
+|******************************************************************************<br />
+|* tdsqljo07   VRC B40C c4 entw<br />
+|* mehrere Seiten und Seite von<br />
+|* bj_104_a<br />
+|* 15.07.99 [14:05]<br />
+|******************************************************************************<br />
+<br />
+declaration:<br />
+        long                    int.unique      | unique number (internal)<br />
+        domain  tcmcs.str8      int.unique.s<br />
+<br />
+before.program:<br />
+        long    fp<br />
+        long    ok<br />
+        string  number(8)<br />
+<br />
+        | Get unique number<br />
+        fp = seq.open(bse.tmp.dir$() &amp; &quot;/printing/unique.dat&quot;,&quot;r&quot;)<br />
+        int.unique = 0<br />
+        if fp &gt; 0 then<br />
+                if seq.gets(number,8,fp) = 0 then<br />
+                        int.unique = lval(number)<br />
+                endif<br />
+                seq.close(fp)<br />
+        endif<br />
+<br />
+        | Write new Unique number<br />
+        int.unique = int.unique + 1<br />
+        fp = seq.open(bse.tmp.dir$() &amp; &quot;/printing/unique.dat&quot;,&quot;w&quot;)<br />
+        if fp &gt; 0 then<br />
+                seq.puts(edit$(int.unique,&quot;ZZZZZZZ9&quot;),fp)<br />
+                seq.close(fp)<br />
+        endif<br />
+<br />
+        | Unique Number as string for printing<br />
+        int.unique.s = edit$(int.unique,&quot;ZZZZZZZ9&quot;)<br />
+<br />
+after.program:<br />
+        long fp<br />
+<br />
+        fp = seq.open(bse.tmp.dir$() &amp; &quot;/printing/numbers.dat&quot;,&quot;a&quot;)<br />
+        if fp &gt; 0 then<br />
+                seq.puts(       edit$(int.unique,&quot;ZZZZZZZ9&quot;)&amp;<br />
+                                &quot;:&quot; &amp;<br />
+                                edit$(lattr.pageno,&quot;ZZZZZ9&quot;),fp)<br />
+                seq.close(fp)<br />
+        endif<br />
+<br />
+<br />
+&lt;p&gt;&lt;p&gt;<br />
+&lt;h2&gt;Shell-Script&lt;/h2&gt;<br />
+<br />
+#!/bin/sh<br />
+#******************************************************************************<br />
+#<br />
+#   File           :      type95<br />
+#<br />
+#   jb             :      Print &quot;Page of&quot;<br />
+#******************************************************************************<br />
+<br />
+# get unique number out of the printing string (8 Bytes)<br />
+unique=&quot;$1:&quot;<br />
+<br />
+# search the file with unique number for the string &quot;Nr:xxxxxxxx&quot;<br />
+tmpdat=&quot;`grep $unique $BSE_TMP/printing/numbers.dat`&quot;<br />
+<br />
+# get the column with the number of pages<br />
+tmpdat=`echo $tmpdat|cut -f2 -d:|head -1`<br />
+<br />
+# merge the numer of pages in the spool-output<br />
+echo &quot;$tmpdat\c&quot;<br />
+<br />
+# exit<br />
+exit 0<br />
+<br />
+&lt;hr&gt;<br />
+I have to admit : I'm not very strong in shell-Scripting. For my Sun it works fine, but<br />
+I suppose for other UNIXES you have to change something on the script. I'm sure someone <br />
+could do this script in a better way.<br />
+&lt;hr&gt;<br />
+Make sure, that the shell-Script is executable !!<br />
+&lt;p&gt;<br />
+Make sure, that the 2 ASCII-Files in the directory &quot;printing&quot; <br />
+(and the directory itself) are accessible (UNIX-rights)<br />
+&lt;p&gt;<br />
+In case of error : Check the logfile ($BSE/log/log.filter6.1)<br />
+<br />
+&lt;p&gt;&lt;hr&gt;&lt;p&gt;<br />
+The number for uniqueness ist 8 digits long, so I dont think, there will a be<br />
+a problem, but feel free to increment the size<br />
+&lt;p&gt;<br />
+Clear the file with the page numbers every month (or every weekend). <br />
+&lt;hr&gt;<br />
+&lt;address&gt;<br />
+Jo Büche&lt;br&gt;<br />
+Baan &amp; Schuler GmbH&lt;br&gt;<br />
+jbueche@baan-schuler.com<br />
+&lt;/address&gt;</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kingsto88</div><div class="date">6th July 2005, 06:46</div></div><div class="posttext">Hi,<br />
+<br />
+Can you explain how to do this in simpler terms.<br />
+If I am using Windows, can i use this method?<br />
+<br />
+Thanks and regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">6th July 2005, 09:16</div></div><div class="posttext">This solution first appeared on Baanfans on July 19, 1999 at 04:23:11 EST. It works only with Unix print queues and not with BWPrint (either Unix or Windows).<br />
+<br />
+<br />
+The Barcode-Feature (Warning : Works only for UNIX-Printers) is in fact a API-Interface for<br />
+printing. <br />
+<br />
+Dear Kingsto88: What remains unclear here?<br />
+<br />
+Vamsi: Very clever solution indeed. I like it *g*<br />
+<br />
+regards <br />
+<br />
+Norbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">garias</div><div class="date">27th February 2009, 00:51</div></div><div class="posttext">Hello everybody:<br />
+<br />
+I am researching this topic: &quot;printing page x of y&quot;  in Baan ERP LN 6.1 <br />
+I had reviewed this two important threads about this topic:<br />
+a)  Vamsi  -   Kevin Brock's solution.   Febrero de 2002<br />
+b)  Vamsi  -   Jo Büche's solution.      12th August 2002,<br />
+<br />
+Both oriented a Baan installed in a Unix S.O. <br />
+There are good job in these solutions.  <br />
+Also I saw that these threads are of many years ago.  <br />
+<br />
+I want to know  if there are an advance or upgrade in a generic o standard solution for this topic useful in windows or unix severs  for Baan V or Baan LN. <br />
+ <br />
+Regards.<br />
+<br />
+Gerardo</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th February 2009, 00:53</div></div><div class="posttext">Sorry to say - not that I am aware of.  The best I have heard was there was a forms package that could be installed that would do this.  I do not recall what the name was, but I do remember the cost was high.  <br />
+<br />
+Also please only post once. Here is the other thread (http://www.baanboard.com/baanboard/showthread.php?t=1079) gerardo refered to in the post.<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">garias</div><div class="date">27th February 2009, 10:15</div></div><div class="posttext">Hello Mark  thanks for your answer. <br />
+<br />
+Hello Everybody:<br />
+<br />
+I was working yesterday and today in a solution. <br />
+- I delevoped a simple DLL  with only a external function.<br />
+Features:<br />
+<br />
+- You don´t have to pass parameters to this function. <br />
+- Only have to put the function in the after.program section of your report script<br />
+- And of course to put *GA* in the layout where you want that the total page  number appear. As you can see <br />
+max a 9999 total pages because *GA* are four characters.<br />
+- This solution is for WIndows and Unix Baan Server. No matter in which S.O Server   is installed Baan. <br />
+- At the present time the solution is for Infor  LN 6.1. But I supposed that it could be work in previous versions. <br />
+- It function don´t have to process the report two times. only one time. <br />
+- You don´t have to put any additional conversion program in the device.<br />
+- I have tested it with a Windows printer (BW) and with some customized reports. (I am going to test with more devices..) <br />
+<br />
+If you are interesting I may send you, by now, the DLL object as a &quot;black box&quot; to test it.  When I finished it I could put it here.<br />
+<br />
+A more complex case:         <br />
+         When you print a report with a range of documents <br />
+         And you get some independent documents (e.g. invoices, orders) in <br />
+         the same report (spooler) , and you have independent page numeration for every <br />
+         document. And you want to print an independent total page number for every one<br />
+         document. <br />
+<br />
+         The actual version of my dll don´t cover this last case. But I am going to work in this case. <br />
+<br />
+<br />
+That´s all <br />
+<br />
+Gerardo</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">thaykhov</div><div class="date">21st July 2009, 07:14</div></div><div class="posttext">HI Gerardo<br />
+<br />
+Can you post your solution? I am looking for page x of y for my invoices/sales orders<br />
+<br />
+Regards<br />
+<br />
+Thay</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Altrev</div><div class="date">26th November 2009, 21:49</div></div><div class="posttext">Hello Mark  thanks for your answer. <br />
+<br />
+Hello Everybody:<br />
+<br />
+I was working yesterday and today in a solution. <br />
+- I delevoped a simple DLL  with only a external function.<br />
+Features:<br />
+<br />
+- You don´t have to pass parameters to this function. <br />
+- Only have to put the function in the after.program section of your report script<br />
+- And of course to put *GA* in the layout where you want that the total page  number appear. As you can see <br />
+max a 9999 total pages because *GA* are four characters.<br />
+- This solution is for WIndows and Unix Baan Server. No matter in which S.O Server   is installed Baan. <br />
+- At the present time the solution is for Infor  LN 6.1. But I supposed that it could be work in previous versions. <br />
+- It function don´t have to process the report two times. only one time. <br />
+- You don´t have to put any additional conversion program in the device.<br />
+- I have tested it with a Windows printer (BW) and with some customized reports. (I am going to test with more devices..) <br />
+<br />
+If you are interesting I may send you, by now, the DLL object as a &quot;black box&quot; to test it.  When I finished it I could put it here.<br />
+<br />
+A more complex case:         <br />
+         When you print a report with a range of documents <br />
+         And you get some independent documents (e.g. invoices, orders) in <br />
+         the same report (spooler) , and you have independent page numeration for every <br />
+         document. And you want to print an independent total page number for every one<br />
+         document. <br />
+<br />
+         The actual version of my dll don´t cover this last case. But I am going to work in this case. <br />
+<br />
+<br />
+That´s all <br />
+<br />
+Gerardo<br />
+<br />
+Hi Gerardo,<br />
+<br />
+Did you had a chance to post your &quot;Single pass: Page x of y&quot; library?<br />
+<br />
+I think that it will be a great tool.<br />
+<br />
+Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pralash</div><div class="date">20th February 2018, 08:08</div></div><div class="posttext">Hi,<br />
+<br />
+I have seen your post regarding to print the page number in the report as  Page 1 of 5, Page 2 of 5... etc...<br />
+<br />
+Can you please assist me how to perform this task by using sample scipt....<br />
+<br />
+Thanks in advance,<br />
+Regards,<br />
+Pralash</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">20th February 2018, 10:50</div></div><div class="posttext">Hi Pralash,<br />
+<br />
+you are on Windows, the presented solution only works on Unix.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pralash</div><div class="date">20th February 2018, 13:44</div></div><div class="posttext">Hi,<br />
+<br />
+Oh i see... So is there some other solutions are available in windows for print the page number as Page 1 of 5, Page 2 of 5 etc?<br />
+<br />
+Please assist me....<br />
+Thanks in advance,<br />
+Regards,<br />
+Pralash</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">21st February 2018, 08:26</div></div><div class="posttext">If you are using LN 10.3 or a later release, you can also check solution 1841512. Buts its limited to creating pdf only and it will print &quot;x / n&quot; (n = number of pages)..</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

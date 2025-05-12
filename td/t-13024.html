@@ -1,0 +1,148 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Pass variable to sub-session, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Pass variable to sub-session Tools Development" />
+	
+	<title>Pass variable to sub-session [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Pass variable to sub-session</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">pokitlok</div><div class="date">17th September 2003, 13:51</div></div><div class="posttext">I would write a session to call a BaaN standard session like tuxch0223m000. As I know I can use zoom.to$ to call tuxch0223m000. But how can I pass the parameters e.g. Exchange Scheme from the new session I write to the session tuxch0223m000?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">17th September 2003, 15:04</div></div><div class="posttext">The session does an import of 4 variables when started in background. I guess the following code in your script (before zoom) would fill those:<br />
+<br />
+extern domain tuxch.cxch cxch.f, cxch.t<br />
+extern domain tuxch.cbat cbat.f, cbat.t<br />
+cxch.f = &quot;...&quot;<br />
+...<br />
+cbat.t = &quot;...&quot;<br />
+zoom.to$(...)<br />
+<br />
+But: I can't see how to fill other fields. Maybe you should check if AFS is supported.<br />
+<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">17th September 2003, 15:13</div></div><div class="posttext">I take it that you want to start a non-regular import from a button or option in the session you are building.  Correct?  If so, the easiest would be to start using the AFS (http://www.baanboard.com/baanboard/forumdisplay.php?s=&amp;forumid=59) (Application Function Server).  The code would then be something like the following:<br />
+<br />
+declaration:<br />
+   | Form variables<br />
+   extern domain tuxch.cxch form.sceme<br />
+   extern domain tuxch.cbat form.batch<br />
+   | Other variables<br />
+   string error.mesg(255)<br />
+   long   error.code<br />
+<br />
+#pragma used dll ottstpapihand<br />
+<br />
+choice.user.1:<br />
+on.choice:<br />
+   | Open the session and insert the fields<br />
+   stpapi.put.field(&quot;tuxch0233m000&quot;, &quot;cxch.f&quot;, form.scheme)<br />
+   stpapi.put.field(&quot;tuxch0233m000&quot;, &quot;cxch.t&quot;, form.scheme)<br />
+   stpapi.put.field(&quot;tuxch0233m000&quot;, &quot;cbat.f&quot;, form.batch)<br />
+   stpapi.put.field(&quot;tuxch0233m000&quot;, &quot;cbat.t&quot;, form.batch)<br />
+   | In this same way, fill the other variables on the form...<br />
+   | Then, execute!<br />
+   error.code = stpapi.cont.process(&quot;tuxch0233m000&quot;, error.mesg)<br />
+   | Error checking<br />
+   if error.code &lt;&gt; 0 then<br />
+      ...<br />
+   endif<br />
+<br />
+<br />
+PS. While previewing this post, I saw that Günther has the same idea!  He just answered faster! :(</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pokitlok</div><div class="date">18th September 2003, 09:05</div></div><div class="posttext">Hi, NvanBeest!<br />
+<br />
+Thank a lot. Your reply is very useful. I have tried but I find I cannot pass the parameter to target session successfully (e.g. tuxch0401m000).<br />
+My script: <br />
+<br />
+stpapi.put.field(&quot;tuxch0401m000&quot;, &quot;cxch.t&quot;, zoom.cxch)<br />
+<br />
+I cannot find session tuxch0401m000's field is changed. And the session runs more than specified scheme.<br />
+<br />
+However, <br />
+<br />
+I can get the valid field value by script below:<br />
+<br />
+stpapi.get.field(&quot;tuxch0401m000&quot;, &quot;cxch.f&quot;, cxch.f)<br />
+<br />
+I cannot identify what is wrong. :confused:<br />
+Do I need to configurate my baan server? The version of mine is B4Cc3 and Sun Unix server.<br />
+<br />
+<br />
+----------------------<br />
+The full script is:<br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+<br />
+	table	ttuxch001	<br />
+	extern	domain	tuxch.cxch	cxch.f, cxch.t<br />
+	extern	domain	tuxch.cxch	tuxch022.cxch<br />
+	extern	domain	tuxch.cxch	zoom.cxch	   | zoom variable<br />
+<br />
+	string error.msg(255)<br />
+	long   error.code<br />
+<br />
+	#pragma used dll ottstpapihand<br />
+<br />
+<br />
+|***************************** zoom section ************************************<br />
+<br />
+|zoom.from.all:<br />
+|on.exit:<br />
+|	export(&quot;zoom.cxch&quot;,zoom.cxch)<br />
+<br />
+|****************************** program section **********************************<br />
+before.program:<br />
+<br />
+<br />
+|****************************** form section **********************************<br />
+form.1:<br />
+init.form:<br />
+<br />
+<br />
+|****************************** choice section ********************************<br />
+choice.cont.process:                                                                                                                                                                                                                                                                                                                                                  <br />
+on.choice:     <br />
+<br />
+   cxch.f = &quot;&quot;<br />
+   cxch.t = &quot;&quot;<br />
+<br />
+   stpapi.put.field(&quot;tuxch0401m000&quot;, &quot;cxch.f&quot;, str$(zoom.cxch))<br />
+   stpapi.put.field(&quot;tuxch0401m000&quot;, &quot;cxch.t&quot;, zoom.cxch)<br />
+   stpapi.put.field(&quot;tuxch0401m000&quot;, &quot;cxch.txt&quot;, str$(etol(tcyesno.yes)))<br />
+   stpapi.put.field(&quot;tuxch0401m000&quot;, &quot;spool.fileout&quot;, &quot;AFSfile.out&quot;)<br />
+   stpapi.set.report(&quot;tuxch0401m000&quot;, &quot;rtuxch040111000&quot;, &quot;ASCIF&quot;, error.msg)  <br />
+   | Error checking<br />
+   if isspace(error.msg) then<br />
+	stpapi.print.report(&quot;tuxch0401m000&quot;, error.msg)<br />
+   else<br />
+	message(error.msg)<br />
+   endif<br />
+<br />
+   if isspace(error.msg) then<br />
+	stpapi.get.field(&quot;tuxch0401m000&quot;, &quot;cxch.f&quot;, cxch.f)<br />
+	stpapi.get.field(&quot;tuxch0401m000&quot;, &quot;cxch.t&quot;, cxch.t)<br />
+	message(&quot;f:&quot; &amp; cxch.f &amp; &quot; ;t:&quot; &amp; cxch.t)	<br />
+	stpapi.end.session(&quot;tuxch0401m000&quot;)<br />
+  <br />
+   endif</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

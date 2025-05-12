@@ -1,0 +1,131 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Align total fields with multiline fields, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Align total fields with multiline fields Tools Development" />
+	
+	<title>Align total fields with multiline fields [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Align total fields with multiline fields</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">fmartinezber</div><div class="date">3rd June 2003, 22:38</div></div><div class="posttext">How can I align total fields with multiline fields in a form?<br />
+<br />
+<br />
+   Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">4th June 2003, 01:15</div></div><div class="posttext">In Baan V, You can set the variable fattr.total.line = true in your before program section, and use the total line provided by Baan with the display.total.fields() call.<br />
+<br />
+You can read more about that method in the Baan help for the display.total.fields() function.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fmartinezber</div><div class="date">4th June 2003, 13:20</div></div><div class="posttext">It's running.<br />
+<br />
+Thanks a lots</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">renzosing</div><div class="date">7th October 2004, 15:31</div></div><div class="posttext">I'm trying to using the total line option.  The way it is coded now, the total line will contain the value of the last total. I also have played around with it and had it code where I would get to total, but it kept a running total and I want it to list the different amounts and then display the total at the bottom. Sample script is below.<br />
+<br />
+before.program:<br />
+fattr.total.line = true<br />
+<br />
+	<br />
+field.print.amount:<br />
+before.display:   <br />
+<br />
+select	tdsls401.oamt:print.total,<br />
+	tdsls401.ldam:print.discnt<br />
+						<br />
+from       tdsls401<br />
+    	<br />
+where     tdsls401.orno = :tdsls401.orno	<br />
+       and tdsls401.sqnb = 0<br />
+       and tdsls401.item = :tdsls401.item <br />
+<br />
+selectdo<br />
+	 print.amount = print.amount +     <br />
+			(print.total - (print.discnt(1) +<br />
+				       print.discnt(2) +<br />
+				       print.discnt(3) +<br />
+				       print.discnt(4) +<br />
+				       print.discnt(5) ))<br />
+                display.total.fields(&quot;print.amount&quot;,print.amount)  <br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">7th October 2004, 17:11</div></div><div class="posttext">I think part of the problem is that you are filling 'print.amount' with the totals every row.   You want to fill print.amount with only the values of that row.  You want to fill a total variable separate with the total for all rows, then assign the total value to the print.amount total field using the display.total.fields command:<br />
+<br />
+<br />
+field.print.amount:<br />
+before.display: <br />
+<br />
+hold.total = 0                                |*new<br />
+select tdsls401.oamt:print.total,<br />
+tdsls401.ldam:print.discnt,<br />
+tdsls401.pono:print.pono                 |*new<br />
+<br />
+from tdsls401<br />
+<br />
+where tdsls401.orno = :tdsls401.orno <br />
+and tdsls401.sqnb = 0<br />
+and tdsls401.item = :tdsls401.item <br />
+<br />
+selectdo<br />
+hold.total = hold.total +                 |*fill hold.total instead of print.amount<br />
+(print.total - (print.discnt(1) +<br />
+print.discnt(2) +<br />
+print.discnt(3) +<br />
+print.discnt(4) +<br />
+print.discnt(5) ))<br />
+endif<br />
+if tdsls401.pono = print.pono then<br />
+|* only if you have the same position, fill your print.amount for the row<br />
+      print.amount = (print.total - (print.discnt(1) +<br />
+                           print.discnt(2) +<br />
+                           print.discnt(3) +<br />
+                           print.discnt(4) +<br />
+                           print.discnt(5) ))<br />
+endif<br />
+<br />
+<br />
+|display.total.fields(&quot;print.amount&quot;,print.amount) <br />
+<br />
+endselect<br />
+display.total.fields(&quot;print.amount&quot;,hold.total)   |* display this only when done<br />
+<br />
+<br />
+<br />
+Give it a shot, I did not test.  Let us know how it goes.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">7th October 2004, 17:21</div></div><div class="posttext">Also, if it does work as planned, that will only get the totals for 1 order.  If your session has more than one order then this will not represent the whole selection.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">renzosing</div><div class="date">7th October 2004, 17:41</div></div><div class="posttext">It is still giving me the last total for that order, not the overall total. I went in debug mode and I see where print.amount and hold.total has the same value in display.total.fields(&quot;print.amount&quot;,hold.total)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">renzosing</div><div class="date">7th October 2004, 21:32</div></div><div class="posttext">Has anyone used this function?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">7th October 2004, 22:16</div></div><div class="posttext">I did the sample during training, years ago now though, it worked, and I have seen it in a few standard programs.<br />
+If you have the code, check out the session whinh2545m000, I know it works.  The differences I have seen are that they are trying to total up table fields, where you are both calculating the field and totaling the calculated field.  Don't see how that would matter, but Baan and table fields - ya never know.  They put the calls in a different section and use the 'on.main.table' function to call it with.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">renzosing</div><div class="date">7th October 2004, 22:35</div></div><div class="posttext">Thanks, I'm looking a that code now!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">renzosing</div><div class="date">7th October 2004, 23:44</div></div><div class="posttext">It worked. Thanks!</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Inserting/updating Record, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Inserting/updating Record Tools Development" />
+	
+	<title>Inserting/updating Record [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Inserting/updating Record</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">baansavvy</div><div class="date">29th May 2010, 10:40</div></div><div class="posttext">Hi,<br />
+<br />
+Sorry i am novice,Can someone please tell me how to do the DML operations with the database?<br />
+<br />
+I want to simply insert the record but i don't know on which event i need to use and which part of the script i need to write the code?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">29th May 2010, 13:57</div></div><div class="posttext">Hi,<br />
+<br />
+Sorry i am novice,Can someone please tell me how to do the DML operations with the database?<br />
+<br />
+I want to simply insert the record but i don't know on which event i need to use and which part of the script i need to write the code?<br />
+<br />
+<br />
+Hello,<br />
+<br />
+you're on BaaN IV<br />
+In most cases it's like<br />
+<br />
+db.retry.point()<br />
+select &lt;tablefields&gt;<br />
+from &lt;table&gt; for update<br />
+where &lt;condition&gt;<br />
+selectdo<br />
+db.update(&lt;table&gt;, db.retry)<br />
+selectempty<br />
+db.insert(&lt;table&gt;, db.retry)<br />
+commit.transaction()<br />
+endselect<br />
+comit.transaction()<br />
+<br />
+Have a look at:<br />
+BaanERP Programmers Guide<br />
+<br />
+ <br />
+Hints for using SQL<br />
+<br />
+--------------------------------------------------------------------------<br />
+In the WHERE clause: <br />
+use as few conditions as possible <br />
+use as many conditions with indexes as possible <br />
+use as many conditions with combined fields as possible <br />
+use BETWEEN/INRANGE when an upper and lower boundary are specified for a field. <br />
+Use REFERS TO if references have been defined in the data dictionary. <br />
+Use as few overlapping OR conditions as possible. For the following: <br />
+cpac&amp;cmod &gt;= 'ttadv' (only if there is no index to cpac&amp;cmod)<br />
+do not use the following construction:<br />
+<br />
+WHERE ttadv200.cpac &gt; 'tt' OR ttadv200.cpac &gt;= 'tt'<br />
+AND ttadv200.cmod &gt;= 'adv'<br />
+instead use the following construction:<br />
+<br />
+WHERE ttadv200.cpac &gt; 'tt' OR ttadv200.cpac = 'tt'<br />
+AND ttadv200.cmod &gt;= 'adv'<br />
+<br />
+Only select fields of tables necessary in the flow of the program. <br />
+It is not necessary to bind external variables and database fields used in the query as substitution variables. In embedded SQL local variables are bound automatically. <br />
+The program executes the query the first time the function sql.fetch() is called. If reading in the entire set is unnecessary (so no order by, group by, and so on), the program only physically retrieves records at each sql.fetch(). This avoids an entire set being retrieved when only part of it is used. When the set is no longer necessary call sql.break() to clear the remaining records. <br />
+Use ORDER BY to ensure that the records are retrieved in the correct sequence. If an index can be used for the ORDER BY, no sort action will take place beforehand. <br />
+The program will execute a Full Table Scan (FTS) if the operators NOT INRANGE, IN, LIKE are used and if no index (or part of an index) is used. This means that the system checks beforehand whether all records in the table meet the conditions of the query. This precludes optimization. If only the first part of an index (combined or normal field) is used, the system uses that index to search the table. <br />
+When GROUP BY is used, the system first determines the entire set (prepared set), before producing the first record. The same thing happens if the operator is preceded by an expression –for example, WHERE &lt;table.field1&gt; &amp; &lt;table.field2&gt; = &quot;...........&quot;. Note that the various subexpressions separated by AND or OR cannot be combined for optimization.<br />
+<br />
+It is possible to have the program carry out commits at certain points in the select loop. If retry points are included, use of ORDER BY is required to ensure that the sequence after return to the retry point is identical to the one used the first time. See also the practical examples. <br />
+If a transaction adds or processes records, it depends on the database if the same transaction can also process new records without a select being carried out again. To ensure that new records are processed in any case, a commit and a new select are required. To ensure that new records are not processed, define the set at the point of the select (prepared set). <br />
+When using transactions, the first priority should be that the actions within the transaction constitute a logical unit. For reasons of performance, update, insert, and delete actions can be combined up to a number of 256 (this is an average, not a limit) per transaction. For example, programs processing orders should execute one commit.transaction() for each order. <br />
+It may be necessary to know how far the program had advanced before it moved back to the retry point. If the key consists of more than one field, it is probably possible to have the program execute a commit.transaction() when a particular key field changes. If a key consists of order number and order line, for instance, a commit by order number would be preferable to a commit by order line. Care should be taken in programs that print and process data in one run. An abort transaction restores the database but not the output to the printer. In such cases a commit must be executed for each print line to prevent lines being printed twice. <br />
+For example:<br />
+<br />
+save.orno = start<br />
+select for update orderline.orno, orderline.pono<br />
+from orderline<br />
+where orderline.orno &gt;= :save.orno<br />
+selectdo<br />
+	   if ( save.orno &lt;&gt; orderline.orno ) then<br />
+	     	commit.transaction()<br />
+	     	save.orno = orderline.orno<br />
+	   endif<br />
+	   update actions()<br />
+endselect<br />
+commit.transaction()<br />
+<br />
+A db.retry.point() must be included in each update program.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">29th May 2010, 15:00</div></div><div class="posttext">Hi Baansavvy and welcome to the wonderful world of Baan programming!<br />
+<br />
+I I think Bernd has said it all but maybe an example could help you as a novice. By the way: The best way to learn is to go through as many scripts as you can lay your hands on!<br />
+<br />
+Inserting and Updating records in the table &quot;Regions&quot;:<br />
+In Baan there is a table called &quot;Regions&quot; (tcmcs045). You can insert or update records as a user by using the standard session Maintain Regions tcmcs0145m000. If you want to do this you can add the following code to your script. I am supposing that you have a type 4 Session (Update or print)<br />
+<br />
+<br />
+declaration:<br />
+	|We must declare the regions table. Baan need the extra &quot;t&quot; here!<br />
+	table	ttcmcs045	|Regions<br />
+<br />
+choice.cont.process:	|This is called when you press the &quot;continue&quot; button!<br />
+on.choice:<br />
+	|we want to insert a record for new Region &quot;North&quot; with code= &quot;NOR&quot;<br />
+	|First we ask the database if such a record is already there!<br />
+	select	*<br />
+	from	tcmcs045<br />
+	where	tcmcs045.creg = &quot;NOR&quot;<br />
+	selectdo<br />
+		|The data base has return an existing record!!!<br />
+		|we do nothing!<br />
+	selectempty<br />
+		|There is no record &quot;NOR&quot; in the database!<br />
+		|We insert a new record:<br />
+		db.retry.point()	|Start a transaction!<br />
+		tcmcs045.creg = &quot;NOR&quot;	|Set key field value<br />
+		tcmcs045.dsca = &quot;North&quot;	|Set Description field<br />
+		db.insert(ttcmcs045, db.retry)	|Insert record<br />
+		commit.transaction()	|Commit to database<br />
+	endselect<br />
+	<br />
+	|Oh but we wanted the description to be something else!!!<br />
+	<br />
+	db.retry.point()		|Start a new transaction<br />
+<br />
+	select	*<br />
+	from	tcmcs045 for update	|for update means we plan to change the record!!<br />
+	where	tcmcs045.creg = &quot;NOR&quot;<br />
+	selectdo<br />
+		|We are pretty sure that a record is in database ;-)<br />
+		|Change the description:<br />
+		tcmcs045.dsca = &quot;Northern teritories&quot;<br />
+		db.update(ttcmcs045, db.retry)<br />
+		commit.transaction()	|commit changes to database<br />
+	endselect<br />
+	<br />
+	commit.transaction()		|End transaction even if nothing written to db!!! <br />
+<br />
+<br />
+So you should be off to a good start now. Enjoy and have fun!!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vinceco252</div><div class="date">29th May 2010, 17:18</div></div><div class="posttext">Awesome starter example vahdani!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">amitsdotcom</div><div class="date">12th January 2011, 09:27</div></div><div class="posttext">Hi just one question to this fantastic script.<br />
+<br />
+If I want to just add a new record do i still have to write a script like<br />
+<br />
+select tablename.*<br />
+from   tablename<br />
+<br />
+selectdo<br />
+<br />
+<br />
+selectempty<br />
+<br />
+               db.retry.point()<br />
+               field values<br />
+               db.insert(tablename, db.retry)<br />
+               commit.transaction()<br />
+<br />
+end select</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">13th January 2011, 09:49</div></div><div class="posttext">Hi,<br />
+<br />
+the short answer is no, you don't have to. You can always do:<br />
+<br />
+        db.retry.point()<br />
+        |fill field values<br />
+        db.insert(ttablename, db.retry)<br />
+        commit.transaction()<br />
+<br />
+if you are sure there is no such record already in database. Otherwise you will get a fatal erro 100 &quot;Duplicate records&quot;!<br />
+you could alternatively ask db.insert() to return if duplicate exists:<br />
+<br />
+        db.retry.point()<br />
+        |fill field values<br />
+        e = db.insert(ttablename, db.retry, db.return.dupl)<br />
+        |you don't have to declare e!<br />
+        if e = 0 then<br />
+             commit.transaction()<br />
+        else<br />
+             abort.transaction()<br />
+              |do some error handling?<br />
+        endif<br />
+<br />
+<br />
+I personally find the varioation with select in my first posting more elegant.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

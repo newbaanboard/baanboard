@@ -1,0 +1,178 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Slow bdbreconfig, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Slow bdbreconfig Tools Administration &amp; Installation" />
+	
+	<title>Slow bdbreconfig [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Slow bdbreconfig</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">patrickmonks</div><div class="date">12th February 2003, 11:15</div></div><div class="posttext">We are migrating from B2 to C4 and part of the migration<br />
+is to run Change package combination by company. This in<br />
+turn calls bdbreconfig6.1. This is called as follows<br />
+bdbreconfig6.1 -Ntfacp200 -i -pB40B2WDI -n -m -f -R -C150<br />
+Note the (-f). I find that if the new package combination has<br />
+a new index or a changed index the reconfig work as follows:<br />
+1) dumps the data to flat file<br />
+2) drops the table<br />
+3) creates a new table def<br />
+4) creates new index defs<br />
+5) loads the data from flat file.<br />
+<br />
+Now as the indexes are created before the data is loaded,<br />
+the data is loaded very slowly. Is there any way that I<br />
+can force the index to be created after the data load.<br />
+<br />
+I have noticed that if there is no new index or index change<br />
+then the reconfig uses the fast load and creates the index<br />
+after the data load.<br />
+<br />
+Porting set: 6.1c.06.06<br />
+<br />
+Help please</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">victor_cleto</div><div class="date">12th February 2003, 12:38</div></div><div class="posttext">That's a limitation from using that session, since you cannot control what's going the parameters Baan sets in the background processes.<br />
+What about doing all those steps manually? Like that, you can control everything...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patrickmonks</div><div class="date">12th February 2003, 13:51</div></div><div class="posttext">Victor thanx for the reply.<br />
+<br />
+My problem is that I have tested the bdbreconfig manually.<br />
+In fact the following is the command I used:<br />
+bdbreconfig6.1 -Ntfacp200 -i -pB40B2WDI -n -m -f -R -C150<br />
+and the results are exactly the same. <br />
+If you use the (-f) the bdbreconfig6.1 should only<br />
+create the indexes after the data load - But it does not.<br />
+<br />
+What is more, is that I have tested this against 4 different<br />
+bdbreconfig6.1's from different proting sets. From B porting sets <br />
+to C porting sets and I get the same results.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bsyeven</div><div class="date">12th February 2003, 19:56</div></div><div class="posttext">Maybe you could point the indexes to an invalid tablespace via the ora/inf_storage file while the table is being created so that the index creation will fail and then create the indexes manually after it is done.  Not sure if this will work or not - let me know if you try it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nick_rogers</div><div class="date">12th February 2003, 21:28</div></div><div class="posttext">maybe just  to speed things up set the RDS_FULL to a higher value, this param has been discussed on the board so do a search.<br />
+<br />
+-- -set RDS_FULL=value to define max. nr. rows transfered between client and server as one block (good for imports/exports)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">12th February 2003, 21:32</div></div><div class="posttext">I can't test this behaviour (creating the indexes before the data is loaded even with the -f option)  in 6.1c.06.06 but it doesn't happen in 6.1c.06.07 which will be out soon.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patrickmonks</div><div class="date">12th February 2003, 22:15</div></div><div class="posttext">Thanx all for reply.<br />
+<br />
+I have already set the ora_storage to an undefined<br />
+tablespace and run the bdbreconfig, problem when<br />
+the index create fails the bdbreconfig try's to undo <br />
+the reconfig and the dbdreconfig fails.<br />
+<br />
+I have also been playing with the db_resource values<br />
+this makes it faster, but I still need it alot faster.<br />
+<br />
+I have requested a bdbreconfig for Port: 6.1c.06.07 on<br />
+Sun / Solaris - Hope this works. Does anyone know were<br />
+I can get this.<br />
+<br />
+My only other option at this stage would be to create new<br />
+indexes directly in Oracle and manually modify the dd files<br />
+in dict. Then run the bdbreconfig. This way when new fields <br />
+are also added to the table def, the dbdreconfig will create the<br />
+indexes after the load. If no fields are added then the bdbreconfig<br />
+will not run. Will this work??</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">12th February 2003, 23:35</div></div><div class="posttext">Hi there!<br />
+<br />
+I guess that your main problem is the runtime needed to do the conversion rather than the behaviour of bdbreconfig.<br />
+<br />
+What I did in a similar situation was:<br />
+a) identify the largest tables <br />
+b) look at the changes that are required between bdbpre and bdbpost (which is exactly what the bdbreconfigure does - read data with one DD and write according to another DD)<br />
+c) write awk-scripts to do these changes (swap columns, create new columns etc.)<br />
+d) do a bdbpre for these files, then delete them in Baan<br />
+e) do the reconfig for the rest<br />
+f) modify the seq. files with the awk-scripts<br />
+g) read these files with bdbpost (Here the -f option works for sure)<br />
+This saved us around 36 hours.<br />
+<br />
+hth<br />
+<br />
+Norbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">12th February 2003, 23:56</div></div><div class="posttext">That's cool and all... but if you're good enough for Awk scripts<br />
+why not just modify the tables in the DB? Level 2 driver of course =).<br />
+<br />
+Just make the change in the table, edit the d&lt;table&gt; file for all Package combinations that need it. And remove the Conversion indicator via GTM.  *Bamph* instantly reconfigured...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patrickmonks</div><div class="date">13th February 2003, 09:06</div></div><div class="posttext">I will try the new porting set. If that does not<br />
+work I will update the Oracle tables directly<br />
+and mod the dd's<br />
+<br />
+Where can I get the bdbreconfig6.1 for porting set<br />
+6.1c.06.07 and Sun/Solaris?<br />
+<br />
+Thanx</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">13th February 2003, 11:39</div></div><div class="posttext">Dave_23<br />
+<br />
+I was talking about the really huge files (tfgld106, tdsls051 etc.)<br />
+I'd bet large amounts that the time needed to do the work in the DB directly is about 10 times as long as doing it on a seq. files with awk (or perl or sed or ....)<br />
+<br />
+regards<br />
+<br />
+Norbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">13th February 2003, 16:44</div></div><div class="posttext">6.1c.06.07 isn't out yet. its still in testing, should be out next month.<br />
+<br />
+<br />
+I think that, at least for Oracle, alter table &lt;table name&gt; add column ....  or similar would be super quick!! Or am i missing something??<br />
+<br />
+Thanks!<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patrickmonks</div><div class="date">13th February 2003, 17:06</div></div><div class="posttext">Thanx Dave and Norwim<br />
+<br />
+Will let you know the way I go.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bsyeven</div><div class="date">13th February 2003, 17:31</div></div><div class="posttext">On the debate between which is faster - Oracle or awk, remember that if you use awk, you also have to factor in the time to dump and load the table - which does not apply to updating via Oracle.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patrickmonks</div><div class="date">13th February 2003, 19:03</div></div><div class="posttext">I agree the oracle way would be super fast.<br />
+alter table &lt;table name&gt; add column is very fast.<br />
+And adding a index, would take the time to<br />
+create one index and not all the indexes on the<br />
+table + dump time + load time. <br />
+(If you set the oracle sort_area_size param to be<br />
+larger than the index size then all sorting is done in memory.)<br />
+<br />
+I just think the oracle way may be a bit<br />
+more risky. And client want's to use standard<br />
+baan tools (i.e. bdbreconfig).<br />
+<br />
+Thanx once again for the response....</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

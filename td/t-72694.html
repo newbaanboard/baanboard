@@ -1,0 +1,203 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="db.retry.point, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] db.retry.point Tools Development" />
+	
+	<title>db.retry.point [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; db.retry.point</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">martin.f</div><div class="date">17th February 2020, 11:47</div></div><div class="posttext">Hello,<br />
+I develop a table extension which updates field tsmsc110.csvl if field tsmsc120.pdis(1) has changed.<br />
+<br />
+When testing and debugging the extension I sometimes get the error message which I attached. (DAL engine unreachable field. Transaction is on, cannot continue.)<br />
+<br />
+I've read that this error message has to do with transaction handling and setting correctly the db.retry.point.<br />
+<br />
+My code has a functions, before save and after save hook.<br />
+I use before save and after save to check if the value has changed.<br />
+If yes, than performe the dal.change in the after.save hook (function update.customs.value())<br />
+The db.retry.point is in the before save hook.<br />
+The commit/abort.transaction() is in the after save hook.<br />
+<br />
+Is this correct?<br />
+<br />
+<br />
+This is my code:<br />
+<br />
+|common functions to be used in extension script.<br />
+<br />
+function get.old.values()<br />
+{<br />
+	old.disc = tsmsc120.pdis(1)<br />
+}<br />
+<br />
+function long update.customs.value(domain tcitem item, <br />
+domain tcpono lino, domain tcorno orno, domain tcdisc disc)<br />
+{<br />
+<br />
+<br />
+long error.found<br />
+select  tsmsc110.*<br />
+from    tsmsc110 for update<br />
+where   tsmsc110.cmso = :orno and<br />
+        tsmsc110.item = :item and<br />
+        tsmsc110.lino = :lino<br />
+as set with 1 rows<br />
+selectdo<br />
+ error.found = dal.change.object(&quot;tsmsc110&quot;)<br />
+                if error.found then<br />
+                        dal.set.error.message(&quot;@Cannot update tsmsc110 for item %1$s.&quot;, item)<br />
+                        return(DALHOOKERROR)<br />
+                else<br />
+                        dal.set.field(&quot;tsmsc110.csvl&quot;, tsmsc110.pris*(1-disc/100))<br />
+                        <br />
+                        <br />
+                        error.found = dal.save.object(&quot;tsmsc110&quot;)<br />
+                        if error.found then<br />
+                                dal.set.error.message(&quot;@Cannot save tsmsc110 for item %1$s.&quot;, item)<br />
+                                return(DALHOOKERROR)<br />
+                        endif<br />
+                endif<br />
+endselect<br />
+<br />
+return (0)<br />
+}<br />
+<br />
+|function for return value and end of transaction handling<br />
+function void handle.return.value(long retval)<br />
+{<br />
+on case retval<br />
+<br />
+case 0:<br />
+        commit.transaction()<br />
+        break<br />
+<br />
+case DALHOOKERROR:<br />
+        abort.transaction()<br />
+        show.dal.messages()<br />
+        break<br />
+<br />
+default:<br />
+        abort.transaction()      <br />
+        show.dal.messages()<br />
+        break<br />
+<br />
+endcase<br />
+}<br />
+<br />
+<br />
+| before save<br />
+function extern long before.save.object(long mode)<br />
+{<br />
+        db.retry.point()<br />
+	on case mode<br />
+	case DAL_NEW:<br />
+		break<br />
+	case DAL_UPDATE:<br />
+		with.old.object.values.do(get.old.values)<br />
+		break<br />
+	endcase<br />
+	return(0)<br />
+}<br />
+<br />
+| after save<br />
+function extern long after.save.object(long mode)<br />
+{<br />
+        long ret<br />
+	on case mode<br />
+	case DAL_NEW:<br />
+		break<br />
+	case DAL_UPDATE:<br />
+	        | discount has been changed --&gt; update customs value<br />
+		if double.cmp(tsmsc120.pdis(1), old.disc, 0.001) then<br />
+		<br />
+			ret = update.customs.value(tsmsc120.item, tsmsc120.lino, tsmsc120.cmso, tsmsc120.pdis(1))<br />
+			handle.return.value(ret)<br />
+		endif	<br />
+		break<br />
+	endcase<br />
+	return(0)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">18th February 2020, 09:13</div></div><div class="posttext">No, this is not correct. According to the Extensions Development Guide there should be no transaction handling in the table extension. So, in case of errors, setting the DAL error message and returning DALHOOKERROR will be enough.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">martin.f</div><div class="date">18th February 2020, 11:41</div></div><div class="posttext">ok thank you.<br />
+So I will delete db.retry.point() and commit/abort transaction stuff.<br />
+<br />
+Regards<br />
+Martin</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Sahil Sharma</div><div class="date">18th February 2020, 12:52</div></div><div class="posttext">It is not advised to use commit.transaction or abort.transaction anywhere inside DAL, whether it is before.save.object or after.save.object. <br />
+<br />
+Just retuning 1 or DALHOOKERROR will be enough.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">martin.f</div><div class="date">18th February 2020, 16:24</div></div><div class="posttext">ok, when should I use commit/abort transaction? never?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Sahil Sharma</div><div class="date">19th February 2020, 11:07</div></div><div class="posttext">Yes. We should never use commit/abort in DAL or USER EXIT.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">martin.f</div><div class="date">19th February 2020, 16:54</div></div><div class="posttext">And when I use db.update in a table extension?<br />
+There I must use db.retry.point() --&gt; select from xy for update --&gt; db.update(ttdsls400, DB.RETRY) --&gt; commit/abort transaction  ?<br />
+<br />
+Regards<br />
+Martin</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Sahil Sharma</div><div class="date">19th February 2020, 18:20</div></div><div class="posttext">I did the same thing in some table extension. <br />
+Even though i was updating something in the &quot;after.save.object&quot;, i wrote db.update(&lt;tablename&gt;, db.retry, e)<br />
+<br />
+there is no need to use abort or commit anywhere on DAL or USER EXIT. <br />
+Extension of a table is itself a kind of DAL.<br />
+<br />
+So just write db.update(ttdsls400, db.retry)<br />
+it will work</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">27th February 2020, 12:20</div></div><div class="posttext">Technically there is only one hook in which you are allowed (and supposed) to use your own transaction, which is the after.commit.transaction hook:<br />
+<br />
+after.commit.transaction()<br />
+Syntax:<br />
+function void after.commit.transaction  ()<br />
+<br />
+Description<br />
+<br />
+Use this to update other database tables after an update of the current<br />
+table has been committed to the database. <br />
+<br />
+This object hook is called just after the after.update.db.commit event section<br />
+in a UI script. If there is a DAL for an object set, this hook is called to perform<br />
+the required actions. <br />
+<br />
+This hook is called only by the STP and CDAS. It is not called by Data Access<br />
+Methods or commit.transaction()<br />
+<br />
+Context<br />
+This function is implemented in the 4GL Engine and can be used in DAL script<br />
+types. <br />
+<br />
+Related topics<br />
+<br />
+Data Access Layer <br />
+DAL terminology <br />
+Object hooks</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

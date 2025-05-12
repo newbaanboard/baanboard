@@ -1,0 +1,99 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS Receipt Problem, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS Receipt Problem AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS Receipt Problem [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS Receipt Problem</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">raikar_raviraj</div><div class="date">7th August 2007, 13:02</div></div><div class="posttext">Hi,<br />
+<br />
+I am trying to create Receipt for both lot and without lot controlled item. AFS works fine for without lot controlled Item. But in case of lot controlled item, it inserts the record properly in tdilc4113s000 for the first item. <br />
+<br />
+But when i try to end the session to insert another lot controlled item.. the session tdilc4113s000 doesnt end.. instead 2 objects get invoked tfgld4200 and tfgld1201. I am not able to figure out why this objects are getting invoked..<br />
+<br />
+The script which i wrote is as below<br />
+<br />
+<br />
+select ltlnt041.*<br />
+from   ltlnt041<br />
+where  ltlnt041._index1 = {:import.orno}<br />
+and ltlnt041.chall = :chall<br />
+and (ltlnt041.oqua - ltlnt041.dqua)&gt;0<br />
+selectdo<br />
+	if etol(ltlnt041.chck) = 1 then<br />
+		stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.diqu&quot;, str$(ltlnt041.pqua))<br />
+		stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.date&quot;, str$(date.num()))<br />
+		if etol(ltlnt041.kltc) &lt;&gt; 1 then<br />
+			stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.dqua&quot;, str$(ltlnt041.rqua))<br />
+		endif<br />
+		stpapi.enum.answer(&quot;tdpur4120m000&quot;, &quot;tdind00008&quot;, tcyesno.yes)<br />
+		ret =  stpapi.update(&quot;tdpur4120m000&quot;,1,err)<br />
+		stpapi.handle.subproc( &quot;tdpur4120m000&quot;, &quot;tdilc4113s000&quot;, &quot;add&quot;)<br />
+		if etol(ltlnt041.kltc) = 1 then<br />
+			stpapi.put.field(&quot;tdilc4113s000&quot;,&quot;tdilc402.item&quot;,ltlnt041.item)<br />
+			stpapi.put.field(&quot;tdilc4113s000&quot;,&quot;tdilc402.clot&quot;,ltlnt041.clot)<br />
+			stpapi.put.field(&quot;tdilc4113s000&quot;,&quot;tdilc402.date&quot;,str$(date.num()))<br />
+			get.storage.unit()<br />
+			stpapi.put.field(&quot;tdilc4113s000&quot;,&quot;tdilc402.stun&quot;,tdpur041.cuqp)<br />
+			stpapi.enum.answer(&quot;tdilc4113s000&quot;, &quot;tdind41131&quot;, tcyesno.yes)<br />
+			ret = stpapi.insert(&quot;tdilc4113s000&quot;,1,err)<br />
+			stpapi.end.session(&quot;tdilc4113s000&quot;) | when i try to end this session<br />
+							    | two objects get activated <br />
+							    | tfgld4200 &amp; tfgld1201					<br />
+		endif<br />
+	endif<br />
+endselect<br />
+stpapi.get.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.reno&quot;, rcptno)<br />
+stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+<br />
+<br />
+please tell me where im going wrong.<br />
+<br />
+Regards<br />
+<br />
+Raviraj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th August 2007, 14:42</div></div><div class="posttext">For starters, switch these two lines from this:<br />
+<br />
+ret = stpapi.update(&quot;tdpur4120m000&quot;,1,err)<br />
+stpapi.handle.subproc( &quot;tdpur4120m000&quot;, &quot;tdilc4113s000&quot;, &quot;add&quot;)<br />
+to this:<br />
+<br />
+stpapi.handle.subproc( &quot;tdpur4120m000&quot;, &quot;tdilc4113s000&quot;, &quot;add&quot;)<br />
+ret = stpapi.update(&quot;tdpur4120m000&quot;,1,err)<br />
+The handle subproc has to come before the session is activated.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">raikar_raviraj</div><div class="date">8th August 2007, 05:48</div></div><div class="posttext">Hi Mark,<br />
+<br />
+I switched the two lines but to no avail. Problem is that the child session doesnt get terminated by.<br />
+<br />
+ stpapi.end.session(&quot;tdilc4113s000&quot;)<br />
+<br />
+<br />
+Infact when AFS encounters this line of code, it invokes the two objects tfgld1201 and tfgld4200.<br />
+<br />
+I also tried putting the above stpapi command outside the select statement but it isnt working in that case either..</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th August 2007, 14:20</div></div><div class="posttext">Just changing those two lines were the first step.  Next I recommend search and reading other threads (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=7511&amp;perpage=15&amp;display=&amp;pagenumber=2).  This one talks about boi.call.  You can search on tdilc4113s000. Do you have source for tdpur4120m000 and tdilc4113s000?<br />
+<br />
+Also do not forget to read my signature about latest stpapi patches and lastest session object.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

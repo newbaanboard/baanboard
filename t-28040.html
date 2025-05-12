@@ -1,0 +1,88 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="API for production material issue (ILC), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] API for production material issue (ILC) AFS/DDC/OLE: Function servers" />
+	
+	<title>API for production material issue (ILC) [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; API for production material issue (ILC)</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">1st September 2006, 11:09</div></div><div class="posttext">Hi guys,<br />
+With ILC on, the production material issuing process in BaanIV becomes better. Production department has to request material using ticst0101m000 and then, later on, warehousing department goes out to find and send the material to shop floor using tdilc4201m000/tdilc4101m000/tdilc4202m000. Now, there's a funny thing in ticst0101m000. By default, it will try to request for the whole outstanding qty. Armed with API, this will not be a problem. I'll just need to ask API to reduce the requested qty of all items to zero, then write back the quantity for the materials being requested at this particular point in time (as materials can be partially fed to shop floor). Turned out that it's not that easy<br />
+<br />
+I found out that if production planning department adds new materials ad hoc using tisfc0110m000 (Maintain estimated materials), the simple stpapi.browse.set() will fail when it reaches them in ticst0101m000 (Enter material issue for production orders). This is the first time I find stpapi.browse.set() to fail<br />
+<br />
+Of course I have other alternative: let ticst0101m000 request for total outstanding qty, and once BaanIV finds where these are stored (through tdilc4201m000), just delete the many lines not actually requested by production department in tdilc4202m000. But this is stupid. The best way would probably be for Baan to provide &quot;Reset request qty to zero&quot; in ticst0101m000 screen. BaanERP does better in this matter compared to BaanIV. BaanERP by default request zero for all materials (instead of full outstanding qty in BaanIV)<br />
+<br />
+Any idea, guys?<br />
+<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">1st September 2006, 11:32</div></div><div class="posttext">After numerous experiment, I found out that stpapi.browse.set() fails for materials which are not attached to any production order operation. This is strange, since such fact doesn't prevent user from browsing the records there on normal screen (non-API)<br />
+<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">1st September 2006, 13:21</div></div><div class="posttext">I know this won't be much help, but here at our site our production planning and inventory work about the same way.  And I do not remember the rules on when you use tisfc0110m000 and when you use ticst0101m000.  All I know is that the only thing I allowed thru my api was to change the warehouse using ticst0101m000.  I just use the stpapi.find(). I am wondering if you replace the stpapi.browse with some select statement and then use a stpapi.find for each order and position number.<br />
+<br />
+On a side note it would be interesting if you had source so you could see what was causing the stpapi.browse to fail.  I will have to see if it works on our system.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">1st September 2006, 14:42</div></div><div class="posttext">The below code worked just fine on my system - maybe only 10 of the parts are tied to an operation.<br />
+<br />
+function ticst()<br />
+{<br />
+	long ret<br />
+	stpapi.put.field(&quot;ticst0101m000&quot;,&quot;ticst001.pdno&quot;, &quot;325108&quot;)<br />
+	ret = stpapi.change.view(&quot;ticst0101m000&quot;,err)<br />
+	if(ret &lt;&gt; 1) then<br />
+		message(&quot;err change view&quot;)<br />
+	endif<br />
+	ret = stpapi.browse.set(&quot;ticst0101m000&quot;,&quot;first.set&quot;,err)<br />
+	while ret<br />
+		stpapi.get.field(&quot;ticst0101m000&quot;,&quot;ticst001.pono&quot;,err)<br />
+		message(err)<br />
+		ret = stpapi.browse.set(&quot;ticst0101m000&quot; ,&quot;next.set&quot; ,err)<br />
+	endwhile<br />
+}<br />
+<br />
+<br />
+I also seem to recall that when enter data in tisfc0110m000 the user had to tab through all the fields.  If not it caused a problem and I can not seem to recall what that was.  On vacation for the next week and will check back when I return.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">4th September 2006, 05:28</div></div><div class="posttext">Wow, thanks, Mark, for going through all the troubles and testing API for ticst0101m000 on your site. If it works on your site, then I have a big headache in here. I happen to have the ticst0101 script, and choice.next.set only has refresh.curr.occ() in its after.choice event. There's no section for first.set, prev.set, last.set. So, I don't see anything in the script that would cause stpapi.browse.set() to fail.<br />
+<br />
+By the way, my client has decided to leave their code at its 2001 stable status. So, I guess they're way behind in having the latest code for ticst0101m000. But I've updated their STP to the very latest, hot off the oven.<br />
+<br />
+I think if I really hit a brick wall on this, I'll try to use your suggestion of performing SQL SELECT on ticst001 before issuing stpapi.find(), Mark. Thanks for all your input (and your time to test API on ticst0101m000). You're the best<br />
+<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">4th September 2006, 09:58</div></div><div class="posttext">After more experiment, I found out what the root cause of this problem is: form 1 &amp; 2 of this session are on different index. Looking at page 5-5 of latest API manual, API &quot;does not have a notion of current form&quot;. So, the symptom was actually stpapi.browse.set() failing when there's a change in operation number (which IS NOT part of index 1 on form 1 but IS part of index 2 on form 2), because it was getting confused which form it actually is. Did Baan fix this session to be more API-compatible? My client has kept its BaanIV in its 2001 state, possible before Baan addressed the API issue on this session.<br />
+<br />
+Anyhow, I managed to solve this. I simply made a duplicate of ticst0101m000, but stripping its index 2 and form 2, and ran the API sequence on this copy instead. It's working perfectly now :)<br />
+<br />
+Thanks for also looking into this, Mark<br />
+<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="working with arrays, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] working with arrays Tools Development" />
+	
+	<title>working with arrays [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; working with arrays</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mjpedreira1</div><div class="date">8th October 2012, 16:44</div></div><div class="posttext">Hello,<br />
+<br />
+I need to work with an array of clients, but the array have variable long...<br />
+I would like to define next variable<br />
+<br />
+domain tccuno client.array(number_client)<br />
+<br />
+where number_client is not an fixed amount; sometimes my array have 2 clients, and sometimes more...<br />
+<br />
+With last definition, I get error:<br />
+&quot;Only constants allowed for substring&quot;<br />
+<br />
+Regards,<br />
+María</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanDeveloper</div><div class="date">8th October 2012, 17:42</div></div><div class="posttext">Is there a known maximum amount of sub strings that you will work with? If so, why can't you size the sub array for the maximum, and then if you need to know how many you are using - create a 2nd array to store a long in an array of equal size and with a sub array that contains a long representing the count of used strings in the source array.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">8th October 2012, 18:12</div></div><div class="posttext">You need to use dynamic arrays.  Define your initial array as BASED with 1 position for each dimension.  Use alloc.mem to redefine (increase) the size of the array as you need more space.  You must call free.mem at the end to give the memory back to the OS.  I normally use two counter variables for dynamic array handling = the maximum number of rows for the array (size of last allocation) and the row number that was most recently inserted.  When your current row exceeds the max rows variable (increment before you store data), call alloc.mem again to increase the array size.<br />
+<br />
+<br />
+string cuno.string(1,1) BASED<br />
+long array.max, array.cur<br />
+<br />
+array.max = 20<br />
+array.cur = 0<br />
+alloc.mem(cuno.string, 8, array.max)   | 20 strings of 8 characters.<br />
+<br />
+:<br />
+:<br />
+<br />
+array.cur = array.cur + 1<br />
+if (array.cur &gt; array.max) then<br />
+    array.max = array.max + 20<br />
+    alloc.mem(cuno.string, 8, array.max)<br />
+endif<br />
+cuno.string(1,array.cur) = &quot;data&quot;<br />
+:<br />
+:<br />
+<br />
+free.mem(cuno.string)    | Called when you are done with the array<br />
+<br />
+<br />
+You can always add rows and even new columns on the fly without loss of existing data.  You can't increase the size of a string in a dynamic array without losing data - so you have to save existing data in a temporary dynamic array, expand the current array width, reload from the temporary array.<br />
+<br />
+Refer to help for alloc.mem, free.mem and dynamic array general info.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mjpedreira1</div><div class="date">8th October 2012, 19:17</div></div><div class="posttext">Thanks for your code.<br />
+I´ve implemented your code, but, If I want to work with the string cliente I have an error in the function desbloqueamosClientes():<br />
+<br />
+	string cliente(1,1) BASED<br />
+	long array.max, cliente.actual<br />
+<br />
+<br />
+	clientesBloqueados(&quot;30000000433&quot;)<br />
+	desbloqueadmosClientes()<br />
+<br />
+<br />
+function  clientesBloqueados(string hgt(11))<br />
+{<br />
+|	string cliente(1,1) BASED<br />
+	domain tccuno cl<br />
+|	long array.max, cliente.actual<br />
+<br />
+	array.max = 20<br />
+	cliente.actual = 0<br />
+	alloc.mem(cliente, 6, array.max)   | 20 strings of 8 characters.<br />
+<br />
+	select	tppdm740.cuno:cl<br />
+	from	tfcmn040, tppdm740 , tccom010  <br />
+	where	tppdm740.cprj=tfcmn040.cprj<br />
+	and	tfcmn040.idhg=:hgt <br />
+	and	tccom010.cuno=tppdm740.cuno<br />
+	and	tccom010.cnpa=3<br />
+	group by tppdm740.cuno<br />
+	selectdo<br />
+		cliente.actual = cliente.actual + 1<br />
+<br />
+		if (cliente.actual &gt; array.max) then<br />
+		    array.max = array.max + 20<br />
+		    alloc.mem(cliente, 8, array.max)<br />
+		endif<br />
+<br />
+		cliente(1,cliente.actual) = cl<br />
+<br />
+	selectempty<br />
+	endselect<br />
+<br />
+|	free.mem(cliente)    | Called when you are done with the array	<br />
+}<br />
+<br />
+function desbloqueamosClientes()<br />
+{<br />
+	domain tccuno hola<br />
+<br />
+	select	tccom010.nama<br />
+	from	tccom010<br />
+	where 	tccom010.cuno = :cliente(1,1)<br />
+	selectdo<br />
+		hola=hola<br />
+	endselect<br />
+		<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mjpedreira1</div><div class="date">8th October 2012, 19:28</div></div><div class="posttext">The message error  is <br />
+&quot;Substring for non-string column not allowed&quot;<br />
+<br />
+Thanks,<br />
+María</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">8th October 2012, 20:10</div></div><div class="posttext">The message error  is <br />
+&quot;Substring for non-string column not allowed&quot;<br />
+<br />
+Thanks,<br />
+María<br />
+<br />
+You have to declare the string array width (number of characters) to cover the number of characters that you expect to add (11):<br />
+<br />
+alloc.mem(cliente, 11, array.max) | 20 strings of 11 characters.<br />
+<br />
+<br />
+Make sure that you use the 'free.mem' at the end of processing to give it back to the OS for other uses.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

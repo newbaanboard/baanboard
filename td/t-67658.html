@@ -1,0 +1,157 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to know session is started from AFS?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to know session is started from AFS? Tools Development" />
+	
+	<title>How to know session is started from AFS? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; How to know session is started from AFS?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">saumya</div><div class="date">24th April 2015, 07:34</div></div><div class="posttext">Is there a way to know if session started from AFS?<br />
+<br />
+I am killing one session strted by AFS, but if the same session is opened manually. the kill command is killing manual started session.<br />
+<br />
+My requirement to kill session started by FAS.<br />
+<br />
+Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sachinbaan</div><div class="date">24th April 2015, 08:55</div></div><div class="posttext">hi,<br />
+<br />
+pre defined variable is available, &quot;api.mode&quot;<br />
+<br />
+ex.<br />
+<br />
+if api.mode then		<br />
+        |* Session is running through AFS<br />
+endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">saumya</div><div class="date">24th April 2015, 09:33</div></div><div class="posttext">Hi Sachin,<br />
+<br />
+I have developed one process session, which will call standard session and kill(as stpapi.end command is not working and client doesnt want to update patches). <br />
+<br />
+<br />
+function find.a.process(string baan.sess(15))<br />
+{<br />
+	long    hold.pno<br />
+	long    pno<br />
+	long    info(256)<br />
+	string  pname(15)<br />
+	boolean sess.found<br />
+	<br />
+	sess.found = false<br />
+	pno = 0<br />
+	hold.pno = pno<br />
+	pno = pstat (pno, pname, info)<br />
+	while pno &gt; 0 and not sess.found<br />
+		hold.pno = pno<br />
+		pno = pstat (pno, pname, info)<br />
+		if strip$(pname)=strip$(baan.sess) then<br />
+			kill(hold.pno)<br />
+			sess.found = true<br />
+		endif<br />
+	endwhile<br />
+}<br />
+<br />
+I need to kill session invoking through AFS.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sachinbaan</div><div class="date">24th April 2015, 10:11</div></div><div class="posttext">hi,<br />
+I did following to overcome this problem.<br />
+Note: If you know which session is invoking through AFS, this will work.<br />
+<br />
+        long     info(PSMAXSIZE), procid, ids, ret<br />
+	string   progname(13)<br />
+<br />
+        procid = -1<br />
+	procid = pstat( procid, progname, info )<br />
+	<br />
+	while procid &gt;= 0<br />
+		procid = pstat( procid, progname, info )<br />
+		if progname = &quot;tdpur4100m900&quot; or progname = &quot;ltfin1151m000&quot; then<br />
+			kill(ids)<br />
+		endif<br />
+		ids = procid<br />
+	endwhile</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">saumya</div><div class="date">24th April 2015, 10:22</div></div><div class="posttext">Hi,<br />
+<br />
+This is what I am doing. But if there is another session started with same code, kill command will kill that session too.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">24th April 2015, 11:14</div></div><div class="posttext">Hi,<br />
+<br />
+Not sure if you are looking for this but check if it helps -<br />
+<br />
+In before.program of the called session, you can try using <br />
+<br />
+string parent.prog(14)<br />
+<br />
+import(&quot;prog.name$&quot;, parent.prog)<br />
+<br />
+if trim$(parent.prog) = &quot;your_calling_session&quot; then<br />
+      end()<br />
+endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">saumya</div><div class="date">24th April 2015, 11:28</div></div><div class="posttext">Hi Bhushan,<br />
+<br />
+As I am calling session, cant modify script of standard session.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">24th April 2015, 12:03</div></div><div class="posttext">Oh I see.<br />
+<br />
+Try this - <br />
+<br />
+        id = pstat(id,progname,info)<br />
+	while id &gt;= 0 <br />
+		id = pstat(id,progname,info)<br />
+                if trim$(old.progname) = &quot;ottstpapiserv&quot; and trim$(progname) = &quot;tcibd0501m000&quot; then<br />
+			kill(id)<br />
+		endif<br />
+		old.progname = progname<br />
+	endwhile<br />
+<br />
+You can just try tweaking the code a little. Its just that, you need to go through the processes. AFS session's will be under ottstpapiserv so, you can go and kill the processes under them. But again, it might kill other AFS sessions running parallely, so you need to chose wisely the search and kill method. (I haven't tested it) But you can create your own logic to make it work.<br />
+<br />
+<br />
+Edit - The following code works for me without any issues. I am not using stpapi.end.session() here.<br />
+<br />
+stpapi.put.field(&quot;tcibd0501m000&quot;,&quot;tcibd001.item.segment.1&quot;,&quot;154237&quot;)<br />
+	stpapi.find(&quot;tcibd0501m000&quot;)<br />
+	progname = &quot;tcibd0501m000&quot;<br />
+	id = -1<br />
+	id = pstat(id,progname,info)<br />
+	while id &gt;= 0 <br />
+		id = pstat(id,progname,info)<br />
+		if trim$(old.progname) = &quot;ottstpapiserv&quot; and trim$(progname) = &quot;tcibd0501m000&quot;then<br />
+			kill(id)<br />
+			kill(old.pid)<br />
+		endif<br />
+		old.progname = progname<br />
+		old.pid = id<br />
+	endwhile</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">saumya</div><div class="date">24th April 2015, 13:04</div></div><div class="posttext">Thanks Bhushan.<br />
+<br />
+Issue resolved, in my code only i used pid instead of pno. <br />
+<br />
+Thanks for giving one more idea.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

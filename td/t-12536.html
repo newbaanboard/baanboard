@@ -1,0 +1,166 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Calculations within form, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Calculations within form Tools Development" />
+	
+	<title>Calculations within form [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Calculations within form</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">8th August 2003, 18:52</div></div><div class="posttext">I am trying to create a session that allows our HR department to track Vacation hours by Salaried Employee.  I have created a table (tiosd000) that stores:<br />
+tiosd000.emno - employee number (indexed)<br />
+tiosd000.year - year vacation is taken (indexed)<br />
+tiosd000.date - date vacation is taken (indexed)<br />
+tiosd000.evac - employee vacation taken<br />
+tiosd000.epto - employee paid time off taken<br />
+tiosd000.flag - flag to prevent modifcation of record after initial entry<br />
+<br />
+Here is my code to date:<br />
+<br />
+|******************************************************************************<br />
+| Written by:	Eric Edder<br />
+| Request:	TR 964<br />
+|<br />
+| This session processes employee Vacation and Paid Time Off (PTO) balances.<br />
+| There are two different session, one for hourly employees and the other for<br />
+| salary employees (this session).  Hourly employees vacation/PTO balances are <br />
+| updated based on hours accounting records coded with the indirect tasks for <br />
+| Personal Time and Vacation.  Salaried employees are updated separately by HR <br />
+| data entry.<br />
+|<br />
+|****************************** DECLARATION SECTION ***************************<br />
+declaration:<br />
+<br />
+	table	ttccom001	| Employee Master<br />
+	table	ttiosd000	| Salaried Employee Vacation/PTO<br />
+	<br />
+   | Selection Criteria<br />
+   <br />
+   | Working Storage<br />
+		   <br />
+|****************************** PROGRAM     SECTION ***************************<br />
+|****************************** ZOOM FROM   SECTION ***************************<br />
+|****************************** FORM	    SECTION ***************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+|****************************** CHOICE      SECTION ***************************<br />
+<br />
+choice.update.db:<br />
+before.choice:<br />
+	tiosd000.flag = 1	| Sets flag from 0 to 1.  In the Form Field <br />
+				| section it is set not to allow input into<br />
+				| the field if this flag is 1.  This prevents<br />
+				| the user from changing the data and not having<br />
+				| the Vacation/PTO balances modified to follow.<br />
+		<br />
+|****************************** FIELD       SECTION ***************************<br />
+<br />
+field.tiosd000.emno:<br />
+after.input:<br />
+	get.emno.data()<br />
+<br />
+field.tiosd000.epto:<br />
+after.input:<br />
+	execute(update.db)<br />
+<br />
+<br />
+|****************************** MAIN TABLE  SECTION ***************************<br />
+main.table.io:<br />
+after.read:<br />
+	get.emno.data()<br />
+	<br />
+after.write:<br />
+	recalculate.vacation.pto()<br />
+<br />
+|****************************** FUNCTION    SECTION ***************************<br />
+functions:<br />
+<br />
+|******************************************************************************<br />
+| This function pulls the employee name, vacation balance and PTO balance from<br />
+| the employee master and displays them on the form.<br />
+|******************************************************************************<br />
+function get.emno.data()<br />
+{<br />
+	select	tccom001.nama, tccom001.evac, tccom001.epto<br />
+	from	tccom001<br />
+	where	tccom001.emno = :tiosd000.emno<br />
+	selectdo<br />
+		display(&quot;tccom001.nama&quot;)<br />
+		display(&quot;tccom001.evac&quot;)<br />
+		display(&quot;tccom001.epto&quot;)<br />
+	endselect<br />
+}<br />
+<br />
+|******************************************************************************<br />
+| This function deducts the Vacation/PTO from the balance in the employee <br />
+| master and then updates the employee master with the new value.<br />
+|******************************************************************************<br />
+function recalculate.vacation.pto()<br />
+{<br />
+	select	tccom001.evac, tccom001.epto<br />
+	from	tccom001<br />
+	for update<br />
+	where	tccom001.emno = :tiosd000.emno<br />
+	selectdo<br />
+		tccom001.evac = tccom001.evac - tiosd000.evac<br />
+		tccom001.epto = tccom001.epto - tiosd000.epto<br />
+		db.update(ttccom001,db.retry)<br />
+		commit.transaction()<br />
+	endselect<br />
+}<br />
+<br />
+|****************************** END    OF    SCRIPT ***************************	<br />
+<br />
+<br />
+I am using a type 3 form so that users can see the total vacation balance left as well as the detail transactions showing when vacation was taken.  The problem I have is this.  The users want the vacation balance to be updated as they enter records.  If you enter a line of data the first time after the form opens, the employee master (tccom001) is updated with the vacation taken after you tab past the last multi-occ field for that record.  After that it doesn't update at all no matter how many records you put in.  I've looked in the Library for Form commands to see if there is something there.  Either there isn't or I don't understand some of those commands and thier functionality (very possible).  Any suggestions or help would be greatly appreciated.<br />
+<br />
+Thanks in advance!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th August 2003, 20:33</div></div><div class="posttext">I am assuming you have a form that looks like this:<br />
+<br />
+Employee Name:  xxxxx  &lt;--tccom001.nama<br />
+Employee Number: xxxx  &lt;--tccom001.emno<br />
+Vacation Balance: xxx  &lt;--balance<br />
+<br />
+date        leave taken<br />
+xx-xx-xx       xxx  <br />
+<br />
+Balance is the form field and it and leave taken are in hours.  Also date and leave taken are the appropriate tiosd000 table fields. Now as your user enters dates and leave taken they want the balance to be updated.  Note that what the user sees and actually updating tccom001 are different.<br />
+<br />
+field.balance:<br />
+after.input:<br />
+  balance = balance - tiosd000.evac<br />
+  display(&quot;balance&quot;)<br />
+<br />
+then in <br />
+<br />
+after.update.db.commit:<br />
+ 	update_balance_tccom001()<br />
+<br />
+In reality the tccom001 table does not get updated until the user pushes the save button. The update_balance_routine would then go get the new records that you just added.  Maybe even add a process flag onto the table so you know which ones have been processed into the original tccom001 balance.<br />
+<br />
+I do something like this with input totals on one of my sessions.  To get the initial balance you can use the choice.first.set or maybe the main.table.io/after.read section.  I know I use it in both the choice.first.set section and even in the choice.end.program, because no telling what the users may do to abruptly end the program.  Just thought this might work for you also.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">8th August 2003, 21:26</div></div><div class="posttext">Got the idea.  I'll have to make a few modifications, but it looks great.  Thanks!</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

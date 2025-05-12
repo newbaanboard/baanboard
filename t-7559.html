@@ -1,0 +1,470 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Problems with stpapi.mark, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Problems with stpapi.mark AFS/DDC/OLE: Function servers" />
+	
+	<title>Problems with stpapi.mark [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Problems with stpapi.mark</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">pedromrs</div><div class="date">8th November 2002, 14:47</div></div><div class="posttext">Hi all<br />
+<br />
+I had to rewrite the subsession code for tdpur4131s000 because the find function wasn't reliable. <br />
+Now I have another problem. stpapi.mark doesn't seem to work:<br />
+<br />
+<br />
+#pragma used dll ottstpapihand<br />
+<br />
+function extern void manterrecep( )<br />
+{<br />
+DLLUSAGE<br />
+	Teste<br />
+ENDDLLUSAGE<br />
+	<br />
+	string err(50),reno(20)<br />
+	string orno(50),pono(50)<br />
+	long	ret<br />
+	long	fl<br />
+	<br />
+<br />
+        stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;form.dino&quot;, &quot;xxx&quot;)<br />
+        stpapi.enum.answer(&quot;tdpur4120m000&quot;,&quot;tdpur41206&quot;,tcyesno.no)<br />
+| Preparar para a subsessao	<br />
+	stpapi.handle.subproc( &quot;tdpur4120m000&quot;, &quot;tdpur4131s000&quot;, &quot;add&quot;)<br />
+| Activa a subsessao de escolha por fornecedor<br />
+	ret = stpapi.change.view(&quot;tdpur4120m000&quot;)		<br />
+	<br />
+	|Lista todos as ordens deste fornecedor	<br />
+	stpapi.put.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.suno&quot;,&quot;281&quot;)	<br />
+	ret = stpapi.change.view(&quot;tdpur4131s000&quot;)<br />
+	<br />
+	|Procurar o nosso<br />
+	fl=0<br />
+	ret=stpapi.browse.set(&quot;tdpur4131s000&quot;,&quot;first.set&quot;)<br />
+	stpapi.get.field(&quot;tdpur4131s000&quot;, &quot;tdpur045.orno&quot;, orno)<br />
+	stpapi.get.field(&quot;tdpur4131s000&quot;, &quot;tdpur045.pono&quot;, pono)<br />
+	<br />
+	while ret&lt;&gt;0 <br />
+		if (orno=&quot;100030&quot; and pono=&quot;10&quot;) then<br />
+			fl=1			<br />
+			ret=stpapi.mark(&quot;tdpur4131s000&quot;)<br />
+			break<br />
+		endif<br />
+		ret=stpapi.browse.set(&quot;tdpur4131s000&quot;,&quot;next.set&quot;)<br />
+		stpapi.get.field(&quot;tdpur4131s000&quot;, &quot;tdpur045.orno&quot;, orno)<br />
+		stpapi.get.field(&quot;tdpur4131s000&quot;, &quot;tdpur045.pono&quot;, pono)		<br />
+	endwhile<br />
+	 	<br />
+	if (fl=1) then<br />
+		stpapi.get.field(&quot;tdpur4131s000&quot;, &quot;tdpur045.orno&quot;, orno)<br />
+		stpapi.get.field(&quot;tdpur4131s000&quot;, &quot;tdpur045.pono&quot;, pono)<br />
+		Message(&quot; Order = %s&quot;,orno)	<br />
+		Message(&quot; Linha = %s&quot;,pono)		<br />
+							        	           <br />
+	        stpapi.continue.process(&quot;tdpur4131s000&quot;, err)        <br />
+		if (strip$(err) &lt;&gt; &quot;&quot; and strip$(err)&lt;&gt; &quot;Process is gone&quot;) then<br />
+			Message(&quot; Erro na subs. tdpur4131s000  = %s&quot;,err)<br />
+		endif	<br />
+		| Desligar a subsessao	<br />
+	        stpapi.end.session(&quot;tdpur4131s000&quot;)                <br />
+	        <br />
+		| Receber o numero da recepcao criada		<br />
+		stpapi.get.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,reno)<br />
+		| Fechar a sessao principal	<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+	else<br />
+		message(&quot; Nao encontrou a ordem!&quot;)<br />
+		stpapi.end.session(&quot;tdpur4131s000&quot;)                <br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+	endif<br />
+}<br />
+<br />
+<br />
+The record I'm trying to find is the 4th in the multi-oco list. I have verified it finds the correct record this way.<br />
+The problem is I always get the first line marked (I mean I always get the first record returned to the main session). The mark function returns one.<br />
+This subsession allows for multiple selection. Maybe that is the problem?<br />
+<br />
+Any ideas? Thanks in advance.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th November 2002, 16:02</div></div><div class="posttext">I have never thought to try this - I guess I just assumed that I needed to mark and process each record individually. Since this worked, I never even thought about trying to mark more than one record, but I suspect(as you said) that is the problem. From reading on stpapi.mark it looks like it only works on one record.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pedromrs</div><div class="date">8th November 2002, 16:37</div></div><div class="posttext">Mark,<br />
+<br />
+I'm not trying to mark several records. I'm just trying to mark one. The problem is I always get the first one marked inspite having the 4th one correctly selected with browse.set. <br />
+<br />
+Thanks,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th November 2002, 17:29</div></div><div class="posttext">My appologies I did not read it close enough.  Anyway I have not always used stpapi.mark.  Stpapi.browse.set also marks the record as current, so you could just try removing the stpapi.mark command.  I think I have only used it in 1 or 2 function servers, in most cases I found that just using stpapi.browse.set was good enough. In your case the continue should work off the current record that was set with the stpapi.browse.set. Notice that I said should, because I can not guarantee it.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pedromrs</div><div class="date">11th November 2002, 10:11</div></div><div class="posttext">Mark,<br />
+<br />
+Sorry for the late reply.<br />
+I tried your suggestion today and it doesn't work. If I don't use mark it returns to the main session without any record.<br />
+<br />
+Have you seen this before? I wonder if there is some trick on stpapi.mark?<br />
+<br />
+Thanks,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pedromrs</div><div class="date">11th November 2002, 15:27</div></div><div class="posttext">Hi all,<br />
+<br />
+I have found another strange thing. The code below works after it finds an order in the subsession (if it worked correctly). The strange thing is when running it in debug mode I can get the new receipt number and order number (message box) but when I just compile it I get blank fields but, and this is the strange part, the receipt is getting generated as well.<br />
+<br />
+<br />
+if (fl=1) then<br />
+<br />
+	        stpapi.continue.process(&quot;tdpur4131s000&quot;, err)        <br />
+		if (strip$(err) &lt;&gt; &quot;&quot; and strip$(err)&lt;&gt; &quot;Process is gone&quot;) then<br />
+			Message(&quot; Erro na subs. tdpur4131s000  = %s&quot;,err)<br />
+		endif			               <br />
+	        <br />
+	        | Desligar a subsessao	<br />
+	        stpapi.end.session(&quot;tdpur4131s000&quot;)	        <br />
+	        <br />
+		| Receber o numero da recepcao criada - so funciona em debug<br />
+		| va-se la saber porque	<br />
+		stpapi.get.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,reno)<br />
+		stpapi.get.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.orno&quot;, orno)<br />
+		stpapi.get.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.pono&quot;, pono)<br />
+		Message(&quot; Order = %s, Linha = %s Order N = %s&quot;,orno,pono,reno)			<br />
+				<br />
+		| Fechar a sessao principal			<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+	else<br />
+		message(&quot; Nao encontrou a ordem!&quot;)<br />
+		stpapi.end.session(&quot;tdpur4131s000&quot;)                <br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+	endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th November 2002, 15:31</div></div><div class="posttext">Sorry to say - I have not had that problem.  But I have seen things that work in debug mode and not when compiled.  In those cases I have used the sleep command. You can look at some of my replies to Rohan about this.<br />
+<br />
+I have seen sub-sessions not pull up a correct record, but not a main session.  When returning to the main session could you just do another find to get back to where you need to be?<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pedromrs</div><div class="date">11th November 2002, 19:53</div></div><div class="posttext">Mark,<br />
+<br />
+Can you think of a way to put the order I want in the top of the list so the stpapi.mark() function can work? <br />
+Find doesn't work for this purpose because it just scrolls to the record I want. <br />
+<br />
+Meanwhile I tried to insert the record directly in the main session but it's giving me a &quot;Cost price structure not present for this date&quot;. I have verified I have the price structure so it may be a problem in Baan. I just checked Baan Support and solution 158082 seems to address this. I will try it tomorrow.<br />
+Nevertheless I wonder if I should open a new case because of this stpapi.mark problem. <br />
+<br />
+<br />
+Thanks,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th November 2002, 22:24</div></div><div class="posttext">I am offsite right now, but are there any index options on the sessions that you could change to get the stpapi.mark command to work?  I was just thinking that if you change the default index that may work and may get the find to work like you want it.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pedromrs</div><div class="date">11th November 2002, 22:32</div></div><div class="posttext">Mark,<br />
+<br />
+I tried to change the index.<br />
+The problem is always the same. The find function works correctly but I think it just scrolls to the correct record. It isn't the first in the list. If I touch the scroll bar I get all the other records for that supplier. What I was trying to do is getting the order I want to be first in the list.<br />
+I found another strange thing. There is an user option in this session to mark all the records. If I call it from code using stpapi code it marks all the records except 1 (in my example the second on the list). Isn't this weird?<br />
+<br />
+I will try again tomorrow.<br />
+<br />
+Thanks for being so patient,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th November 2002, 23:17</div></div><div class="posttext">Yes I do find that weird.  Maybe there is a patch for that.  I am not sure what else to try.  Wish I was more help.  I am hoping to gather requirements for doing a receipt FS next week, but am not sure I am going to have time with the Baan Finance conversion we have going on.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">29th November 2002, 08:02</div></div><div class="posttext">Dear Pedro,<br />
+<br />
+The culprit of your code in your first post of this thread is the &quot;while ret&lt;&gt;0&quot; part. The thing is, the program is probably unable to find your record, hit the last record, can't perform next.set, and returns 0. What's silly about next.set is that if it's performed at the last record, it will return 0 declaring that it failed and reset the current record to the first one. This is why it always marks your first record. I found out about it when I was constructing my API session for receipt (whinh3520m000).<br />
+<br />
+This is what I had to do to make sure the correct record is marked:<br />
+stpapi.browse.set(&quot;whinh3520m000&quot;,&quot;first.set&quot;)<br />
+record.oorg=whinh.oorg.purchase<br />
+record.orno=&quot;&quot;<br />
+record.pono=0<br />
+record.seqn=0<br />
+while not (record.oorg=whinh910.oorg and record.orno=whinh910.orno and record.pono=whinh910.pono and record.seqn=target.seq)<br />
+	stpapi.get.field(&quot;whinh3520m000&quot;,&quot;whinh210.oorg&quot;,dummy.str)<br />
+	record.oorg=ltoe(lval(dummy.str))<br />
+	stpapi.get.field(&quot;whinh3520m000&quot;,&quot;whinh210.orno&quot;,dummy.str)<br />
+	record.orno=dummy.str<br />
+	stpapi.get.field(&quot;whinh3520m000&quot;,&quot;whinh210.pono&quot;,dummy.str)<br />
+	record.pono=lval(dummy.str)<br />
+	stpapi.get.field(&quot;whinh3520m000&quot;,&quot;whinh210.seqn&quot;,dummy.str)<br />
+	record.seqn=lval(dummy.str)<br />
+	dummy.long=stpapi.browse.set(&quot;whinh3520m000&quot;,&quot;next.set&quot;)<br />
+endwhile<br />
+if dummy.long=0 then<br />
+	stpapi.browse.set(&quot;whinh3520m000&quot;,&quot;last.set&quot;)<br />
+else<br />
+	stpapi.browse.set(&quot;whinh3520m000&quot;,&quot;prev.set&quot;)<br />
+endif<br />
+stpapi.mark(&quot;whinh3520m000&quot;)<br />
+<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pedromrs</div><div class="date">30th November 2002, 02:13</div></div><div class="posttext">Hi Paul,<br />
+<br />
+Thanks a lot for remembering this thread :) <br />
+I will try those modifications first thing on Monday at the Office.<br />
+<br />
+Best Regards,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ilansu</div><div class="date">1st December 2002, 11:08</div></div><div class="posttext">Pedro Hi <br />
+(I can't see your code I dont knew if it's my browser or something else so I hope it's not like your code)<br />
+<br />
+Im using this code and it works fine:<br />
+<br />
+<br />
+select tdpur041.pono,tdpur041.suno,tdpur041.ddtb<br />
+from   tdpur041<br />
+where  tdpur041._index1={:my.orno}<br />
+and    tdpur041.item=:my.item<br />
+selectdo<br />
+   stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;form.dino&quot;,str$(my.dino))<br />
+   stpapi.handle.subproc(&quot;tdpur4120m000&quot;,&quot;tdpur4131s000&quot;,&quot;add&quot;)<br />
+stpapi.change.view( &quot;tdpur4120m000&quot; )<br />
+stpapi.put.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.suno&quot;,tdpur041.suno)<br />
+stpapi.put.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.ddtb&quot;,str$(tdpur041.ddtb))<br />
+stpapi.put.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.orno&quot;,str$(my.orno))<br />
+stpapi.put.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.pono&quot;,str$(tdpur041.pono))<br />
+stpapi.find(&quot;tdpur4131s000&quot;)<br />
+stpapi.get.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.suno&quot;,str.suno)<br />
+stpapi.get.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.ddtb&quot;,str.ddtb)<br />
+stpapi.get.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.orno&quot;,str.orno)<br />
+stpapi.get.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.pono&quot;,str.pono)<br />
+if str.suno=tdpur041.suno and str$(tdpur041.ddtb)=str.ddtb and <br />
+val(str.orno)=my.orno and val(str.pono)=tdpur041.pono then<br />
+stpapi.mark(&quot;tdpur4131s000&quot;)<br />
+stpapi.continue.process(&quot;tdpur4131s000&quot;, error.mess) <br />
+<br />
+<br />
+Hope that helps <br />
+<br />
+Ilan S</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pedromrs</div><div class="date">4th December 2002, 14:24</div></div><div class="posttext">Hi all,<br />
+<br />
+Thanks for all the help (Mark, Paul, Ilan), you were all very helpfull:<br />
+<br />
+The following code allows me to create a full receipt with one line and one lot in my system (info hardcoded for testing). <br />
+Now I will improve the code to enable multiple lots and lines.<br />
+<br />
+<br />
+|******************************************************************************<br />
+|* tdpurmcgteste  0  VRC B40C c4 dese<br />
+|* Teste ao manter recepcoes - MCG - Nosso<br />
+|* psousa - Pedro Sousa <br />
+|* 06/11/02 [16:26]<br />
+|******************************************************************************<br />
+|* Script Type: Library<br />
+|******************************************************************************<br />
+<br />
+<br />
+#pragma used dll ottstpapihand<br />
+<br />
+function extern void manterrecep( )<br />
+{<br />
+DLLUSAGE<br />
+	Automatização do manter recepções<br />
+ENDDLLUSAGE<br />
+	<br />
+	string err(150),reno(20)<br />
+	string orno(50),pono(50),data(20),item(30),msg(50)<br />
+	long	ret<br />
+	long	my.orno,my.pono<br />
+	extern table ttdpur041<br />
+	extern table ttdpur045<br />
+<br />
+	|Uma guia qualquer<br />
+        stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;form.dino&quot;, &quot;xxx&quot;)<br />
+        <br />
+        |Não à cadeia de suprimentos<br />
+        stpapi.enum.answer(&quot;tdpur4120m000&quot;,&quot;tdpur41206&quot;,tcyesno.no)<br />
+		<br />
+	| Preparar para a subsessao	<br />
+	stpapi.handle.subproc( &quot;tdpur4120m000&quot;, &quot;tdpur4131s000&quot;, &quot;add&quot;)		<br />
+	<br />
+	| Activa a subsessao de escolha por fornecedor<br />
+	ret = stpapi.change.view(&quot;tdpur4120m000&quot;)		<br />
+	<br />
+	| Para dada ordem e numero de linha (tabela de ordens de compra)<br />
+	my.orno=320004<br />
+	my.pono=10<br />
+	select tdpur041.pono,tdpur041.suno,tdpur041.ddtb |Seleccionar os 4 campos de find<br />
+	from   tdpur041<br />
+	where  tdpur041._index1={:my.orno,:my.pono}	<br />
+	selectdo		<br />
+     		stpapi.put.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.suno&quot;,str$(tdpur041.suno))<br />
+     		stpapi.put.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.ddtb&quot;,str$(tdpur041.ddtb))<br />
+     		stpapi.put.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.orno&quot;,str$(my.orno))<br />
+     		stpapi.put.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.pono&quot;,str$(tdpur041.pono))<br />
+     		ret=stpapi.find(&quot;tdpur4131s000&quot;)<br />
+     		stpapi.get.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.suno&quot;,item)<br />
+     		stpapi.get.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.ddtb&quot;,data)<br />
+     		stpapi.get.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.orno&quot;,orno)<br />
+     		stpapi.get.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.pono&quot;,pono)<br />
+     		if item=tdpur041.suno and str$(tdpur041.ddtb)=data and <br />
+     		orno=str$(my.orno) and pono=str$(my.pono) then<br />
+			ret=stpapi.mark(&quot;tdpur4131s000&quot;)<br />
+		endif<br />
+	endselect<br />
+<br />
+ 	stpapi.continue.process(&quot;tdpur4131s000&quot;, err)        		<br />
+	<br />
+	if (strip$(err) &lt;&gt; &quot;&quot; and strip$(err)&lt;&gt; &quot;Process is gone&quot;) then<br />
+		Message(&quot; Erro na subs. tdpur4131s000  = %s&quot;,err)<br />
+	endif			               <br />
+        <br />
+	| Desligar a subsessao		<br />
+	stpapi.end.session(&quot;tdpur4131s000&quot;)	        <br />
+	        	       			 <br />
+	| Receber o numero da recepcao criada - so funciona em debug<br />
+	| va-se la perceber porque				<br />
+	stpapi.get.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.reno&quot;, reno)<br />
+<br />
+	| Assumindo que tudo correu como deve ser vamos preencher os lotes<br />
+			|Comecamos com uma quantidade de guia de remessa = 0<br />
+			|A sessao de lotes vai-se encarregar de preencher este campo<br />
+			|correctamente<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.diqu&quot;, &quot;2000&quot;)<br />
+	| Data da recepção<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.date&quot;, str$(date.num()))	<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.dqua&quot;, &quot;2000&quot;)<br />
+	<br />
+	stpapi.handle.subproc( &quot;tdpur4120m000&quot;, &quot;tdilc4113s000&quot;, &quot;add&quot;)<br />
+	stpapi.update(&quot;tdpur4120m000&quot;,1,err)<br />
+		stpapi.handle.subproc(&quot;tdilc4113s000&quot;, &quot;tdltc0101s000&quot;, &quot;add&quot;)	<br />
+		stpapi.zoom.option(&quot;tdilc4113s000&quot;, 1, &quot;tdltc0101s000&quot;, err)<br />
+		stpapi.end.session(&quot;tdltc0101s000&quot;)<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;,&quot;tdilc402.clot&quot;,&quot;02/001/01/001&quot;)<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;,&quot;tdilc402.date&quot;,str$(date.num()))<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;,&quot;tdilc402.qstr&quot;,&quot;2000&quot;)<br />
+		stpapi.insert(&quot;tdilc4113s000&quot;,1,err)<br />
+		stpapi.continue.process(&quot;tdilc4113s000&quot;, err)        		<br />
+	stpapi.end.session(&quot;tdilc4113s000&quot;)<br />
+			<br />
+	| Fechar a sessao principal							<br />
+	stpapi.end.session(&quot;tdpur4120m000&quot;)	<br />
+}<br />
+ <br />
+<br />
+(Sorry for the comments in portuguese)<br />
+When I have more code I'll post it here.<br />
+Thanks,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">minizao</div><div class="date">20th June 2005, 13:14</div></div><div class="posttext">Hi there,<br />
+<br />
+I'm trying to do this, but new receipt wasn't created...<br />
+<br />
+I did this :<br />
+<br />
+---------------------------------------------<br />
+stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;form.dino&quot;, &quot;Nuno1&quot;)<br />
+        <br />
+stpapi.handle.subproc( &quot;tdpur4120m000&quot;, &quot;tdpur4131s000&quot;, &quot;add&quot;)		<br />
+	<br />
+ret = stpapi.change.view(&quot;tdpur4120m000&quot;)		<br />
+	<br />
+     stpapi.put.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.suno&quot;,str$(tdpur041.suno))<br />
+     stpapi.put.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.ddtb&quot;,str$(tdpur041.ddtb))<br />
+     stpapi.put.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.orno&quot;,str$(my.orno))<br />
+     stpapi.put.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.pono&quot;,str$(tdpur041.pono))<br />
+     ret=stpapi.find(&quot;tdpur4131s000&quot;)<br />
+     stpapi.get.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.suno&quot;,item)<br />
+     stpapi.get.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.ddtb&quot;,data)<br />
+     stpapi.get.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.orno&quot;,orno)<br />
+     stpapi.get.field(&quot;tdpur4131s000&quot;,&quot;tdpur045.pono&quot;,pono)<br />
+     ret=stpapi.mark(&quot;tdpur4131s000&quot;)<br />
+<br />
+     When i create a dll to session tdpur4131s000, this function doesn't exists...<br />
+     stpapi.continue.process(&quot;tdpur4131s000&quot;, err)        		<br />
+<br />
+     stpapi.end.session(&quot;tdpur4131s000&quot;)<br />
+---------------------------------------------<br />
+<br />
+<br />
+When i create a dll to session tdpur4131s000 with session ttstpcreatdll, function &quot;stpapi.continue.process(&quot;tdpur4131s000&quot;, err)&quot; doesn't exists...<br />
+This function is necessary to create the receipt... isn't it?<br />
+<br />
+I have tryed with update + save... and still didn't created the new receipt for that order.<br />
+<br />
+Does anyone know what i should do to solve my problem?<br />
+<br />
+regards,<br />
+<br />
+Nuno Mota</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th June 2005, 15:30</div></div><div class="posttext">I have never really looked at why ttstpcreatdll does not always create all of the functions, but just because the function is not created does not mean it does not work.  What exactly happens when you run the code?  Does the find work?  More info may help others make suggestions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">minizao</div><div class="date">20th June 2005, 16:09</div></div><div class="posttext">Hi Mark,<br />
+<br />
+sorry for my last poor info... :-P<br />
+<br />
+When i try to call function : <br />
+<br />
+&quot;stpapi.continue.process(&quot;tdpur4131s000&quot;,Err)&quot;<br />
+<br />
+I get this error code : -1, that is &quot;Function Unknown!&quot;<br />
+<br />
+<br />
+----------<br />
+The find works and i can get some values of order.<br />
+----------<br />
+<br />
+Thanks<br />
+<br />
+Nuno</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th June 2005, 17:12</div></div><div class="posttext">I would recommend getting the latest version of the session.  In the mean time do you have source for the session?  If no source do you have one of the wrapper products like qkey or RMCgen?  Also check the form and make sure that it does have the continue option turned on.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">minizao</div><div class="date">20th June 2005, 17:47</div></div><div class="posttext">Ok... <br />
+<br />
+I don't know my version of session...<br />
+I don't have the source.<br />
+My client doesn't have those wrappers, or anyone else.<br />
+The continue button wasn't activated. So we active this button, but function continue is not available :-(<br />
+We already have the patch 165041 to update ttstpcreatdll, but it still not creating the function for &quot;continue&quot;.<br />
+<br />
+It maybe of version of the session?<br />
+<br />
+Nuno</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th June 2005, 18:32</div></div><div class="posttext">It could be several things - my first guess would be the session.  I just checked our system and then is no continue option on it also.  Since we do not use this session I am not familiar with how it works.  It could even be one of the stpapi.application.option commands that you need to use.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

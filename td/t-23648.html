@@ -1,0 +1,269 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="how does select return records?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] how does select return records? Tools Development" />
+	
+	<title>how does select return records? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; how does select return records?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">dnnslbrwn</div><div class="date">6th April 2005, 21:56</div></div><div class="posttext">I am debugging a session that I have written.  It is quite long and I have just realized that I am performing a second select on the same table inside my first select loop.  It is at the end of the selectdo loop and for that iteration, I don't care that I am messing up the record buffer, but am I doing anything bad to the main select loop and will this affect what record is returned for in the next iteration?  This is quite confusing, so here is a pseudo code of what I have done.<br />
+<br />
+<br />
+select	tdsls040.*<br />
+from	tdsls040 for update<br />
+where	&lt;bunch of rules&gt;<br />
+selectdo<br />
+	&lt;lots and lots of code&gt;<br />
+	db.retry.point()<br />
+	db.update(ttdsls040, db.retry)<br />
+<br />
+	select	tdsls040.*<br />
+	from	tdsls040 for update<br />
+	where	&lt;different bunch of rules&gt;<br />
+	and	tdsls040._compnr = &lt;different company&gt;<br />
+	selectdo<br />
+		&lt;some code&gt;<br />
+		tdsls040._compnr = &lt;different company&gt;<br />
+		db.update(ttdsls040, db.retry)<br />
+	endselect<br />
+	commit.transaction()<br />
+endselect<br />
+<br />
+<br />
+Cheers<br />
+<br />
+-Dennis</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">7th April 2005, 08:42</div></div><div class="posttext">In the past we have written and run such code successfully. Baan assignes separate qid's for each query and program works with each qid's which have separate buffers and record counters . <br />
+<br />
+Here is a sample code which we had written.Retries and commits are outside the function .<br />
+<br />
+	<br />
+	select	tisfc957.*<br />
+	from	tisfc957<br />
+	where	tisfc957._index1 = {:tisfc750.ojno}<br />
+	selectdo<br />
+		switch.to.company(tcmp)<br />
+		select	tisfc957.pdno<br />
+		from	tisfc957 <br />
+		where	tisfc957._index1 = {:njno,:tisfc957.opno}<br />
+		selectdo<br />
+		selectempty<br />
+		|	db.retry.point()<br />
+			tisfc957.pdno = njno<br />
+			tisfc957._compnr = tcmp<br />
+			db.insert(ttisfc957,db.retry)<br />
+		|	commit.transaction()<br />
+		endselect<br />
+		switch.to.company(ocmp)<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">7th April 2005, 09:47</div></div><div class="posttext">I always am afraid of undesired results, so I usually store the values to buffer before the second select, and after it restore the values; like that you are certain that you are dealing with the correct values.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">7th April 2005, 21:02</div></div><div class="posttext">I recall a situation where a similar scenario messed with my record pointer. <br />
+I resolved it by moving the second query to its own function, thus ensuring that it had private variables.<br />
+<br />
+I guess it depends on your db driver whether this is or isn't going to work correctly.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanprog</div><div class="date">9th April 2005, 08:29</div></div><div class="posttext">What if there are three selects will it work without storing the record buffer??.<br />
+<br />
+Did anyone try something for this?<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">13th April 2005, 11:28</div></div><div class="posttext">If the database driver is TBASE your code will work perfectly. If ORACLE or another 4GL DB this doesn't works.<br />
+<br />
+This happens because of the different behaviour of the database drivers. <br />
+In case of Tbase the records are always written/updated/deleted directly. Actions are logged, so when happens a commit.transaction() in fact the db driver doesn't nothing. In case of abort.transaction() all the logged actions are nullified by means of performing opposite actions.<br />
+<br />
+Oracle db driver does exactly the opposite action. All actions are logged and only when the commit.transaction() arrives the data is written really. In case of commit.transaction() all the actions logged are simply ignored.<br />
+<br />
+This case (not real case, obviously) explains:<br />
+<br />
+<br />
+db.retry.point()<br />
+select tdsls040.*<br />
+from   tdsls040 for update<br />
+where tdsls040.orno = 333444<br />
+selectdo<br />
+         tdsls040.dsca = &quot;AAAAAAA&quot;<br />
+         db.update(ttdsls040, db.retry)<br />
+         select tdsls040.*<br />
+         from   tdsls040 <br />
+         where tdsls040.orno = 333444<br />
+            and tdsls040.dsca = &quot;AAAAAAA&quot;<br />
+         selectdo<br />
+            .........<br />
+         endselect<br />
+endselect<br />
+commit.transaction()<br />
+<br />
+<br />
+In this case if you use tbase the second select gets 1 record, in case of oracle this gets nothing. If you can use a commit.transaction() after the update this is db-driver indipendent and you achieve the same result in both cases.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">14th April 2005, 07:42</div></div><div class="posttext">Zardoz , <br />
+<br />
+Everything u said about tbase and oracle driver is correct and well known . I think dennis too knows about . The example u showed is also correct. However dennis has 2  questions .<br />
+<br />
+1. Whether his record pointers will get messed up or not (Not record buffer  -table field values ) .  I think record pointer will not get messed up. Whatever be the database , actual table  is with reference to company numbers is different at database level. And it will have separate record pointers for each such selects.<br />
+2. Based on 2 phase commit working and transaction loggin therein , dennis query should work ( though I have not tested at this moment) . My code sample  was tested and working in oracle only. I would be curious to know the results of his testing .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dnnslbrwn</div><div class="date">1st August 2005, 21:09</div></div><div class="posttext">Wow... I forgot that I had ever asked this question.  I must have somehow unsubscribed myself or never looked at one of the responses so that I was not then told about future updates.  Thanks to all of you for responding (assuming that you are still subscribed to this tread and will see this).<br />
+<br />
+The above situation has been in production for a few months now and it seems to be holding up well.  Either the second select is behaving itself or if it is doing anything 'weird', I have not seen it.<br />
+<br />
+The reason I found this tread again was because I am now contimplating the affect of a second select (with update) on the same table IN THE SAME COMPANY.  <br />
+<br />
+Let me grab and modify my initial query to illustrate my point:<br />
+<br />
+<br />
+select	tdsls040.*<br />
+from	tdsls040 for update<br />
+where	&lt;bunch of rules&gt;<br />
+selectdo<br />
+	db.retry.point()<br />
+	&lt;lots and lots of code&gt;<br />
+	db.update(ttdsls040, db.retry)<br />
+<br />
+	select	tdsls040.*<br />
+	from	tdsls040 for update<br />
+	where	&lt;different bunch of rules&gt; (finds different records than the one above)<br />
+	selectdo<br />
+		&lt;update a field in tdsls040&gt;<br />
+		db.update(ttdsls040, db.retry)<br />
+	endselect<br />
+<br />
+	commit.transaction()<br />
+endselect<br />
+<br />
+<br />
+So I guess what I am wondering is does each select (for the same table and same company) produce a separate set of results so that the first select will not get confused about where it is in it's list by the actions of the second select (Note: the actions of the second select will not add or remove a record's eligibility from the first select satement - otherwise I would also have to think about using 'as prepared set').<br />
+<br />
+Cheers,<br />
+<br />
+-Dennis</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">1st August 2005, 21:58</div></div><div class="posttext">I am sticking to my original story. It will all depend on your driver.<br />
+<br />
+This is because your database driver is the program responsible for translating 3GL gibberish into the databasian flavor of the day. <br />
+Hystorically BaaN has taken some liberties with these translations, although later porting sets appear to get it right most of the time.<br />
+<br />
+Why not just give it a try?<br />
+<br />
+With -- -set TT_SQL_TRACE=0214242 in your bshell options you should see exactly how your code is relayed to Oracle and from there it is easy to determine what happens.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dnnslbrwn</div><div class="date">2nd August 2005, 00:01</div></div><div class="posttext">&quot;Why not just give it a try?&quot;<br />
+<br />
+Eeeek.  Don't know about that - well ok...<br />
+<br />
+<br />
+   150         ctr = 0<br />
+   151<br />
+   152         select  tcmcs001.*<br />
+   153         from    tcmcs001 for update<br />
+   154         selectdo<br />
+   155                 db.retry.point()<br />
+   156<br />
+   157                 tcmcs001.conv = 1<br />
+   158                 db.update(ttcmcs001, db.retry)<br />
+   159<br />
+   160                 ctr = ctr + 1<br />
+   161<br />
+   162                 if ctr \ 5 = 0 then<br />
+   163<br />
+   164                         tcmcs001.conv = 0<br />
+   165                         db.update(ttcmcs001, db.retry)<br />
+   166<br />
+   167                         commit.transaction()<br />
+   168                         db.retry.point()<br />
+   169<br />
+   170                         select  tcmcs001.*<br />
+   171                         from    tcmcs001 for update<br />
+   172                         where   tcmcs001.conv = 1<br />
+   173                         selectdo<br />
+   174                                 tcmcs001.conv = 0<br />
+   175                                 db.update(ttcmcs001, db.retry)<br />
+   176                         endselect<br />
+   177<br />
+   178                         select  tcmcs001.*<br />
+   179                         from    tcmcs001<br />
+   180                         selectdo<br />
+   181                         endselect<br />
+   182<br />
+   183                 endif<br />
+   184<br />
+   185                 commit.transaction()<br />
+   186         endselect<br />
+<br />
+<br />
+So, it does work!  The main loop changes each record to 1, and then every five iterations, the same variable is changed to zero on the current record and then the previous four records are also changed to zero as well.  I added the select at line 178 because I realized that the pointers were relatively similar after the second update was done and I wanted to make sure the outer loop was really independant so the third select always ends at the end of the table.<br />
+<br />
+I did not trace it as it all seemed to work on the first try.  After the run, all of the records were set to zero (yes they did initially start at zero, and my program set them all to 2... then I changed my program to the version above and reset them all to zero)<br />
+<br />
+Cheers,<br />
+<br />
+-Dennis</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd August 2005, 14:16</div></div><div class="posttext">Glad to see it worked.  You might want to try it without the query at line 178.  Okay for a small table, but would be a killer on large tables.  I usually do like Francesco recommend early - put them in a separate subroutine.  Something like the below:<br />
+<br />
+<br />
+	free.mem(record.buf)<br />
+	select	tpppc210.*<br />
+	from	tpppc210<br />
+	where	tpppc210._index6 inrange {:cprj.f, :cspa.f} and {:cprj.t, :cspa.t}<br />
+	and	tpppc210.ltdt inrange :date.f and :date.t<br />
+	and	tpppc210.cfpo = tppdm.yeno.no<br />
+	selectdo<br />
+		if checklogin(tpppc210.loco) then<br />
+			continue<br />
+		endif<br />
+		store.tpppc210.record.buffer()<br />
+		if determine.prorate(tpppc210.cprj,<br />
+					tpppc210.cspa,<br />
+					tpppc210.sern,<br />
+					tpppc210.item,<br />
+					tpppc210.quan,<br />
+					tpppc210.pric,<br />
+					tpppc210.amoc,<br />
+					0.0,<br />
+					0.0,<br />
+					tpppc210.loco,<br />
+					&quot;Mat. Comm.&quot;,<br />
+					5,<br />
+					tpppc210.ltdt) then<br />
+| Store the record and updated it as prorated.<br />
+			rcd.ttpppc210 = record.buf<br />
+			db.eq(ttpppc210,db.lock)<br />
+			tpppc210.loco = &quot;Prorate&quot;<br />
+			db.update(ttpppc210)<br />
+			commit.transaction()<br />
+		endif<br />
+<br />
+<br />
+The determine prorate routine inserts a reversal record, then inserts new records for the costs.  I know early on with Baan I had a couple of queries that went crazy when the record pointers got messed with - can not remember where this happened.  Since then I just &quot;clone&quot; the code I know that works.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

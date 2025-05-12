@@ -1,0 +1,136 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Spool Fileout for a Device, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Spool Fileout for a Device Tools Administration &amp; Installation" />
+	
+	<title>Spool Fileout for a Device [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Spool Fileout for a Device</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">raulng82</div><div class="date">31st January 2018, 21:17</div></div><div class="posttext">Hello,<br />
+How can I create a device which it's sends me a file in to a specific server directory with a random/unique file name.<br />
+I created the device that I attached, but it creates the file only with the username.<br />
+I need to create it, for example, with user &amp; date &amp; time.<br />
+<br />
+Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">1st February 2018, 03:01</div></div><div class="posttext">Well what we did in 4c4 was create our own device driver that uses the file name in the select device.  In our case it worked thru the client.  The user enters a file name and we run ttstpconv in the 3gl scipt and download the file using server2client.  Just an example but probably something easier will pop up as others read this thread.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">1st February 2018, 09:02</div></div><div class="posttext">I'm not sure whether I used the solution Mark mentioned, but I did use one of his ideas:<br />
+<br />
+http://www.baanboard.com/baanboard/showthread.php?t=513&amp;highlight=ttstpconv<br />
+<br />
+I've created a new ttstpconv variant. It replaces &quot;#&quot; in the filename by dte$.<br />
+<br />
+<br />
+function main()<br />
+{<br />
+| This session will run the standard program conversion session<br />
+|   ttstpconv using a temporary output file and the arguments<br />
+|   passed in 3+ verbatim.<br />
+| Arguments are passed from Baan spooler as follows:<br />
+|    1 = Name of input (temporary) file contain dev independent report<br />
+|    2 = Name of output file<br />
+|    3 = Additional arguments (from Device data)<br />
+|    4 = Specilar parm for ttstpconv (unknown reason)<br />
+<br />
+	string	tmp.file(1024)		| Temporary file name.<br />
+	string	old.tmp.file(1024)		| Temporary file name.<br />
+	string	rest.file(1024)		| Temporary file name.<br />
+	long	i<br />
+<br />
+	|Run ttstpconv with all parameters<br />
+	|Insert timestamp in filename, if required:<br />
+	i = pos(argv$(2),&quot;#&quot;)<br />
+	tmp.file = argv$(2)<br />
+	old.tmp.file = argv$(2)		|Needs to be deleted later on<br />
+	if i&gt;0 then<br />
+		rest.file = tmp.file(i+1;1024)<br />
+		tmp.file = tmp.file(1;i-1) &amp; dte$() &amp; rest.file<br />
+	endif<br />
+	wait.and.activate(&quot;ttstpconv&quot;, argv$(1), tmp.file, argv$(3),argv$(4))<br />
+	<br />
+	|Sometimes somehow an additional file with the old filename gets created.<br />
+        |Delete it, if it has been created:<br />
+	if old.tmp.file &lt;&gt; tmp.file then<br />
+		|Delete only if dte$ has been inserted, so filenames will differ.<br />
+		file.rm(old.tmp.file)<br />
+	endif<br />
+}<br />
+<br />
+<br />
+I'm using LN but I think BaanIV will be working just fine. (Maybe dte$ needs to be replaced?)<br />
+<br />
+It does work fine for &quot;create a file&quot; printers in jobs, but did act somehow strange when using printers with transfer to the client (li.e. creating pdfs or printing into Excel).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">5th February 2018, 19:03</div></div><div class="posttext">Refer to the KB on the Infor Xtreme Support -<br />
+<br />
+https://www.inforxtreme.com/espublic/EN/AnswerLinkDotNet/SoHo/Solutions/SoHoViewSolution.aspx?SolutionID=691701<br />
+<br />
+KB 691701  How to create unique filenames when printing a report <br />
+Description:  <br />
+How to create unique filenames when printing a report?<br />
+SITUATION IDENTIFIED IN:<br />
+ &quot;Select Device&quot; (ttstpsplopen)<br />
+Resolution: <br />
+When printing the report and selecting the device, you see in &quot;Output file&quot; field the value &quot;${BSE}/tmp/excel.xls&quot;, so that means that all reports will generate the same spreadsheet (excel.xls) on the same folder (${BSE}/tmp). That's the reason why when two users print at the same time, it mixes the reports. Or if the same user genereates large reports.<br />
+The solution for this is to change the &quot;Path&quot; field on session &quot;Device Data&quot; ttaad3500m000 with a variable path or file name. You can use one of the following examples:<br />
+ ${HOME}/excel.xls: to generate file excel.xls on the user's home folder in the server<br />
+ ${BSE}/tmp/${USER}.xls: to generate a file with the Baan user name as file name.<br />
+ ${BSE}/tmp/${LOGNAME}.xls: to generate a file with the user log name as file name.<br />
+ ${BSE}/tmp/excel$$.xls: to generate a file named &quot;excel&quot; plus a sequence number<br />
+For Baan IV the same applies in session &quot;Maintain Device Data&quot; (ttaad3100m000).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">6th February 2018, 09:52</div></div><div class="posttext">Sadly Infor never added a possibility to insert a time stamp into the file name.<br />
+As far as I know $$ will not add a sequential counter, but some process id of the bshell.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">8th February 2018, 03:06</div></div><div class="posttext">Andreas,<br />
+<br />
+You are correct. You can use Mark's code snippet.<br />
+<br />
+Another alternative -<br />
+KB 1795511 Print to file with date in file name <br />
+https://www.inforxtreme.com/espublic/EN/AnswerLinkDotNet/SoHo/Solutions/SoHoViewSolution.aspx?SolutionID=1795511<br />
+<br />
+You can write a shell script or a batch file (in case a customer does not have Baan development license).<br />
+Resolution: <br />
+.set up a small script as follows called script.sh in /trash<br />
+#!/bin/ksh<br />
+ddmmYYYYHHMM=$(date &quot;+%d%m%Y%H%M&quot;)<br />
+cp $1 $1$ddmmYYYYHHMM<br />
+(this sets up the date and time to be added to a file - the date and time is in the format<br />
+of DD/MM/YYYY then the time in 24 hour clock)<br />
+<br />
+In case of Windows OS, you can have a small batch files which can format the date and time and copy the source file to a date-time-stamped-file.<br />
+<br />
+1. With DOS commands -<br />
+@echo off<br />
+for /F &quot;usebackq tokens=1,2 delims==&quot; %%i in (`wmic os get LocalDateTime /VALUE 2^&gt;NUL`) do if '.%%i.'=='.LocalDateTime.' set ldt=%%j<br />
+set ldt=%ldt:~0,4%-%ldt:~4,2%-%ldt:~6,2%_%ldt:~8,2%:%ldt:~10,2%:%ldt:~12,6%<br />
+echo Local date is [%ldt%]<br />
+ 2. With Powershell -<br />
+powershell get-date -format &quot;{ddMMyyyy_HHmmss}&quot;<br />
+Here is the sample output -<br />
+C:\tmp&gt;windt.bat<br />
+Local date is [2018-02-07_17:05:33.880]<br />
+07022018_170548</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

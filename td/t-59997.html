@@ -1,0 +1,111 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Reading Local File, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Reading Local File Tools Development" />
+	
+	<title>Reading Local File [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Reading Local File</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">SandraDiehl</div><div class="date">7th February 2011, 21:27</div></div><div class="posttext">I have a session I had developed that will update the item purchase and sales price based on an imput file that uses | as the separator.  I have used the seq.open, seq.gets and string.scan to read the file and do the update on the item master.  This all works great.  BUT now I want for end users to be able to execute the application that won't require for them to have access to the server to place the input file, have the application read a local file directory.<br />
+I have found using the seq.open.local will open the file, using the seq.read.local reads the file, but it reads the entire file into the buffer.  So when I attemp to use the string.scan it only gets the first line, have no clue how to read the buff for each record until EOF.<br />
+<br />
+From what I have read so far I don't think I can mix the seq.open.local with the seq.gets, but if that isn't the case please tell me so and I will be able to use my old method to read and process the records.<br />
+<br />
+Original Logic:<br />
+directory = &quot;\\&quot; &amp; strip$(inp.path) &amp; &quot;\&quot; &amp; strip$(inp.file)<br />
+in.fp = seq.open(directory, &quot;r+&quot;)<br />
+if in.fp &lt;= 0 then<br />
+  message(&quot;Error opening file&quot;)<br />
+else<br />
+  read.main.table()<br />
+endif<br />
+<br />
+function read.main.table()<br />
+{<br />
+	scr.mess = &quot;&quot;<br />
+	scr.mess = (&quot;Processing input items&quot;)<br />
+	display(&quot;scr.mess&quot;)<br />
+	repeat<br />
+		ret = seq.gets(buf, 200, in.fp)<br />
+		ret = string.scan(buf, &quot;%s|%s|%f&quot;,buf.item, buf.dsca, buf.prip)<br />
+		align.data()<br />
+		process.records()<br />
+		scr.item = align.item<br />
+		display(&quot;scr.item&quot;)<br />
+	until seq.eof(in.fp)<br />
+	commit.transaction()<br />
+}<br />
+<br />
+<br />
+New Version:<br />
+directory = trim$(inp.path) &amp; &quot;\&quot; &amp; trim$(inp.file)<br />
+in.fp = seq.open.local(directory, &quot;r&quot;, 0)<br />
+if in.fp &lt;= 0 then<br />
+  message(&quot;Error opening file&quot;)<br />
+else<br />
+  read.main.table()<br />
+endif<br />
+<br />
+function read.main.table()<br />
+{<br />
+	scr.mess = &quot;Reporting items to process&quot;<br />
+	display(&quot;scr.mess&quot;)<br />
+	repeat<br />
+		ret = seq.read.local(buf, size, in.fp)<br />
+		ret = string.scan(buf, &quot;%s|%s|%f&quot;,buf.item, buf.dsca, buf.prip)<br />
+		align.data()<br />
+		validate.records()<br />
+		rpt.item = buf.item<br />
+		new.prip = buf.prip<br />
+		if errors then<br />
+			rpt.line = 2<br />
+		else<br />
+			rpt.line = 1<br />
+		endif<br />
+		rprt_send()<br />
+	until seq.eof(in.fp)<br />
+	scr.mess = &quot;&quot;<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vinceco252</div><div class="date">7th February 2011, 22:28</div></div><div class="posttext">You might want to look at the client2server function.  This copies a file from the client to the server, then you can process the file locally using the seq.gets function.  If you do a search on client2server you should get quite a few results.<br />
+<br />
+Thanks,<br />
+<br />
+Vince</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">SandraDiehl</div><div class="date">8th February 2011, 17:36</div></div><div class="posttext">Yes after I posted the question and doing more research I went ahead and used the client2server function and removed the file from the server after I did the processing.<br />
+<br />
+Now here is another need; When I do the processing I use an application called Toad and I create a backup of the Item Master before I do the mass price changes.  If the end users are going to execute now, is there a way in the program to back up the Item Master before the processing?<br />
+<br />
+In Toad I use the command to create the table:<br />
+<br />
+create table ttiitm001_420_20110208_1028 as select * from ttiitm001420;<br />
+<br />
+and once the process is done and I have confirmation I use this command to delete the table:<br />
+<br />
+drop table ttiitm001_420_20110208_1028;</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">8th February 2011, 23:40</div></div><div class="posttext">Now here is another need; When I do the processing I use an application called Toad and I create a backup of the Item Master before I do the mass price changes. If the end users are going to execute now, is there a way in the program to back up the Item Master before the processing?<br />
+You can use the Baan's bdbpre to back up the table data.<br />
+drop table ttiitm001_420_20110208_1028; <br />
+You can also use the db.drop.table() Tools function in your script.<br />
+This way you do not have to do things manually and the program handles it. Why do you like to take the backup of the table?</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,214 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Sales Order through AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Sales Order through AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>Sales Order through AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Sales Order through AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">manojsharma</div><div class="date">15th February 2005, 14:27</div></div><div class="posttext">Hi all,<br />
+<br />
+I have created AFS for updating sales orders with a given price, the script is working fine except it does not end session tdsls4504s000. Due to this, the session got hanged.<br />
+<br />
+Can anybody help me out<br />
+<br />
+Thanx in advance</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">15th February 2005, 16:01</div></div><div class="posttext">There is this thread (http://www.baanboard.com/baanboard/showthread.php?t=16164&amp;highlight=tdsls4504s000) which may help.  Also just wondering if this session is like tdpur4503s000 from maintain purchase order lines.  In my function servers for tdpur4101m000 where I start the lines(tdpur4107s000) I just ignore tdpur4503s000 and when I end tdpur4107s000 it also closes the tdpur4503s000 session.  Have you tried skipping the end on tdsls4504s000?  Just a thought.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manojsharma</div><div class="date">18th February 2005, 08:43</div></div><div class="posttext">Thanx for your response but problem is not solved. I have skipped the end on tdsls4504s000 but it got hang when closing tdsls4105s000 and in option dialog the session tdsls4504s000 is still active.<br />
+<br />
+I have also kill the session tdsls4504s000 but it still hang when closing tdsls4105s000.<br />
+<br />
+I am pasting my script for your ready reference<br />
+<br />
+function read.main.table()<br />
+{<br />
+<br />
+	select tdsls045.*, tdsls041.*<br />
+	from   tdsls045, tdsls041 |for update<br />
+	where  tdsls045.orno&gt;=:w.orno<br />
+	and    tdsls045.orno&lt;=:w.orno.t<br />
+	and    tdsls045.pono&gt;=:w.pono<br />
+	and    tdsls045.pono&lt;=:w.pono.t<br />
+	and    tdsls045.srnb&gt;=:w.srnb<br />
+	and    tdsls045.srnb&lt;=:w.srnb.t<br />
+	and    tdsls045.cuno&gt;=:w.cuno<br />
+	and    tdsls045.cuno&lt;=:w.cuno.t<br />
+	and    tdsls045.item&gt;=:w.item<br />
+	and    tdsls045.item&lt;=:w.item.t<br />
+	and    tdsls041.odat&gt;=:w.odate<br />
+	and    tdsls041.odat&lt;=:w.odate.t<br />
+	and    tdsls045.srnb=0<br />
+	and    tdsls045.cmba refers to tdsls041<br />
+	order by tdsls045._index1<br />
+	selectdo<br />
+		ordno = tdsls045.orno<br />
+		pono  = tdsls045.pono<br />
+		cuno  = tdsls045.cuno<br />
+		<br />
+	   if (tdsls045.dqua=0 and tdsls045.bqua=0) and tdsls045.pmsk(3;1)=&quot;y&quot; then			   <br />
+		ret.h = 0.0<br />
+		<br />
+		prog.name$ = &quot;tdsls4101&quot;<br />
+<br />
+		stpapi.put.field(&quot;tdsls4101m000&quot;, &quot;tdsls040.orno&quot;, str$(ordno))<br />
+		ret = stpapi.find(&quot;tdsls4101m000&quot;, w.err.mesg)<br />
+		stpapi.handle.subproc(&quot;tdsls4101m000&quot;, &quot;tdsls4105s000&quot;, &quot;add&quot;)<br />
+		stpapi.continue.process( &quot;tdsls4101m000&quot;, w.err.mesg )<br />
+<br />
+		stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.orno&quot;, str$(ordno))<br />
+		stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.pono&quot;, str$(pono))<br />
+		ret = stpapi.find(&quot;tdsls4105s000&quot;, w.err.mesg)<br />
+		slsbasepr = price.m<br />
+	<br />
+		stpapi.handle.subproc(&quot;tdsls4105s000&quot;, &quot;tdind0271s000&quot;, &quot;send&quot;)<br />
+	<br />
+		stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;slsbasepr&quot;, str$(price.m))<br />
+<br />
+		stpapi.update(&quot;tdsls4105s000&quot;, 1, w.err.mesg)<br />
+		stpapi.save(&quot;tdsls4105s000&quot;, w.err.mesg)<br />
+		<br />
+ 		stpapi.put.field(&quot;tdind0271s000&quot;,&quot;docu.no&quot;,str$(ordno))<br />
+		stpapi.put.field(&quot;tdind0271s000&quot;,&quot;posi.no&quot;,str$(pono))<br />
+		ret.m = stpapi.find(&quot;tdind0271s000&quot;)<br />
+		<br />
+		if ret.m = 0 then<br />
+			message(w.err.mesg)<br />
+			message(&quot;Insert Fail in Lines Extensions, Session tdind0271s000&quot;)<br />
+			return<br />
+		else<br />
+	 		stpapi.put.field(&quot;tdind0271s000&quot;,&quot;base.dt&quot;,str$(date.num()))<br />
+			stpapi.update(&quot;tdind0271s000&quot;,true,w.err.mesg)<br />
+			stpapi.save(&quot;tdind0271s000&quot;,w.err.mesg)<br />
+		endif<br />
+		<br />
+		stpapi.end.session(&quot;tdind0271s000&quot;)<br />
+	           <br />
+	<br />
+	long    hold.pno<br />
+	long    pno<br />
+	long    info(256)<br />
+	string  pname(15), baan.sess<br />
+	domain  tcbool sess.found<br />
+	<br />
+	sess.found = false<br />
+	pno = 0<br />
+	hold.pno = pno<br />
+	baan.sess = &quot;tdsls4504s000&quot;<br />
+	pno = pstat (pno, pname, info)<br />
+	while pno &gt; 0 and not sess.found<br />
+		hold.pno = pno<br />
+		pno = pstat (pno, pname, info)<br />
+		if strip$(pname)=&quot;tdsls4504s000&quot; then<br />
+			kill(hold.pno)<br />
+			sess.found = true<br />
+		endif<br />
+	endwhile<br />
+<br />
+| 	long    m.hold.pno<br />
+| 	long    m.pno<br />
+| 	long    m.info(256)<br />
+| 	string  m.pname(15), m.baan.sess<br />
+| 	domain  tcbool m.sess.found<br />
+| 	<br />
+| 	m.sess.found = false<br />
+| 	m.pno = 0<br />
+| 	m.hold.pno = m.pno<br />
+| 	<br />
+| 	m.pno = pstat (m.pno, m.pname, m.info)<br />
+| 	while m.pno &gt; 0 and not m.sess.found<br />
+| 		m.hold.pno = m.pno<br />
+| 		m.pno = pstat (m.pno, m.pname, m.info)<br />
+| 		if strip$(m.pname)=&quot;tdsls4105s000&quot; then<br />
+| 			kill(m.hold.pno)<br />
+| 			m.sess.found = true<br />
+| 		endif<br />
+| 	endwhile<br />
+<br />
+<br />
+| 	long    n.hold.pno<br />
+| 	long    n.pno<br />
+| 	long    n.info(256)<br />
+| 	string  n.pname(15), n.baan.sess<br />
+| 	domain  tcbool n.sess.found<br />
+| 	<br />
+| 	n.sess.found = false<br />
+| 	n.pno = 0<br />
+| 	n.hold.pno = n.pno<br />
+| 	<br />
+| 	n.pno = pstat (n.pno, n.pname, n.info)<br />
+| 	while n.pno &gt; 0 and not n.sess.found<br />
+| 		n.hold.pno = n.pno<br />
+| 		n.pno = pstat (n.pno, n.pname, n.info)<br />
+| 		if strip$(n.pname)=&quot;tdsls4101m000&quot; then<br />
+| 			kill(n.hold.pno)<br />
+| 			n.sess.found = true<br />
+| 		endif<br />
+| 	endwhile<br />
+<br />
+<br />
+<br />
+<br />
+|    		stpapi.end.session(&quot;tdsls4504s000&quot;,w.err.mesg)<br />
+<br />
+		if isspace(w.err.mesg) then<br />
+			stpapi.end.session(&quot;tdsls4105s000&quot;,w.err.mesg)<br />
+		else<br />
+			stpapi.recover(&quot;tdsls4105s000&quot;, w.recover.mesg)<br />
+		endif<br />
+<br />
+<br />
+ 		if isspace(w.err.mesg) then<br />
+			stpapi.end.session(&quot;tdsls4101m000&quot;)<br />
+ 		else<br />
+ 			stpapi.recover(&quot;tdsls4101m000&quot;, w.recover.mesg)<br />
+ 		endif<br />
+<br />
+	   endif	<br />
+	endselect	<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th February 2005, 16:18</div></div><div class="posttext">Not much help on these sessions.  Have you tried &quot;add&quot; instead of send with the tdind0271s000 session?  Just wondering if the send command may be causing it to lock up.  You may also just need the latest objects for stpapi and for the session.  I found this other http://www.baanboard.com/baanboard/showthread.php?t=12116&amp;highlight=tdsls4105s000 and I am not sure if it is relevant.  Sorry I am not much help.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manojsharma</div><div class="date">22nd February 2005, 06:51</div></div><div class="posttext">Hi Mark,<br />
+<br />
+On changing to &quot;Add&quot; instead of send with tdind0271s000, the session is hang with the message &quot;can't send command&quot;.<br />
+<br />
+One more question, we have purchase a new server, in both the server objects are same but in old server my other AFS are working fine but in new server my AFS got hang-up. The porting set of old server is 6.1c.6.0.6 and new server is 6.1c.7.0.6. Is it due to porting set.<br />
+<br />
+Thanx in advance.<br />
+<br />
+Manoj Sharma</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">22nd February 2005, 14:10</div></div><div class="posttext">Not really sure what to do about tdind0271s000 - I have just never used send.  That may be the correct thing to do in this case, but since I do not have or use these sessions it makes it more difficult to help.<br />
+<br />
+Yes - the porting set can cause problems.  Baan did have us update the porting because of problems I was having with my function servers.  <br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

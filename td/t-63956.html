@@ -1,0 +1,333 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Update using db.record.to.columns, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Update using db.record.to.columns Tools Development" />
+	
+	<title>Update using db.record.to.columns [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Update using db.record.to.columns</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">erplnjp</div><div class="date">12th April 2013, 23:29</div></div><div class="posttext">I am a newbie at programming, no formal training so I apologize up front if this has been addressed or makes no sense.  Please excuse the crudeness of my code, it was pieced together from research and is trial code.  Was not able to find this exact answer on BB.  Is it possible to write a script that will do a db.update based on information stored in a db.columns.to.record or is it only possible to do a db.insert?<br />
+<br />
+I saw a similar post (http://www.baanboard.com/baanboard/showthread.php?t=15228) which suggests deleting the record for the new item, use db.record.to.columns and then db.insert.  This would probably work but I am trying to execute this for tcibd001 and references exist on the item number so it can not be deleted.<br />
+<br />
+End goal, update an item's fields based on the values of another item in the same table.  <br />
+<br />
+The code below will run without error but no update occurs on the record in tcibd001 (copy.item).  It remains untouched.<br />
+<br />
+<br />
+	db.row.length(ttcibd001,buff.size)<br />
+	alloc.mem(rec.buff,buff.size)<br />
+	select tcibd001.*<br />
+	from   tcibd001<br />
+	where  tcibd001._index1 = {:i.item}		|i.item is the item with information to be copied<br />
+	selectdo<br />
+		tcibd001.item = copy.item		|copy.item is the item to be updated<br />
+		tcibd001.seab = copy.item(10;37)<br />
+		tcibd001.dfit = copy.item<br />
+		tcibd001.txta = 0<br />
+		table.id = db.bind(&quot;ttcibd001&quot;,rec.buff)<br />
+		db.columns.to.record(table.id)<br />
+	endselect<br />
+<br />
+	db.retry.point()<br />
+<br />
+	select tcibd001.*<br />
+	from   tcibd001 for update<br />
+	where  tcibd001._index1 = {:copy.item}<br />
+	selectdo<br />
+		db.record.to.columns(table.id)<br />
+		db.update(ttcibd001,db.retry)<br />
+		commit.transaction()<br />
+	endselect<br />
+	db.unbind(table.id)<br />
+	free.mem(rec.buff)<br />
+<br />
+<br />
+<br />
+Any help is greatly appreciated.  I am trying to avoid writing a script that does an update at the field for field level but if that is the only way, then so be it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th April 2013, 21:57</div></div><div class="posttext">Yes it is possible. Since I am familiar with 4c4 let me try an example with it.  And no I am not sure it will work in LN.<br />
+<br />
+functions:<br />
+|orig.item - the item you want to copy data from<br />
+|copy.item - item to have the data updated from orig item<br />
+function find.the.item()<br />
+{<br />
+     select tiitm001.*<br />
+     from   tiitm001<br />
+     where tiitm001.={:orig.item}<br />
+     as set with 1 rows<br />
+     selectdo<br />
+     endselect<br />
+     store.item.record.buffer()<br />
+| now find the item you want to update<br />
+    db.retry.point()<br />
+    select tiitm001.*<br />
+     from   tiitm001 for update<br />
+     where tiitm001.={:orig.item}<br />
+     as set with 1 rows<br />
+     selectdo<br />
+     endselect<br />
+     rcd.ttiitm001 = record.buff  | set it to the record buffer of the orig.item<br />
+     tiitm001.item = copy.item   | Make sure key index is reset to the correct item<br />
+     db.update(ttiitm001,db.retry)<br />
+     commit.transaction() <br />
+}<br />
+ <br />
+function store.item.record.buffer()<br />
+{<br />
+	if not record.len then<br />
+		db.row.length(ttiitm001, record.len)<br />
+		alloc.mem(record.buf, record.len)<br />
+	endif<br />
+	record.buf = rcd.ttiitm001<br />
+}<br />
+<br />
+<br />
+This should update every field of copy.item with the fields in orig.item.  Or if you wanted you could find copy.item and delete it.  Then find the orig.item, set the item number to copy.item and do an insert.  This code does not include any error checking or anything of the sort - so make sure the original item and copy item are valid items.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">erplnjp</div><div class="date">16th April 2013, 16:03</div></div><div class="posttext">Thank you for the reply and suggestion mark_h.  I was able to modify your code a bit for LN but still receive a 206 Record not locked error.<br />
+<br />
+<br />
+function find.the.item()<br />
+{<br />
+	orig.item = &quot;         223.022.02&quot;<br />
+	copy.item = &quot;         0223.925.000&quot;<br />
+<br />
+     select tcibd001.*<br />
+     from   tcibd001<br />
+     where tcibd001.item ={:orig.item}<br />
+     as set with 1 rows<br />
+     selectdo<br />
+     endselect<br />
+     store.item.record.buffer()<br />
+<br />
+| now find the item you want to update<br />
+    db.retry.point()<br />
+    select tcibd001.*<br />
+     from  tcibd001 for update<br />
+     where tcibd001._index1 ={:orig.item}<br />
+     as set with 1 rows<br />
+     selectdo<br />
+     endselect<br />
+     rcd.ttcibd001 = record.buf  | set it to the record buffer of the orig.item<br />
+     tcibd001.item = copy.item   | Make sure key index is reset to the correct item<br />
+     db.update(ttcibd001,db.retry)<br />
+     commit.transaction() <br />
+}<br />
+ <br />
+function store.item.record.buffer()<br />
+{<br />
+		 if not record.len then<br />
+		 		 db.row.length(ttcibd001, record.len)<br />
+		 		 alloc.mem(record.buf, record.len)<br />
+		 endif<br />
+		 record.buf = rcd.ttcibd001<br />
+}<br />
+<br />
+<br />
+I also tried:<br />
+<br />
+function find.the.item()<br />
+{<br />
+	orig.item = &quot;         223.022.02&quot;<br />
+	copy.item = &quot;         0223.925.000&quot;<br />
+<br />
+     select tcibd001.*<br />
+     from   tcibd001<br />
+     where tcibd001.item ={:orig.item}<br />
+     as set with 1 rows<br />
+     selectdo<br />
+     endselect<br />
+     store.item.record.buffer()<br />
+<br />
+| now find the item you want to update<br />
+    db.retry.point()<br />
+    select tcibd001.*<br />
+     from  tcibd001 for update<br />
+     where tcibd001._index1 ={:copy.item}<br />
+     as set with 1 rows<br />
+     selectdo<br />
+     endselect<br />
+     rcd.ttcibd001 = record.buf  | set it to the record buffer of the orig.item<br />
+     tcibd001.item = copy.item   | Make sure key index is reset to the correct item<br />
+     db.update(ttcibd001,db.retry)<br />
+     commit.transaction() <br />
+}<br />
+ <br />
+function store.item.record.buffer()<br />
+{<br />
+		 if not record.len then<br />
+		 		 db.row.length(ttcibd001, record.len)<br />
+		 		 alloc.mem(record.buf, record.len)<br />
+		 endif<br />
+		 record.buf = rcd.ttcibd001<br />
+}<br />
+<br />
+<br />
+And got the same error.  Any thoughts or assistance is greatly appreciated.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vinceco252</div><div class="date">16th April 2013, 16:07</div></div><div class="posttext">Do you have a db.retry set anywhere?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">16th April 2013, 16:43</div></div><div class="posttext">Okay - I think I know what it is.  When you use rcd.ttXXXXX type structure there are some variables in the background like tcibd001._dlock.  I bet the first copy to buff sets it to 0 since it is not locked.  Then when you set the second buffer to the first - it makes that variable 0 or not locked.  So for grins and giggles - no promises:<br />
+<br />
+<br />
+  long hold.lock<br />
+   select tcibd001.*<br />
+     from   tcibd001<br />
+     where tcibd001.item ={:orig.item}<br />
+     as set with 1 rows<br />
+     selectdo<br />
+     endselect<br />
+     store.item.record.buffer()<br />
+<br />
+| now find the item you want to update<br />
+    db.retry.point()<br />
+    select tcibd001.*<br />
+     from  tcibd001 for update<br />
+     where tcibd001._index1 ={:copy.item}<br />
+     as set with 1 rows<br />
+     selectdo<br />
+     endselect<br />
+     hold.lock = tcibd001._dlock<br />
+     rcd.ttcibd001 = record.buf  | set it to the record buffer of the orig.item<br />
+     tcibd001.item = copy.item   | Make sure key index is reset to the correct item<br />
+     tcibd001._dlock = hold.lock<br />
+     db.update(ttcibd001,db.retry)<br />
+     commit.transaction() <br />
+}<br />
+ <br />
+function store.item.record.buffer()<br />
+{<br />
+		 if not record.len then<br />
+		 		 db.row.length(ttcibd001, record.len)<br />
+		 		 alloc.mem(record.buf, record.len)<br />
+		 endif<br />
+		 record.buf = rcd.ttcibd001<br />
+}<br />
+<br />
+<br />
+I found this in the help on dlock -<br />
+ When placing a delayed lock on a record, the program fills the field &lt;table&gt;._dlock with an identification number linked to the record. This field identifies the original record. This guarantees a fast search procedure. This field will be overwritten when changing the record buffer.<br />
+<br />
+Notice the last statement.  I do not promise this will work and have never tried it myself.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">erplnjp</div><div class="date">16th April 2013, 17:37</div></div><div class="posttext">Hi Vince! I actually did in one of the previous itterations but looks like I forgot it here.  I had it in front of the first select query.  I actually tried a field for field version like we discussed and was finally able to get that to work but it just seems so drawn out (one of the tables I am working on has 100+ fields) so as you can see I am still determined to get this.  It is soooo close.  <br />
+<br />
+@mark_h, thanks i will give it a look and and other try. <br />
+<br />
+Thanks to you both for the replies.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">16th April 2013, 17:41</div></div><div class="posttext">If above suggestion by Mark doesnt work, also try this:-<br />
+<br />
+1. Try removing/commenting db.set.retry.point from your code <br />
+2. add elocked to your db.update i.e. db.update(ttcibd001,db.retry,elocked)<br />
+<br />
+I have faced this and solved by doing the above things.<br />
+<br />
+Also, you can try writing your code in after.update.db.commit section.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">erplnjp</div><div class="date">16th April 2013, 18:19</div></div><div class="posttext">@vince, I just got what you were suggesting, not that it was missing but perhaps it was causing the issue.  Sorry about that.  <br />
+<br />
+@mark_h, no worries, I know this is experimental and I am in a development environment.  I am just thankful for the help.<br />
+<br />
+So both methods suggested allowed for the process/update to complete but when reveiwing the records of both items (orig and copy) they do not match.  This is the same error I was having originally.  Does this process only copy certain fields or an entire records (except the field I change, .item), or is there some sort of setting in the declaration of the buffer that tells it what to allow?<br />
+<br />
+For example, I am looking at the tcibd001.cmnf field.  On the orig item it is &quot; &quot; and on the copy item it has a value.  After running the session I was expecting for the copy.item.cmnf to be &quot; &quot; but its value remains.  I did see that the item group changed properly though.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">16th April 2013, 19:07</div></div><div class="posttext">Well on 4c4 I would expect it to be all the fields.  I am not sure about LN and things like segmented domains, etc.  What you can do is run it in debug mode and see what each of the fields are at the various points of the code.  You might have to post the whole script for the LN experts.  Since I am 4c4 what I do, or even suggest, might not be relevant.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vinceco252</div><div class="date">17th April 2013, 01:02</div></div><div class="posttext">Shouldn't be fundamentally different from Baan IV, just different tables.  Segmented domains shouldn't matter since we're addressing the whole field.<br />
+<br />
+V</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">erplnjp</div><div class="date">17th April 2013, 19:57</div></div><div class="posttext">*Solved.  I thought the &quot;elocked&quot; version was working but when checking 'e' in the debugger, it was throwing a 206 error so nothing was updating.  So I must have had a typo or something in the other approach.  I went in and scrapped everything and re-wrote from scratch.  This time it worked and updated all fields.  Just wanted to close the loop on this one and thank all that replied, for the help and the patience.  Final code was :<br />
+<br />
+<br />
+declaration:<br />
+table	ttcibd001<br />
+domain 	tcitem		copy.item,orig.item<br />
+	string 		record.buf  based<br />
+	long		record.len<br />
+	long		table.id<br />
+	long		hold.lock<br />
+<br />
+#include &lt;bic_dam&gt;<br />
+#include &lt;bic_tt&gt;<br />
+<br />
+functions:<br />
+function extern copy.rec()<br />
+{<br />
+	orig.item = &quot;         xxx.xxx.xx&quot;<br />
+	copy.item = &quot;         xxxx.xxx.xxx&quot;<br />
+<br />
+     select tcibd001.*<br />
+     from   tcibd001<br />
+     where tcibd001.item ={:orig.item}<br />
+     as set with 1 rows<br />
+     selectdo<br />
+     endselect<br />
+     store.item.record.buffer()<br />
+<br />
+| now find the item you want to update<br />
+     select tcibd001.*<br />
+     from  tcibd001 for update<br />
+     where tcibd001._index1 ={:copy.item}<br />
+     as set with 1 rows<br />
+     selectdo<br />
+     endselect<br />
+     hold.lock = tcibd001._dlock<br />
+     rcd.ttcibd001 = record.buf  <br />
+     tcibd001.item = copy.item   <br />
+     tcibd001._dlock = hold.lock<br />
+     db.update(ttcibd001,db.retry)<br />
+     commit.transaction() <br />
+}<br />
+ <br />
+function store.item.record.buffer()<br />
+{<br />
+		 if not record.len then<br />
+		 		 db.row.length(ttcibd001, record.len)<br />
+		 		alloc.mem(record.buf, record.len)<br />
+		 endif<br />
+		 record.buf = rcd.ttcibd001<br />
+}<br />
+<br />
+<br />
+Hope this helps someone else but use at your own risk.  Caution, you have to be careful to make sure you correct important fields based on the table you use this with.  Example: on items general table, the Search Key II for us is the same as the part number.  Also we don't want to overwrite the Item Signal.  Have to make sure and correct that (not reflected in the script above).<br />
+<br />
+-JP</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">17th April 2013, 21:00</div></div><div class="posttext">So, it looks like you have removed the db.retry.point.<br />
+<br />
+Good! :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th April 2013, 05:03</div></div><div class="posttext">Congrats. :)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

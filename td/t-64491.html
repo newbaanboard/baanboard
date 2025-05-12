@@ -1,0 +1,253 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Top Customer Report, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Top Customer Report Tools Development" />
+	
+	<title>Top Customer Report [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Top Customer Report</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">chris_kzn</div><div class="date">21st August 2013, 17:52</div></div><div class="posttext">Good afternoon BaaN gurus,<br />
+<br />
+Hope everyone is doing well? I am sure most of you guys must have a sales report which would supply the sales representatives or finance department with their top customers.<br />
+<br />
+I have a SQL query at present which does what is required but am trying to get it converted into a standard BaaN session and report type.<br />
+<br />
+I feel like I have done everything correct, however when I try to run the session and the report, firstly the report promts me twice to select the device, then secondly it feels like it does nothing as the results never appear.<br />
+<br />
+Could you possibly assist me with identifying what I have done wrong?<br />
+<br />
+Thank you in advance.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Amit_Jain</div><div class="date">21st August 2013, 20:38</div></div><div class="posttext">Hi chris<br />
+<br />
+I found two issue in your code, if you fix them hopefully your problem will get solved.<br />
+<br />
+1.) comment the under-mention code in your script<br />
+<br />
+choice.cont.process:<br />
+before.choice:<br />
+execute( print.data)<br />
+<br />
+2.) provide some value to variable 'ckor'<br />
+<br />
+Let me know if that solves your problem</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st August 2013, 20:44</div></div><div class="posttext">I would make several recommendations. Move the execute print to on.choice.  Also include a rprt_close.  And to keep things simple instead rprt_send() instead of print.record().  A little sample code below.  I would also drop the tdslsckor inrange statement.  You already have it in the index.<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+	if(rprt_open())then<br />
+| Fetch records.<br />
+                         ckor = 3<br />
+ 	            print.turnover.lines()<br />
+		rprt_close()<br />
+	else<br />
+		choice.again()<br />
+	endif<br />
+functions:<br />
+function print.turnover.lines()<br />
+{<br />
+	select tdsls051.*<br />
+	from tdsls051<br />
+	where tdsls051._index3 inrange {:ckor, :cuno.f, :cprj.f } and {:ckor, :cuno.t, :cprj.t }<br />
+	and tdsls051.trdt inrange :date.f and :date.t<br />
+	and tdsls051.orno inrange :orno.f and :orno.t<br />
+	order by tdsls051._index3<br />
+	selectdo<br />
+		rprt_send()<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">21st August 2013, 21:41</div></div><div class="posttext">A bit addition to Mark's code:-<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+	if(rprt_open())then  | Fetch records.<br />
+<br />
+                         ckor = 3<br />
+ 	            print.turnover.lines()<br />
+		rprt_close()<br />
+	else<br />
+		choice.again()<br />
+	endif<br />
+functions:<br />
+function print.turnover.lines()<br />
+{<br />
+	select tdsls051.*<br />
+	from tdsls051<br />
+	where tdsls051._index3 inrange {:ckor, :cuno.f, :cprj.f } and {:ckor, :cuno.t, :cprj.t }<br />
+	and tdsls051.trdt inrange :date.f and :date.t<br />
+	and tdsls051.orno inrange :orno.f and :orno.t<br />
+	order by tdsls051._index3<br />
+	selectdo<br />
+                get.bp.name() | To get BP Name<br />
+		rprt_send()<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+function get.bp.name()<br />
+{<br />
+   db.set.to.default(ttccom010)<br />
+   select tccom010.*<br />
+   from   tccom010<br />
+   where tccom010._index1 = :tdsls051.cuno<br />
+   selectdo<br />
+   endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">21st August 2013, 22:35</div></div><div class="posttext">I just went through your script. I guess you want the total's of each Business Partner. <br />
+<br />
+So, you can do this:-<br />
+<br />
+Declare a variable as:-<br />
+<br />
+extern domain ttsql.doub float0<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+	if(rprt_open())then  | Fetch records.<br />
+<br />
+                         ckor = 3<br />
+ 	            print.turnover.lines()<br />
+		rprt_close()<br />
+	else<br />
+		choice.again()<br />
+	endif<br />
+functions:<br />
+function print.turnover.lines()<br />
+{<br />
+	select tdsls051.ckor, tdsls051.cuno, tdsls051.cprj, tdsls051.trdt, tdsls051.orno, sum(tdsls051.amta):float0<br />
+	from tdsls051<br />
+	where tdsls051._index3 inrange {:ckor, :cuno.f, :cprj.f } and {:ckor, :cuno.t, :cprj.t }<br />
+	and tdsls051.trdt inrange :date.f and :date.t<br />
+	and tdsls051.orno inrange :orno.f and :orno.t<br />
+	group by tdsls051.cuno<br />
+	selectdo<br />
+                get.bp.name() | To get BP Name<br />
+		rprt_send()<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+function get.bp.name()<br />
+{<br />
+   db.set.to.default(ttccom010)<br />
+   select tccom010.*<br />
+   from   tccom010<br />
+   where tccom010._index1 = :tdsls051.cuno<br />
+   selectdo<br />
+   endselect<br />
+}<br />
+<br />
+<br />
+Now, on your report layout :-<br />
+<br />
+Insert float0 as Report Input Field with Print Format as %A005<br />
+<br />
+Now, if you print your report, you will get the total amta of each BP.<br />
+<br />
+I am not sure if this is your requirement, but you can try this as well.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">chris_kzn</div><div class="date">26th August 2013, 11:59</div></div><div class="posttext">Thank you everyone - you guys have been an absolute star. I will try the recommendations out and keep you posted as to the results.<br />
+<br />
+Mark, thank you for pointing out that I am making reference to the ckor twice and thank you for correcting my &quot;before.choice&quot; to &quot;on.choice&quot;<br />
+<br />
+Ok guys, have made the changes as requested. Attached are the errors that I receive after adding the two extra items:<br />
+Error 1 is when I add the extra function call get.bp.name() - I do require this so thank you<br />
+Error 2 is when I remove the extra function call but use the &quot;select tdsls051.ckor, tdsls051.cuno, tdsls051.cprj, tdsls051.trdt, tdsls051.orno, sum(tdsls051.amta):float0&quot;<br />
+<br />
+both extras which have been recommended would be appreciated, I can see what is being done by the float0 variable declaration. I think that it would require more tweeking or else adding more of the options to the &quot;group by&quot; in order for this to work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">26th August 2013, 13:45</div></div><div class="posttext">Hi,<br />
+<br />
+Add float0 as Report Input Field with Domain ttsql.doub and Print Format as %A005 instead of tdsls051.amta and try again.<br />
+<br />
+Also, I am not sure about the fields in index3 of this table as I am on LN.<br />
+<br />
+So, you can try this:-<br />
+<br />
+function print.turnover.lines()<br />
+{<br />
+select tdsls051.ckor, tdsls051.cuno, tdsls051.cprj, tdsls051.trdt, tdsls051.orno,<br />
+sum(tdsls051.amta):float0<br />
+from tdsls051<br />
+where tdsls051.ckor = :ckor<br />
+and    tdsls051.cuno inrange {:cuno.f} and {:cuno.t}<br />
+and    tdsls051.cprj inrange {:cprj.f} and {:cprj.t}<br />
+and tdsls051.trdt inrange :date.f and :date.t<br />
+and tdsls051.orno inrange :orno.f and :orno.t<br />
+group by tdsls051.cuno<br />
+selectdo<br />
+get.bp.name()<br />
+rprt_send()<br />
+endselect<br />
+}<br />
+<br />
+function get.bp.name()<br />
+{<br />
+db.set.to.default(ttccom010)<br />
+select tccom010.*<br />
+from tccom010<br />
+where tccom010._index1 = :tdsls051.cuno<br />
+selectdo<br />
+endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th August 2013, 14:18</div></div><div class="posttext">Error 1 is easy. Add brackets to tccom010._index1 = :tdsls051.cuno - so it should be  tccom010._index1 = {:tdsls051.cuno}.  The variables for an index need to be surrounded by {}'s.<br />
+<br />
+Second error is all those fields need to be added to the group by statement.  The reason being those fields may not be the same for all cuno's and that makes a difference in what the sum might be.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">26th August 2013, 14:32</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Does that matter if I don't put a {} around the fields where I have used index?<br />
+<br />
+After you said that, I tried it some of my scripts and it runs without any error.<br />
+<br />
+I guess its only required in Baan IV. And, for second error, again I don't have problem with just one field as Group By. But again, I am on Ln, so it might be different on IV.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th August 2013, 19:45</div></div><div class="posttext">Never really knew that - I thought the {}'s were required for both, but I know it is for 4c4.<br />
+<br />
+May be LN does the group by differently, but I would think you would need all the fields - otherwise what total would it give if you have 1 customer and 3 projects?  Would it give the total by project which means it included it in the group by statement or would it give the same 3 totals for each of the projects?  Again on 4c4 if makes you put each field in the group by.  Again maybe it is ln versus 4c4.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">chris_kzn</div><div class="date">29th August 2013, 09:56</div></div><div class="posttext">Thank you - will give it a try in the next few minutes<br />
+<br />
+It was definitely the brackets thank you Mark. I will try make a mental note.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

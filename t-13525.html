@@ -1,0 +1,243 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="ASF doesn't come back, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] ASF doesn't come back AFS/DDC/OLE: Function servers" />
+	
+	<title>ASF doesn't come back [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; ASF doesn't come back</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">krumra</div><div class="date">6th November 2003, 09:07</div></div><div class="posttext">I have a problem with the AFS. I wrote a little program which creates manual transfer order + lines and creates for these oubbound advices. <br />
+The problem is, after all the work is done well (the lines were created and also the outbound advices) then the baan session hangs. The hourglass is still there and no possibility to end the session on a normal way. I looked into the option dialog, all called subsessions are closed/ended properly.<br />
+I programmed the command end() into the session script after the AFS funtion calls. Then the session ends on a normal way.<br />
+But this is certainly not this what I want.<br />
+Has maybe someone an idea what the reason for this hang of the session could be?<br />
+<br />
+Many Thanks in advance for your help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th November 2003, 15:51</div></div><div class="posttext">Could you possibly post the code?  In debug mode which command does it actually hang on?  Usually a stpapi.end can cause a hang.  Make sure you end the sessions in reverse order.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">krumra</div><div class="date">6th November 2003, 16:43</div></div><div class="posttext">Hi Marc,<br />
+<br />
+thanks for the reply. Here is the code. At the moment I haven't built in any error handling. It is the first try to work with the AFS.<br />
+<br />
+<br />
+|****************************** choice section ********************************<br />
+choice.user.0:<br />
+on.choice:<br />
+	create.outbound.order()<br />
+	message(&quot;Funktion beendet&quot;)<br />
+	|end()<br />
+	execute(first.set)<br />
+<br />
+|***************************** function section *******************************<br />
+functions:                                                                     <br />
+function  create.outbound.order()<br />
+{<br />
+	pono = 0<br />
+	set = 1<br />
+	oorg = whinh.oorg.transfer.man<br />
+	ret = f2500m000.synchronize.dialog(&quot;add&quot;, err.mesg)<br />
+	if ret then<br />
+		f2500m000.put.order_origin(oorg)<br />
+		stpapi.put.field( &quot;whinh2500m000&quot;, &quot;whinh200.otyp&quot;, &quot;TWL&quot;)<br />
+		stpapi.put.field( &quot;whinh2500m000&quot;, &quot;whinh200.ittp&quot;, str$(etol(whinh.ittp.transfer)))<br />
+		stpapi.put.field( &quot;whinh2500m000&quot;, &quot;whinh200.sfco&quot;, whinh995.sfco)<br />
+		stpapi.put.field( &quot;whinh2500m000&quot;, &quot;whinh200.stco&quot;, whinh995.stco)<br />
+		ret = f2500m000.insert(true, err.mesg)<br />
+		if not ret then<br />
+			f2100s000.end()<br />
+			stpapi.recover( &quot;whinh2500m000&quot;, err.mesg)<br />
+			orno = &quot;&quot;<br />
+			message(err.mesg)<br />
+		else<br />
+			stpapi.get.field(&quot;whinh2100s000&quot;,&quot;whinh200.orno&quot;, orno)<br />
+			stpapi.handle.subproc(&quot;whinh2100s000&quot;,&quot;whinh2520m000&quot;,&quot;add&quot;)<br />
+			f2100s000.outbound_order_lines(err.mesg)<br />
+			stpapi.put.field( &quot;whinh2520m000&quot;, &quot;whinh220.oorg&quot;, str$(etol(oorg)))<br />
+			stpapi.put.field( &quot;whinh2520m000&quot;, &quot;whinh220.orno&quot;, orno)<br />
+			stpapi.put.field( &quot;whinh2520m000&quot;, &quot;whinh220.oset&quot;, &quot;1&quot;)<br />
+			ret = stpapi.change.view(&quot;whinh2520m000&quot;, err.mesg)<br />
+			if ret = 1 then<br />
+				db.retry.point()<br />
+				select whinh995.*<br />
+				from whinh995 for update<br />
+				where whinh995._index1 inrange {:whinh995.sfco, :whinh995.stco} and<br />
+							       {:whinh995.sfco, :whinh995.stco}<br />
+				selectdo<br />
+					pono = pono + 1<br />
+					ret = stpapi.synchronize.dialog(&quot;whinh2520m000&quot;,&quot;add&quot;, err.mesg)<br />
+        				stpapi.put.field( &quot;whinh2120s000&quot;, &quot;whinh220.pono&quot;, str$(pono))<br />
+        				stpapi.put.field( &quot;whinh2120s000&quot;, &quot;whinh220.seqn&quot;, &quot;1&quot;)<br />
+        				|* Die Artikelnummer kann nicht als ein Feld übertragen werden<br />
+        				f2120s000.put.whinh220.item.segment.1(&quot;&quot;)<br />
+        				f2120s000.put.whinh220.item.segment.2(strip$(shiftl$(whinh995.item)))<br />
+        				f2120s000.put.whinh220.qstr(whinh995.qstr)<br />
+        				ret = f2520m000.insert( true,err.mesg)<br />
+        				|stpapi.end.session(&quot;whinh2120s000&quot;)<br />
+        				|*Auslagerungsvorschlag pro Position erstellen<br />
+        				stpapi.handle.subproc(&quot;whinh2520m000&quot;,&quot;whinh2525m200&quot;,&quot;add&quot;)<br />
+        				f2520m000.mark() |Zeile markieren<br />
+        				f2520m000.outbound_advice_by_order_line(err.mesg)<br />
+        				stpapi.put.field( &quot;whinh2525m200&quot;, &quot;whinh225.oorg&quot;, str$(etol(oorg)))<br />
+					stpapi.put.field( &quot;whinh2525m200&quot;, &quot;whinh225.orno&quot;, orno)<br />
+					stpapi.put.field( &quot;whinh2525m200&quot;, &quot;whinh225.oset&quot;, &quot;1&quot;)<br />
+					stpapi.put.field( &quot;whinh2525m200&quot;, &quot;whinh225.pono&quot;, str$(pono))<br />
+        				stpapi.put.field( &quot;whinh2525m200&quot;, &quot;whinh225.seqn&quot;, &quot;1&quot;)<br />
+        				stpapi.put.field( &quot;whinh2525m200&quot;, &quot;whinh225.sern&quot;, &quot;1&quot;)<br />
+        				whinhf2525m200.set.view(err.mesg)<br />
+        				ret = stpapi.synchronize.dialog(&quot;whinh2525m200&quot;,&quot;add&quot;, err.mesg)<br />
+        				whinhf2125s000.put.order_origin(oorg)<br />
+        				whinhf2125s000.put.order(orno)<br />
+        				whinhf2125s000.put.set(set)<br />
+        				whinhf2125s000.put.position_number(pono)<br />
+        				whinhf2125s000.put.sequence_number(set)<br />
+        				stpapi.put.field( &quot;whinh2125s000&quot;, &quot;whinh225.sern&quot;, &quot;1&quot;)<br />
+        				|whinhf2125s000.put.item.segment.1(&quot;&quot;)<br />
+        				|whinhf2125s000.put.item.segment.2(strip$(shiftl$(whinh995.item)))<br />
+        				stpapi.put.field( &quot;whinh2125s000&quot;, &quot;whinh225.loca&quot;, whinh995.sflo)<br />
+        				stpapi.put.field( &quot;whinh2125s000&quot;, &quot;whinh225.astr&quot;, str$(whinh995.qstr))<br />
+        				stpapi.put.field( &quot;whinh2125s000&quot;, &quot;whinh225.loct&quot;, &quot;STAGING&quot;)<br />
+        				whinhf2525m200.insert(true,err.mesg)<br />
+|        				whinhf2125s000.end(err.mesg)<br />
+|        				whinhf2525m200.end(err.mesg)<br />
+        				stpapi.put.field( &quot;whinh2520m000&quot;, &quot;whinh220.oorg&quot;, str$(etol(oorg)))<br />
+					stpapi.put.field( &quot;whinh2520m000&quot;, &quot;whinh220.orno&quot;, orno)<br />
+					stpapi.put.field( &quot;whinh2520m000&quot;, &quot;whinh220.oset&quot;, &quot;1&quot;)<br />
+					stpapi.put.field( &quot;whinh2520m000&quot;, &quot;whinh220.pono&quot;, str$(pono))<br />
+					stpapi.put.field( &quot;whinh2520m000&quot;, &quot;whinh220.seqn&quot;, &quot;1&quot;)<br />
+					stpapi.put.field( &quot;whinh2520m000&quot;, &quot;whinh220.sern&quot;, &quot;1&quot;)<br />
+        				f2520m000.find()<br />
+        				f2520m000.mark()<br />
+        				f2520m000.release_advice(err)			<br />
+        				db.delete(twhinh995, db.retry)<br />
+        			endselect<br />
+        			        			whinhf2125s000.end(err.mesg)<br />
+        			whinhf2525m200.end(err.mesg)<br />
+stpapi.end.session(&quot;whinh2120s000&quot;)<br />
+<br />
+         			f2520m000.end()<br />
+        			f2100s000.end()<br />
+        			f2500m000.end()<br />
+				commit.transaction()<br />
+			endif<br />
+		endif	<br />
+	endif<br />
+<br />
+Many Thanks for your help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th November 2003, 17:12</div></div><div class="posttext">Run it in debug mode and see which line causes the session to lock up.  Since I am not familiar with these sessions and f2500m000.synchronize.dialog, my first guess would be that you are not doing the end in the reverse order.  Not positive but you can check in debug mode.  If you get to an end statement and it hangs, run the option dialog box.  Do a ps and see what sessions are out there.  See if the session you are trying to end is the parent for another session.  Then you know you need to end the other session first.  You can test this by typing kill for the child session.  Then if that was correct your session may take off again.<br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">krumra</div><div class="date">6th November 2003, 17:19</div></div><div class="posttext">Hi Mark,<br />
+<br />
+I tried this before. When I debug the session. It comes properly the the step &quot;message(&quot;Function ends&quot;). After that nothing happens. When I look in the option dialog, only the main session whinh9195m000 is there as process. As you saw in the code example I commented out the function end(). If I active this line. Then the session ends correctly.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th November 2003, 17:38</div></div><div class="posttext">I guess I was a little off - but that is usually why my function servers hang. :)<br />
+<br />
+Anyway - what kind of session is this?  I notice you do a execute(first.set) - what happens if you comment out that line?  I am just trying to make some educated guesses.  Hopefully NPR or someone else with more knowledge of Baan5 will drop by and have some suggestions.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">krumra</div><div class="date">6th November 2003, 17:44</div></div><div class="posttext">Hi Mark,<br />
+<br />
+I put this execute(first.set) only in the script, to show the user that there are no more lines to process (aktualize the display). In the session whinh9195m000 the user put in the warehouse, iteml location and quantity. If this line is processed, I delete it.<br />
+Unfortunately there is no difference, when I comment out this statement. The session still hangs.<br />
+<br />
+<br />
+Ralf</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th November 2003, 17:58</div></div><div class="posttext">Ralf,<br />
+<br />
+I am sorry I am not able to help - I just do not know enough (anything really) about Baan 5.  My only guess would be that the session is waiting for something to happen, but I just do not have a clue as to what.  Is this a maintain session? If so is there someother event that needs to take place first - like choice.update.db or something from main.table.io?  Just not sure.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Andreas</div><div class="date">13th November 2003, 13:10</div></div><div class="posttext">Hi krumra,<br />
+i had the same problem, solved it with Solution 132907<br />
+<br />
+good luck<br />
+<br />
+Andreas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">krumra</div><div class="date">13th November 2003, 13:29</div></div><div class="posttext">Hi Andreas,<br />
+<br />
+thanks for your tipp. I looked on our System and the solution is installed since March. So my problem is unfortunately not solved.<br />
+<br />
+best regards<br />
+Ralf</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Andreas</div><div class="date">13th November 2003, 16:18</div></div><div class="posttext">Hi Ralf,<br />
+have you tried to log afs and have a look what the function server did?<br />
+On my problem i found that there was a missing close child call which brought me to a problem in standard program.<br />
+Maybe you should search for latest solution on ttstpstandard on the support website.<br />
+I found there were lots of newer solutions with fixes depending AFS.<br />
+<br />
+greetings,<br />
+Andreas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th November 2003, 16:41</div></div><div class="posttext">Andreas,<br />
+<br />
+It appears it freezes on the execute(first.set).  The function server code looks okay, but not the other code.<br />
+<br />
+choice.user.0:<br />
+on.choice:<br />
+  create.outbound.order()<br />
+  message(&quot;Funktion beendet&quot;)<br />
+  |end()<br />
+  execute(first.set)<br />
+<br />
+Since this was baan5 I did not have a clue as to what this type of session needed next.  I think it is a maintain session.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Andreas</div><div class="date">13th November 2003, 16:56</div></div><div class="posttext">Hi Mark,<br />
+<br />
+i tried this too but it didn't work.<br />
+When i did execute(first.set) then the hourglass is gone and cursor is on the first field of record but the session still hangs and i'm not able to close the session.<br />
+<br />
+I had a look at the process list where the process which is started by AFS doesn't exist after call of stpapi.end but the process from which the api session is started is in status blocked.<br />
+It waits on returnvalue from a child process that it never gets.<br />
+So i think this child process which you can not see in the process list becomes a zombie.<br />
+The only way is to program an execute(end.program) but this is not the correct way.<br />
+<br />
+Andreas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shahudit</div><div class="date">11th November 2011, 15:38</div></div><div class="posttext">Hi Andreas/Mark<br />
+<br />
+I am also facing the same problem. Did u get the correct way to solve this Zombie?<br />
+<br />
+Awaiting for your reply..<br />
+Thanks</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

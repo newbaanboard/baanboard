@@ -1,0 +1,240 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Report nach Report drucken, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Report nach Report drucken Deutsches Forum" />
+	
+	<title>Report nach Report drucken [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">BB Language Forums</a> &gt; <a href="../index.html">Deutsches Forum</a> &gt; Report nach Report drucken</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">MS-Tech</div><div class="date">23rd January 2017, 13:42</div></div><div class="posttext">Hallo Zusammen,<br />
+<br />
+ich drucke einen Report und möchte nachdem dieser Report gedruckt ist noch 2 weitere Reports auf dem gleichen Drucker drucken.<br />
+<br />
+Ich habe folgende Code in das ReportScript eingefügt.<br />
+<br />
+<br />
+after.program:<br />
+<br />
+	long brp_id<br />
+	long spooler1<br />
+	long spooler2<br />
+	<br />
+	spooler1 = spool.open(&quot;&quot;, spool.device, 1)<br />
+	brp_id = brp.open(&quot;reportId1&quot;, spool.device, 0)<br />
+	brp.ready(brp_id)<br />
+	brp.close(brp_id)<br />
+	spool.close()<br />
+<br />
+	brp_id = 0<br />
+	spooler2 = spool.open(&quot;&quot;, spool.device, 1)<br />
+	brp_id = brp.open(&quot;reportId2&quot;, spool.device, 0)<br />
+	brp.ready(brp_id)<br />
+	brp.close(brp_id)<br />
+	spool.close()<br />
+<br />
+<br />
+<br />
+Ist das denn so okay? Wenn ich z.B. in HiDOX keinen eigenen Spooler für jeden Report öffne, dann erhalte ich nur den Hauptreport. So erhalte ich 3 PDF-Dokumente.<br />
+<br />
+Wenn ich die beiden neuen geöffneten Spooler wieder schließe, werden dann auch nur diese Spooler geschlossen? Was ist mit dem Spooler des Hauptreports?<br />
+<br />
+Gibt es eine andere Möglichkeit Reports nach einem Report zu drucken?<br />
+<br />
+Grüße<br />
+MS-Tech</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">23rd January 2017, 14:28</div></div><div class="posttext">Hallo,<br />
+<br />
+im Sessionscript laesst es sich so realisierem:<br />
+<br />
+declaration:<br />
+<br />
+extern Long brp_id1, brp_id2, brp_id3<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+<br />
+brp_id1 = brp.open(&quot;Report1&quot;, spool.device, 0)<br />
+    function(A)<br />
+brp.close(brp_id1)<br />
+<br />
+brp_id2 = brp.open(&quot;Report2&quot;, spool.device, 0)<br />
+    function(B)<br />
+brp.close(brp_id2)<br />
+<br />
+............................&gt;<br />
+<br />
+In function(A) :<br />
+    brp.ready(brp_id1)<br />
+<br />
+In function(B) :<br />
+    brp.ready(brp_id2)<br />
+...........................&gt;<br />
+<br />
+<br />
+Alternativ ist das/ein UserExit zu verwenden.<br />
+Habe ich realisiert mit HiDox in &quot;Auftragsdokumente drucken&quot; (tisfc001ue)<br />
+Hier wird zu den Produktionsdokumenten eine weitere Drucksession angesteuert, die einen zus. Hidox-Report auf den gleichen Spooler druckt.<br />
+(Das ist eine aufwendigere Entwicklung)<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">MS-Tech</div><div class="date">23rd January 2017, 14:58</div></div><div class="posttext">Hallo,<br />
+<br />
+danke für deine Antwort.<br />
+<br />
+Ich habe auf das Sessionskript leider keinen Zugriff. Ich kann das nur über das Reportskript oder auch über eine UserExit bauen. Wie sieht das dann in einer UserExit aus? Wo ist hier der Einsprungspunkt beim Druck? Hier gibts ja nur die Sections... vor dem Speichern, nach dem Speichern etc.<br />
+<br />
+Gruß<br />
+MS-Tech</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">23rd January 2017, 15:08</div></div><div class="posttext">Hallo,<br />
+<br />
+das kann so aussehen :<br />
+(Bitte Kommentare ausblenden !)<br />
+<br />
+function extern long ue.after.after.save.object(long mode)<br />
+{<br />
+	on case mode<br />
+	case DAL_NEW:<br />
+		...............................<br />
+		activate(&quot;odhsfc0201s100&quot;, tisfc001.pdno)	| Dokumente drucken und freigeben<br />
+		break<br />
+	case DAL_UPDATE:<br />
+	|BD20141022 added logic gor MAC, iPLC and Assembly-Plan<br />
+	<br />
+		mpdebug = 10<br />
+		check.mplan.exclude.parameter()<br />
+		check.mplan.printed()<br />
+	<br />
+		if (tisfc001.srnl = tisfc.pdst.doc.printed and (tisfc001.osta = tcosta.in.prod or tisfc001.osta = tcosta.active or tisfc001.osta = tcosta.closed)) then	<br />
+			set.zoom.variables()<br />
+					<br />
+			count.id.present()<br />
+				if tisfc001.qrdr = id.count then<br />
+					check.for.mac.and.test()<br />
+					<br />
+					|Run sessions for MAC, PLC, TEST<br />
+					if mac.need = true then<br />
+						read.id.number.from.timfc010(prod.pdno, prod.item, prod.cprj)<br />
+<br />
+					endif	|mac.need<br />
+					<br />
+					|BD20100930<br />
+					check.and.built.plc.crc()<br />
+					<br />
+					|Run sessions for PLC-CRC<br />
+					if plc.crc.need = true then<br />
+					<br />
+						read.id.numbers.for.plc(prod.pdno, prod.item, prod.cprj)<br />
+												<br />
+					else<br />
+						|Reset variables<br />
+						plc.bom.level = &quot;&quot;<br />
+						crc.value = &quot;&quot;<br />
+					endif	|PLC = true<br />
+					<br />
+					|BD20150421 Customer serial numbers in FP9<br />
+					check.for.customer.serial.numbers()<br />
+					<br />
+					if valid.item.cuno = true then<br />
+						read.id.numbers.for.cuno.clot(prod.pdno, prod.item, prod.cprj)<br />
+					endif	|Customers serials<br />
+<br />
+					|BD20141029 Here testerdata is checked and processed<br />
+					if tdata = true then<br />
+						check.testerfile.is.created(prod.pdno)<br />
+						if tfile.created = false then<br />
+							|Call the function for testerdata<br />
+							dhexc0010.built.data.for.testequipment(prod.cprj,<br />
+																   prod.item,<br />
+																   prod.pdno)<br />
+						<br />
+							|Comming back from function<br />
+							write.testerfile.created.to.dhexc110(prod.pdno)<br />
+						<br />
+						endif<br />
+						<br />
+					endif<br />
+										<br />
+					|BD20101208 Handled in SUB<br />
+					<br />
+					|BD20110527 Assembly Plan<br />
+					|!! Spooler is already open !!  ----&lt;&lt;<br />
+					<br />
+						mpdebug = 50<br />
+						|BD20141114 Montageplan nur wenn noch kein Testerfile erzeugt ist !<br />
+						|ansonsten wird 2x gedruckt !<br />
+						|BD20150702 new logic<br />
+						if (tfile.created = false and mplan.need = true) then<br />
+							print.assembly.plan()<br />
+							write.mplan.printed()		|+BD20150707<br />
+						endif<br />
+				else<br />
+					suspend(5000)<br />
+					count.id.present()<br />
+				endif	|Quantity identical to ID-Numbers<br />
+		else<br />
+			|BD20101015 Meldungen im UE !<br />
+			|dal.set.warning.message(&quot;dhsfc00100001&quot;)<br />
+			|show.dal.messages(MSG.ALL)<br />
+			<br />
+			|BD20150702 Print MPlan for non ID items if needed<br />
+			|BD20150710 No output at releasepoint<br />
+			mpdebug = 30<br />
+			check.mplan.printed()<br />
+			if (mplan.need = true and mplan.printed = false) then	|+BD20150710<br />
+				set.zoom.variables()<br />
+				|BD20151222 default printer for job process<br />
+				if isspace(curr.printer) then<br />
+					curr.printer = &quot;LDL-079-2P&quot;     |--&gt; default printer<br />
+				else<br />
+					curr.printer = spool.device<br />
+				endif<br />
+				|BD20151222 default printer for job process<br />
+				before.zoom:<br />
+				export(&quot;curr.printer&quot;, curr.printer)<br />
+				get.var(pid, &quot;prog.name$&quot;, sessioncode)				|+BD20150710<br />
+				<br />
+				if sessioncode = &quot;tisfc0204m000&quot; then				|+BD20150710<br />
+					start.session(0, &quot;dhsfc0408m0bd&quot;, &quot;zoom.pdno&quot;, &quot;&quot;)<br />
+					write.mplan.printed()<br />
+				endif			|sessioncode<br />
+			endif<br />
+			<br />
+		endif<br />
+	<br />
+	break<br />
+	endcase<br />
+	return(0)<br />
+}<br />
+<br />
+<br />
+Die Verriegelung und Trigger erfolgt zum Teil ueber separate Parametertabellen, in denen abgeprueft wird, ob bestimmte Funktionalitaeten bereits erfolgt sind, wenn nicht, werden die Funktionen abgearbeitet und deren Status dann in die zustaendige Parametertabelle zurueckgeschrieben.<br />
+<br />
+MFG</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">MS-Tech</div><div class="date">9th February 2017, 16:02</div></div><div class="posttext">Hallo. <br />
+<br />
+Ich habe es soweit angepasst und funktioniert auch soweit.<br />
+<br />
+Danke und Grüße</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

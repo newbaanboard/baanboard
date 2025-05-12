@@ -1,0 +1,154 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Different Pointers - Same Table, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Different Pointers - Same Table Tools Development" />
+	
+	<title>Different Pointers - Same Table [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Different Pointers - Same Table</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">shaboo</div><div class="date">11th September 2004, 04:28</div></div><div class="posttext">Background:<br />
+<br />
+In our system, we have quite a few items that have become obsolete and have been replaced be newer items. These newer items do not have 'Issue History' (tdinv750 &amp; tdinv760) and we would like to use the history of obsolete items so that we can forecast our newer items better. We have decided to create a session that will copy the history from a source (Obsolete) Item to a Target (Newer) Item.<br />
+<br />
+Problem:<br />
+<br />
+I understand that it is not possible to have two active references to same table more than once. Hence I am wondering how can I take the recordset of source item, compare it with the recordset of target item and then either update or insert the issue history in a period, one period at a time. <br />
+<br />
+The way I have done right now is to open the recordset of target item (for example from tdinv750) and stored the values in to some variables. Then I have reset the field values of source item (tdinv750.xxxx) and opened the recorset of target item from same table for update. I had to reset the field values of source item to empty/zero as otherwise as soon as I will open the recorset of target item, the values of target item will get automatically set from source item recordset. So after opening the recordset for update, I will compare the values in the target item from those variables and update the issue history based on some logic. <br />
+<br />
+My question is, is there a way I can do the above without having to define variables. Can I define two different pointers to same table and if yes, how can I use them in query? How would I refer to the table fields of these two different pointers, if at all possible? <br />
+<br />
+Your help will be much appreciated.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">11th September 2004, 17:35</div></div><div class="posttext">I don't have the exact key details for your tables, but you can proceed with code similiar to the following:<br />
+<br />
+<br />
+db.retry.point()<br />
+select	tdinv750.*<br />
+from	tdinv750 <br />
+where	tdinv750_index? = {:old_item}<br />
+selectdo<br />
+	|* change key fields here to renamed item<br />
+	|* be careful if seq field exists<br />
+<br />
+	tdinv750.item_field = new_item<br />
+	db.insert(tdinv750,db.retry)<br />
+endselect<br />
+commit.transaction()</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shaboo</div><div class="date">14th September 2004, 17:54</div></div><div class="posttext">Well, that is what I am doing but I wanted to find another way to do that. This is how my code looks like:<br />
+<br />
+function read.issue.history.from.tdinv750()<br />
+{<br />
+      select	  tdinv750.* <br />
+      from	  tdinv750 <br />
+      where	  tdinv750._index1 = {:itmf}<br />
+      order by	  tdinv750._index1<br />
+      selectempty<br />
+	 |No Item History to be copied<br />
+      selectdo<br />
+	    cntr.f = tdinv750.cntr<br />
+	    year.f = tdinv750.year<br />
+	    aupp.f = tdinv750.aupp<br />
+	    cwar.f = &quot;&quot;<br />
+	    clear.rcd.tdinv750()         |This function reset table field values <br />
+	    copy.issue.history.from.tdinv750()<br />
+      endselect<br />
+}<br />
+<br />
+Now aupp.f (tdinv750.aupp) has depth of 13, I want to loop through each aupp.f(i) value so that I can compare the value of two similar periods from source and target items before updating them. After comparing it in another function, I store the actual value in a variable called qty.to.copy and then use that in the function below to update the target item issue history.<br />
+<br />
+function copy.issue.history.from.tdinv750()<br />
+{<br />
+      select	  tdinv750.*<br />
+      from	  tdinv750 for update<br />
+      where	  tdinv750._index1 = {:itmt, :cntr.f, :year.f}<br />
+      order by	  tdinv750._index1<br />
+      selectempty<br />
+	 tdinv750.item = itmt<br />
+	 tdinv750.cntr = cntr.f<br />
+	 tdinv750.year = year.f<br />
+	 tdinv750.aupp(i) = qty.to.copy * found.conv<br />
+      selectdo<br />
+	 tdinv750.aupp(i) = tdinv750.aupp(i) + (qty.to.copy * found.conv)<br />
+      endselect<br />
+}<br />
+<br />
+So you can see I had to first store the value from source item into intermediae variables such as cntr.f, year.f, aupp.f and then use them for updating the target item. The session is working just fine but it was ok in this case as I had only 4 fields. In case there are 10/20 fields in a table and I would like to do the same, how can I do something similar without declaring 10/20 (or more) intermediate variables.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">18th September 2004, 18:52</div></div><div class="posttext">Where is your db.insert() and db.update() calls?<br />
+<br />
+<br />
+function copy.issue.history.from.tdinv750()<br />
+{<br />
+      select	  tdinv750.*<br />
+      from	  tdinv750 for update<br />
+      where	  tdinv750._index1 = {:itmt, :cntr.f, :year.f}<br />
+      order by	  tdinv750._index1<br />
+      selectempty<br />
+	 tdinv750.item = itmt<br />
+	 tdinv750.cntr = cntr.f<br />
+	 tdinv750.year = year.f<br />
+	 tdinv750.aupp(i) = qty.to.copy * found.conv<br />
+	db.insert(tdinv750,db.retry)<br />
+      selectdo<br />
+	 tdinv750.aupp(i) = tdinv750.aupp(i) + (qty.to.copy * found.conv)<br />
+	db.update(tdinv750,db.retry)<br />
+      endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shaboo</div><div class="date">19th September 2004, 04:26</div></div><div class="posttext">Those statments are their in my actual code as I didn't copy the exact code I had some other statements too that were taking care of 'Test Run' option, if user selects to run that first.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">21st September 2004, 13:02</div></div><div class="posttext">With<br />
+        db.row.length(ttdsls040, row.length)<br />
+        alloc.mem(buffer.sls040, row.length)<br />
+        buffer.sls040 = rcd.ttdsls040<br />
+<br />
+you can save a whole record in one variable. You ca not edit this variable, but you can restore the record later with<br />
+ <br />
+        rcd.ttdsls040 = buffer.sls040<br />
+<br />
+or also <br />
+<br />
+        rcd.ttdslsXXX = buffer.sls040 <br />
+<br />
+if the structure of both tables is the same. <br />
+<br />
+All values of your tablefields will be overwritten by the values in your variable.<br />
+<br />
+I think it's the easiest way to transfer a record or save all fields as a backup.<br />
+<br />
+Maybe this helps<br />
+csecgn</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shaboo</div><div class="date">21st September 2004, 16:52</div></div><div class="posttext">Thanks for the response but I had tried this but as you mentioned, coud not manipulate the field values, which in my case I want to do.<br />
+<br />
+Thanks anyays.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">21st September 2004, 17:23</div></div><div class="posttext">It's right, you cannot manipulate the field value directly. But you can do it indirectly. If I understood your problem correctly, you want to save 10/20 vars and manipulate one or two. With this way you can save all vars, and if you need the record, restore it. After this update the fields you want to manipulate and write db.update() or db.insert(). So you have one container for all and just need vars for the fields you want to update. <br />
+And, if you restore the old values after your actions you will not loose your recordpointer within an selectdo.<br />
+<br />
+csecgn</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

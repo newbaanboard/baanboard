@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS from 3GL to set Scrap Factor to zero, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS from 3GL to set Scrap Factor to zero AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS from 3GL to set Scrap Factor to zero [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS from 3GL to set Scrap Factor to zero</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ben.kansas</div><div class="date">24th November 2009, 00:08</div></div><div class="posttext">Howdy all,<br />
+<br />
+I am using AFS in a 3GL session to reset the scrap factor for a released production order to zero.<br />
+<br />
+However, when the session runs the code executes perfectly, but there are no changes made to the database.<br />
+<br />
+Any help would be appreciated.<br />
+<br />
+|****************************** DECLARATION SECTION ***************************<br />
+<br />
+	table tticst001<br />
+	table ttisfc001<br />
+	table ttilit450<br />
+<br />
+	#pragma used dll ottstpapihand<br />
+	<br />
+	<br />
+|****************************** PROGRAM     SECTION ***************************<br />
+|****************************** ZOOM FROM   SECTION ***************************<br />
+|****************************** FORM	     SECTION ***************************<br />
+|****************************** CHOICE      SECTION ***************************<br />
+|****************************** FIELD       SECTION ***************************<br />
+|****************************** MAIN TABLE  SECTION ***************************<br />
+|****************************** FUNCTION    SECTION ***************************<br />
+function main()<br />
+{<br />
+	domain	tcdesc	session<br />
+	domain	tcdesc	error.msg<br />
+	domain	tcpdno	prod.order<br />
+			long		return.val<br />
+			long		ret.val<br />
+			long		no.scrap.factor<br />
+	<br />
+	return.val = 0<br />
+	ret.val = 0<br />
+	session = &quot;tisfc0110m000&quot;<br />
+	<br />
+	<br />
+	SELECT tisfc001.pdno, tisfc001.osta, ticst001.*<br />
+	FROM ticst001, tisfc001<br />
+	WHERE tisfc001.pdno = ticst001.pdno<br />
+		AND tisfc001.osta = tcosta.in.prod<br />
+		AND ticst001.scpf &gt; 0<br />
+	SELECTDO<br />
+		no.scrap.factor = 0<br />
+		SELECT * <br />
+		FROM tilit450<br />
+		SELECTDO<br />
+			if(ticst001.cwar = tilit450.cwar)then<br />
+				no.scrap.factor = 1<br />
+			endif<br />
+		ENDSELECT<br />
+		if(no.scrap.factor = 0)then<br />
+			stpapi.put.field(session, &quot;ticst001.pdno&quot;, str$(ticst001.pdno))<br />
+			stpapi.put.field(session, &quot;ticst001.pono&quot;, str$(ticst001.pono))<br />
+			return.val = stpapi.find(session, error.msg)<br />
+			if(return.val = 1) then<br />
+				stpapi.put.field(session, &quot;ticst001.scpf&quot;, &quot;0&quot;)<br />
+			endif<br />
+			|ret.val = stpapi.update(session, 1, error.msg)<br />
+			ret.val = stpapi.save(session, error.msg)<br />
+			if(not ret.val) then<br />
+				return.val = stpapi.recover(session, error.msg)<br />
+			endif<br />
+			stpapi.end.session(session)<br />
+		endif<br />
+	ENDSELECT<br />
+	<br />
+	<br />
+		<br />
+}<br />
+<br />
+Thanks,<br />
+Ben</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th November 2009, 16:32</div></div><div class="posttext">Well this code (copied from yours) worked for me.<br />
+<br />
+	stpapi.put.field(&quot;tisfc0110m000&quot;, &quot;ticst001.pdno&quot;, str$(343514))<br />
+	stpapi.put.field(&quot;tisfc0110m000&quot;, &quot;ticst001.pono&quot;, str$(10))<br />
+	rc = stpapi.find(&quot;tisfc0110m000&quot;, err)<br />
+	if(rc = 1) then<br />
+		stpapi.put.field(&quot;tisfc0110m000&quot;, &quot;ticst001.scpf&quot;, &quot;0&quot;)<br />
+	endif<br />
+	rc = stpapi.update(&quot;tisfc0110m000&quot;, 1, err)<br />
+<br />
+What happens if you do it manually? Any messages? Are you getting any messages?  I know I can not modify any that were already issued or in outbound.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ben.kansas</div><div class="date">25th November 2009, 03:45</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Thanks for your help.<br />
+<br />
+The session is set to run as a job once a minute throughout the day.  Originally, I was puzzled why certain orders were not being cleared, but it turns out that they had outbound against them.  After I discovered that I wasn't as worried about it.  <br />
+<br />
+Then I discovered that the session wouldn't reset the SF when it was being run as a job.  However, if you just run the session manually then it would reset the SF.<br />
+<br />
+I am currently trying to see if any specific permissions are needed to run tisfc0110m000.<br />
+<br />
+I would certainly welcome any suggestions that you have at this point.<br />
+<br />
+Ben</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th November 2009, 16:10</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Thanks for your help.<br />
+<br />
+The session is set to run as a job once a minute throughout the day.  Originally, I was puzzled why certain orders were not being cleared, but it turns out that they had outbound against them.  After I discovered that I wasn't as worried about it.  <br />
+<br />
+<br />
+So it worked as a job?<br />
+<br />
+<br />
+Then I discovered that the session wouldn't reset the SF when it was being run as a job.  However, if you just run the session manually then it would reset the SF.<br />
+<br />
+And now it doesn't?  Did it ever work in batch? Did any updates get applied? Not sure I understand - so the session works when it is run manuall.  What about if you run the job manually?  What if you run the job using your ID(launching the cron as yourself)?<br />
+<br />
+All I know is if it works manually for you then it should also work in batch - we use a different ID for that.  All of our batch ID's are set up as superusers and we do not have an issue.  I can not think of anything else a user might need access to besides tisfc0110m000.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

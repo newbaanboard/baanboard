@@ -1,0 +1,87 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Excel Macro, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Excel Macro Tools Development" />
+	
+	<title>Excel Macro [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Excel Macro</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">isison</div><div class="date">15th June 2004, 17:30</div></div><div class="posttext">I've created an excel spreadsheet containing a macro which would format the file and stored it in the network. I've also created a printer device in Baan that will open excel including the spreadsheet containing the macro. It seemed to work ok, excel opens with the data, but the problem is instead of running the macro, it overwrites the spreadsheet with the data from Baan, deleting the macro altogether. Does anybody have any insight?<br />
+<br />
+I've read a lot of messages on this but was not really very clear on the macro part.<br />
+<br />
+Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">15th June 2004, 17:57</div></div><div class="posttext">Here is how it works here.  The user runs a report and selects my macro device.  The device then downloads the report to a pre-determined location (example: c\baan\temp\tisfc1410000.txt&quot;).  I then launch excel with the macro.  The macro opens the predetermined text file, formats it, etc.  Then saves it the new file as a excel spreadsheet.  This prevents the macro from being over-written.  I actually have a table that holds the report and where to download it, and which macro to run to format it.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">isison</div><div class="date">15th June 2004, 19:18</div></div><div class="posttext">So if I understand it correctly here's how you set it up:<br />
+1. Baan Printer Device (ex. B2EXCEL) with path = location of the excel spreadsheet with macro.<br />
+2. Alternative program to ttstpconv that starts the excel application using the command app_start(&quot;&lt;excel_path spreadsheet_with_macro_path&gt;&quot;,...)<br />
+3. Macro in excel copies the file to a different file name?<br />
+<br />
+I've done steps 1 and 2 but my macro doesn't run, instead, it overwrites the file with the ascii file from Baan. I must be doing something wrong.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">15th June 2004, 20:06</div></div><div class="posttext">Simple walk through<br />
+(1) User runs session calls my device (PCEXCEL) running new ttstpconv called tuddcconv1<br />
+(2) tuddcconv1 looks up in table tuddc905 report name like rtisfc960001000, finds download location with filename(C:\Program Files\Baan\tmp\perfdetails.txt), macro location(m:\data\excel\baseline\) and macro name(tisfc9600m000d.xls).<br />
+(3) tuddcconv1 runs ttstpconv with ascii to temp file.<br />
+(4) tuddcconv1 runs server2client to download file. (Creates C:\Program Files\Baan\tmp\perfdetails.txt)<br />
+(5) tuddcconv1 runs excel with macro file name.(m:\data\excel\baseline\tisfc9600m000d.xls<br />
+(6) Each macro has something like this in it - we keep macros in a common directory on a file server.<br />
+<br />
+Sub auto_open()<br />
+    Call Performance_details<br />
+End Sub<br />
+Sub Performance_details()<br />
+'<br />
+' Baseline Macro<br />
+' Macro recorded 3/2/2001<br />
+'Step 1 Convert text to columns<br />
+    Set fs = CreateObject(&quot;Scripting.FileSystemObject&quot;)<br />
+    If Not fs.fileexists(&quot;C:\Program Files\Baan\tmp\perfdetails.txt&quot;) Then<br />
+        Exit Sub<br />
+    End If<br />
+    Workbooks.OpenText FileName:=&quot;C:\Program Files\Baan\tmp\perfdetails.txt&quot;, Origin:= _<br />
+        xlWindows, StartRow:=1, DataType:=xlDelimited, TextQualifier:= _<br />
+        xlDoubleQuote, ConsecutiveDelimiter:=False, Tab:=True, Semicolon:=False, _<br />
+        Comma:=False, Space:=False, Other:=True, OtherChar:=&quot;|&quot;, FieldInfo:= _<br />
+        Array(Array(1, 1), Array(2, 1), Array(3, 1), Array(4, 1), Array(5, 1), Array(6, 1), Array(7 _<br />
+        , 1), Array(8, 2), Array(9, 1), Array(10, 1))<br />
+    Sheets(1).Name = &quot;Details&quot;<br />
+' Save as for the sub-totals<br />
+    ChDir (&quot;C:\Program Files\Baan\tmp&quot;)<br />
+FileSaveName = Application.GetSaveAsFilename(initialfilename:=&quot;perfdetails.xls&quot;, _<br />
+                filefilter:=&quot;Microsoft Excel Workbook (*.xls),*.xls&quot;)<br />
+' Step 7  Do save as to allow user to save worksheet<br />
+    ActiveWorkbook.SaveAs FileName:=FileSaveName, _<br />
+        FileFormat:=xlNormal, Password:=&quot;&quot;, WriteResPassword:=&quot;&quot;, _<br />
+        ReadOnlyRecommended:=False, CreateBackup:=False<br />
+<br />
+At no point do I write anything to the macro spreadsheet.  Make sure your macro actually works on the imported text file rather than in the macro spreadsheet.  As a matter of fact our macros are usually saved as RO so the users can not hose them up.  Also note I left out all the crap between opening and saving the spreadsheet.  It sounds like your macro is actually the piece that is not working.  Also forgot that we actually have another table that lets us run excel from various locations for each site and it also allows us to have mutliple macros for the same report - different formats for different users at different sites.<br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">isison</div><div class="date">15th June 2004, 20:46</div></div><div class="posttext">Thanks for your help. I will try your suggestions.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

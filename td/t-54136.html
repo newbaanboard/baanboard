@@ -1,0 +1,237 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Outer Join, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Outer Join Tools Development" />
+	
+	<title>Outer Join [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Outer Join</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Hiba_t</div><div class="date">29th October 2008, 10:28</div></div><div class="posttext">Hi all,<br />
+<br />
+I'm trying to implement an outer join in a dynamic sql.<br />
+<br />
+select tccom010.cuno, tccom010.nama, tdsls040.orno<br />
+from tccom010, tdsls040<br />
+where tccom010.cuno REFERS TO tdsls040.cuno<br />
+In the result I need to have all the customers, even those with no sales order. (I know I have some in my database)<br />
+The above query results in an error since tdsls040.cuno is not the first index of tdsls040.<br />
+<br />
+Is there any workaround or another way to implement this?<br />
+<br />
+<br />
+Thanks in advance,<br />
+Hiba</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gguymer</div><div class="date">29th October 2008, 15:11</div></div><div class="posttext">Try this instead because the only way to use REFERS TO is by indexed fields.<br />
+<br />
+Regards,<br />
+<br />
+Gilbert Guymer<br />
+Database Administrator<br />
+Lufkin Industries, Inc.<br />
+<br />
+select tccom010.cuno, <br />
+         tccom010.nama<br />
+  from tccom010<br />
+selectdo<br />
+  select tdsls040.orno<br />
+    from tdsls040<br />
+   where tdsls040.cuno = :tccom010.cuno<br />
+   selectdo<br />
+   |  returns a customer with a sales order<br />
+   selectempty<br />
+   |  returns a customer without a sales order<br />
+   endselect<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hiba_t</div><div class="date">29th October 2008, 15:17</div></div><div class="posttext">But I'm using dynamic sql...<br />
+<br />
+I don't think I can use this solution.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">wiggum</div><div class="date">30th October 2008, 17:05</div></div><div class="posttext">Try:<br />
+<br />
+select tccom010.cuno, tccom010.nama, tdsls040.orno<br />
+from tccom010, tdsls040<br />
+where exists (select tdsls040.cuno from tdsls040 where tdsls040.cuno = tccom010.cuno)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">30th October 2008, 17:40</div></div><div class="posttext">Doesn't works. The request is also to extract customers that doesn't have SLS orders linked, otherwise:   tdsls040.cuno refers to tccom020 was even more performant.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rberti</div><div class="date">30th October 2008, 17:58</div></div><div class="posttext">You could try this:<br />
+<br />
+where tdsls040.cuno  REFERS TO tccom010 UNREF CLEAR</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">30th October 2008, 18:00</div></div><div class="posttext">Nope, this doesnt extract customers without sls orders, this extract sls orders without customer (virtually impossible).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">wiggum</div><div class="date">31st October 2008, 15:30</div></div><div class="posttext">To get customers without sales orders you can use:<br />
+<br />
+select tccom010.cuno, tccom010.nama, tdsls040.orno<br />
+from tccom010, tdsls040<br />
+where NOT exists (select tdsls040.cuno from tdsls040 where tdsls040.cuno = tccom010.cuno)<br />
+<br />
+As you said it isn't performant but to get these customers in one query i don't know other solutions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hiba_t</div><div class="date">5th November 2008, 16:49</div></div><div class="posttext">Thanks, but it doesn't help...<br />
+<br />
+Any other suggestions?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th November 2008, 20:51</div></div><div class="posttext">You could try this:<br />
+<br />
+where tdsls040.cuno  REFERS TO tccom010 UNREF CLEAR<br />
+<br />
+<br />
+DId you try the reverse?<br />
+<br />
+select tccom010.cuno, tccom010.nama, tdsls040.orno<br />
+from tccom010, tdsls040<br />
+where tccom010.cuno REFERS TO tdsls040.cuno UNREF CLEAR?<br />
+<br />
+<br />
+Second what Gilbert Guymer recommended should be possible with dynamic SQL.  You set up nested sql statements like this:<br />
+<br />
+	sql1 = &quot;select tccom010.* from tccom010&quot;<br />
+	sql_id1 = sql.parse(sql1)<br />
+	sql.exec(sql_id1)<br />
+	while true<br />
+		on case sql.fetch(sql_id1)<br />
+			case eendfile:<br />
+			| Endof records from tccom010<br />
+				break<br />
+			case 0:<br />
+				| Found tccom010<br />
+				sql2 = &quot;select tdsls020.* from tdsls020 where tdsls020.cuno =&quot; &amp; str$(tccom020.cuno)<br />
+				sql_id2 = sql.parse(sql2)<br />
+				sql.exec(sql_id2)<br />
+				while true<br />
+					on case sql.fetch(sql_id2)<br />
+						case eendfile:<br />
+						|Report no records found<br />
+							sql.break(sql_id2)<br />
+							sql.close(sql_id2)<br />
+							break<br />
+						case 0:<br />
+						|Report Record found<br />
+							continue<br />
+						default:<br />
+						|error <br />
+					endcase<br />
+					break<br />
+				endwhile<br />
+				break<br />
+			default:<br />
+			|Error<br />
+		endcase<br />
+		break<br />
+	endwhile<br />
+	error.bypass = 0<br />
+	sql.break(sql_id1)<br />
+	sql.close(sql_id1)<br />
+<br />
+I did not make validate this, but it should be possible.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hiba_t</div><div class="date">10th November 2008, 14:56</div></div><div class="posttext">Thanks Mark...<br />
+<br />
+But unfortunately I can't use this solution since I need to implement it in one query. I can't use two queries, it has to be one query since it might change depending on my program input.<br />
+<br />
+I have to use one dynamic query.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th November 2008, 16:02</div></div><div class="posttext">But that is just it - with dynamic sql you can build 1 or more queries as needed.  Without knowing the exact details it is hard to make recommendations.  I would say out line the various queries needed based off the possible user input.  Maybe in only one case you need the second query and that is easily programmable.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">george7a</div><div class="date">5th January 2010, 17:18</div></div><div class="posttext">I had a similar request and tried also this:<br />
+<br />
+   select tccom010.cuno, tccom010.nama, tdsls040.orno<br />
+   from tccom010, tdsls040 <br />
+   where {tccom010.cuno} REFERS TO tdsls040._index5 UNREF CLEAR <br />
+and got this compilation error: Degree mismatch in reference predicate (http://www.baanboard.com/baanboard/showthread.php?t=14643)<br />
+<br />
+So I tried this:<br />
+<br />
+   select tccom010.cuno, tccom010.nama, tdsls040.orno<br />
+   from tccom010, tdsls040 <br />
+   where {tccom010.cuno,&quot;&quot;,0} REFERS TO tdsls040._index5 UNREF CLEAR <br />
+and it got compiled but of course the data was not good.<br />
+<br />
+Maybe the best way is to do it in a nested query although it is not that efficient. I am going to check what infor says about it before doing that.. <br />
+<br />
+- George</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sameer.don</div><div class="date">6th January 2010, 07:02</div></div><div class="posttext">You can try following code.<br />
+It gives similar results as Left outer join. Only difference is if there is no sales order against a customer code, then instead of printing tdsls040.orno = EMPTY, It prints sales order of previous record.<br />
+<br />
+<br />
+	tdsls040.orno = 100001<br />
+	select	tccom010.cuno, tccom010.nama, tdsls040.orno<br />
+	from 	tccom010, tdsls040 <br />
+	where	tdsls040.cuno = tccom010.cuno <br />
+	or 	(not exists(select tdsls040.orno <br />
+			    from tdsls040 <br />
+			    where tdsls040.cuno =:tccom010.cuno<br />
+			    )<br />
+		and tdsls040.orno in (select tdsls040.orno <br />
+				      from tdsls040 <br />
+				      where tdsls040.orno = :tdsls040.orno<br />
+				      )<br />
+		)<br />
+	order	by tccom010.cuno<br />
+<br />
+First line in above code (marked red colored) will be required if first customer in table doesn't have any Sls orders.<br />
+In that case first customer will be printed with sls order = 100001.<br />
+<br />
+You will need some extra code to suppress such irrelevant sls orders<br />
+<br />
+<br />
+-------<br />
+Regards,<br />
+$am</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">george7a</div><div class="date">7th January 2010, 09:31</div></div><div class="posttext">Sam,<br />
+<br />
+They were trying to build it in one &quot;select&quot; (one query) and not a nested one.<br />
+<br />
+- George</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sameer.don</div><div class="date">8th January 2010, 08:27</div></div><div class="posttext">Sam,<br />
+<br />
+They were trying to build it in one &quot;select&quot; (one query) and not a nested one.<br />
+<br />
+- George<br />
+<br />
+<br />
+Actually it looks like Hiba is trying to build query using dyanmic query. In that case this query could be helpful. Solution would not suit, if I write 2nd select query within &quot;SELECTDO&quot; section.<br />
+<br />
+But if he want to use just single &quot;select&quot; then, you are right.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hiba_t</div><div class="date">8th January 2010, 08:34</div></div><div class="posttext">Hi again,<br />
+<br />
+I still didn't find a solution for my problem... I was trying to use just one dynamic query to solve this case.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Error: &quot;Order is being reported by another user&quot;, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Error: &quot;Order is being reported by another user&quot; AFS/DDC/OLE: Function servers" />
+	
+	<title>Error: &quot;Order is being reported by another user&quot; [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Error: &quot;Order is being reported by another user&quot;</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">gilforum</div><div class="date">30th September 2002, 13:05</div></div><div class="posttext">Hi,<br />
+I made a script to simulate the session tisfc0202m000.<br />
+I used the AFS to generate the dll.<br />
+When i ran the script to a range of production orders it appeared the following message:<br />
+&quot;Order is being reported by another user&quot;<br />
+I think that can be a conflict in the program.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">30th September 2002, 15:29</div></div><div class="posttext">Could it be that you are attempting to complete a production order that is already complete? Because if that is the case you could always check the order status before running it through the function server session.  I guess I am not sure of your question.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gilforum</div><div class="date">30th September 2002, 19:15</div></div><div class="posttext">Hi, Thanks for your reply.<br />
+There is my source code.<br />
+I created a table ttigil001 which contains the production orders that i want to process.<br />
+For each record in the table, the system executes the function: contabilizarstock(pdno).<br />
+The funtion contabilizarstock(pdno) simulates the session to a specific production order.<br />
+<br />
+<br />
+declaration:<br />
+	table ttisfc010<br />
+	table ttigil001<br />
+<br />
+	#pragma	used	dll	ottstpapihand	| Baan API Handler<br />
+<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	<br />
+<br />
+select  tigil001.pdno<br />
+from	tigil001<br />
+where 	tigil001.pdno&gt;0<br />
+selectdo<br />
+	contabilizarstock(tigil001.pdno)<br />
+	commit.transaction()<br />
+selectempty<br />
+	message(&quot;Não há ordens de fabrico a processar&quot;)<br />
+endselect<br />
+<br />
+       <br />
+<br />
+functions:<br />
+<br />
+<br />
+function void ContabilizarStock(domain tcpdno ordem_fabrico)<br />
+{<br />
+	string erro(60)<br />
+	string cod_erro(20)<br />
+	<br />
+	message(&quot;%s&quot;,ordem_fabrico)<br />
+	gilfm000.put.production_order (ordem_fabrico)<br />
+	gilfm000.mark()<br />
+	gilfm000.continue(erro)<br />
+	message(erro)<br />
+<br />
+	cod_erro=gilfm000.get.last.message.code()<br />
+	message (cod_erro)<br />
+<br />
+	gilfm000.define.enum.answer(&quot;tisfc02029&quot;,tcyesno.yes)<br />
+	gilfm000.define.enum.answer(&quot;tisfc02028&quot;,tcyesno.yes)<br />
+	gilfm000.update(1,erro)<br />
+	message(erro)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">30th September 2002, 20:46</div></div><div class="posttext">Some things I noticed - first unless you plan on do a for update on your table the commit.transaction is not needed.<br />
+<br />
+Second in your subroutine you need to do a find on the production order before doing the update. Here is an abbreviated version of what I would expect to see.<br />
+<br />
+<br />
+long rc<br />
+<br />
+| Define answers before needed.<br />
+gilfm000.define.enum.answer(&quot;tisfc02029&quot;,tcyesno.yes)<br />
+gilfm000.define.enum.answer(&quot;tisfc02028&quot;,tcyesno.yes)<br />
+gilfm000.put.production_order (ordem_fabrico)<br />
+rc = gilfm000.find()<br />
+If rc &lt;&gt; 1 then<br />
+   Error record not found<br />
+   stop function server<br />
+endif<br />
+<br />
+gilfm000.put.Quantity.to.complete(somevalue)<br />
+gilfm000.continue(erro)<br />
+if isspace(erro) then<br />
+  Error code<br />
+  stop function server<br />
+endif<br />
+<br />
+<br />
+This is just from what I recall about the session. I am not sure you need to mark the record.  <br />
+<br />
+Mark<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gilforum</div><div class="date">1st October 2002, 16:01</div></div><div class="posttext">Hi.<br />
+Thank you for the help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manorit</div><div class="date">9th September 2010, 00:25</div></div><div class="posttext">Hello gilforum,<br />
+      I am also facing the same problem.could you please tell me wht you did to resolve this issue?<br />
+      i will really appreciate you help.<br />
+Thanks<br />
+Monica</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">9th September 2010, 15:35</div></div><div class="posttext">Post your code and we might see something in it that is causing the problem.  I think for the above he just needed a find command before the update.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manorit</div><div class="date">9th September 2010, 16:53</div></div><div class="posttext">Hello Mark,<br />
+<br />
+    Please check the below code .its same as you posted above..still giving error&quot;Order is being reported by another user&quot; when i truied to continue.<br />
+<br />
+    if count1 &lt;= (tisfc001.qrdr - tisfc001.qdlv) then<br />
+          stpapi.enum.answer(&quot;tisfc0202m000&quot;,&quot;tisfc02029&quot;,tcyesno.yes)<br />
+          stpapi.enum.answer(&quot;tisfc0202m000&quot;,&quot;tisfc02028&quot;,tcyesno.yes)<br />
+<br />
+          stpapi.put.field(&quot;tisfc0202m000&quot;, &quot;tisfc001.pdno&quot;,str$(awsfc987.pdno))<br />
+          if stpapi.find(&quot;tisfc0202m000&quot;, err.msg) = 1 then<br />
+	stpapi.mark(&quot;tisfc0202m000&quot;,err.msg)<br />
+	stpapi.put.field(&quot;tisfc0202m000&quot;, &quot;tisfc001.qdlv&quot;,str$(count1))<br />
+	stpapi.continue.process(&quot;tisfc0202m000&quot;,err.msg)<br />
+          endif<br />
+          stpapi.end.session(&quot;tisfc0202m000&quot;,err.msg)<br />
+          err.msg = &quot;&quot;<br />
+    endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">9th September 2010, 19:45</div></div><div class="posttext">Try removing the stpapi.mark - should not be needed.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manorit</div><div class="date">10th September 2010, 07:22</div></div><div class="posttext">Ok i will with this..thank you Mark..</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

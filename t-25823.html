@@ -1,0 +1,103 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS for tdrpl0114m000 very slow, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS for tdrpl0114m000 very slow AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS for tdrpl0114m000 very slow [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS for tdrpl0114m000 very slow</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">vineetu1</div><div class="date">6th December 2005, 08:50</div></div><div class="posttext">I have created the following AFS for delivery of RPL Orders.<br />
+<br />
+The script works extremely slowly i.e. upto 90 seconds per RPL line. The same type of scripts for Sales order delivery works fast (ie. 1 sec / SO line).<br />
+<br />
+I did debug the AFS script and found that the stpapi.find() command for subsequent lines (other than the first) and the stpapi.update() command (for all transactions) takes a lot of time. (approx 40-45 sec per command).<br />
+<br />
+How can the performace be improved ?<br />
+<br />
+function process.maintian.rpl.deliveries()<br />
+{<br />
+	long	ret, brp.id <br />
+	string	err.mesg(30)<br />
+	string  delivered.quantity(10), del.date(10), delivery.date(8)<br />
+	domain	tcorno	order.no<br />
+	<br />
+	brp.id = brp.open(&quot;rtdsil7451msil1&quot;,&quot;D&quot;,0)<br />
+<br />
+	select	tdrpl100.*<br />
+	from	tdrpl100<br />
+	where	tdrpl100._index1 inrange {:orno.f} and {:orno.t}<br />
+	and	tdrpl100.dqua = 0<br />
+	and	tdrpl100.srpl = 4<br />
+	order by tdrpl100._index1<br />
+	selectdo		<br />
+		output.log = strip$(str$(tdrpl100.orno)) &amp; &quot;-&quot; &amp; strip$(str$(tdrpl100.pono)) &amp; &quot;-&quot; strip$(str$(tdrpl100.srnb))<br />
+		stpapi.put.field(&quot;tdrpl0114m000&quot;,&quot;tdrpl100.orno&quot;,str$(tdrpl100.orno))<br />
+		stpapi.put.field(&quot;tdrpl0114m000&quot;,&quot;tdrpl100.pono&quot;,str$(tdrpl100.pono))<br />
+ 		ret = stpapi.find(&quot;tdrpl0114m000&quot;,err.mesg)<br />
+		if ret &lt;&gt; 1 then<br />
+			output.log = output.log &amp; &quot; :-  Error - &quot; &amp; strip$(err.mesg)<br />
+			display(&quot;output.log&quot;)<br />
+			brp.ready(brp.id)<br />
+		else<br />
+			stpapi.put.field(&quot;tdrpl0114m000&quot;,&quot;tdrpl100.dqua&quot;,str$(tdrpl100.oqua))<br />
+			stpapi.put.field(&quot;tdrpl0114m000&quot;,&quot;tdrpl100.rddt&quot;,str$(tdrpl100.pddt))<br />
+			ret = stpapi.update(&quot;tdrpl0114m000&quot;,1,err.mesg)<br />
+			if ret &lt;&gt; 1 then<br />
+				output.log = output.log &amp; &quot; :-  Error - &quot; &amp; strip$(err.mesg)<br />
+				display(&quot;output.log&quot;)<br />
+				brp.ready(brp.id)<br />
+			else<br />
+				output.log = output.log &amp; &quot;Delivery successfully done for&quot; &amp; strip$(shiftl$(tdrpl100.item))<br />
+				output.log = output.log &amp; &quot; Qty : &quot; &amp; strip$(shiftl$(delivered.quantity))<br />
+				output.log = output.log &amp; &quot; Del. date : &quot; &amp; strip$(shiftl$(del.date))<br />
+				display(&quot;output.log&quot;)<br />
+				brp.ready(brp.id)<br />
+			endif<br />
+		endif<br />
+	selecteos<br />
+		stpapi.end.session(&quot;tdrpl0114m000&quot;)<br />
+		brp.close(brp.id)<br />
+	selectempty<br />
+		output.log = &quot;No data in range&quot;<br />
+		brp.close(brp.id)<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th December 2005, 15:23</div></div><div class="posttext">Have you tried ending the session each time? One I just did recently worked better when I closed the session each time, but it still was not taking 45 seconds.  Do you have source so that you can see what tdrpl0114m000 is doing?  You code looks okay, but you never know how some sessions will work and how they will react being left open.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vineetu1</div><div class="date">7th December 2005, 08:25</div></div><div class="posttext">No I do not have the source code. From where can I get one ??<br />
+<br />
+I will try the option of closing the session after each line.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th December 2005, 14:17</div></div><div class="posttext">You would need to ask Baan for the code.  I would probably just go ahead and log a case with them.  They may already have a fix.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">11th July 2006, 15:22</div></div><div class="posttext">Vineet,<br />
+<br />
+I just tried your code on my system and was not successful. I guess it's because on your system tdrpl000.ened must be set to tdrpl.ened.orno (i.e. maintain deliveries by order number) while on my system tdrpl000.ened is set to tdrpl.ened.pino (i.e. maintan delivieres by pickup number). <br />
+<br />
+So could you please have a check on your current tdrpl000.ened setting?<br />
+Thanks.<br />
+<br />
+Btw. Don't get confused. My question has nothing to do with your problem.<br />
+<br />
+Günther</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Creating Purchase Order Line Pegging, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Creating Purchase Order Line Pegging AFS/DDC/OLE: Function servers" />
+	
+	<title>Creating Purchase Order Line Pegging [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Creating Purchase Order Line Pegging</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th September 2003, 18:01</div></div><div class="posttext">The system I am debugging on is 4c4 A&amp;D1. The following sessions are involved: <br />
+tdpur4101m000 - Maintain Purchase Orders<br />
+tdpur4107s000 - Maintain Purchase Order Lines<br />
+tcmcs9551s00b - Put Reason Code<br />
+tdpur9151s00b - Maintain Purchase Project Distribution<br />
+<br />
+When entering a line by hand after inserting the record in tdpur4107s000 and clicking save, the reason code session(tcmcs9551s00b) is automatically started. After picking a reason code, then the tdpur9151s00b session is automatically zoomed to.  After entering a peg and doing a save and exit everything is okay.<br />
+<br />
+What happens when running the API code is that I can control everything up to the reason code.  Once I save and exit the reason code I lose control of the tdpur9151s00b session.  Prior to the 4c4 code and new objects the below code worked:<br />
+<br />
+	put_reason_code()<br />
+	stpapi.zoom.option(&quot;tdpur4107s000&quot;,1,&quot;tdpur9151s00b&quot;,fserr)<br />
+<br />
+| Add distribution.<br />
+| Setup controlling program for the distribution screen.<br />
+	po.line = f9151s00b.get.Position_Number( )<br />
+<br />
+<br />
+With the new objects this no longer works.<br />
+<br />
+The goal of this session is to allow are purchasing agents to view our pegged GRP records, select only certain pegged distribution records for transferring - to a new order or to an existing purchase order.  So a GRP record could have 15 pegs and they want to transfer only 5 of the pegs.  One problem is I have 4c3 code to look at, but not compile(we do not have all the includes).  We also have Qkey, but I have not figured out if we can use this to alter the tdpur4107s000 session.  <br />
+<br />
+Checking to see if anyone has any ideas or thoughts.<br />
+<br />
+Thanks<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">30th September 2003, 00:06</div></div><div class="posttext">I found a solution for this problem. I am not happy with it, but hey it works.<br />
+<br />
+<br />
+put_reason_code()<br />
+baan.sess = &quot;tdpur9151s00b&quot;<br />
+export(&quot;baan.sess&quot;,baan.sess)<br />
+activate(&quot;tuddc9120m000&quot;)<br />
+stpapi.zoom.option(&quot;tdpur4107s000&quot;,1,&quot;tdpur9151s00b&quot;,fserr)<br />
+<br />
+<br />
+The timing on this is important.  What happens is I activate the tuddc9120m000 session to kill the first occurrence of the tdpur9151s00b session, but the stpapi.zoom.option must happen first.  So in the tuddc9120m000 session I have a suspend for a few seconds, the stpapi.zoom option is hit and my function server is locked.  Then tuddc9120m000 wakes up, deletes the first occurrence of tdpur9151s00b, and now my function server takes off and everything works okay. What a lousy solution.<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

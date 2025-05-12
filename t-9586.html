@@ -1,0 +1,131 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="problem using AFS on tdilc1120m000, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] problem using AFS on tdilc1120m000 AFS/DDC/OLE: Function servers" />
+	
+	<title>problem using AFS on tdilc1120m000 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; problem using AFS on tdilc1120m000</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jpadilla</div><div class="date">10th April 2003, 20:43</div></div><div class="posttext">I'm trying to use AFS to load some Inventory adjustment, when I run the session I get the message &quot;Item not allowed&quot; in AFS.log file<br />
+<br />
+any clue??<br />
+<br />
+Thanks <br />
+<br />
+JP</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th April 2003, 20:57</div></div><div class="posttext">JP,<br />
+<br />
+Could you post the code?  Also have you installed the current patch release for stpapi code?  What about a current object for the session?  I mention these because I have had problems before with simple sessions.<br />
+<br />
+Below is the code I use to insert the item on tdilc1120m000.  I used ttstpcreatdll to create the functions.  <br />
+<br />
+Mark<br />
+<br />
+<br />
+| Put data on main form<br />
+	f1120m000.put.item(adj.item)           | Item to adjust<br />
+        f1120m000.put.Input_Date(date.num())   | Date of Adjustment<br />
+        f1120m000.put.warehouse(adj.cwar)      | Warehouse of adjustment<br />
+	f1120m000.put.tdinv100.kowt(tckowt.stc.correction)      <br />
+| 11/14/00 - Adjust using reason code.<br />
+	|f1120m000.put.reason_code(&quot;   &quot;)       | Leave reason code blank<br />
+	f1120m000.put.reason_code(adj.inac)	| reason code <br />
+| 11/14/00.end<br />
+	f1120m000.put.Order_date(date.num())   | Date of Order<br />
+	f1120m000.put.Planned_Quantity(adj.qty)| Transaction qty<br />
+	f1120m000.put.Planned_Date(date.num()) | Planned Date<br />
+	f1120m000.put.tdinv100.trdt(date.num())| Transaction date<br />
+<br />
+| Handle sub session<br />
+	f1120m000.handle.sub.process(&quot;tdilc1121s000&quot;,&quot;add&quot;)<br />
+| Now add the above record.<br />
+	f1120m000.insert(1,err)<br />
+	if(strip$(err)&lt;&gt;&quot;&quot;) then<br />
+		msg = f1120m000.get.last.message.code()<br />
+		msg = &quot;tdilc1120m000 insert: &quot;&amp; strip$(err)&amp;&quot; &quot;&amp;strip$(msg)<br />
+		cleanup.processes(0)<br />
+		return(0)<br />
+	endif<br />
+<br />
+| Continue and init sub-session.<br />
+	f1120m000.continue(err)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">10th April 2003, 23:13</div></div><div class="posttext">I get this when I don't fill the item segment right when using the stpapi calls direct (not from the library).  I think I have the updated api code, but other posts do make mention of a patch.  <br />
+<br />
+To fill the item fields, I have to use something like:<br />
+<br />
+<br />
+		stpapi.put.field(s1, &quot;tiedm010.eitm.segment.1&quot;, eitm.t(1;9))<br />
+		stpapi.put.field(s1, &quot;tiedm010.eitm.segment.2&quot;, eitm.t(10;len(eitm.t)-9))<br />
+<br />
+<br />
+<br />
+It's a pain.  The item segement size may change too, so probably better to read it dynamically...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jpadilla</div><div class="date">26th April 2003, 00:26</div></div><div class="posttext">How could I know the segment size for tcitem domain??<br />
+<br />
+Thanks<br />
+<br />
+JP</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">26th April 2003, 00:42</div></div><div class="posttext">I knew someone was going to ask that - I should have just looked it up before.<br />
+   <br />
+You can find from table ttgfd422.<br />
+<br />
+<br />
+select    ttgfd422.*<br />
+from      ttgfd422<br />
+where   ttgfd422._index1 = {&quot;tc&quot;, &quot;item&quot;}<br />
+and       ttgfd422.zret = &quot;tcibd001.item&quot;<br />
+and       ttgfd422._compnr = 000<br />
+selectdo<br />
+endselect<br />
+<br />
+<br />
+Not tested, but should work - may need a fixed length variable for the &quot;item&quot; string....  The length will be ttgfd422.leng.  Also, start position is ttgfd422.spos.<br />
+<br />
+Maybe there is an easier handy function, but I have not yet run accross.<br />
+<br />
+Good luck!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jpadilla</div><div class="date">26th April 2003, 01:01</div></div><div class="posttext">I don't have this table...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">26th April 2003, 01:05</div></div><div class="posttext">Ugh..Item segmentation is for Baan V...sorry I must have missed the Baan IV in your login.  That won't be your problem in IV.  Prob. try Mark's code - he is on IV and has it working it looks like.  Post back if you get errors using his method.  <br />
+<br />
+Sorry</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jpadilla</div><div class="date">26th April 2003, 01:15</div></div><div class="posttext">I don't have this table...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th April 2003, 05:07</div></div><div class="posttext">Since you are on 4c4 you will probably not have that table.  Did you check out the code I posted? Also do you have the latest tools objects and session objects?<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jpadilla</div><div class="date">30th April 2003, 23:38</div></div><div class="posttext">Thanks for your replies..<br />
+<br />
+I put the latest objects and it works..</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

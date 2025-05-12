@@ -1,0 +1,187 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Need help with renumbering lines, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Need help with renumbering lines Tools Development" />
+	
+	<title>Need help with renumbering lines [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Need help with renumbering lines</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">tab0529</div><div class="date">17th February 2004, 17:51</div></div><div class="posttext">I have a session which maintains detail records, each with a line number (part of index1).  I need to add the ability to allow the user to renumber the lines by a given interval.  This would be similar to the &quot;Renumber - interval 10&quot; function under Specific on session ttadv3561m000 Menu Fields.  <br />
+<br />
+Is there an easy way to do this?  Is there a dll available, and if so, what is it and what are the input parameters?<br />
+<br />
+Thanks in advance for your help!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gguymer</div><div class="date">17th February 2004, 21:59</div></div><div class="posttext">We had a similar request to do that with routers.  After looking at it a few different ways, I decided to create an Oracle procedure that was callable from a Baan session I created. In it I pass the primary key values to the procedure through the session. The Baan domain restricts the value on the sequence number to three digits. In the Oracle procedure, I don't have that restriction since I'm going directly against the table. The procedure uses a two pass replacement. On the first pass I increment the sequence number to a value larger that three digits. This prevents me from coming across an identical value and getting a key violation. On the second pass I increment the sequence to a range that fits the three digit size (i.e. 10, 20, 30, ...).  Then I commit the updates and exit back to the Baan session. The Oracle procedure is called using the &quot;run.prog&quot; function in Baan tools. It in turn calls out to a shell script that invokes a sqlplus script that passes the parms from the Baan session to the Oracle procedure.<br />
+<br />
+Gilbert Guymer<br />
+Database Administrator<br />
+Lufkin Industries, Inc.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tab0529</div><div class="date">18th February 2004, 13:25</div></div><div class="posttext">Hello gguymer,<br />
+<br />
+I am the DBA at my company and I had already thought of using an Oracle procedure.  I find myself using Oracle procedures lauched from Baan sessions quite frequently to perform programming tasks which I can not find a way to do in Baan programming.<br />
+<br />
+If no one else can offer a Baan programming solution, I will follow your advice and write an Oracle procedure.<br />
+<br />
+Thanks for your reply!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">19th February 2004, 00:29</div></div><div class="posttext">Hi,<br />
+<br />
+following should do the trick:<br />
+<br />
+<br />
+function renumber()<br />
+{<br />
+	long 	new.pono<br />
+	long	max.pono<br />
+	<br />
+	select 	max(pono): max.pono<br />
+	from	tablexyz<br />
+	selectdo<br />
+	endselect<br />
+		<br />
+	db.retry.point()<br />
+	<br />
+	new.pono = max.pono +10<br />
+	<br />
+	select	*<br />
+	from	tablexyz for update<br />
+	order by pono<br />
+	selectdo<br />
+		db.delete(ttablexyz, db.retry)<br />
+		tablexyz.pono = new.pono<br />
+		db.insert(ttablexyz, db.retry)<br />
+		new.pono = new.pono +1<br />
+	endselect<br />
+	<br />
+	new.pono = 10<br />
+	<br />
+	select	*<br />
+	from	tablexyz for update<br />
+	order by pono<br />
+	selectdo<br />
+		db.delete(ttablexyz, db.retry)<br />
+		tablexyz.pono = new.pono<br />
+		db.insert(ttablexyz, db.retry)<br />
+		new.pono = new.pono + 10<br />
+	endselect<br />
+	<br />
+	commit.transaction()<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">19th February 2004, 07:23</div></div><div class="posttext">I not aware about Baan V . But in Baan IV  there is pre-defined variable modify.prim.key . If u set this to true , it will allow u to change the key values in session.<br />
+<br />
+Vahdani, Just curious it should be possible to do db.update in Baan V instead of db.delete and db.insert when changing the primary key values. We can do this in Baan IV.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">19th February 2004, 09:57</div></div><div class="posttext">Hallo Hitesh,<br />
+<br />
+you're right with &quot;db.update&quot;. I was so engrossed in the logic of the action that I did not see the obvious. Now where is that famous humble pie?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tab0529</div><div class="date">19th February 2004, 21:43</div></div><div class="posttext">Thanks to all who helped!<br />
+<br />
+I was able to make the Baan code work wth 2 changes.<br />
+<br />
+I replaced ...<br />
+<br />
+                select 	max(pono): max.pono<br />
+<br />
+with ...<br />
+<br />
+	select 	count(pono): max.pono<br />
+<br />
+and ...<br />
+<br />
+	new.pono = max.pono +10<br />
+<br />
+with ...<br />
+<br />
+	new.pono = 9998 - max.pono<br />
+<br />
+These changes were necessary because if a subsequent renumber function is performed, the original code can give duplicate records during the update process.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tab0529</div><div class="date">19th February 2004, 22:07</div></div><div class="posttext">Thanks to all who helped!<br />
+<br />
+I was able to make the Baan code work wth 2 changes.<br />
+<br />
+I replaced ...<br />
+<br />
+                select 	max(pono): max.pono<br />
+<br />
+with ...<br />
+<br />
+	select 	count(pono): max.pono<br />
+<br />
+and ...<br />
+<br />
+	new.pono = max.pono +10<br />
+<br />
+with ...<br />
+<br />
+	new.pono = 9998 - max.pono<br />
+<br />
+These changes were necessary because if a subsequent renumber function is performed, the original code can give duplicate records during the update process.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">wiggum</div><div class="date">5th March 2004, 17:36</div></div><div class="posttext">function renumber(long step)<br />
+{<br />
+	long	new.pono<br />
+	<br />
+	db.retry.point()<br />
+	<br />
+	new.pono = 0<br />
+	<br />
+	select	*<br />
+	from	tablexyz for update<br />
+	order by pono<br />
+	selectdo<br />
+		new.pono = new.pono + 1<br />
+		tablexyz.pono = new.pono<br />
+		db.update(ttablexyz, db.retry)<br />
+	endselect<br />
+	<br />
+	if  step &gt; 1<br />
+	then<br />
+		new.pono = new.pono * step<br />
+	<br />
+		select	*<br />
+		from	tablexyz for update<br />
+		order by pono desc<br />
+		selectdo<br />
+			tablexyz.pono = new.pono<br />
+			db.update(ttablexyz, db.retry)<br />
+			new.pono = new.pono - step<br />
+		endselect<br />
+	endif<br />
+	<br />
+	commit.transaction()<br />
+}<br />
+<br />
+<br />
+Example: You have records with pono 1,2,3,7,11,163,800,999. The function will change the pono at first to 1,2,3,4,5,6,7,8 and then with e.g. step 10 to 10,20,30,40,50,60,70,80 (the function is processing the records in descending order but starting with the highest pono).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">5th March 2004, 18:02</div></div><div class="posttext">Clever stuff, and.....</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

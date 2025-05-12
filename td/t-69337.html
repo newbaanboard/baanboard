@@ -1,0 +1,209 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Identify and query selected records from a parent session, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Identify and query selected records from a parent session Tools Development" />
+	
+	<title>Identify and query selected records from a parent session [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Identify and query selected records from a parent session</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">BaBernd</div><div class="date">6th October 2016, 08:40</div></div><div class="posttext">Hello to All,<br />
+<br />
+I'm trying to query selected records out of a parent session from a print session for reporting. Are there special procedures or functions to identify these selected records and query them for printing?<br />
+I've a screenshot attached as example for such selected records.<br />
+<br />
+Best Regards<br />
+Bernd</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">6th October 2016, 09:49</div></div><div class="posttext">Can you look in one of the latest programmers guides? (Its available in KB 22924522 at inforxtreme.com.)<br />
+<br />
+Check function do.parent.selection(..) and sel.use.parent.selection(..). Those are available from FP6 onwards (ES 8.6 and its portingset I think). I've been using those functions on our LN 10.2.1.<br />
+<br />
+<br />
+on.choice:<br />
+   	if sel.use.parent.selection(&quot;tseic400&quot;) then<br />
+			do.parent.selection(handle.selection.from.parent)<br />
+<br />
+        else<br />
+	   		read.main.table(cprj.f, cprj.t)<br />
+        endif<br />
+<br />
+(..)<br />
+<br />
+function long handle.selection.from.parent()<br />
+{<br />
+	long	ret<br />
+	<br />
+	ret =<br />
+	read.main.table(tseic400.cprj, tseic400.cprj)<br />
+<br />
+	return(ret)<br />
+}<br />
+<br />
+<br />
+You also need to mark/set the group of the selection fields in your sessions mask as linked to a parent table. This is done in the DFE in the properties of the group. <br />
+In my example cprj.j and cprj.t are placed in one group on the form. In the properties of this form you must select &quot;Selection Group&quot; and specify the parent table in &quot;Table of Parent Session&quot;. This will automatically insert a dummy field in the DFE on top of the field list: sel.use.tseic400 <br />
+<br />
+I thinks that's all (at least I can't remember anything else that's needs to be done).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaBernd</div><div class="date">6th October 2016, 11:32</div></div><div class="posttext">Hello Andreas,<br />
+<br />
+it seems to be less code. But now I get the error as shown in the attached pdf-file during compilation: &quot;function: 'read.main.table' returns no value.<br />
+<br />
+Here my full code: maybe I've copied something in a wrong manner?<br />
+<br />
+|******************************************************************************<br />
+|* Main table tccom600 Aktivit›¼äten, Form Type 4<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+	table	ttccom600	|* Activities<br />
+<br />
+<br />
+	extern  domain  tccom.acty	acty.f    fixed<br />
+	extern  domain  tccom.acty	acty.t    fixed<br />
+<br />
+|* Includes *******************************************************************<br />
+<br />
+	#include	&lt;bic_dam&gt;<br />
+<br />
+|****************************** group section **********************************<br />
+<br />
+group.1:<br />
+init.group:<br />
+	get.screen.defaults()<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+	rprt_open()<br />
+	if sel.use.parent.selection(&quot;tccom600&quot;) then<br />
+		do.parent.selection(handle.selection.from.parent)<br />
+	else<br />
+		read.main.table(acty.f, acty.t)<br />
+	endif<br />
+	rprt_close()<br />
+<br />
+|****************************** field section *********************************<br />
+<br />
+field.acty.f:<br />
+before.zoom:<br />
+	tccom600.acty = acty.f<br />
+<br />
+when.field.changes:<br />
+	acty.t = acty.f<br />
+<br />
+field.acty.t:<br />
+before.zoom:<br />
+	tccom600.acty = acty.t<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function long handle.selection.from.parent()<br />
+{<br />
+	long	ret<br />
+	ret = read.main.table(tccom600.acty,tccom600.acty)<br />
+	return(ret)<br />
+}<br />
+<br />
+function read.main.table(domain tccom.acty i.acty.f, domain tccom.acty i.acty.t)<br />
+{<br />
+	select tccom600.*<br />
+	from tccom600<br />
+	where   tccom600._index1 inrange {:acty.f} and {:acty.t}<br />
+	order by tccom600._index1<br />
+	selectdo<br />
+		rprt_send()<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+Best Regards Bernd</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">6th October 2016, 12:52</div></div><div class="posttext">ret = read.main.table(tccom600.acty,tccom600.acty)<br />
+This is causing problem as the function read.main.table() doesn't have any return type and hence is void.<br />
+<br />
+Either replace it with <br />
+<br />
+read.main.table(tccom600.acty,tccom600.acty)<br />
+<br />
+Or modify your function as - <br />
+<br />
+function long read.main.table(domain tccom.acty i.acty.f, domain tccom.acty i.acty.t)<br />
+{<br />
+	select tccom600.*<br />
+	from tccom600<br />
+	where   tccom600._index1 inrange {:acty.f} and {:acty.t}<br />
+	order by tccom600._index1<br />
+	selectdo<br />
+		rprt_send()<br />
+	endselect<br />
+<br />
+       return(0)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">6th October 2016, 13:35</div></div><div class="posttext">Yes, read.main.table(..) needs to return a value.<br />
+I've had some german explanation in my code but removed it prior to posting. ;-)<br />
+<br />
+<br />
+function long handle.selection.from.parent()<br />
+{<br />
+	long	ret<br />
+	<br />
+	ret =<br />
+	read.main.table(tseic400.cprj, tseic400.cprj)<br />
+<br />
+	|Die von do.parent.selection() aufgerufene Funktion<br />
+	|muss Null zurückgeben, sonst wird abgebrochen! 			<br />
+	return(ret)<br />
+}<br />
+{</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaBernd</div><div class="date">6th October 2016, 14:40</div></div><div class="posttext">Hello Bhushan, Hello Andreas,<br />
+<br />
+thanks for reply. Now I can compile that script. <br />
+But during testing I've found:<br />
+1.) with no selected records the print mask will pop up and I can insert a range of activity numbers.<br />
+2.) with selected records in the parent session, if they are consecutive or not consecutive, then no printing mask will pop up and no printing is possible.<br />
+<br />
+Do I have to add special programming for the second case?<br />
+Best Regards Bernd</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">6th October 2016, 16:08</div></div><div class="posttext">When there a additional fields (i.e. options) on the print session, LN will present a form with the options fields in the second case. <br />
+Maybe LN will try to start the default option, when there are no additional fields present. I never had that one. <br />
+<br />
+But in your pdf I can see, that you have not defined printing as default option on the third mask of the session details (options and field are named &quot;Schaltfläche Voreinstellungen&quot; in the german tools version; on mask 3 in ttadv2100s000 &quot;Sessions&quot;). I usually select print.data as default option and deactivate &quot;Save + Exit&quot; in the standard commands (&quot;Speichern+Ende&quot;).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaBernd</div><div class="date">6th October 2016, 16:36</div></div><div class="posttext">Hello Andreas,<br />
+<br />
+I don't know how it works, but I did as you mentioned! And now the print mask will start and the report runs fine.<br />
+<br />
+Thanks a lot to you and Bhushan.<br />
+<br />
+Best Regards Bernd</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

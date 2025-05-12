@@ -1,0 +1,131 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Error -2555 - Snapshot too old - tuning query, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Error -2555 - Snapshot too old - tuning query Tools Development" />
+	
+	<title>Error -2555 - Snapshot too old - tuning query [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Error -2555 - Snapshot too old - tuning query</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jdk981</div><div class="date">15th July 2013, 16:48</div></div><div class="posttext">Hi,<br />
+<br />
+I have one script (session) and it reads data from three huge tables 'tfgld106, tfgld418 and tfgld410' and sends data to report. I used indexes to reference each other and tried to run it. But it ran three days and gave above error. Can any one help me how to tune below query to run faster? These three tables are having records 9, 32, 17 millions. Instead of reading ledger accounts with wide open I simplified to read couple ledger accounts at a time and finish the reading tables 'tfgld418 and tfgld410'. But it's still giving above error. May be if I tune the query it reads faster and won't get above error. Please help me on this..<br />
+<br />
+Thanks,<br />
+<br />
+Input parameters:<br />
+ledger accounts - leac.f, leac.t<br />
+fiscal year - fyer.f, fyer.t<br />
+fiscal period - fprd.f, fprd.t<br />
+<br />
+Query:<br />
+(xxx - company no)<br />
+<br />
+<br />
+function read.main.table()<br />
+{<br />
+	read.company.ledger.accounts(XXX)<br />
+}<br />
+<br />
+function read.company.ledger.accounts(domain tcncmp comp.in)<br />
+{<br />
+	 leac.tmp = leac.f<br />
+	 repeat<br />
+		select	tfgld008.*<br />
+		from	tfgld008<br />
+		where	tfgld008._index1 &gt; {:leac.tmp}<br />
+		and	tfgld008._compnr = :comp.in<br />
+		order by tfgld008._index1<br />
+		as set with 5 rows <br />
+		selectdo<br />
+			if tfgld008.leac &lt;= leac.t then<br />
+				leac.tmp = tfgld008.leac<br />
+				read.company.gl.transactions(comp.in, leac.tmp)<br />
+			endif<br />
+		selectempty<br />
+			leac.tmp = leac.t<br />
+		endselect<br />
+	until (leac.tmp = leac.t)<br />
+}<br />
+<br />
+function read.company.gl.transactions(domain tcncmp comp.tmp, domain tfgld.leac leac.i)<br />
+{<br />
+	select  tfgld106.* <br />
+	from    tfgld106<br />
+	where	tfgld106._compnr = :comp.tmp <br />
+	and	tfgld106._index3 = {:leac.i}<br />
+	and	tfgld106.fyer between :fyer.f and :fyer.t<br />
+	and	tfgld106.fprd between :fprd.f and :fprd.t<br />
+	selectdo<br />
+		select	tfgld418.*, tfgld410.*<br />
+		from	tfgld418, tfgld410<br />
+		where	(tfgld418._compnr = :comp.tmp and tfgld410._compnr = :comp.tmp)<br />
+		and	tfgld418._index3 = {:tfgld106.ocmp, :tfgld106.otyp, <br />
+					    :tfgld106.odoc, :tfgld106.olin}<br />
+		and	tfgld418.trdt = :tfgld106.dcdt	<br />
+		and	tfgld410._index3 = {tfgld418.fcom, tfgld418.ttyp,<br />
+						tfgld418.docn, tfgld418.lino,<br />
+						tfgld418.tror, tfgld418.fitr,<br />
+						tfgld418.trdt}<br />
+		and	tfgld410.orno = tfgld418.orno<br />
+		and	tfgld410.pono = tfgld418.pono<br />
+		and	tfgld410.sern = tfgld418.sern<br />
+		and	tfgld410.trtm = tfgld418.trtm<br />
+		selectdo<br />
+			rprt_send()<br />
+		selectempty<br />
+			rprt_send()			<br />
+		endselect<br />
+<br />
+	endselect	<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">15th July 2013, 21:28</div></div><div class="posttext">There are a few things you can try:<br />
+1. Since the tables are large, it is better to process the data one fiscal year at a time. <br />
+<br />
+2. Since the select for the tfgld106 will in general return a very large resultset, you should use the <br />
+<br />
+as prepared set<br />
+ <br />
+clause before the selectdo. This will help with the 2555 (snap-shot too old) error.<br />
+<br />
+3. In the select for tfgld418, use can use the <br />
+<br />
+order by tfgld418._index3<br />
+<br />
+ in order to force the system to use the index. This may or may not make a difference to the performance.<br />
+<br />
+[You may have to improve your logic regarding the from and to period, unless you plan to run the session for each year individually. If you are running multiple years, and the period is from middle of the first year to the middle of the last year, then the select as you have defined will not return the required records.] For example, you may have to change the query as follows:<br />
+<br />
+        and     (100 * tfgld106.fyer + tfgld106.fprd) &gt;= :p.from.period.c<br />
+        and     (100 * tfgld106.fyer + tfgld106.fprd) &lt;= :p.to.period.c<br />
+<br />
+where p.from.period.c and p.to.period.c are appropriately computed from the from and to values of the period and the year.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jdk981</div><div class="date">15th July 2013, 21:53</div></div><div class="posttext">Thanks for suggestion.. I am rinning this session each year individually. I can test this and let you know.<br />
+<br />
+Thanks,<br />
+jdk981</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jdk981</div><div class="date">16th July 2013, 17:49</div></div><div class="posttext">Thanks shah_bs.. It really helped me a lot and finished as faster too. I ran one year with one period it took nearly 7 hours and very Impressive. Now all set. Thank you very much..<br />
+<br />
+Thanks,<br />
+jdk981</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

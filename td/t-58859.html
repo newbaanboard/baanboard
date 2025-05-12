@@ -1,0 +1,293 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Working Java JVMI example, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Working Java JVMI example Tools Development" />
+	
+	<title>Working Java JVMI example [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Working Java JVMI example</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">toolswizard</div><div class="date">18th July 2010, 23:06</div></div><div class="posttext">I have a need to call some Java routines from LN.  I have tried to get the JVMI interface example working that is found in the programmers manual.<br />
+<br />
+I have successfully created the session, and created the Java listener, but I have not been able to pass a message between them.  If you have a working version, could you please post the Java code, or contact me.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">hessenmob</div><div class="date">10th September 2010, 20:28</div></div><div class="posttext">Doesn't work here either. The code in the programmers guide is broken. Some referenced variables are not there. The quality of the product and the corresponding documentation is very flawed. There are copy'n paste errors and so on, many information is missing.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">toolswizard</div><div class="date">12th September 2010, 16:10</div></div><div class="posttext">Thank you for your reply.  I did get it working.  It looks similar to yours.  I will be posting both the LN script and the Java script.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">hessenmob</div><div class="date">13th September 2010, 11:04</div></div><div class="posttext">I fixed it too, here is my JAVA Code, stripped the not working QueuePinger by putting in a Instance of the Programm itsself now i can handle the message in the onReceive Event (Just putting the Message back, no function there).<br />
+Problem is, that I am not able to capture the events on the LN side. I want to call async and then I want to be called back. Does anyone know how to implement a Listener on the LN side? Information on this is non existent.<br />
+<br />
+<br />
+<br />
+package de.lti.PlcGenerator;<br />
+<br />
+import com.baan.baanvm.BaanVMImpl;<br />
+import com.baan.baanvm.IBaanVM;<br />
+import com.baan.baanvm.IBucket;<br />
+import com.baan.baanvm.IQueueListener;<br />
+import com.baan.baanvm.test.queue.QueuePinger;<br />
+<br />
+public class PlcBucketListener implements IQueueListener<br />
+{<br />
+	private int m_queueFromERP;<br />
+	private int m_queueToERP;<br />
+	private static IBaanVM s_iBaanVm = new BaanVMImpl();<br />
+<br />
+	/** constructor of an instance of the listener */<br />
+	public PlcBucketListener(int p_idIn, int p_idOut) {<br />
+		m_queueFromERP = p_idIn;<br />
+		m_queueToERP = p_idOut;<br />
+	}<br />
+<br />
+	/**<br />
+	 * Called by Infor ERP LN (java.execute.static.method.async). Its main<br />
+	 * function is to install an instance of the listener on the queue, and to<br />
+	 * initialize all variables<br />
+	 */<br />
+	public static void installListener(int queueToERP, int queueFromERP)<br />
+	{<br />
+		try {<br />
+			/* install an instance of the listener */<br />
+			s_iBaanVm.installListener(queueFromERP, new PlcBucketListener(queueFromERP, queueToERP));<br />
+		} catch (Exception e) {<br />
+			/* failed to install listener, log error message */<br />
+			s_iBaanVm.logMessage(e.toString(), 0);<br />
+		}<br />
+	}<br />
+<br />
+	/**<br />
+	 * This listener method will be called whenever a new bucket appears on the<br />
+	 * m_queueFromERP queue<br />
+	 */<br />
+	public void onReceive(IBucket p_bucket)<br />
+	{<br />
+		int ret;<br />
+		<br />
+		if ( p_bucket != null )<br />
+		{<br />
+			/* we have received data, do something (using the <br />
+			 * IBucket interface to set and retrieve the <br />
+			 * contents) ! <br />
+			 */<br />
+<br />
+			/* for this example, just bounce the bucket back */<br />
+<br />
+			/* place bucket on the queue m_queueToERP */<br />
+			if ( (ret = s_iBaanVm.putBucket(m_queueToERP,p_bucket)) &lt; 0 ) <br />
+			{<br />
+				/* failed to place bucket on queue to Infor ERP LN*/<br />
+				s_iBaanVm.logMessage(&quot;Failed to bounce bucket, ret = &quot; + ret, 0);<br />
+			}<br />
+		}<br />
+		else<br />
+		{<br />
+			/* no bucket received, log a debug message */<br />
+			s_iBaanVm.logMessage(&quot;QueuePinger(&quot; + m_queueFromERP + &quot;) received: NULL bucket!!!&quot;, 0);<br />
+		}<br />
+	}<br />
+}<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+Baan side<br />
+<br />
+<br />
+function call.java.async()<br />
+{<br />
+    queue.fromJava = java.new.queue()<br />
+    queue.toJava = java.new.queue()<br />
+	<br />
+	string header(30)<br />
+	string body(30)<br />
+<br />
+    return.long = java.install.listener(queue.fromJava)<br />
+<br />
+    return.long = java.execute.static.method.sync(<br />
+                             &quot;de.lti.PlcGenerator.PlcBucketListener&quot;,<br />
+                             &quot;installListener&quot;, <br />
+                             queue.fromJava, queue.toJava)	<br />
+	<br />
+	return.long = java.put.bucket(queue.toJava, &quot;BODY1&quot;, 30, &quot;HEAD1&quot;)<br />
+	<br />
+	while true<br />
+		return.long = java.get.bucket(queue.fromJava, body, 30, header)<br />
+		<br />
+		if (return.long &gt; 0) then<br />
+			message(header &amp; body)<br />
+			break<br />
+		endif<br />
+	endwhile<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">FrenkR</div><div class="date">16th March 2016, 02:41</div></div><div class="posttext">For those trying this path. I succeeded implementing listener in 3GL only. AFAIK, 4GL(UI) script has no event defined for &quot;EVTCHANNELEVENT&quot;.  In the beginning of 3GL &quot;main&quot; loop you should configure JVMI queues, install listener and start java app (script as proposed in previous post). After that you implement &quot;message pump&quot; as follows(this is a sample that shows &quot;ping&quot; response from JVMI):<br />
+<br />
+	| event message loop<br />
+	long event(EVTMAXSIZE)<br />
+	<br />
+	while TRUE<br />
+		next.event(event) | read event<br />
+<br />
+		on case evt.type(event)<br />
+			case EVTCHANNELEVENT:<br />
+					ret = java.get.bucket( queue.to.erp, body, 8000)<br />
+				if ret &gt;= 0 then<br />
+					message(body)<br />
+				else<br />
+					message(&quot;Error get bucket(Err=%d)&quot;, ret)<br />
+				endif<br />
+				|ToDO: put your logic for processing messages<br />
+		endcase<br />
+	endwhile<br />
+<br />
+Inside 4GL session, you can start 3GL using &quot;activate/kill&quot; command</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jeffersyuan</div><div class="date">9th October 2018, 09:37</div></div><div class="posttext">Hi, <br />
+<br />
+Any ideas about Synchronous &amp; asynchronous via JVM method?<br />
+<br />
+Thanks.<br />
+Jeffers<br />
+<br />
+I fixed it too, here is my JAVA Code, stripped the not working QueuePinger by putting in a Instance of the Programm itsself now i can handle the message in the onReceive Event (Just putting the Message back, no function there).<br />
+Problem is, that I am not able to capture the events on the LN side. I want to call async and then I want to be called back. Does anyone know how to implement a Listener on the LN side? Information on this is non existent.<br />
+<br />
+<br />
+<br />
+package de.lti.PlcGenerator;<br />
+<br />
+import com.baan.baanvm.BaanVMImpl;<br />
+import com.baan.baanvm.IBaanVM;<br />
+import com.baan.baanvm.IBucket;<br />
+import com.baan.baanvm.IQueueListener;<br />
+import com.baan.baanvm.test.queue.QueuePinger;<br />
+<br />
+public class PlcBucketListener implements IQueueListener<br />
+{<br />
+	private int m_queueFromERP;<br />
+	private int m_queueToERP;<br />
+	private static IBaanVM s_iBaanVm = new BaanVMImpl();<br />
+<br />
+	/** constructor of an instance of the listener */<br />
+	public PlcBucketListener(int p_idIn, int p_idOut) {<br />
+		m_queueFromERP = p_idIn;<br />
+		m_queueToERP = p_idOut;<br />
+	}<br />
+<br />
+	/**<br />
+	 * Called by Infor ERP LN (java.execute.static.method.async). Its main<br />
+	 * function is to install an instance of the listener on the queue, and to<br />
+	 * initialize all variables<br />
+	 */<br />
+	public static void installListener(int queueToERP, int queueFromERP)<br />
+	{<br />
+		try {<br />
+			/* install an instance of the listener */<br />
+			s_iBaanVm.installListener(queueFromERP, new PlcBucketListener(queueFromERP, queueToERP));<br />
+		} catch (Exception e) {<br />
+			/* failed to install listener, log error message */<br />
+			s_iBaanVm.logMessage(e.toString(), 0);<br />
+		}<br />
+	}<br />
+<br />
+	/**<br />
+	 * This listener method will be called whenever a new bucket appears on the<br />
+	 * m_queueFromERP queue<br />
+	 */<br />
+	public void onReceive(IBucket p_bucket)<br />
+	{<br />
+		int ret;<br />
+		<br />
+		if ( p_bucket != null )<br />
+		{<br />
+			/* we have received data, do something (using the <br />
+			 * IBucket interface to set and retrieve the <br />
+			 * contents) ! <br />
+			 */<br />
+<br />
+			/* for this example, just bounce the bucket back */<br />
+<br />
+			/* place bucket on the queue m_queueToERP */<br />
+			if ( (ret = s_iBaanVm.putBucket(m_queueToERP,p_bucket)) &lt; 0 ) <br />
+			{<br />
+				/* failed to place bucket on queue to Infor ERP LN*/<br />
+				s_iBaanVm.logMessage(&quot;Failed to bounce bucket, ret = &quot; + ret, 0);<br />
+			}<br />
+		}<br />
+		else<br />
+		{<br />
+			/* no bucket received, log a debug message */<br />
+			s_iBaanVm.logMessage(&quot;QueuePinger(&quot; + m_queueFromERP + &quot;) received: NULL bucket!!!&quot;, 0);<br />
+		}<br />
+	}<br />
+}<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+Baan side<br />
+<br />
+<br />
+function call.java.async()<br />
+{<br />
+    queue.fromJava = java.new.queue()<br />
+    queue.toJava = java.new.queue()<br />
+	<br />
+	string header(30)<br />
+	string body(30)<br />
+<br />
+    return.long = java.install.listener(queue.fromJava)<br />
+<br />
+    return.long = java.execute.static.method.sync(<br />
+                             &quot;de.lti.PlcGenerator.PlcBucketListener&quot;,<br />
+                             &quot;installListener&quot;, <br />
+                             queue.fromJava, queue.toJava)	<br />
+	<br />
+	return.long = java.put.bucket(queue.toJava, &quot;BODY1&quot;, 30, &quot;HEAD1&quot;)<br />
+	<br />
+	while true<br />
+		return.long = java.get.bucket(queue.fromJava, body, 30, header)<br />
+		<br />
+		if (return.long &gt; 0) then<br />
+			message(header &amp; body)<br />
+			break<br />
+		endif<br />
+	endwhile<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">giggty</div><div class="date">12th October 2018, 09:22</div></div><div class="posttext">What about it? Can you give more details about what are you struggling with?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanware</div><div class="date">17th September 2021, 10:26</div></div><div class="posttext">Hi,<br />
+<br />
+3 years later I have also tried to make the Listener work. I do have issues compiling on the Java side though. Java does not find the &quot;com.baan.baanvm&quot; package. <br />
+<br />
+My source code is placed in the {BSE}\java directory, from where I execute the java compilation. Does any of you have an idea what I am doing wrong?<br />
+<br />
+(I am working on a LN 10.5 system)<br />
+<br />
+Thanks!</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

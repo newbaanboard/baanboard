@@ -1,0 +1,119 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Cannot Find Unique Message Queue ID, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Cannot Find Unique Message Queue ID Tools Administration &amp; Installation" />
+	
+	<title>Cannot Find Unique Message Queue ID [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Cannot Find Unique Message Queue ID</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">davismit</div><div class="date">19th May 2006, 15:55</div></div><div class="posttext">Hi, Ive searched through he forums but cant find a similiar problem to this or something that points me in the right direction.<br />
+<br />
+Were struggling to get Simulate orders to run at the moment when using parrallel processing.  Without PP set Simulate orders runs fine but put PP on and it we get error2 can not start server.<br />
+<br />
+Looking in the log.comdll0200 file we get the error message - cannot find message queue ID.  I have tried to debug this and can see that the tccomdll0200 object if maxing out when creating temporary files (hits limit of 20) but cant see why this is happening.  Comments in the object point to i-node setting but not sure how they work.<br />
+<br />
+Anyone got any pointers to help me on this.  All environmental settings havent changed since this used to run.<br />
+<br />
+<br />
+<br />
+Regards<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RieseUSA</div><div class="date">20th May 2006, 17:06</div></div><div class="posttext">Dave:<br />
+<br />
+This problem should be resolved with portingset version 6.1c.06.05 or higher for BaanIV or 7.1c.05 or higher for BaanERP 5.0c and using the latest solutions for tccomdll0200, e.g., 160683 ('Unique message queue id could not always be determined when using multi bshells.') and 144512 ('Errors when using parallel bshells in combination with duplicate message queues').<br />
+<br />
+Do you have a current portingset version and the solutions installed?<br />
+<br />
+Yours,<br />
+Stephan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">davismit</div><div class="date">23rd May 2006, 09:35</div></div><div class="posttext">Hi Stephen, Sorry for not getting back sooner.<br />
+<br />
+I recenty upgraded to porting set 7.1d.12 to try to resolve this (it didnt fix it) and I do have those solutions installed.  <br />
+<br />
+<br />
+Thanks<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RieseUSA</div><div class="date">27th May 2006, 05:52</div></div><div class="posttext">Dave:<br />
+<br />
+As far as I understand i-nodes, each file in Unix gets a unique ID, which is called the i-node.  When an application creates a new file, then this file should get a new i-node ID, which is then used to open a message queue in tccomdll0200.  If every application uses this approach, then their messages queues should be unique and not conflict.  (Even though tccomdll0200 uses the same logic for Unix and Windows, the mailbox handling in Windows works differently, but that is then internally handled by the portingset.)<br />
+<br />
+tccomdll0200 does the following:  It creates a temporary file and uses its i-node to open a message queue.  Then it checks if this message queue already exists on the system.  It does this by trying to open it without the option to create a new one.  If this fails, then the message queue does not yet exist on the system and then the message queue can be used.  If it successfully opens, then this message queue already exists on the system and a new one needs to be found.  (Note, the return value of the opening function was incorrect with portingset releases before 6.1c.06.05/7.1c.05.  Therefore the requirement for the new versions.)  If a new message queue ID needs to be found, then it creates a second temporary file without closing the first file or the new file might get the same i-node ID as the previous one.  This is repeated the mentioned 20 times until it aborts.<br />
+<br />
+About your problem, you wrote that you debugged tccomdll0200.  Is the problem that the new message queue ID is the same as the previous (1) or are the message queue IDs already used by another application when being checked (2)?  For the first case (1), I am just curious, what operating system version are you using?  Otherwise, unfortunately I have no further advise than contacting SSA Global OnePoint/Baan tools support.  For the second case (2), how many open message queues (ipcs -qa) do you have on your system?<br />
+<br />
+Yours,<br />
+Stephan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">davismit</div><div class="date">20th June 2006, 10:43</div></div><div class="posttext">Stephen Thankyou.  SOrry for not getitng back sooner but I have been away.<br />
+<br />
+Yes it looks like there are too many old message queues.  Using your ipcs -qa hint.   <br />
+<br />
+Is there an easy way to remove these and would you know why these arnt being cleared down.<br />
+<br />
+Thanks for the help<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RieseUSA</div><div class="date">20th June 2006, 14:28</div></div><div class="posttext">Dave:<br />
+<br />
+You need to figure out which process is leaving all those message queues out there.  Which user is shown when you list the message queues with ipcs, this might give you a hint?  Have you had crashing multi bshell Baan sessions for other reasons than the message queue problem?  When a program/session ends abnormally, it might not close its message queues.  I am assuming that the server is rebooted once in a while, which will also clear up the message queues, but this is not a solution for your problem.<br />
+<br />
+The following Unix script can be used to quickly remove all message queues (ipcrm) for a specifc user, but be careful, this should not be used when those message queues are actually in use:<br />
+for i in `ipcs -qa|grep &lt;user&gt;|awk '{print $2}'`<br />
+do<br />
+ipcrm -q $i<br />
+done<br />
+(I have been told that the syntax for awk might differ for different Unix versions, so you might have to modify the script.)<br />
+<br />
+Yours,<br />
+Stephan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">davismit</div><div class="date">21st June 2006, 10:13</div></div><div class="posttext">Thanks Again Stephen.  Yep Ive got an idea what process is dying and making these old message ids so have the process ID.  Thanks for the awk script, will use this.<br />
+<br />
+Last question.  DO you knwo where in BAAN (if it is) that the limit for message queue IDs is set.<br />
+<br />
+Thanks for your help<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RieseUSA</div><div class="date">21st June 2006, 18:59</div></div><div class="posttext">Dave:<br />
+<br />
+There is no limit in Baan for messages queues, this is a kernel setting.  Search for MSGMNI, which specifies the maximum number of message queues that can exist simultaneously on the system.<br />
+<br />
+Yours,<br />
+Stephan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">davismit</div><div class="date">22nd June 2006, 14:51</div></div><div class="posttext">Thanks Again Stephen, Very Helpful<br />
+<br />
+Cheers<br />
+<br />
+Dave</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

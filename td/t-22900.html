@@ -1,0 +1,148 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to create multi-occurrence sessions form with detail section in Baan IV?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to create multi-occurrence sessions form with detail section in Baan IV? Tools Development" />
+	
+	<title>How to create multi-occurrence sessions form with detail section in Baan IV? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; How to create multi-occurrence sessions form with detail section in Baan IV?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">gulya2005</div><div class="date">19th January 2005, 10:16</div></div><div class="posttext">We want to create session like tdrpl0111s100 which have several lines of main data and two or more detail forms in the same window.<br />
+<br />
+Can anybody help us to write such sessions?<br />
+<br />
+Thunk you for answers. We have found decision of the problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rdbailey</div><div class="date">19th January 2005, 17:14</div></div><div class="posttext">We have done such a thing in Baan IVc3.  We created a screen for a different type of inventory counting (Baan doesn't handle it the way we need).  I'll try to give you a screen shot here to see if it is the kind of thing you are looking for.<br />
+<br />
+I saved it as 256 color BMP so it may look a little green, but you should get the idea.<br />
+<br />
+Anyway, the top fields are detail fields from the selected record below.  If this is what you are looking for, I can give some advice on setting it up (it was quite a while ago I wrote this so it might take me a few minutes to remember everything I did).<br />
+<br />
+Let me know.....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">greasedman</div><div class="date">19th January 2005, 17:59</div></div><div class="posttext">We want to create session like tdrpl0111s100 which have several lines of main data and two or more detail forms in the same window.<br />
+<br />
+Can anybody help us to write such sessions?<br />
+You could do it simply drawing a matrix in a corner of your form, filling this matrix with the infos you'd like to view in on.choice section of choice.mark.occur and displaying it with a display(&quot;field&quot;) (or a display.all() if you want to use several variables istead of a single matrix) in its after.choice  :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">just_fro</div><div class="date">19th January 2005, 22:49</div></div><div class="posttext">Have a look at session tdsls4102s000 (maintain salesorderlines)<br />
+<br />
+Form is build from 2 separate forms ...the top form shows the orderlines, the lower form shows all orderline details....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">armand</div><div class="date">20th January 2005, 09:34</div></div><div class="posttext">Agreed with just_fro.<br />
+<br />
+You to create 2 sessions one for lines and another for detail forms. <br />
+In that sessions you must switch control from one to another when an event occurs. Additionally you can transfer info about that event to reproduce it in list session.<br />
+<br />
+<br />
+Detail session:<br />
+<br />
+declaration:<br />
+        long    child<br />
+<br />
+before.program:<br />
+sattr.combined = COMBINED.BOTTOM<br />
+<br />
+form.1:<br />
+init.form:<br />
+        ignore.first.event = TRUE<br />
+        process.communication.handler.start()<br />
+        execute(first.set)<br />
+<br />
+choice.end.program:                                             <br />
+before.choice:<br />
+if child then<br />
+                kill(child)<br />
+                child = 0<br />
+endif<br />
+<br />
+choice.first.set:<br />
+after.choice:<br />
+        instruction = first.set<br />
+        activate.display.process()<br />
+<br />
+functions:<br />
+function process.communication.handler.start()<br />
+{<br />
+        status.off()<br />
+        child = activate(&lt;You_list_session&gt;)<br />
+        status.on()<br />
+        instruction = 0<br />
+        activate.display.process()<br />
+}<br />
+<br />
+function activate.display.process()<br />
+<br />
+{<br />
+        status.off()<br />
+        if ( child ) then<br />
+                switch.to.process(child,<br />
+                        SWITCH.SAME.SIZE +<br />
+                        SWITCH.WITHOUT.INTERACTION)<br />
+        endif<br />
+        status.on()<br />
+}<br />
+<br />
+<br />
+list session:<br />
+<br />
+before.program:<br />
+sattr.combined = COMBINED.TOP<br />
+sattr.slave    = TRUE<br />
+fattr.toplines = 1                                     <br />
+fattr.scrollbar = false<br />
+wait.for.switch()<br />
+<br />
+form.1:<br />
+init.form:<br />
+         while true<br />
+                import(&quot;instruction&quot;,<br />
+                        instruction)<br />
+                on case instruction<br />
+                   case last.set:<br />
+                        execute(last.set)<br />
+                        break<br />
+                   case first.set:<br />
+                        execute(first.set)<br />
+                        break<br />
+<br />
+                   case start.set:<br />
+                        blank.all()<br />
+                        break<br />
+<br />
+                   default:<br />
+                endcase<br />
+                switch.to.process(parent)<br />
+         endwhile</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">greasedman</div><div class="date">20th January 2005, 18:58</div></div><div class="posttext">Agreed with just_fro.<br />
+<br />
+You to create 2 sessions one for lines and another for detail forms. <br />
+In that sessions you must switch control from one to another when an event occurs. Additionally you can transfer info about that event to reproduce it in list session.<br />
+<br />
+I disagree; it's too difficult and it could take too many times for this purpose.<br />
+You have to choice this way if you need two different maintain forms with the possibility of marking some occurrence in both forms; but if you'd like to create just a little side of a form to display some infos you should do as explained above.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">armand</div><div class="date">21st January 2005, 09:00</div></div><div class="posttext">Agreed. But a talk was about how to create two or more detail forms.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

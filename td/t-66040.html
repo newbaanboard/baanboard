@@ -1,0 +1,178 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Bash Script used for device argument, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Bash Script used for device argument Tools Development" />
+	
+	<title>Bash Script used for device argument [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Bash Script used for device argument</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">dmcnally</div><div class="date">11th April 2014, 00:59</div></div><div class="posttext">Using &quot;Maintain Device Data&quot; (ttaad3100m000) I am trying to create a device that will rename the output file and then email it.<br />
+<br />
+I have written a bash script (copyrpt.sh) as follows:<br />
+<br />
+#!/bin/bash<br />
+NEWFILE=${BSE}/edi/reports/baanrpt.`date +%Y%m%k%M%S`<br />
+export NEWFILE<br />
+mv ${HOME}/baanrpt ${NEWFILE}<br />
+/opt/csw/bin/mutt -s &quot;edi report&quot; -a ${NEWFILE} -- dmcnally@hufna.com &lt; embody.txt<br />
+<br />
+The script works perfectly from the command line.<br />
+However when I use it in the definition of the device (see attached screen shot). only the mv command gets executed and the mutt command is essentially ignored. I even tried putting the mutt command in a separate script and calling it from the copyrpt.sh script  to no avail.<br />
+<br />
+Does anyone have any idea why this would not work as an argument in a device definition?<br />
+<br />
+Thanks,<br />
+<br />
+Dave M.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th April 2014, 06:18</div></div><div class="posttext">On your device - try putting ASCII:/usr/local/bin/emdevice/copyrpt.sh %s.  I think you need to pass it the file name.  This is just a guess - I know at one time we had a device that ran a script, but we have not used it for years and I can't find it.  I just seem to recall having issues with using \.<br />
+<br />
+ Now a days what I would do is write my own ttstpconv.  You can see an example in the code and utilities forum.  This is a 3gl program. What I would do is in the first part I would run ttstpconv on the file to convert to ascii.  At that point I would know the file name - then I would create a unix cmd line like cmd =&quot;copyrpt.sh &quot; &amp; tempfile.  Making sure it was quoted right. Then I would run the shell command.  Now all you have to do is make sure the command file works from a 3gl program.<br />
+<br />
+Or - below is sample code from a program I wrote not to long ago.  It sends the out put - in this case ebom config to a file and emails it to a purchasing agent.  Basically I believe you could do all the emailing in a 3gl program used in place of ttstpconv.  Potential faults and all are below. :)<br />
+<br />
+ function print.po()<br />
+{<br />
+<br />
+                string                    cmd(1000)           | Unix Command<br />
+                string                    temp.file(256)  | Temp file name            <br />
+                string                    email.addr(100)               | Email address<br />
+                domain                tcyesno                explode.flag<br />
+                <br />
+                long                       rc<br />
+                msg = &quot;&quot;<br />
+                <br />
+                if tdexi305.subm = tdexi.method.email then<br />
+                                spool.device = &quot;ASCIF&quot;<br />
+                                spool.fileout = creat.tmp.file$( bse.tmp.dir$() )<br />
+                                spool.fileout = strip$(spool.fileout)<br />
+                                rpt_id = spool.open(&quot;&quot;,spool.device,0)<br />
+                                export(&quot;spool.fileout&quot;,spool.fileout)<br />
+                else<br />
+                                spool.device = &quot;D66&quot;<br />
+                                spool.fileout = &quot;&quot;<br />
+                                rpt_id = spool.open(&quot;&quot;,spool.device,1)<br />
+                                export(&quot;spool.fileout&quot;,spool.fileout)<br />
+                endif<br />
+                spool.close()<br />
+<br />
+                stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;tdpur999.send&quot;, str$(tdpur.dist.vendor) )<br />
+                stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;selection&quot;, str$(tcyesno.no) )<br />
+                stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;suno.f&quot;, &quot;      &quot; )<br />
+                stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;suno.t&quot;, &quot;ZZZZZZ&quot; )               <br />
+                stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;orno.f&quot;,str$(tdexi305.orno))<br />
+                stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;orno.t&quot;,str$(tdexi305.orno))                            <br />
+                stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;comp.f&quot;, str$(0) )<br />
+                stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;comp.t&quot;, str$(999) )<br />
+                stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;tdpur999.dpas&quot;, str$(tcyesno.yes) )<br />
+                stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;prnt.pric&quot;, str$(tcyesno.yes) )<br />
+                stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;printed&quot;, str$(tdsls.kofl.all) )<br />
+                stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;quan.to.print&quot;, str$(tdsls.koqu.ordered.quan) )<br />
+                stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;prnt.options&quot;, str$(tcyesno.yes) )<br />
+                stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;prnt.deladro&quot;, str$(tcyesno.no) )<br />
+                stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;chgflag&quot;, str$(tcyesno.no) )<br />
+                stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;chgordnum&quot;, str$(0) )<br />
+                stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;chgorddte&quot;, str$(0) )<br />
+                stpapi.set.report(&quot;tdpur4401m000&quot;,&quot;rtdpur440101000&quot;, spool.device, msg)<br />
+                stpapi.continue.process( &quot;tdpur4401m000&quot;, msg)<br />
+                if(strip$(msg)&lt;&gt;&quot;&quot;) then<br />
+                                message(&quot;Err. %s PO:%d&quot;, msg, tdexi305.orno)<br />
+                endif<br />
+                stpapi.end.session( &quot;tdpur4401m000&quot; ) <br />
+<br />
+<br />
+                <br />
+                if tdexi305.subm = tdexi.method.email then<br />
+                                select    tccom001.emno, tccom001.info<br />
+                                from      tccom001<br />
+                                where   tccom001._index1 = {:tdexi305.buyr}<br />
+                                as set with 1 rows<br />
+                                selectdo<br />
+                                endselect<br />
+                                if isspace(strip$(tccom001.info)) then<br />
+                                                message(&quot;No email address for buyer %d.&quot;, tdexi305.buyr)<br />
+                                                return<br />
+                                endif<br />
+                                | It was easy to use order number, so I did, but it will break if <br />
+                                | the series changes.<br />
+                                if tdexi305.orno&gt;700000 and tdexi305.orno&lt;=799999 then<br />
+                                                explode.flag = tcyesno.yes<br />
+                                else<br />
+                                                explode.flag = tcyesno.no<br />
+                                endif<br />
+<br />
+                                cmd =    &quot;unix2dos &quot; &amp; strip$(spool.fileout) &amp; &quot; &quot; &amp; strip$(spool.fileout)<br />
+                                rc = shell(cmd, SHELL_NO_OUTPUT)<br />
+                                temp.file = creat.tmp.file$(bse.tmp.dir$())<br />
+                                temp.file = strip$(temp.file)<br />
+                                cmd =    &quot;uuencode &quot; &amp; spool.fileout &amp; &quot; &quot; &amp; strip$(str$(tdexi305.orno)) &amp; &quot;.txt &gt;&gt;&quot; &amp; temp.file<br />
+                                rc = shell(cmd, SHELL_NO_OUTPUT)<br />
+<br />
+                                spool.fileout = creat.tmp.file$( bse.tmp.dir$() )<br />
+                                spool.fileout = strip$(spool.fileout)<br />
+                                export(&quot;spool.fileout&quot;,spool.fileout)<br />
+                                stpapi.put.field( &quot;tiedm9410m000&quot;, &quot;select.by.order&quot;, str$(tcyesno.yes))<br />
+                                stpapi.put.field( &quot;tiedm9410m000&quot;, &quot;order.type&quot;, str$(tckoor.act.pur))<br />
+                                stpapi.put.field( &quot;tiedm9410m000&quot;, &quot;order.number&quot;, str$(tdexi305.orno))<br />
+                                stpapi.put.field( &quot;tiedm9410m000&quot;, &quot;explode.flag&quot;, str$(explode.flag))<br />
+                                stpapi.set.report(&quot;tiedm9410m000&quot;,&quot;rtiedm941011000&quot;,spool.device,msg)<br />
+                                stpapi.continue.process( &quot;tiedm9410m000&quot;, msg )<br />
+                                stpapi.end.session( &quot;tiedm9410m000&quot; )<br />
+                                if not isspace(msg) then<br />
+                                                message(&quot;Err. Print config:%s PO:%d&quot;, msg, tdexi305.orno)<br />
+                                endif<br />
+                                suspend(500)<br />
+                                cmd =    &quot;unix2dos &quot; &amp; strip$(spool.fileout) &amp; &quot; &quot; &amp; strip$(spool.fileout)<br />
+                                rc = shell(cmd, SHELL_NO_OUTPUT)<br />
+                                cmd =    &quot;uuencode &quot; &amp; spool.fileout &amp; &quot; &quot; &amp; strip$(str$(tdexi305.orno)) &amp;&quot;-config&quot; &amp; &quot;.txt &gt;&gt;&quot; &amp; temp.file<br />
+                                rc = shell(cmd, SHELL_NO_OUTPUT)<br />
+                                <br />
+                                <br />
+                                email.addr = strip$(tccom001.info)                         | Convert to unix file<br />
+                                cmd =    &quot;/bin/mailx -s &quot; &amp; quoted.string(&quot;Printed Purchase Order (Automated Email)&quot;) &amp; &quot; &quot; &amp; strip$(email.addr) &amp; &quot;&lt;&quot; &amp; temp.file<br />
+                                rc = shell(cmd, SHELL_NO_OUTPUT)<br />
+<br />
+                                seq.unlink(temp.file)<br />
+                                seq.unlink(spool.fileout)<br />
+                endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dmcnally</div><div class="date">11th April 2014, 21:07</div></div><div class="posttext">Mark,<br />
+<br />
+Thanks for your reply and code. <br />
+With some help I got the script to work, using the syntax below.<br />
+This puts the report in the body of the email as well as an attachment<br />
+ <br />
+/opt/csw/bin/mutt -s &quot;edi report&quot; -a ${NEWFILE} -- dmcnally@hufna.com &lt; ${NEWFILE}<br />
+<br />
+<br />
+I did try the ASCII:/usr/local/bin/emdevice/copyrpt.sh %s in the device definition to no avail.<br />
+<br />
+So I went back to  ASCII\/usr/local/bin/emdevice/copyrpt.sh in the device definition.<br />
+It is now working properly with the syntax change in the mutt command noted above.<br />
+<br />
+The reason for this is we have our EDI running via EDI controllers under 2 different users. The default device for both users was notepad. So all the output/reports were going to notepad and cluttering up the screen on the machine were the bshells are running for the EDI controllers.   <br />
+<br />
+I can now set the default device to my newly defined EDI CONTR OUT and have all the output go to a folder and to an email account where they can be analyzed.<br />
+<br />
+Thanks again :)<br />
+<br />
+Dave M</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

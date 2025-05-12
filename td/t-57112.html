@@ -1,0 +1,154 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="mark.occ, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] mark.occ Tools Development" />
+	
+	<title>mark.occ [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; mark.occ</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">baaninfo</div><div class="date">29th October 2009, 12:07</div></div><div class="posttext">Hi,<br />
+<br />
+which sections are allowed to use the function mark.occ in LN? <br />
+<br />
+I want to mark a detail in an overview session after zoom from another session.<br />
+<br />
+Export, import and zoom seems to be ok, because the selected detail is the first after zooming to the overview session - but this detail is not marked. <br />
+<br />
+zoom.from.all:<br />
+on.entry:<br />
+import(&quot;var1&quot;, var1)<br />
+var2 = var1<br />
+select	maintable<br />
+mark.occ(1)<br />
+<br />
+Warning: 4GL-FUNCTION 'mark.occ' not allowed in section 'on.entry'<br />
+<br />
+Any idea?<br />
+<br />
+Thanks for any suggestions...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">george7a</div><div class="date">29th October 2009, 12:16</div></div><div class="posttext">Hi,<br />
+<br />
+In this manual  (http://www.baanboard.com/programmers_manual_baanerp_help_functions_form_and_form_field_operations_mark_occ)it says:You can use this function only in 4GL scripts, and only in choice and form sections of those scripts. You cannot use it in programs of type 4.<br />
+However, in the LN manual that I have, this comment is not there.<br />
+<br />
+- George</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baaninfo</div><div class="date">29th October 2009, 12:46</div></div><div class="posttext">I found this restriction, too. But if the mark.occ for example is in form.all, before.form, the result is the same (without warning). It is interesting to see, that actual.occ starts with 1 and after mark.occ(3) it remains 1...<br />
+<br />
+Which choice section could be the right?<br />
+<br />
+Or is there a specific include needed?<br />
+<br />
+Thanks for all help...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">29th October 2009, 22:09</div></div><div class="posttext">Refer to the latest LN programmer's manual:<br />
+<br />
+Improved Record selection Cookbook<br />
+Introduction<br />
+<br />
+When moving a UI script from a Tools Interface Version (TIV) level below TIV 1075 to TIV 1075 or higher, rework might be needed because the 4GL engine uses a new record selection mechanism. Rework may be needed when one of the following variables or functions is used:<br />
+<br />
+marked doesn't work anymore <br />
+unmarked doesn't work anymore <br />
+mark.table only reflects the state of records that are visible in the window. Note that with TIV higher than 1075 there can also be records selected that are not visible, but are scrolled out of the window. <br />
+mark.occ() behavior has changed, see mark.occ() <br />
+ <br />
+So in case the above variables are not used, no rework is needed. There are a couple of scenarios in which the above variables are used. The most important ones are mentioned below.<br />
+<br />
+Use mark.occ to append records to selection<br />
+<br />
+When you want mark.occ() to append a record to the selection, specify true for the second argument of mark.occ . E.g.:<br />
+<br />
+mark.occ( 1, true)<br />
+		The behavior has changed because in most cases the application expects that only one record is selected after a find.data and a mark.occ. An example of such a construction is:<br />
+<br />
+execute(find.data)<br />
+mark.occ( 1)<br />
+<br />
+Transfer selection to print/processing session<br />
+<br />
+In different ways selections are transfered to child sessions for processing or printing. In all cases mark.table is used. In most cases this construction can easily be replaced by the use of do.parent.selection() in the child session.<br />
+<br />
+Do a check in choice.mark.occur<br />
+<br />
+There were three ways to check whether a record is selected in the after.choice section of the mark.occur event and act on that:<br />
+<br />
+choice.mark.occur: <br />
+after.choice: <br />
+	if mark.table(actual.occ) then<br />
+		some.check()<br />
+	endif<br />
+or<br />
+<br />
+choice.mark.occur: <br />
+after.choice: <br />
+	if marked = actual.occ then<br />
+		some.check()<br />
+	endif<br />
+		<br />
+or<br />
+<br />
+choice.mark.occur: <br />
+after.choice: <br />
+	if not unmarked = actual.occ then<br />
+		some.check()<br />
+	endif<br />
+All these constructions only work if the choice section is executed for every record that is selected. With a TIV level below 1075 this is not the case when the user selects a range of record. With a TIV level of 1075 or higher the choice section is executed once for every mark action. So it is executed once when the user selects one record, and it is executed once when the user selects range of records (e.g. by using the a shift-click). Therefore, at least when moving to a TIV level of 1075 or higher, these constructions should be rewritten to something that uses do.selection(). E.g.:<br />
+<br />
+choice.mark.occur: <br />
+after.choice: <br />
+do.selection(false, some.check())		<br />
+		Process selected records or enable/disable commands in mark.occur section<br />
+<br />
+To process selected records a construction like the following is used. The same is also used for determining the state of commands after a user selected a record.<br />
+<br />
+for counter = 1 to filled.occ<br />
+	if mark.table(counter) then<br />
+		restore.rcd.main(counter)<br />
+		do.it()<br />
+	endif<br />
+endfor		<br />
+		In both cases the construction must be replaced by a construction that uses do.selection(). E.g.:<br />
+<br />
+do.selection(false, do.it)		<br />
+		check whether any record is marked<br />
+<br />
+In some cases the value of the variable marked is used to determine the whether there are any records selected. On these places the function sel.num.selected() must be used.<br />
+<br />
+Note<br />
+Improved record selection functionality is available from Tools Interface Version (TIV)TIV 1075.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baaninfo</div><div class="date">30th October 2009, 09:09</div></div><div class="posttext">Hi,<br />
+<br />
+now i tried the following:<br />
+<br />
+form.all:<br />
+init.form:<br />
+	mark.occ(3, true)<br />
+<br />
+Runnning the Session with debugger shows, that after mark.occ(3, true) the variable actual.occ has the same value as before (and) and nothing is marked...<br />
+<br />
+Are there any scripts in LN, which use this function?<br />
+<br />
+Thanks</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

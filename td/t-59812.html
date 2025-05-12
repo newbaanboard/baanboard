@@ -1,0 +1,139 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="before.write not executed, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] before.write not executed Tools Development" />
+	
+	<title>before.write not executed [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; before.write not executed</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">6th January 2011, 22:57</div></div><div class="posttext">Hello,<br />
+<br />
+I have a multi-occ session with code on the main.io: before.write: and when I click on the button insert, the code never gets executed at all. In the before.write, I have a seqn+1 for my new record be different, so, I get &quot;Record already exist&quot;.<br />
+<br />
+The extrange thing is that it was working before... <br />
+<br />
+Any ideas?<br />
+<br />
+Thanks,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th January 2011, 23:52</div></div><div class="posttext">Working before what?  Was there a change of some sort or did it just stop working?  My question is - do you check the database or just the current seqn+1?  I found early on that as the user moves through the screen I have to do 2 checks - first the database and then the screen.  For example - if there are 3 screens of records on a multi-occ session and on the first screen the user hit inserts, the current sequence is not the highest - so I go to the database, get last sequence+1.  Then when they go to the second record(hit insert once) the last sequence is on the current form and not written to the database.  So the question is - are you sure that seqn has the largest (or last) used seqn?<br />
+<br />
+I will look for a code example.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th January 2011, 00:04</div></div><div class="posttext">I am not sure this helps, but this is typically how we do something like this:<br />
+<br />
+field.tdcyc010.locf:<br />
+before.input:<br />
+	if update.status = add.set then<br />
+		read.serial.number()<br />
+		search.last.used.seqn.on.screen()<br />
+		tdcyc010.sern = serial.number + 1<br />
+		display(&quot;tdcyc010.sern&quot;)<br />
+		refresh()<br />
+		update.occ()<br />
+	endif<br />
+	<br />
+	<br />
+<br />
+function read.serial.number()<br />
+{<br />
+	serial.number =	0<br />
+	select	max(tdcyc010.sern):serial.number<br />
+	from	tdcyc010<br />
+	where	tdcyc010._index1 = {:tdcyc010.cycg,:tdcyc010.cwaf, :tdcyc010.cwat }<br />
+	as set with 1 rows					<br />
+	selectdo						<br />
+	endselect<br />
+}<br />
+function search.last.used.seqn.on.screen()<br />
+{<br />
+	for occ.no = 1 to (filled.occ -	1)<br />
+		do.occ(occ.no,check.last.used.sern)<br />
+	endfor<br />
+}<br />
+<br />
+function check.last.used.sern()<br />
+{<br />
+	if tdcyc010.sern &gt; serial.number then<br />
+		serial.number =	tdcyc010.sern<br />
+	endif<br />
+}<br />
+<br />
+<br />
+<br />
+In this example sern is first display field on multi-occurence record with locf being the first true input field.  When the user hits the insert button this if statement gets executed and the sern field is display right before first input field.  We have multiple variations on this in different events - this was just the first example I found grep'ing sern.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sameer.don</div><div class="date">7th January 2011, 06:23</div></div><div class="posttext">Hello,<br />
+<br />
+I have a multi-occ session with code on the main.io: before.write: and when I click on the button insert, the code never gets executed at all. In the before.write, I have a seqn+1 for my new record be different, so, I get &quot;Record already exist&quot;.<br />
+<br />
+The extrange thing is that it was working before... <br />
+<br />
+Any ideas?<br />
+<br />
+Thanks,<br />
+<br />
+Hi,<br />
+I am not sure how it worked before. But to my understanding, the subsections like before.write of before.rewrite will be executed when you click &quot;Save&quot; button, and not when &quot;Insert&quot; button is clicked.<br />
+<br />
+In order to increase serial number, before.input is the correct subsection to place your code. I think code posted by Mark can help you in that case.<br />
+<br />
+<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">7th January 2011, 16:40</div></div><div class="posttext">Hello,<br />
+<br />
+this is my code. Yes, when I clicked on save the code was executed then  new srnb was displayed to my new record occurrance. Now this code is not executed.  What I just found, I did a test with a different Purchase Order Line and does work! When I click on save, it goes trought the code.<br />
+<br />
+Session has only one form with data.<br />
+<br />
+|****************************** MAIN TABLE  SECTION ***************************<br />
+main.table.io:<br />
+before.write:<br />
+        if quantity.allowed() then<br />
+                get.next.srnb()<br />
+        else<br />
+                skip.io(&quot;tcmcsd0005&quot;,1)<br />
+        endif<br />
+<br />
+function get.next.srnb()<br />
+{<br />
+        tdpur987.srnb = 0<br />
+        select a.srnb:tdpur987.srnb<br />
+        from   tdpur987 a<br />
+        where  a._index1 = {:tdpur987.orno,:tdpur987.pono}<br />
+        selectdo<br />
+        endselect<br />
+        tdpur987.srnb = tdpur987.srnb + 1<br />
+        if strip$(tdpur987.lino) = &quot;Requested&quot; and tdpur987.srnb &gt; 1 then<br />
+                tdpur987.lino = strip$(tdpur987.lino)&amp;str$(tdpur987.srnb)<br />
+        endif<br />
+}<br />
+<br />
+Thanks again.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th January 2011, 23:02</div></div><div class="posttext">What is the primary index(or index1) on tdpur987?<br />
+<br />
+Maybe I don't understand the code - but if the user enters 2 records and hits save and then both have quantity allowed true - wouldn't this routine return the same srnb for both user input records?  And then you would get the record already exists error. I thought (and maybe I am wrong) that when you hit save all records are committed at one time.  Not committed one record at a time, but one commit for all records.  So the query to return the srnb would find the same max number +1 for the new srnb.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

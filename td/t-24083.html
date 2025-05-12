@@ -1,0 +1,94 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="DAL:record changed after delayed lock, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] DAL:record changed after delayed lock Tools Development" />
+	
+	<title>DAL:record changed after delayed lock [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; DAL:record changed after delayed lock</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">baanconsultant</div><div class="date">19th May 2005, 13:07</div></div><div class="posttext">Hi,<br />
+<br />
+I have a dal on a table with years and turnover for every year and customer. There is one Record per year (in the same table) for which the customer is not filled. This record holds the unallocated turnover. <br />
+If I add a record to the table for a specific customer and year, the unallocated turnover should be recalculated.<br />
+<br />
+Environment is Baan ERP 5.0 c on Solaris with Oracle as database.<br />
+<br />
+I did the following:<br />
+<br />
+In the after.save.object (persuming that the db.update for the record with the customer has taken place here), I make a select on the record (delayed lock) without customer, subtract the turnover of the record with the customer in it, and do a db.update on the record without the customer.<br />
+<br />
+I get a &quot;201 record changed after delayed lock&quot; and I do not get it why.<br />
+<br />
+The code (simplified)<br />
+after.save.object:<br />
+	select *<br />
+	from alcom001 for update<br />
+	where alcom001._index1={&quot;&quot;,:year}<br />
+	selectdo<br />
+		alcom001.tovr = tovr<br />
+		db.update(talcom001,db.retry)<br />
+	endselect<br />
+<br />
+I put the code in a dll but (as I explected) this didn't change anything. Playing around with retry points or commits didn't bring anything.<br />
+<br />
+Any ideas?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Evert-Jan Bosch</div><div class="date">19th May 2005, 15:25</div></div><div class="posttext">Is the update you programmed in after save object on the same table as the main table of the DAL? If so, try this 			string		g.save.alcom001(1) based<br />
+			long		g.save.alcom001.dlock<br />
+<br />
+function long after.save.object()<br />
+{<br />
+	static		long		s.length<br />
+<br />
+	if s.length = 0 then<br />
+		db.row.length(talcom001, s.length)<br />
+		alloc.mem(g.save.alcom001, s.length)<br />
+	endif<br />
+	g.save.alcom001 = rcd.talcom001<br />
+	g.save.alcom001.dlock = alcom001._dlock<br />
+<br />
+	select	alcom001.*<br />
+	from	alcom001 for update<br />
+	where	alcom001._index1={&quot;&quot;,:year}<br />
+	selectdo<br />
+		alcom001.tovr = tovr<br />
+		db.update(talcom001,db.retry)<br />
+	endselect<br />
+<br />
+	rcd.talcom001 = g.save.alcom001<br />
+	alcom001._dlock = g.save.alcom001.dlock<br />
+<br />
+	return(0)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanconsultant</div><div class="date">19th May 2005, 17:51</div></div><div class="posttext">Seems to work just as I need it!!<br />
+<br />
+Thanks!<br />
+<br />
+(en alvast gefeliciteerd ;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baancust</div><div class="date">10th May 2008, 14:50</div></div><div class="posttext">Hi,<br />
+ <br />
+ I have the similar problem but i am not updating maintable. can you help me what to do in this case??<br />
+<br />
+Regards,<br />
+Baancust</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

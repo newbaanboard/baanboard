@@ -1,0 +1,88 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS to update Sales Order Line Discount Percentage, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS to update Sales Order Line Discount Percentage AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS to update Sales Order Line Discount Percentage [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS to update Sales Order Line Discount Percentage</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">DStroud</div><div class="date">9th March 2004, 19:38</div></div><div class="posttext">We are trying to create an AFS to update the Discount Percent on a sales order line and cant figure out how to handle the automatic zoom to tdsls0130m000 for entering the multiple discounts. <br />
+<br />
+Has anyone created an AFS that inserts or updates the sales order line with multiple discount percentages?<br />
+<br />
+Below is our current code but the discount percentage is not getting updated.<br />
+<br />
+function update.line()<br />
+{<br />
+	string error(100)<br />
+	string recover.msg(100)<br />
+	string disc(30)<br />
+	long ret, retval1, retval2, disc.pct<br />
+<br />
+	stpapi.put.field(&quot;tdsls4102s000&quot;, &quot;tdsls041.orno&quot;, str$(tdsls041.orno))<br />
+	stpapi.put.field(&quot;tdsls4102s000&quot;, &quot;tdsls041.pono&quot;, str$(tdsls041.pono))<br />
+	ret = stpapi.find(&quot;tdsls4102s000&quot;, error)<br />
+	if ret = 1 then<br />
+		stpapi.get.field(&quot;tdsls4102s000&quot;, &quot;tdsls041.disc&quot;, disc)<br />
+		disc.pct = lval(disc)<br />
+		stpapi.handle.subproc(&quot;tdsls4102s000&quot;, &quot;tdsls0130s000&quot;, &quot;add&quot;)<br />
+		stpapi.put.field(&quot;tdsls0130s000&quot;, &quot;dper&quot;, str$(2), 1)<br />
+		stpapi.continue.process(&quot;tdsls0130s000&quot;, error)<br />
+		stpapi.end.session(&quot;tdsls0130s000&quot;)<br />
+		retval1 = stpapi.update(&quot;tdsls4102s000&quot;, 1, error)<br />
+			if not retval1 then<br />
+				retval2 = stpapi.recover(&quot;tdsls4102s000&quot;, recover.msg)<br />
+			endif<br />
+		stpapi.get.field(&quot;tdsls4102s000&quot;, &quot;tdsls041.disc&quot;, disc)<br />
+	endif<br />
+<br />
+	stpapi.end.session(&quot;tdsls4102s000&quot;)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">DStroud</div><div class="date">9th March 2004, 21:38</div></div><div class="posttext">We resolved the problem with a QKey modification. If your sales order parameter (tdsls000) for Number of Discount Levels (tdsls000.mldi.4) is &gt; 1 then when running Maintain Sales Order Lines (tdsls4102s000) in API (AFS) mode the system will not update the line discounts.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">18th March 2005, 15:30</div></div><div class="posttext">I had to set price tdsls041.pric and discount precentage tdsls041.disc(1) for some very big sales orders. Setting the prices was easy with AFS, but for discount percentages I ran into the problems you mentionned. But I do not have QKEY available.<br />
+<br />
+My solution was to use AFS on session tdsls0142m000 (instead of tdsls0142s000):<br />
+1. Use AFS to set the price; end the session.<br />
+2. Write tdsls041.disc(1) directly to the table ...<br />
+3. Use AFS again, now to write the new amount, history and so on. To achieve that, one has to force a `when.field.changes´ on tdsls041.oqua, eg.:<br />
+3.a) stpapi.put.field( &quot;tdsls0142m000&quot;, &quot;tdsls041.oqua&quot;, str$(tdsls041.oqua +1))<br />
+3.b) stpapi.update()<br />
+3.c) stpapi.put.field( &quot;tdsls0142m000&quot;, &quot;tdsls041.oqua&quot;, str$(tdsls041.oqua ))<br />
+3.d) stpapi.update()<br />
+<br />
+We checked tdsls041.amta, tdsls045 entries, tdsls051 entries - looks good for our purposes. Any other ideas what could go wrong?<br />
+<br />
+günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kbartelds</div><div class="date">18th March 2005, 15:47</div></div><div class="posttext">Great solution. We have the same problem when trying to enter a discount percentage that is different from what the baan session itself would find.<br />
+<br />
+How about the orderbalance in customer's table?<br />
+<br />
+Regards,<br />
+Klaas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">18th March 2005, 15:59</div></div><div class="posttext">I just ran tdsls4401m000 &quot;Print Order Aknowledgements&quot; and then checked tccom011.buor for different discounts -- sometimes 1 cent difference ;-).<br />
+<br />
+günther</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Dynamic sql, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Dynamic sql Tools Development" />
+	
+	<title>Dynamic sql [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Dynamic sql</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">vineetu1</div><div class="date">1st April 2005, 12:30</div></div><div class="posttext">I have written the following code to print inventory of item using the LIKE operator through dynamic sql. But it dosent seem to be working. Probable I am not using the sql.select.bind &amp; sql.exec functions in correct manner. How does these functions work.<br />
+<br />
+declaration:<br />
+	<br />
+	table	ttdinv001	| Inventory by Item<br />
+	table	ttiitm001	| Items<br />
+	<br />
+	<br />
+	extern	domain	tcitem		item.like<br />
+	extern	domain	tccwar		cwar.f<br />
+	extern	domain	tcyesno		zero.inv<br />
+<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+	if rprt_open() then<br />
+		read.main.table()<br />
+		rprt_close()<br />
+	else<br />
+		choice.again()<br />
+	endif<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{<br />
+	string	sql.st1(100)<br />
+	string	sql.st2(50)<br />
+	string	sql.st3(100)<br />
+	string 	sql.st(250)<br />
+	long	dyn.sql<br />
+	string	item(20)<br />
+<br />
+	sql.st1 = &quot;select tdinv001.*, tiitm001.dsca from tdinv001, tiitm001 where tdinv001.item LIKE &quot;<br />
+	sql.st1 = strip$(sql.st1)<br />
+	sql.st2 = str$(item.like)<br />
+	sql.st2 = strip$(shiftl$(sql.st2))<br />
+	sql.st3 = &quot; and tdinv001.cwar = :cwar.f and tdinv001.item = tiitm001.item&quot;<br />
+	sql.st3 = strip$(sql.st3)<br />
+	sql.st = sql.st1 &amp; &quot; '&quot; &amp; sql.st2 &amp; &quot;' &quot; &amp; sql.st3<br />
+	if not dyn.sql then<br />
+		dyn.sql = sql.parse(sql.st)<br />
+	endif<br />
+	<br />
+	sql.select.bind(dyn.sql, 1, item)<br />
+	sql.exec(dyn.sql)<br />
+	message(&quot;%s&quot;,item)<br />
+	while true<br />
+		on case (sql.fetch(dyn.sql))<br />
+		case eendfile:<br />
+			break<br />
+		case enorec:<br />
+			break<br />
+		case 0:<br />
+			process.record()<br />
+			continue<br />
+		endcase<br />
+		break<br />
+	endwhile<br />
+	sql.break(dyn.sql)<br />
+	sql.close(dyn.sql)<br />
+	dyn.sql = 0<br />
+}<br />
+<br />
+function process.record()<br />
+<br />
+{<br />
+	if zero.inv = tcyesno.yes then<br />
+			if tdinv001.stoc &lt;&gt; 0 then<br />
+				rprt_send()<br />
+			endif<br />
+		else<br />
+			rprt_send()<br />
+	endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">1st April 2005, 17:08</div></div><div class="posttext">First you do not need the strip$ on sql.st1.  Second sql.bind should be used for variable replacement so I would expect to see &quot;:1&quot; in the your sql statement.  So sql.bind is not needed.  Last but not least make sure you item.like looks something like &quot;252.*&quot; - do not forget the &quot;.*&quot; at the end.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vineetu1</div><div class="date">4th April 2005, 06:06</div></div><div class="posttext">The FG item codes are some thing like this &quot;XXX (X) XX XXX&quot;<br />
+<br />
+The input for item.like is expected like &quot;.....J........&quot; for all items with J at that particular position. OR like &quot;...........019&quot; for all items ending with 019....and so on.<br />
+<br />
+In the below code when I am executing it it is not fetching any rows while it should. We are already using the above input with the like operator in the query session (ttstpqbf) for session tdilc1513m000.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th April 2005, 15:24</div></div><div class="posttext">I would do something like this:<br />
+<br />
+<br />
+function read.main.table()<br />
+{<br />
+	string	sql.st1(100)<br />
+	string	sql.st2(50)<br />
+	string	sql.st3(100)<br />
+	string 	sql.st(250)<br />
+	long	dyn.sql<br />
+	string	item(20)<br />
+<br />
+	sql.st1 = &quot;select tdinv001.*, tiitm001.dsca from tdinv001, tiitm001 where tdinv001.item LIKE :1&quot;<br />
+	sql.st3 = &quot; and tdinv001.cwar = :2 and tdinv001.item = tiitm001.item&quot;<br />
+	sql.st = sql.st1 &amp; sql.st3<br />
+	dyn.sql = sql.parse(sql.st)<br />
+	sql.select.bind(dyn.sql, 1, item.like)<br />
+	sql.select.bind(dyn.sql, 2, cwar.f)<br />
+	sql.exec(dyn.sql)<br />
+	message(&quot;%s&quot;,item)<br />
+	while true<br />
+		on case (sql.fetch(dyn.sql))<br />
+		case eendfile:<br />
+			break<br />
+		case enorec:<br />
+			break<br />
+		case 0:<br />
+			process.record()<br />
+			continue<br />
+		endcase<br />
+		break<br />
+	endwhile<br />
+	sql.break(dyn.sql)<br />
+	sql.close(dyn.sql)<br />
+	dyn.sql = 0<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">6th April 2005, 17:19</div></div><div class="posttext">U need add extra double quotes in order that like operator works in dynamic sql. <br />
+<br />
+e.g.<br />
+<br />
+sql.st = sql.st1 &amp; &quot;&quot;&quot;&quot; &amp; strip$(shiftl$( item.like)) &amp; &quot;&quot;&quot;&quot; *sql.st2</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

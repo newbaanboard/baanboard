@@ -1,0 +1,225 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="ostpapihand, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] ostpapihand AFS/DDC/OLE: Function servers" />
+	
+	<title>ostpapihand [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; ostpapihand</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">16th September 2003, 01:05</div></div><div class="posttext">Hello everyone,<br />
+<br />
+can I just copy this  ottstpapihand libary to make work my FS? <br />
+<br />
+ /export/home/BAAN/bse/tools/ttB40_c1/ottstp <br />
+<br />
+what if I have another under  /export/home/BAAN/bse/tools/ttB40_c/ottstp ?<br />
+<br />
+Thanks,<br />
+<br />
+Carlos</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">16th September 2003, 09:32</div></div><div class="posttext">Hi Carlos<br />
+<br />
+Do you mean that you don't have the DLL on your system as it is now?  Then it would be better to upgrade the complete Tools environment, since the API handler ties in very narrowly with the standard program.<br />
+<br />
+Having said this (sounds a bit like official Baan :rolleyes: ), I would try to copy and test the system anyway.  It could work.  Please give us feedback when you've done it!  Mighty interesting!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">16th September 2003, 15:38</div></div><div class="posttext">Nico, <br />
+<br />
+thanks for your answer... I will tell my story in short.<br />
+<br />
+I made a session calling ostpapihand in our test server, which has the ottstpapihand  on /export/home/BAAN/bse/tools/ttB40_c1/ottstp, everything works perfectly. <br />
+When I passed this session(see code attached) to our production server the ottstpapihand is on /export/home/BAAN/bse/tools/ttB40_c/ottstp(we do have the /export/home/BAAN/bse/tools/ttB40_c1/ottstp too with no ottstpapihand). It doesn't process my called session timrp1250m000, it blinks for fracction of the second the session and thats it.<br />
+<br />
+It could solve the problem by just recompile it on our production server with the &quot;correct/old&quot; libraries?<br />
+<br />
+Thanks again<br />
+<br />
+Carlos<br />
+<br />
+declaration:<br />
+<br />
+	table	ttimrp020	|Plan MRP Production Orders<br />
+	table	ttcmcs900	|Planner by Orders Series<br />
+	<br />
+	extern  domain	tcorno		orno.f<br />
+	extern	domain	tcorno		orno.t<br />
+	extern	domain	tcitem		item.f<br />
+	extern	domain	tcitem		item.t<br />
+	extern	domain	tccitg		citg.f<br />
+	extern	domain	tccitg		citg.t<br />
+	extern	domain	tccwar		cwar.f<br />
+	extern	domain	tccwar		cwar.t<br />
+	extern	domain	tcemno		cplb.f<br />
+	extern	domain	tcemno		cplb.t<br />
+	extern	domain	tisfc.devi	prn.device<br />
+	<br />
+#pragma used dll ottstpapihand<br />
+|****************************** form section **********************************<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+|****************************** choice section ********************************<br />
+choice.cont.process:<br />
+before.choice:<br />
+	check.all.input()<br />
+on.choice:<br />
+	transfer.mrp.prod.orders()	<br />
+|******************************* field section *****************************<br />
+field.orno.f:<br />
+when.field.changes:<br />
+	orno.t = orno.f<br />
+	<br />
+field.cwar.f:<br />
+when.field.changes:<br />
+	cwar.t = cwar.f<br />
+	<br />
+field.item.f:<br />
+when.field.changes:<br />
+	item.t = item.f<br />
+	<br />
+field.cplb.f:<br />
+when.field.changes:<br />
+	cplb.t = cplb.f<br />
+<br />
+field.prn.device:<br />
+check.input:<br />
+	if isspace(prn.device) or not find.valid.device()then<br />
+		set.input.error(&quot;tisfc01002&quot;,1)<br />
+		input.again()<br />
+	endif<br />
+|****************************** function section ***************************<br />
+functions:<br />
+<br />
+function transfer.mrp.prod.orders()<br />
+{<br />
+	domain	tcmcs.str60	error.msg<br />
+<br />
+	select  tcmcs900.grno,tcmcs900.cplb<br />
+        from    tcmcs900<br />
+        where   tcmcs900._index1 inrange {:cplb.f} and {:cplb.t}<br />
+        selectdo<br />
+		display(&quot;tcmcs900.cplb&quot;)<br />
+		display(&quot;tcmcs900.grno&quot;)<br />
+		stpapi.put.field(&quot;timrp1250m000&quot;,&quot;orno.f&quot;, str$(orno.f))<br />
+		stpapi.put.field(&quot;timrp1250m000&quot;,&quot;orno.t&quot;, str$(orno.t))<br />
+		stpapi.put.field(&quot;timrp1250m000&quot;,&quot;item.f&quot;, item.f)<br />
+		stpapi.put.field(&quot;timrp1250m000&quot;,&quot;item.t&quot;, item.t)<br />
+		stpapi.put.field(&quot;timrp1250m000&quot;,&quot;citg.f&quot;, citg.f)<br />
+		stpapi.put.field(&quot;timrp1250m000&quot;,&quot;citg.t&quot;, citg.t)		<br />
+		stpapi.put.field(&quot;timrp1250m000&quot;,&quot;cwar.f&quot;, cwar.f)		 <br />
+		stpapi.put.field(&quot;timrp1250m000&quot;,&quot;cwar.t&quot;, cwar.t)<br />
+		stpapi.put.field(&quot;timrp1250m000&quot;,&quot;cplb.f&quot;, str$(tcmcs900.cplb))<br />
+		stpapi.put.field(&quot;timrp1250m000&quot;,&quot;cplb.t&quot;, str$(tcmcs900.cplb))<br />
+		stpapi.put.field(&quot;timrp1250m000&quot;,&quot;order.series&quot;,str$(tcmcs900.grno))<br />
+		stpapi.set.report(&quot;timrp1250m000&quot;, &quot;rtimrp125001000&quot;, prn.device, error.msg)<br />
+		if isspace(error.msg) then<br />
+			stpapi.continue.process(&quot;timrp1250m000&quot;, error.msg)<br />
+		endif<br />
+		stpapi.end.session(&quot;timrp1250m000&quot;)<br />
+	endselect<br />
+}<br />
+<br />
+function domain tcbool find.valid.device()<br />
+{<br />
+	select ttaad300.*<br />
+	from   ttaad300<br />
+	where  ttaad300._compnr = 000 and<br />
+	       ttaad300._index1 = {:prn.device} <br />
+	as set with 1 rows<br />
+	selectdo<br />
+		return(true)<br />
+	endselect<br />
+	return(false)<br />
+}ttB40_c</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">16th September 2003, 15:59</div></div><div class="posttext">As a start I would recompile on the production machine (in debug mode) and trace the program.  If that does not work, copy the ottstpapihand object from the test server, and again trace to see what happens.  It could be that you need to copy more than this one object, but I'm not sure.  It will be a trail-and-error issue to get it working.  Good luck!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">18th September 2003, 17:12</div></div><div class="posttext">Hello Nico,<br />
+<br />
+I tried it in debug mode it does not work(when calling the first api function the calling session blinks does not send any BW error), also I set the AFSLOG=1 to get afs.log file(did not get any file at all). This is what I get out of the what commnad.<br />
+ostpapihand:<br />
+	/usr1/triton6/bse/tools/ttB40_c/pttstp/pstpapihand0, 97/04/16 [10:34], From rklip<br />
+	-DREL6_1<br />
+	bic_global	7.12:4/7/97 Copyright (c) Baan International b.v.<br />
+	bic_object	7.7.1.1:11/21/96 Copyright (c) Baan International b.v.<br />
+	bic_event	6.1.1.2:6/13/96 Copyright (c) Baan International b.v.<br />
+	bic_shell, 08-1994/R1, Copyright (c) Baan International b.v.<br />
+	bic_fork	1.1:3/1/95 Copyright (c) Baan International b.v.<br />
+<br />
+Do you know what are the files are need to update only the FS functionallity? <br />
+<br />
+Thanks,<br />
+Carlos:confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">18th September 2003, 17:22</div></div><div class="posttext">No, I haven't got a clue which files are needed.  Just browsed around on BGS site, and here is what they say (solution 74732):<br />
+SITUATION DESCRIPTION:<br />
+<br />
+You are developing an API script and this gives errors or does not work.<br />
+<br />
+<br />
+SOLUTION DESCRIPTION:<br />
+<br />
+In order for Baan Support to judge if your problem is related to a programming error<br />
+on your side or a failure of a Baan object the following steps need to be done.<br />
+<br />
+A first step is to install the latest objects of ostpstandard and ostpapihand which<br />
+work closely together.<br />
+See solution 10923 or 15555 or 100278 (standard program + apihand B40c / B50b / B50c).<br />
+<br />
+If the problem remains, then:<br />
+<br />
+- First the developer must debug the related script with all involved subsessions also in debug mode.<br />
+- If debugging is an unknown area to you, you are encouraged to consult a Baan Consultant first and<br />
+let him perform the debugging.<br />
+<br />
+- When you have established the core of the problem, we would like to receive the following:<br />
+<br />
+1. The related scripts with line numbers in front of the lines.<br />
+2. A description of the observed behaviour with the line numbers during debugging.<br />
+3. State or value changes of the involved variables during the error event.<br />
+4. Output of &quot;bic_info6.X -w ottstpapihand&quot; (NT: &quot;bic_info.exe -w ottstpapihand&quot;<br />
+5. Output of &quot;bic_info6.X -w ottstpstandard&quot; (NT: &quot;bic_info.exe -w ottstpstandard&quot;<br />
+6. Output of &quot;bic_info6.X -w ottstpamdll&quot; (NT: &quot;bic_info.exe -w ottstpamdll&quot;<br />
+7. Session information (ttstpsessinfo) of all involved sessions in the script(s).<br />
+8. The afs.log file that can be created with running the script with the environment variable<br />
+AFSLOG=1 set. This will create a file afs.log in the current directory.<br />
+(This used to work only on Baan IV systems but since Mai 2001 this is working on all systems)<br />
+<br />
+EXAMPLE(S):<br />
+<br />
+On Baan IV you run:<br />
+$ bic_info6.1 -w ottstpapihand<br />
+On Baan ERP you run:<br />
+$ bic_info6.2 -w ottstpapihand<br />
+<br />
+$ AFSLOG=1 ba6.1 ./testscript.obj<br />
+$ AFSLOG=1 ba6.1 &lt;session name with API script&gt;<br />
+Have you tried it from an ASCII login?  If not, the afs.log file should be in the user's home directory.<br />
+<br />
+And, just for fun :D.  The last part of the solution from Baan: <br />
+<br />
+WORK-AROUND:<br />
+<br />
+Use external scripting freeware like AutoIt from http://www.hiddensoft.com to automate your Baan sessions.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

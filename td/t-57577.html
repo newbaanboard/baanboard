@@ -1,0 +1,123 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How do I wrap text field by words, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How do I wrap text field by words Tools Development" />
+	
+	<title>How do I wrap text field by words [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; How do I wrap text field by words</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">simona</div><div class="date">7th January 2010, 11:39</div></div><div class="posttext">Hello there!<br />
+...And happy new year 2010!!<br />
+I have a text field in a report. I seted the lenght to 20 characters and the text is wrapped by this lenght. But I want to do the wrapping by words, see attached file. How can I do this?<br />
+Thanks!<br />
+Sim</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">8th January 2010, 18:52</div></div><div class="posttext">Hey Simona ,<br />
+<br />
+What I can suggest you is to write your own function to wrap the text the way you want . I dont think there is some predefined function  for this .<br />
+<br />
+I remeber I had done something like this in my previous company , will post if I find the code .<br />
+<br />
+Best Regards,<br />
+Niraj</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BeznaWarrior</div><div class="date">19th January 2010, 14:52</div></div><div class="posttext">Hi Simona,<br />
+I've looked over your problem and i've managed to write a function that overwrites the text field with the new wrapped text.<br />
+As you might know the text fields are located in tool table tttxt010.So here goes the function:<br />
+<br />
+function extern tcitc.dll0002.wrapptext(domain tttxt.ctxt ctxt,domain ttaad.clan clan, long rand) where <br />
+ctxt is the text number from tttxt010.ctxt <br />
+clan is the language field from the same table<br />
+and rand is the lenght of the row (in your example 20)<br />
+You take the text field and search word by word (you search with pos function like pos(tttxt010.text , &quot; &quot;)) and you handle various cases that appear: is it the last word from text (the call of pos function returns 0) or the word is bigger than the lenght of the row (in your case 20 char) or any other possible case.<br />
+Every time you have to jump to another row you concatenate your new text with &quot;line feed&quot; char (for that you can use chr$(10) )<br />
+I hope i've managed to help you.If you still have trouble please ask....<br />
+<br />
+function extern tcitc.dll0002.wrapptext(domain tttxt.ctxt ctxt,domain ttaad.clan clan, long rand)<br />
+{	<br />
+	<br />
+<br />
+	select	tttxt010.*<br />
+	from	tttxt010<br />
+	where	tttxt010._index1 = {:ctxt, :clan}<br />
+	selectdo<br />
+		old.text = tttxt010.text<br />
+		new.text = &quot;&quot;<br />
+		aux = old.text<br />
+		lung = len(shiftl$(shiftr$(old.text)))<br />
+		<br />
+		flag = 1<br />
+		while shiftl$(shiftr$(old.text))&lt;&gt;&quot;&quot;<br />
+<br />
+			if pos(old.text, &quot; &quot;)&gt;rand then |the word is longer than the row<br />
+				flag = 1<br />
+				new.text = new.text&amp;chr$(10)&amp;old.text(flag;rand)&amp;chr$(10)<br />
+				lung = lung - rand<br />
+				old.text = old.text(rand+1;lung)<br />
+			else	<br />
+				if pos(old.text, &quot; &quot;)=0 then |last word<br />
+					cuv = len(old.text)<br />
+					if cuv+flag&lt;=rand then<br />
+						new.text = new.text&amp;old.text(1;cuv)<br />
+					else<br />
+						new.text = new.text&amp;chr$(10)&amp;old.text(1;cuv)<br />
+					endif<br />
+					old.text = &quot;&quot;<br />
+				else<br />
+					cuv = pos(old.text,&quot; &quot;)<br />
+					if cuv+flag&lt;=rand then			|length of word + position on the row is smaller than the row<br />
+						new.text = new.text&amp;old.text(1;cuv)<br />
+						if lung&lt;cuv then<br />
+							lung = 0<br />
+						else<br />
+							lung = lung - cuv <br />
+						endif<br />
+						old.text = old.text(cuv+1; lung)<br />
+						flag = flag+cuv<br />
+					else<br />
+						new.text = new.text&amp;chr$(10)&amp;old.text(1;cuv)<br />
+						lung = lung-cuv<br />
+						flag = cuv<br />
+						old.text = old.text(cuv+1; lung)<br />
+					endif<br />
+				endif<br />
+			endif<br />
+		endwhile<br />
+<br />
+		db.retry.point()<br />
+		select	tttxt010.*<br />
+		from	tttxt010 for update<br />
+		where	tttxt010._index1 = {:ctxt, :clan}<br />
+		selectdo<br />
+			indice = tttxt010.text<br />
+			tttxt010.text = new.text<br />
+			db.update(ttttxt010, db.retry)<br />
+		endselect<br />
+		commit.transaction()		<br />
+	<br />
+	endselect<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">23rd June 2010, 20:46</div></div><div class="posttext">I have a text field on my report and I have not enough space to put 72 columns for the text, I have 38. I kind of remember that BaaN will put the rest of the line on the following report line. Am I right? or how this works?<br />
+<br />
+Thanks in advance,</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

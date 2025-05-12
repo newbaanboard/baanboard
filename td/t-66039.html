@@ -1,0 +1,139 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Error 206, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Error 206 Tools Development" />
+	
+	<title>Error 206 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Error 206</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">eric.dizon</div><div class="date">10th April 2014, 23:28</div></div><div class="posttext">I have a multi-occurrence form for table cxcsb010.  I allow the user to do multiple row updates on the table which is my goal. <br />
+<br />
+I have related tables cxcsb005 and cxcsb020 which status are dependent on the values entered in cxcsb010 .  I have a DAL for cxcsb010 to handle the updates of the status of the related tables which is illustrated below via function check.update.ctl.wo.status and check.update.ctl.header.status.  <br />
+<br />
+<br />
+If I put the update functions for the  in after.save.object section I get Error 206 for cxcsb010 table but if I put the update functions in after.commit.transaction() it only update the last record that was modified in MOC.  Can somebody help me where do I need to up the update functions in my DAL so it updates the relevant tables for every record modified in cxcsb010 MOC form?<br />
+<br />
+<br />
+function extern long after.save.object(long mode)<br />
+{<br />
+    if mode = DAL_NEW then<br />
+		| this is code from after.write subsection <br />
+    else<br />
+   	| this is code from after.rewrite subsection<br />
+        check.update.ctl.wo.status(cxcsb010.wono)<br />
+        check.update.ctl.header.status(cxcsb010.ctln, cxcsb010.tqty)<br />
+    endif<br />
+<br />
+}<br />
+<br />
+<br />
+<br />
+<br />
+function check.update.ctl.wo.status(domain tcorno l.wono)<br />
+{<br />
+   long l.nrec   | Number of Records<br />
+   long l.nrcc   | Number of Line completed<br />
+<br />
+   |Update tcxcsb020  as Partially completed and/or completed<br />
+<br />
+   |Count the number of Records in a Work Order<br />
+   select count(cxcsb010.wono):l.nrec<br />
+   from cxcsb010<br />
+   where cxcsb010._index3 = {:l.wono}<br />
+   selectdo<br />
+   endselect<br />
+<br />
+   |Count the number of Records for WO completed or Outbounded<br />
+   select count(cxcsb010.wono):l.nrcc<br />
+   from cxcsb010<br />
+   where cxcsb010._index3 = {:l.wono}<br />
+         and cxcsb010.stat &gt;= 50 |or  and cxcsb010.stat = 70 | Completed WO or Outbounded<br />
+   selectdo<br />
+   endselect<br />
+<br />
+   |db.retry.point()<br />
+   select cxcsb020.*<br />
+   from cxcsb020 for update<br />
+   where cxcsb020._index1 = {:l.wono}<br />
+   selectdo<br />
+      if l.nrec = l.nrcc and l.nrcc &gt; 0 then<br />
+         cxcsb020.cpdt = utc.num()<br />
+         cxcsb020.cpby = logname$<br />
+         cxcsb020.stat = ltoe(40)  | Completed WO<br />
+      else<br />
+         if l.nrec &lt;&gt; l.nrcc and l.nrcc &gt; 0 then<br />
+            cxcsb020.stat = ltoe(30) | Partially Completed WO<br />
+         else<br />
+            cxcsb020.stat = ltoe(20) | Released<br />
+         endif<br />
+      endif<br />
+      db.update(tcxcsb020, db.retry, elocked)<br />
+      commit.transaction()<br />
+   endselect<br />
+<br />
+   |return(l.nrcc)<br />
+}<br />
+<br />
+<br />
+function check.update.ctl.header.status(domain tcmcs.long l.ctln, domain tcmcs.long l.tqty )<br />
+{<br />
+   |Update tcxcsb020  as Partially completed and/or completed<br />
+   long l.nrcc   | Number of Line completed or Outbounded<br />
+   |db.set.to.default(tcxcsb010)<br />
+   select count(cxcsb010.wono):l.nrcc<br />
+   from cxcsb010<br />
+   where cxcsb010.ctln = {:l.ctln}<br />
+         and cxcsb010.stat &gt;= 50<br />
+   selectdo<br />
+   endselect<br />
+<br />
+   |db.retry.point()<br />
+   select cxcsb005.*<br />
+   from cxcsb005 for update<br />
+   where cxcsb005._index1 = {:l.ctln}<br />
+   selectdo<br />
+      if l.nrcc &gt; 0 and (l.nrcc = l.tqty) then<br />
+         cxcsb005.stat = ltoe(50) | Completed<br />
+      else<br />
+         cxcsb005.stat = ltoe(40) | Released<br />
+      endif<br />
+      db.update(tcxcsb005, db.retry, elocked)<br />
+      commit.transaction()<br />
+   endselect<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">11th April 2014, 02:04</div></div><div class="posttext">I would think a 'commit.transaction' within a DAL is a bad thing, since DAL is called while updating the main record and before an automatic commit is done.  If you prematurely commit in the DAL, I would think that some issues may occur when the standard processing tries its own commit.  I never put 'commit.transaction' within a DAL and try to do all updates of other tables or records in the &quot;after.after&quot; section.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eric.dizon</div><div class="date">11th April 2014, 17:43</div></div><div class="posttext">Thanks BaanInOhio,  that did it for me. Nice tip for my issue.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">11th April 2014, 18:04</div></div><div class="posttext">Hi,<br />
+<br />
+Also keep in mind, when you are using commit.transaction, do it out of the select loop to avoid other possible errors.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eric.dizon</div><div class="date">11th April 2014, 18:14</div></div><div class="posttext">Thanks bushhandchanda, that actually make sense that I think of it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">11th April 2014, 22:27</div></div><div class="posttext">A few other remarks about the code examples:<br />
+1. Instead of using ltoe(nn) you can better use the enum constant name. <br />
+2. The 3rd argument of db.update should not be an error value (like elocked) but an error action (like db.skip.dupl). See db.update() function in the programmers manual.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

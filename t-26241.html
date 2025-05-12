@@ -1,0 +1,138 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Performance problems, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Performance problems Performance &amp; Tuning" />
+	
+	<title>Performance problems [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Performance &amp; Tuning</a> &gt; Performance problems</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">soportevzla</div><div class="date">26th January 2006, 23:18</div></div><div class="posttext">We have performance problems in sessions tisfc0101s000 (Material to issue for productions orders) and whinh4275m000 (Confirm Shipments/Loads) in a BaaN ERP 5.0c company using Informix 9.40 FC7.<br />
+<br />
+Porting set : 7.1d.08<br />
+<br />
+Service Pack : 16<br />
+<br />
+Porting set version was updated (to version 9.0) with no results, so 7.1 was installed again. <br />
+<br />
+We do not think it has to do with number of rows as tables are not that big yet (see tables length below).<br />
+<br />
+-----------+--------------+<br />
+Table      |     Rows     |   <br />
+-----------+--------------+<br />
+whwmd215           29089                   <br />
+whinr140           19167                 <br />
+whinr150           19153                <br />
+whinh200           207929              <br />
+whwmd300           14523              <br />
+whinh220           566193              <br />
+whltc100           12602                <br />
+whltc101           1396                <br />
+whltc105           4317 <br />
+<br />
+<br />
+Session tisfc0101s000 (Material to issue for productions orders) takes a long time (8 minutes) particularely processing items with lot control &quot;By lot&quot; and &quot;FIFO&quot; outbound priority. <br />
+<br />
+Running process with trace we found the query showne below:<br />
+<br />
+Fetch times of Query (QID : 240) Trans 4 (tisfc0207m000) in SqlBreak :<br />
+select       whinr150.*, whwmd300.*, whinr140.*                   <br />
+from        whinr150, whwmd300, whinr140 for update                           <br />
+where       whinr150._index2 = {:i.item, :whinh205.cwar}                      <br />
+and          (whinr150.clot = :whinh220.clot or :whinh220.lsel = tclsel.any)                           <br />
+and          whinr150.pkdf = :i.pkdf                          <br />
+and          whinr150.levl = :i.levl                             <br />
+and          whinr150.cuni = :i.unit                            <br />
+and          whinr150.stra &gt;= :i.search.qty.ist                            <br />
+and          whinr150.stra &gt; 0                    <br />
+and          whinr150.stka &gt; 0                   <br />
+and          whinr150.cmba refers to whinr140                         <br />
+and          (whinr140.ball = tcyesno.no and ((not :whinh220.oorg = whinh.oorg.assembly and <br />
+       whinr140.bout = tcyesno.no and :whinh200.ittp = whinh.ittp.issue) or <br />
+      (not :whinh220.oorg = whinh.oorg.assembly and whinr140.btri = tcyesno.no and <br />
+      (:whinh200.ittp = whinh.ittp.transfer or :whinh200.ittp = whinh.ittp.item.transfer)) or   <br />
+      (whinr140.btri = tcyesno.no and :whinh220.oorg = whinh.oorg.assembly)))                    <br />
+and          (whinr140.bcyc = tcyesno.no or :i.bcyc = tcyesno.yes)                          <br />
+and          (whinr140.stks - whinr140.stkh - whinr140.stka) &gt;= :i.search.qty.iiu <br />
+and   whinr140.cmba refers to whwmd300 unref clear                            <br />
+and          (whinr140.loca = &quot;&quot; or whwmd300.loct = :i.loct or                :i.loct = empty)       <br />
+and          (whinr140.loca = &quot;&quot; or (whwmd300.loct &lt;&gt; whwmd.loct.receiving and whwmd300.loct &lt;&gt; whwmd.loct.inspection and<br />
+       whwmd300.ball = tcyesno.no and ((:whinh220.oorg = whinh.oorg.assembly and ((whwmd300.trto = tcyesno.yes and<br />
+       whwmd300.btri = tcyesno.no) or (:whinr140.loca = :whinh201.loca))) or  (not :whinh220.oorg =    <br />
+       whinh.oorg.assembly and (:whinh200.ittp = whinh.ittp.transfer or <br />
+       :whinh200.ittp = whinh.ittp.item.transfer) and whwmd300.trto = tcyesno.yes and whwmd300.btri = tcyesno.no) or     <br />
+      (not :whinh220.oorg = whinh.oorg.assembly and :whinh200.ittp = whinh.ittp.issue and <br />
+       whwmd300.outl = tcyesno.yes and whwmd300.bout = tcyesno.no)))) <br />
+and   (not (not :whinh220.oorg = whinh.oorg.assembly and :whinh200.sfty = whinh.type.warehouse and                                                             <br />
+:whinh200.stty = whinh.type.warehouse and :whinh200.sfco = :whinh200.stco) or <br />
+      (not :whinh220.oorg = whinh.oorg.assembly and :whinh200.sflo &lt;&gt; &quot;&quot; and whinr140.loca = :whinh200.sflo) or                            <br />
+(not :whinh220.oorg = whinh.oorg.assembly and :whinh200.sflo = &quot;&quot; and (:whinh200.stlo = &quot;&quot; or                                               <br />
+       :whinh200.ittp = whinh.ittp.item.transfer or whinr140.loca &lt;&gt; :whinh200.stlo)))                         <br />
+and          (whinr150.clot = &quot;&quot; or exists ( select  whltc105.* <br />
+                                      from whltc105 <br />
+                                      where whltc105._index1 = {whinr140.cwar, whinr140.item, whinr150.clot}     <br />
+and (whltc105.ball = tcyesno.no and (:whinh220.lsel &lt;&gt; tclsel.any or      <br />
+     whltc105.stks - whltc105.stkh - whltc105.stka &gt; 0.0) and  <br />
+    ((not :whinh220.oorg = whinh.oorg.assembly and <br />
+     whltc105.bout = tcyesno.no and :whinh200.ittp = whinh.ittp.issue) or             <br />
+    ((not :whinh220.oorg = whinh.oorg.assembly and <br />
+    ((whltc105.btri = tcyesno.no and <br />
+     (not :whinh220.oorg = whinh.oorg.assembly and                                              <br />
+      :whinh200.sfty = whinh.type.warehouse and     <br />
+      :whinh200.stty = whinh.type.warehouse and <br />
+      :whinh200.sfco &lt;&gt; :whinh200.stco) and <br />
+      not(exists ( select  whltc105_2.*                                                                      <br />
+                   from    whltc105 whltc105_2                                                                              <br />
+                   where   whltc105_2._index1 = {:whinh200.stco, whltc105.item, whltc105.clot} and <br />
+      whltc105_2.btrr = tcyesno.yes))) <br />
+or  ((not :whinh220.oorg = whinh.oorg.assembly and <br />
+      :whinh200.sfty = whinh.type.warehouse and <br />
+      :whinh200.stty = whinh.type.warehouse and                                                            <br />
+      :whinh200.sfco = :whinh200.stco) and<br />
+      whltc105.btri = tcyesno.no and                                                                       <br />
+      whltc105.btrr =tcyesno.no)) or <br />
+      (:whinh200.ittp =whinh.ittp.transfer or <br />
+      :whinh200.ittp =whinh.ittp.item.transfer         and  <br />
+      whltc105.btri = tcyesno.no and  <br />
+      whltc105.btrr = tcyesno.no))) <br />
+or (whltc105.btri = tcyesno.no and :whinh220.oorg = whinh.oorg.assembly))        <br />
+and (:whinh220.revi = &quot;&quot; or <br />
+     :whltc000.erac = tcyesno.no or <br />
+     :whwmd000.roei = tcyesno.no or                                                                       <br />
+     exists (select  whltc100.*                                                                                    <br />
+             from    whltc100                                                                                        <br />
+             where   whltc100._index1 = {whltc105.item, whltc105.clot} and <br />
+     whltc100.revi = :whinh220.revi))) ))                                 <br />
+and  (:whinh200.sflo = &quot;&quot; or whinr140.loca = :whinh200.sflo)<br />
+order by  whinr150.item, whinr150.cwar, whinr150.idat, whwmd300.proo, whinr150.stka, whinr150.clot<br />
+<br />
+<br />
+Any advice or suggestions?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">27th January 2006, 19:28</div></div><div class="posttext">Are you level 1 or level 2 driver?<br />
+<br />
+Informix reccomends very complex &quot;statistics&quot; for their tables have you generated those?<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">31st January 2006, 10:33</div></div><div class="posttext">Please upgrade to the latest FC level. FC8 contains a lot of performance fixes that made the Informix database less performing on a Ban environment.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

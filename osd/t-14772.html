@@ -1,0 +1,145 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="what is the logging mode of tables?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] what is the logging mode of tables? Operating Systems &amp; Databases" />
+	
+	<title>what is the logging mode of tables? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; what is the logging mode of tables?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Caner.B</div><div class="date">11th March 2004, 18:45</div></div><div class="posttext">Hi All,<br />
+<br />
+I discovered  that all of our tables logging mode is not enabled except the tables we created  or reorganized after our DB installation and data load. <br />
+<br />
+All Tablespaces logging modes are enabled And I do not know how our tables  logging modes are disabled.<br />
+<br />
+We are using Oracle 9.2.0.3 and Baan IV .<br />
+<br />
+Anyone else having this situation?<br />
+<br />
+<br />
+Thanks<br />
+<br />
+Caner</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">12th March 2004, 09:57</div></div><div class="posttext">Sounds like someone turned it off manually. Maybe because for fast import? Lucky you, you got no disaster.<br />
+<br />
+Find all tables that have no logging like:<br />
+<br />
+SQL&gt; select table_name from user_tables where logging = 'NO'; <br />
+<br />
+and change the tables to logging mode:<br />
+<br />
+SQL&gt; alter table xyz logging; <br />
+<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Caner.B</div><div class="date">12th March 2004, 10:12</div></div><div class="posttext">Hi Dick,<br />
+<br />
+I got the list of logging disabled  tables , and it is over 20000 and I have over 30000 logging mode disabled indexes .<br />
+Only 6000 tables and 10000 indexes logging modes are enabled.<br />
+<br />
+<br />
+<br />
+I think this occured at data import time when we migrated to Oracle 9. by disabling Tablespaces logging modes for faster import , and Tablespaces logging modes enabled after that.<br />
+<br />
+Will the tables logging modes override Tablespaces logging mode and not generate redo ?<br />
+<br />
+Caner</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">12th March 2004, 13:18</div></div><div class="posttext">I got the list of logging disabled tables , and it is over 20000 and I have over 30000 logging mode disabled indexes . <br />
+So use a script like:<br />
+SQL&gt; select 'alter table '||table_name||' logging;'<br />
+  2  from user_tables<br />
+  3  where logging = 'NO'; <br />
+Will the tables logging modes override Tablespaces logging mode and not generate redo ? <br />
+Table logging overrides tablespace logging mode. Tablespace logging mode is just a default for the tables.<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Caner.B</div><div class="date">12th March 2004, 13:47</div></div><div class="posttext">Table logging overrides tablespace logging mode. Tablespace logging mode is just a default for the tables. <br />
+<br />
+You are right about this. But in Archive log mode this does not include delete , insert , update operations<br />
+I did some tests on my test server.<br />
+I created some tables with logging disabled on a logging enabled TBS and on a logging disabled TBS.<br />
+<br />
+inserted some rows to these tables. and backedup the DB with rman, and inserted some more rows. <br />
+shutdown the DB and deleted related Tablespaces (datafiles).<br />
+<br />
+mount the database , restore TBS with rman , recover TBS with rman. open the database and ALL the rows I inserted into logging disabled tables and logging disabled TBS came back.<br />
+<br />
+I asked this to our local support center and they said that When using DB in ARCHIVE mode update, insert, delete operations are logged in redo's except alter operations. <br />
+<br />
+<br />
+Kind regards<br />
+<br />
+Caner</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Caner.B</div><div class="date">12th March 2004, 17:23</div></div><div class="posttext">Here is answer from Oracle metalink;<br />
+<br />
+<br />
+<br />
+Although you can set the NOLOGGING attribute for a table, partition, index, or <br />
+tablespace, no-logging mode does not apply to every operation performed on the <br />
+schema object for which you set the NOLOGGING attribute. Only the following <br />
+operations can make use of no-logging mode: <br />
+<br />
+direct load (SQL*Loader) <br />
+<br />
+direct-load INSERT <br />
+<br />
+CREATE TABLE ... AS SELECT <br />
+<br />
+CREATE INDEX <br />
+<br />
+ALTER TABLE ... MOVE PARTITION <br />
+<br />
+ALTER TABLE ... SPLIT PARTITION <br />
+<br />
+ALTER INDEX ... SPLIT PARTITION <br />
+<br />
+ALTER INDEX ... REBUILD <br />
+<br />
+ALTER INDEX ... REBUILD PARTITION <br />
+<br />
+INSERT, UPDATE, and DELETE on LOBs in NOCACHE NOLOGGING mode stored out of line <br />
+<br />
+All of these SQL statements can be parallelized. They can execute in logging or <br />
+no-logging mode for both serial and parallel execution. <br />
+<br />
+Other SQL statements are unaffected by the NOLOGGING attribute of the schema <br />
+object. For example, the following SQL statements are unaffected by NOLOGGING <br />
+mode: UPDATE and DELETE (except on some LOBs, as noted above), conventional <br />
+path INSERT, and various DDL statements not listed above. <br />
+<br />
+even in the case of say direct insert ( where no logging is applicable)<br />
+<br />
+Some minimal logging is still done for marking new extents invalid, and <br />
+dictionary changes are always fully logged<br />
+<br />
+<br />
+If you have no further clarification to be made , please proceed to close the <br />
+tar</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

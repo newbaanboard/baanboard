@@ -1,0 +1,106 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Tracing Subsessions, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Tracing Subsessions AFS/DDC/OLE: Function servers" />
+	
+	<title>Tracing Subsessions [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Tracing Subsessions</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">dthomson</div><div class="date">10th September 2002, 12:10</div></div><div class="posttext">I am trying to develop a session using AFS to Report production orders complete (tisfc020m000) using input from a spreadsheet.<br />
+<br />
+Does anyone know if it is possible to log all the subsessions that are started by a main session.<br />
+<br />
+Has anybody out there created an AFS session for completing production orders?, if so could you send me the program script.<br />
+<br />
+Regards<br />
+<br />
+Derek</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">10th September 2002, 13:00</div></div><div class="posttext">Try to run the AFS program with the options:<br />
+-- -dbgfile -keeplog -logfile WhatFiles &lt;AFS session&gt;<br />
+in the file WhatFiles you can see all the disk files used including the program options of the subsession.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th September 2002, 15:23</div></div><div class="posttext">Thanks Omeluuk. I will give this a try.<br />
+<br />
+Derek,<br />
+<br />
+I tried doing a Afs function server for this session early on, but gave up on it.  I kept getting a &quot;Null pointer on printer&quot; error or something like that.  Support center was not helpful on this at all. I have heard that Baan has fixed this problem, but I am not sure.  What type of problem are you having?  Maybe you could post the relevant piece of code.  That may help someone solve the problem.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gous99</div><div class="date">11th September 2002, 18:38</div></div><div class="posttext">Hi, I just created an AFS for this session, here we are on Baan IV c3. Also with extension A&amp;D, so it might be different. For us, this works just fine.<br />
+<br />
+<br />
+     g.comp.frm = tcyesno.yes<br />
+     dt = date.num()<br />
+     stpapi.put.field(&quot;tisfc0202m000&quot;, &quot;tisfc001.pdno&quot;, str$(hold.pdno))<br />
+     ret = stpapi.find(&quot;tisfc0202m000&quot;)<br />
+     if ret = 1 then<br />
+          error.flag = false<br />
+          stpapi.put.field(&quot;tisfc0202m000&quot;, &quot;qdlv.frm&quot;, str$(qtypo))<br />
+          stpapi.put.field(&quot;tisfc0202m000&quot;, &quot;comp.frm&quot;, str$(g.comp.frm))<br />
+          stpapi.handle.subproc(&quot;tisfc0202m000&quot;, &quot;tdilc4113s000&quot;, &quot;add&quot;)<br />
+          stpapi.enum.answer(&quot;tisfc0202m000&quot;, &quot;tisfc01021&quot;, tcyesno.yes)<br />
+          stpapi.enum.answer(&quot;tisfc0202m000&quot;, &quot;tisfc02024&quot;, tcyesno.yes)<br />
+          stpapi.enum.answer(&quot;tisfc0202m000&quot;, &quot;tisfc02029&quot;, tcyesno.yes)<br />
+          stpapi.continue.process(&quot;tisfc0202m000&quot;, gapi.error.code)<br />
+          if isspace(gapi.error.code) then<br />
+               error.flag = false<br />
+               stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.clot&quot;, new.lot)<br />
+               stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.date&quot;, str$(dt))<br />
+               stpapi.insert(&quot;tdilc4113s000&quot;, 0, gapi.error.code)<br />
+               if strip$(gapi.error.code) &lt;&gt; &quot;&quot; then<br />
+                    message(&quot;Could not insert record in Maintain Receipts&quot;)<br />
+                    message(&quot;The error is: &quot; &amp; gapi.error.code)<br />
+                    stpapi.end.session(&quot;tdilc4113s000&quot;)<br />
+                    stpapi.end.session(&quot;tisfc0202m000&quot;)<br />
+                    error.flag = true<br />
+                    return<br />
+               else<br />
+                    error.flag = false<br />
+                    stpapi.save(&quot;tdilc4113s000&quot;, gapi.error.code)<br />
+                    if strip$(gapi.error.code) &lt;&gt; &quot;&quot; then<br />
+                         message(&quot;Could not save the record in Maintain Receipts&quot;)<br />
+                         message(&quot;The error is: &quot; &amp; gapi.error.code)<br />
+                         stpapi.end.session(&quot;tdilc4113s000&quot;)<br />
+                         stpapi.end.session(&quot;tisfc0202m000&quot;)<br />
+                         error.flag = true<br />
+                         return<br />
+                    else<br />
+                         error.flag = false<br />
+                    endif<br />
+               endif<br />
+          else<br />
+               message(&quot;Error occured Clicking on the button in Report Prod Order Completed&quot;)<br />
+               message(&quot;The error is: &quot; &amp; gapi.error.code)<br />
+               error.flag = true<br />
+               return<br />
+          endif<br />
+     else<br />
+          message(&quot;Record not found in Report Production Order Completed&quot;)<br />
+          message(&quot;Order Number: &quot; &amp; str.pdno)<br />
+          stpapi.end.session(&quot;tisfc0202m000&quot;)<br />
+          error.flag = true<br />
+          return<br />
+     endif<br />
+     stpapi.end.session(&quot;tdilc4113s000&quot;)<br />
+     stpapi.end.session(&quot;tisfc0202m000&quot;)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

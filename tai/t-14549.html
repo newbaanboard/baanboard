@@ -1,0 +1,106 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="tools table, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] tools table Tools Administration &amp; Installation" />
+	
+	<title>tools table [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; tools table</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">learner</div><div class="date">20th February 2004, 19:42</div></div><div class="posttext">Hi,<br />
+<br />
+can somebody explain me when does ttadv501, ttadv502, ttadv503 table gets entry in 000 co. ???<br />
+<br />
+Regards<br />
+<br />
+Learner</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">20th February 2004, 19:54</div></div><div class="posttext">I may not be covering everything:<br />
+<br />
+ttadv502:  Whenever you make a change to a table (Maintain Table Definitions), that table and VRC are stored here.<br />
+Whenever you change a domain (Maintain Domains), this is updated for the package only.<br />
+<br />
+ttadv501:  Definately when you update a domain.  Not sure, but also sometimes when you update a table.<br />
+<br />
+ttadv503:  If you convert to runtime fails an entry is made here. This is how it gets the message that you have a failed convert already started - continue?<br />
+<br />
+There may be other times they are updated, but those are the most common.  These are the tables that are used when issuing the 'convert to runtime' option.  For the tables / domains to convert they must have entries here.  Otherwise, run a full create runtime will convert things that are not flagged here, but obviously takes longer as it will run for all components in your range.<br />
+<br />
+I can say when they are NOT updated, and that is when you Import table and domain changes.   That's why you are unable to run convert to runtime for even simple table changes, and are usually instructed to run Create Runtime instead.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">21st February 2004, 14:15</div></div><div class="posttext">Just an elaboration to what Lisa said.<br />
+<br />
+1. When domain / table is changed / created, records are inserted in ttadv501/502 both.<br />
+2. When user converts to runtime(ttadv5215m000). Following happens.<br />
+      -  it first creates runtime dd (.new file) domain or table dictionary and deletes the record in ttadv502.<br />
+     - if the original dictionary and new dictionary (.new file ) are same , then .new file is deleted. And related domain/ table  record from ttadv501 also is deleted.<br />
+     - In case of domain changes, it determines the tables affected by change in the domain and creates record in ttadv501 for the tables affected and it deletes the domain record in ttadv501. Only if the datatype changes , physical length changes , addition /deletion of enum/sets options , change of alignment / conversion etc require the reconfig of the tables using the changed domain. Change of enum option description or change of domain description does not require reconfig of  tables using such domains. Internally program run bdbreconfig -c to check whether reconfig  of a table is required.<br />
+      - Once the complete conversion activity is over and reconfig option also is chosen in ttadv5215m000 then the program starts reconfiguring the tables in ttadv501 . It creates temprorary  R. file in $BSE for reconfiguring the table from the existing tables . It deletes the existing table completely if  it's not used by anybody. If table deletion does not work it revert backs the same table. From the temporary file and new table definition it creates the table again.  During this entire process the the record remains in ttadv503 just in case the process aborted , it can restart from the R. file and new dictionary. As the tables are reconfigured , the records are deleted from ttadv501.  After the complete reconfig process , all relevant original dictionary files are copied to .old files and .new files are copied to original dictionary file.<br />
+<br />
+Recently quite a few changes have been made  in new porting sets for bdbreconfig . However broad process remains the same.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">learner</div><div class="date">22nd February 2004, 19:28</div></div><div class="posttext">Hi,<br />
+<br />
+Thanks for clearing up my concept. In case of any doubt i will revert back accordingly.<br />
+<br />
+Regards<br />
+<br />
+Learner</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">23rd February 2004, 17:46</div></div><div class="posttext">Hi Hitesh,<br />
+<br />
+if they did some changes to bdbreconfig in regards to these tables, there must be a corresponding tools patch, right?<br />
+<br />
+Otherwise bdbreconfig would expect certain vailues in these tables, which are actually filled by normal tools objects during customizations.<br />
+<br />
+So you know about such a patch?<br />
+<br />
+Regards<br />
+<br />
+markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">24th February 2004, 07:41</div></div><div class="posttext">Hi Markus,<br />
+<br />
+There have been NO changes to these tables (ttadv501 - 3 till B40c SP12). We are on SP12 . I don't expect any changes in later SP's also though I don't know.<br />
+<br />
+ The changes have been in bdbrecong6.1 binary which comes along with porting set upgrade. The release notes of porting sets describes the errors resolved in the new porting set. Most changes are with respect to the error handling in bdbreconfig so that there is no loss of data at any point of time .<br />
+<br />
+I think this clarifies ur question.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">24th February 2004, 08:43</div></div><div class="posttext">The changes which Hitesh mentioned were part of my case.<br />
+<br />
+Here is more info-<br />
+<br />
+Solution 141012<br />
+TOOLS VERSION(S):<br />
+7.1_a, 7.3_a <br />
+<br />
+SITUATION IDENTIFIED IN:<br />
+&quot;Convert to Runtime Data Dictionary&quot; (ttadv5215m000)<br />
+<br />
+SITUATION DESCRIPTION:<br />
+When a new unique index is added to a table, this may result in duplicates on this new index. Execution of session Convert to Runtime Data Dictionary with checkbox Reconfigure Tables checked, results in skipping of lines with duplicate index. No warning is given. Lines are simply removed.<br />
+<br />
+SOLUTION DESCRIPTION:<br />
+A new option is introduced in session Convert to Runtime Data Dictionary &quot;Ignore Errors&quot;. When this button is checked (the default situation) the session works in the old way (errors are ignored), when this button is not checked the tables with duplicate index won't be reconfigured. The errors are logged in the logfile log.bdbreconfig6.2. The user can get rid of the duplicates and do the Reconfiguration again.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

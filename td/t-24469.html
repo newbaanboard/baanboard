@@ -1,0 +1,154 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="inserting records in multi occurence forms, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] inserting records in multi occurence forms Tools Development" />
+	
+	<title>inserting records in multi occurence forms [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; inserting records in multi occurence forms</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">madmax33</div><div class="date">6th July 2005, 02:27</div></div><div class="posttext">Hi, I'm looking for a piece of code in BAAN 4c4 to allow me to insert records between sequences in a multi occurence form. For example I have <br />
+Machine# 101<br />
+sequence 1      order#<br />
+sequence 2      order#<br />
+sequence 3      order#<br />
+<br />
+Now I insert a new record but I give it sequence 2, I want to have the record already at sequence 2 jump to 3 and so on for all records underneath.<br />
+<br />
+Hope I'm clear.<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th July 2005, 14:05</div></div><div class="posttext">Why not take sequence out of the key and just let the users maintain it manually? If that is not an option then what I would do is zoom to a sub-session that lets them input one record only(probably not table fields), then when they continue do a re-number, and before exiting I would then insert the new record. I have not done this, but this was just my thoughts.  I would probably recommend that when inserting records they used something like production order operations(10,20,30, etc..).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">v_chandra</div><div class="date">7th July 2005, 16:15</div></div><div class="posttext">Mark - Just tell suggest whether this will work or not ?<br />
+<br />
+As you said the sequence field on form should not be a table field<br />
+<br />
+Example : Records already exist with sequence 1,2 and 3 and user inserts new<br />
+record with sequence 2 on form and after filling other details clicks on save.<br />
+<br />
+<br />
+choice.update.db:<br />
+before.choice:<br />
+	on.main.table(rearrange.existing.sequence)<br />
+	tablefield.sequence = formfield.sequence<br />
+<br />
+<br />
+functions:<br />
+<br />
+function rearrange.existing.sequence()<br />
+{<br />
+	select	tablefields.*<br />
+	from	tablefield<br />
+	where	tablefield._index = <br />
+	and	tablefield.sequence &gt;= formfield.sequence<br />
+	selectdo<br />
+		tablefield.sequence = tablefield.sequence + 1<br />
+		db.update(ttable)<br />
+	endselect<br />
+}<br />
+<br />
+Once this is done rest will be taken care by Baan standards i think, as we are<br />
+assigning value of formfield.sequence to tablefield.sequence in before.choice<br />
+the new record will be inserted with the sequence that user has entered.<br />
+<br />
+The only drawback is, user will have to save after every record is inserted or <br />
+that should be done explicitly in program. Or else the same thing could be done in<br />
+when.field.changes of the formfield.sequence in form.<br />
+<br />
+<br />
+Regards<br />
+<br />
+Vinod</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th July 2005, 16:48</div></div><div class="posttext">I just did not like the idea of forcing a save after each record.  I know you can enforce this in the script(I do not like forcing a save), then refresh the records, then jump back into insert mode.  It is possible to do what you want by using the script, but to me it becomes confusing .<br />
+<br />
+I have one session that has 3 forms and I have to force a save after each form. I do not like it - but I had to do this because of the users. They wanted error checking on every field - but sometimes they only wanted to enter one or two fields.  Plus they did some pretty stupid things when they got to form three that would cause the loss of information on forms 1 &amp; 2.  So some error checks I could do at input time, but most comes later in the process. <br />
+<br />
+I also have another session that lets the user maintain outbound - I do something like what was originally described.  I have to let the user insert records, then re-fresh, re-arrange, and point back to the record.  To me it looks confusing as things get re-arranged, but again it was what the user wanted.  The difference is that I can let them enter multiple records because my &quot;sequence&quot; field is hidden from the user.  I also just let the sequence numbers grow when re-aligning the records.  So for example I might have 1,2,3.  The user adds a part I then have sequence 4,5,6,7 - based off of the weird sort and how they want to view the records.<br />
+<br />
+Because of how ugly I consider these too options(not that they do not work) I would just prefer something simple.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">madmax33</div><div class="date">7th July 2005, 18:31</div></div><div class="posttext">Mark_h option 1 would be the simplest way, and the sequence is not part of the primary index. But here is what the user want's to do; <br />
+A machine may contain up to 50 records and I dont want to have them change all other records when inserting a new line. They also want to be able to modify sequence at will to reorder the priority of the orders#. <br />
+So they will not only be inserting records between 2 existing records, they may also change the seq of existing records. <br />
+For example:  Machine 101<br />
+                   seq1         order#1<br />
+                   seq2         order#2<br />
+                   seq3         order#3 <br />
+<br />
+now they want to go and change seq1 to seq3, seq3 to seq1 and then insert a new seq in seq2 so the  end result would be <br />
+seq1    order#3<br />
+seq2    order#4<br />
+seq3    order#1<br />
+seq4    order#2<br />
+<br />
+From what I can see I will have to build a function that will retain the old sequences and have the push a button to update with the new sequencing. I can use parts of the code v_chandra suggested. But if you have any other ideas please let me know.<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th July 2005, 20:19</div></div><div class="posttext">From what I can see I will have to build a function that will retain the old sequences and have the push a button to update with the new sequencing. I can use parts of the code v_chandra suggested. But if you have any other ideas please let me know.<br />
+<br />
+<br />
+Yes - that should work.  But I actually think you need to follow Vinods advice and do the insert after each new record.  What I am thinking is that the display screen will only hold so many occurances and you could have more records than can be displayed.  It that case I can see where tracking them can become more work that just renumbering after each record.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">v_chandra</div><div class="date">8th July 2005, 10:41</div></div><div class="posttext">Max<br />
+<br />
+As you said that its not a key field. I have a question if you could clear it out.<br />
+<br />
+1. If the user changes sequence 1 to 11 and if he doesn't change 11 to 1 or so.., <br />
+   in such case do you have any checks for it. Or is it ok that a machine is having<br />
+   two sequence with same number. Because since its not the key field you won't have<br />
+   any error coming from standard baan.<br />
+<br />
+2. What if in edit mode user change sequence 1 to 3 and 3 to 5 and 5 to 1. Will you<br />
+    be refreshing screen at every such change.<br />
+<br />
+Suggestion :<br />
+<br />
+1. Have a record save at every record inserted/ edited, where in you can check for    <br />
+    the duplicate sequence and if it exist you can prompt a question to user or <br />
+    automatically inter change the sequence. (depending on functionality/ or how the <br />
+    user want it to be)<br />
+<br />
+2. And at the group level (Machine level entry) possibly keep a check before navigating<br />
+   to other machine record or before closing the session, whether any duplicate   <br />
+   sequence record exist for current Machine record. <br />
+<br />
+<br />
+Once this things are clear we will be able to find much better solution to your problem<br />
+<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">madmax33</div><div class="date">8th July 2005, 21:12</div></div><div class="posttext">Hi v_chandra,<br />
+Here is the response to the questions you asked, but in order to not spend days replying to each other, please refer to the original question, where I was looking for a piece of code alredy thought out. Because as you know programmers are lazy!<br />
+I apreciate the ideas and options you sent, I will work around this.<br />
+Thanks<br />
+ :)  :) <br />
+1-No it's ok to have the same sequence for records and for the time being there are no checks the whole idea beind this to make sure that every time a user changes a sequence, the other ones will be bumped.<br />
+ <br />
+2-It would be nice to refresh on the fly, yes. But I could also build a function that will hold the old values and then rearainge the records. but a refresh every time would be better</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

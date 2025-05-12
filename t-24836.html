@@ -1,0 +1,171 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Assigning sales position with AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Assigning sales position with AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>Assigning sales position with AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Assigning sales position with AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">fallguyjg</div><div class="date">16th August 2005, 00:06</div></div><div class="posttext">Baan Friends,<br />
+<br />
+I'm creating a sales line via AFS, and I'm wanting to set the sales line position.<br />
+But the sales line position is auto generated, and ignores my assigned position.<br />
+<br />
+I have form fields orno.f and pono.f<br />
+When I set the pono.f = 10, it ignores this value and creates a sales line with the next position (in my case, increment by 1).<br />
+<br />
+Here's my code:<br />
+<br />
+<br />
+	#define		FAIL		(err.cde = false)<br />
+	#define		NOT_FOUND	(err.cde &lt;&gt; 1)<br />
+<br />
+function insert.sline()<br />
+{<br />
+	| find sales header<br />
+	stpapi.clear(&quot;tdsls4101m000&quot;)<br />
+	stpapi.put.field(&quot;tdsls4101m000&quot;, &quot;tdsls040.orno&quot;, str$(orno.f))<br />
+	err.cde = stpapi.find(&quot;tdsls4101m000&quot;, err.msg)<br />
+	if FAIL then<br />
+		stpapi.get.mess.code(&quot;tdsls4101m000&quot;, err.msg)<br />
+		if isspace(err.msg) then<br />
+			err.msg = &quot;Record Not Found&quot;<br />
+		endif<br />
+		while not isspace(err.msg)<br />
+			message(&quot;%s&quot;, err.msg)<br />
+			stpapi.get.mess.code(&quot;tdsls4101m000&quot;, err.msg)<br />
+		endwhile<br />
+		stpapi.recover(&quot;tdsls4101m000&quot;, err.msg)<br />
+		stpapi.end.session(&quot;tdsls4101m000&quot;, err.msg)<br />
+		return<br />
+	endif<br />
+	if NOT_FOUND then<br />
+		message(&quot;Record Not Found&quot;)<br />
+		stpapi.end.session(&quot;tdsls4101m000&quot;, err.msg)<br />
+		return<br />
+	endif<br />
+<br />
+	| add sales line<br />
+	stpapi.handle.subproc(&quot;tdsls4101m000&quot;, &quot;tdsls4105s000&quot;, &quot;add&quot;)<br />
+	stpapi.clear(&quot;tdsls4105s000&quot;)<br />
+	stpapi.continue.process(&quot;tdsls4101m000&quot;, err.msg)<br />
+	stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.pono&quot;, str$(pono.f))<br />
+	stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.item&quot;, item.f)<br />
+	stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.oqua&quot;, str$(oqua.f))<br />
+	stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.pric&quot;, str$(pric.f))<br />
+	err.cde = stpapi.insert(&quot;tdsls4105s000&quot;, true, err.msg)<br />
+	if FAIL then<br />
+		stpapi.get.mess.code(&quot;tdsls4105s000&quot;, err.msg)<br />
+		while not isspace(err.msg)<br />
+			message(&quot;%s&quot;, err.msg)<br />
+			stpapi.get.mess.code(&quot;tdsls4105s000&quot;, err.msg)<br />
+		endwhile<br />
+		stpapi.recover(&quot;tdsls4105s000&quot;, err.msg)<br />
+		stpapi.end.session(&quot;tdsls4105s000&quot;, err.msg)<br />
+		stpapi.end.session(&quot;tdsls4101m000&quot;, err.msg)<br />
+		return<br />
+	endif<br />
+	stpapi.get.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.orno&quot;, orno)<br />
+	stpapi.get.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.pono&quot;, pono)<br />
+	stpapi.end.session(&quot;tdsls4105s000&quot;, err.msg)<br />
+	stpapi.end.session(&quot;tdsls4101m000&quot;, err.msg)<br />
+	message(&quot;Sales Order Line: %s / %s Created&quot;, orno, pono)<br />
+}<br />
+<br />
+Anyone have any ideas on this?<br />
+<br />
+Thanks,<br />
+fallguyjg</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">16th August 2005, 15:41</div></div><div class="posttext">I do not think this has anything to do with the problem, but I believe the stpapi.clear(&quot;tdsls4105s000&quot;) should come after the continue.  Do you have source to where you can check what is happening?  I believe that the insert runs through some code that sets the line and over writes what you input.  At this point not sure what else you can try.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dnnslbrwn</div><div class="date">16th August 2005, 19:07</div></div><div class="posttext">Possibly flip the order of the pono and item lines.  The first line that starts the new session might come before the default values hit each field.  Maybe by changing the order, it might work.<br />
+<br />
+That said, I seem to recall having the same problem and just letting it go after spending a day or two fighting with it.<br />
+<br />
+-Dennis</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fallguyjg</div><div class="date">16th August 2005, 23:21</div></div><div class="posttext">Update,<br />
+<br />
+I logged a baan case and here's the answer.<br />
+- - - - - - - - - -<br />
+The position number is automatically determined in the before.input section of <br />
+tdsls041.pono.  For the standard Baan BOIs, changes were introduced to allow <br />
+setting it manually.<br />
+<br />
+	extern domain tcmcs.str132	boi.call<br />
+	...<br />
+	if api.mode then<br />
+		import(&quot;boi.call&quot;, boi.call)<br />
+		...<br />
+	endif<br />
+	...<br />
+		if not api.mode or<br />
+		      ( boi.call &lt;&gt; &quot;tdboidll0005&quot; and<br />
+			boi.call &lt;&gt; &quot;tdboidll500006&quot; and<br />
+			boi.call &lt;&gt; &quot;tdboidll500031&quot; and<br />
+			boi.call &lt;&gt; &quot;tdboidll320040&quot;) then<br />
+			tdsls041.pono =<br />
+			tdsls4102.find.position.number(tdsls041.orno,<br />
+								0,<br />
+							       true)<br />
+		endif<br />
+<br />
+If you could set the boi.call variable to &quot;tdboidll0005&quot;, then you can use that <br />
+functionality.  I checked the script, this only affects the position number, <br />
+the delivery address code, and some error handling.<br />
+- - - - - - - - - -<br />
+<br />
+My new code and it works!<br />
+<br />
+	extern domain tcmcs.str132	boi.call<br />
+<br />
+form.1:<br />
+init.form:<br />
+             . . . . .<br />
+	boi.call = &quot;tdboidll0005&quot;<br />
+<br />
+Also I was informed that the stpapi.clear() function is no longer needed, since it is done automatically after command calls.<br />
+<br />
+fallguyjg</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th August 2005, 16:12</div></div><div class="posttext">Thanks for posting a solution.  I wonder if the same works for purchase orders.  Something I may try soon - if I find the time.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fallguyjg</div><div class="date">18th August 2005, 17:44</div></div><div class="posttext">Results of further testing:<br />
+<br />
+Even though the proposed fix (or work around) of setting the boi.call variable to one of the BOI DLLs that is part of standard baan (ie. boi.call = &quot;tdboidll0005&quot;) seems to work in this case (tdsls4102),<br />
+<br />
+My further testing with doing this same thing for purchase lines (ie. boi.call = &quot;tdboidll0008&quot;) does NOT work.<br />
+<br />
+After examing the scripts, it appears that there are many conditions checked in the scripts for the boi.call variable equal to one of the standard baan BOI DLLs.<br />
+<br />
+And this can cause undesired results, as in the case of purchase lines (tdpur4102), it just hung up.<br />
+<br />
+And even in the case of the sales lines (tdsls4102), there are conditions happening due to boi.call = &quot;tdboidll0005&quot;, that I might not want occurring.<br />
+<br />
+- - - - - - - - -<br />
+<br />
+My conclusion is, that unless you know exactly what the boi.call variable is controlling in the script, don't use it.<br />
+<br />
+fallguyjg</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

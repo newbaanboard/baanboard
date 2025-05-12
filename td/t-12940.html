@@ -1,0 +1,168 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Auto Numbering, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Auto Numbering Tools Development" />
+	
+	<title>Auto Numbering [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Auto Numbering</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">pjohns</div><div class="date">11th September 2003, 17:17</div></div><div class="posttext">Hello,<br />
+<br />
+I want to add a field to a session/form that will automatically apply a sequential record number. A colleague of mine has achieved this but there is one small problem. The record number is applied at the time of adding the record and if you don't save the record for some reason the number is not available the next time a record is added. This is leaving gaps in the numbering sequence, which results in a poor audit trail.<br />
+<br />
+My colleague's solution uses an additional table, which keeps a rolling number. I have attached his script to show you how it's working. How can I change this script so that the number is not assigned until the record is saved?<br />
+<br />
+I found another posting that refers to tcmcs.dll0004.read.default.number, but I've no idea how to incorporate this into my script and whether I need to make any changes to the tcmcsdll0004 library.<br />
+<br />
+Thanks in advance<br />
+<br />
+PJ</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">11th September 2003, 17:28</div></div><div class="posttext">You could assign the number in this section:<br />
+main.table.io:<br />
+before.write:<br />
+  | Assign the numberI have done this recently, and it works perfectly!  Just remember NOT to add a commit.transaction() on the update of the table keeping track of the numbers.  The main.table.io has a commit as the last step, and if you use another commit in this section, it will fail!  (Transaction not on, or something like that...)  The beauty of this is that, if there is a rollback on the main table, the increase of the number is also rolled back.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pjohns</div><div class="date">16th September 2003, 17:59</div></div><div class="posttext">Hello Nico,<br />
+<br />
+Sorry for the delay in getting back to you.<br />
+<br />
+Thanks for your advice, which I have followed, but although the script compiles okay it doesn't work. Could you please point me in the right direction?<br />
+<br />
+<br />
+declaration:<br />
+	table	ttdinv910	| Schenker Stock Diff<br />
+	table	ttdinv909	| First Free Number<br />
+	<br />
+	domain	tcorno	tdinv910.refn<br />
+	extern	domain	ttyeno        	txta.yn<br />
+<br />
+|****************************** form section **********************************<br />
+|****************************** field section *********************************<br />
+field.txta.yn:<br />
+before.display:<br />
+	if tdinv910.txta &lt;&gt; 0 then<br />
+		txta.yn = ttyeno.yes<br />
+	else<br />
+		txta.yn = ttyeno.no<br />
+	endif<br />
+|****************************** Main table i/o *********************************<br />
+main.table.io:<br />
+before.write:<br />
+	select tdinv909.*<br />
+	from tdinv909 for update<br />
+	where tdinv909.constant = 1<br />
+	selectdo<br />
+		tdinv910.refn = tdinv909.number + 1<br />
+		tdinv909.number = tdinv909.number + 1<br />
+		db.update(ttdinv909, db.retry)<br />
+		commit.transaction()<br />
+	endselect<br />
+<br />
+Table tdinv909 is the table holding my first free number info and the field I'm trying to populate with the auto number is tdinv910.refn.<br />
+<br />
+I added one record which was given the number 0 not 1 and every subsequent record added populates my reference field with a 0.<br />
+<br />
+Thanks in advance<br />
+<br />
+Regards<br />
+<br />
+PJ</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">16th September 2003, 18:37</div></div><div class="posttext">Try without the commit.  The main.table.io has it's own commit after the update, finishing the transaction.  Like this:<br />
+<br />
+main.table.io:<br />
+before.write:<br />
+   select  tdinv909.*<br />
+   from    tdinv909 for update<br />
+   where   tdinv909.constant = 1<br />
+   selectdo<br />
+      tdinv909.number = tdinv909.number + 1<br />
+      tdinv910.refn = tdinv909.number<br />
+      db.update(ttdinv909, db.retry)<br />
+   selectempty<br />
+      | Problem here, record in tdinv909 not found!<br />
+      | Assuming there is a message &quot;tdinv909e&quot;, with the message<br />
+      |&quot;Error reading tdinv909: no record found&quot;<br />
+      skip.io(&quot;tdinv909e&quot;)<br />
+| OR...<br />
+      | No entry yet, create the first one<br />
+      db.set.to.default(ttdinv909)<br />
+      tdinv909.constant = 1<br />
+      tdinv909.number = 1<br />
+      tdinv910.refn = 1<br />
+      db.insert(ttdinv909, db.retry)<br />
+   endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pjohns</div><div class="date">17th September 2003, 18:47</div></div><div class="posttext">Hi Nico,<br />
+<br />
+I've tried differing variations of your suggestion but I still only get a 0 assigned as the record number. Any other ideas? <br />
+<br />
+Would you mind me asking how you achieved your numbering solution.<br />
+<br />
+Kind regards<br />
+<br />
+PJ</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">17th September 2003, 20:18</div></div><div class="posttext">Hi PJ<br />
+<br />
+Could you post/attach your code as you have it now?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pjohns</div><div class="date">18th September 2003, 13:54</div></div><div class="posttext">Hello Nico,<br />
+<br />
+As requested I have attached the code as I have it now. <br />
+<br />
+In all the different scenarios that I have tried the script compiles okay but I just keep on getting a 0 for the record number. <br />
+<br />
+The tdinv909.number value is correctly getting incremented by 1 each time. So this part of the script works okay.<br />
+<br />
+Does my tdinv910.refn form field need to have any particular settings. At the moment I have the domain details and the field is set to &quot;Display&quot;.<br />
+<br />
+Thanks for your help, the assistance is much appreciated <br />
+<br />
+PJ</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">18th September 2003, 14:44</div></div><div class="posttext">Hi PJ.<br />
+<br />
+In the declaration, you have domain tcorno tdinv910.refnThis overwrites the field declaration in the table, which was defined implicitly by the table ttdinv910  Thus, the assignment you do in the before.write updates the newly declared variable, and not the table's field buffer.  Remove the (declaration) line, and the program should work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pjohns</div><div class="date">18th September 2003, 14:55</div></div><div class="posttext">Hi Nico,<br />
+<br />
+Spot on it all works now.<br />
+<br />
+I originally didn't have the tdinv910.refn declared but when I compiled the script it told me I needed to??<br />
+<br />
+Just one quick question what is the db.set.to.default(ttdinv909) section actually doing?<br />
+<br />
+Thanks a million for all your help!<br />
+<br />
+Regards<br />
+<br />
+PJ</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">18th September 2003, 15:00</div></div><div class="posttext">I just added that part to bypass the possibility of the counter record not yet being there.  This way, without having to insert the record in tdinv909 initially, the code will still work, since the counter record is created for you.  Meaning, when you copy this to production, you just have to create the tables tdinv909 and tdinv910, and, without any further action, you can start using your new session immediately.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

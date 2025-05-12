@@ -1,0 +1,214 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Error 206 (Record is not locked), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Error 206 (Record is not locked) Tools Development" />
+	
+	<title>Error 206 (Record is not locked) [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Error 206 (Record is not locked)</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">zhgello</div><div class="date">9th June 2009, 22:40</div></div><div class="posttext">Hello,<br />
+<br />
+My aim for this session is to generate a report and, afterward, change values of 2 fields on 2 different tables.<br />
+The problem with this is that I believe one of my two SELECT statements is unlocking the record from the other one.<br />
+Running the script results in error message:<br />
+Error 206  (Record is not locked) on tdsls989400 in db_update(51)<br />
+Can no continue in tdslso490m222<br />
+<br />
+I've seen all the posts in this forum for Error 206 and I think I have a general understanding of the problem.<br />
+But I do not know how I can accomplish my goal of running this session and updating those 2 tables.<br />
+<br />
+Does anyone have a suggestion?<br />
+I have included the script.<br />
+Am using Baan IVc4<br />
+<br />
+Thank You.<br />
+<br />
+|******************************************************************************<br />
+|* tdslso490<br />
+|* Shipment Notification                 <br />
+|******************************************************************************<br />
+|* Main table tdsls990 Tracking Number table<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+<br />
+	table	ttdsls990	| Tracking Number<br />
+	table	ttdsls989	| Shipping Address<br />
+	table	ttdsls045	| Sales Deliveries<br />
+	table	ttiitm001	| Items<br />
+	table	ttccom990	| Customer Contacts<br />
+	table	ttdsls993	| Fax &amp; e-mail Info<br />
+	table	ttdsls040	| Sales Orders<br />
+	table	ttdsls994	| Route Table<br />
+	<br />
+	long	pick		| Variable for Pick List<br />
+<br />
+	extern	domain	tcedi.prnt    	pkno.f	fixed<br />
+	extern	domain	tcedi.prnt    	pkno.t	fixed<br />
+	extern	domain	tcnamb        	trac.f	fixed<br />
+	extern	domain	tcnamb        	trac.t	fixed<br />
+	long	save.pkno<br />
+	long	first.time<br />
+		domain	tcnamb		save.trac<br />
+	long	stat.val<br />
+<br />
+<br />
+|****************************** form section **********************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+	if rprt_open()<br />
+<br />
+	then<br />
+		first.time = 0<br />
+		save.pkno = 0<br />
+<br />
+		save.trac = &quot; &quot;<br />
+		shipment.notification()<br />
+		rprt_close()<br />
+	else<br />
+		choice.again()<br />
+	endiF<br />
+<br />
+|****************************** field section *********************************<br />
+<br />
+field.pkno.f:<br />
+when.field.changes:<br />
+	pkno.t = pkno.f<br />
+<br />
+field.trac.f:<br />
+when.field.changes:<br />
+	trac.t = trac.f<br />
+<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function shipment.notification()<br />
+{<br />
+<br />
+	db.retry.point()<br />
+<br />
+	select	tdsls990.*<br />
+	from	tdsls990 for update<br />
+	where	tdsls990.stat = 4 and			|Status is 'Ready'<br />
+		tdsls990._index1 inrange {:pkno.f, :trac.f}<br />
+				     and {:pkno.t, :trac.t}<br />
+		order by tdsls990._index1<br />
+							<br />
+	selectdo	<br />
+<br />
+		pick = lval(tdsls990.pkno)<br />
+<br />
+<br />
+		if first.time = 0 then<br />
+			save.pkno = pick<br />
+			save.trac = tdsls990.trac<br />
+			first.time = 1<br />
+		else<br />
+			if save.pkno = pick and save.trac &lt;&gt; tdsls990.trac then<br />
+				save.trac = &quot; &quot;<br />
+			else<br />
+				save.pkno = pick<br />
+				save.trac = tdsls990.trac<br />
+			endif<br />
+		endif<br />
+<br />
+	if save.pkno = pick and save.trac = tdsls990.trac then<br />
+<br />
+	select	<br />
+			<br />
+			tdsls989.*,<br />
+			tdsls993.*,<br />
+			tdsls994.*,<br />
+			tdsls040.orno, tdsls040.cuno, tdsls040.shcono, tdsls040.crte,<br />
+			tccom990.cuno, tccom990.cono, tccom990.nama, tccom990.namb,<br />
+			tdsls045.*,<br />
+			tiitm001.item, tiitm001.dsca, tiitm001.cuqs<br />
+<br />
+		from	tdsls989 for update, tdsls993, tdsls994, tdsls040, tccom990, tdsls045, tiitm001<br />
+<br />
+		where 	tdsls989.pino = :pick<br />
+		and	tdsls989.shnt = 2		|So far, no other notifications have been sent.<br />
+		and	tdsls993.orno = tdsls989.orno<br />
+		and	tdsls993.kfrm = 1<br />
+		and	tdsls993.shpnt = 1<br />
+		and	tdsls040.orno = tdsls993.orno<br />
+		and	tdsls994.crte = tdsls040.crte<br />
+		and	tccom990.cuno = tdsls040.cuno<br />
+		and	tccom990.cono = tdsls040.shcono<br />
+		and	tdsls045.orno = tdsls993.orno<br />
+		and	tdsls045.pino = :pick<br />
+		and	tiitm001.item = tdsls045.item<br />
+	<br />
+		selectdo<br />
+<br />
+<br />
+		tdsls990.stat = tdstat.sent1		|Change status from 'Ready' to 'Sent 1st Report'<br />
+		db.update(ttdsls990, db.retry)		|*** THIS IS WHERE THE PROGRAM BOMBS***<br />
+		commit.transaction()<br />
+<br />
+<br />
+		tdsls989.shnt = tcyesno.yes		|Change status from 'Sent Report? 'No' to 'Yes'<br />
+		db.update(ttdsls989, db.retry)		|*** THIS IS ALSO WHERE THE PROGRAM BOMBS*** <br />
+		commit.transaction()<br />
+<br />
+			rprt_send()<br />
+<br />
+		endselect<br />
+<br />
+	endif<br />
+	endselect<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ashu2814</div><div class="date">10th June 2009, 06:11</div></div><div class="posttext">Hi.<br />
+<br />
+just comment the line in red. then try running your script<br />
+<br />
+tdsls990.stat = tdstat.sent1		|Change status from 'Ready' to 'Sent 1st Report'<br />
+		db.update(ttdsls990, db.retry)		|*** THIS IS WHERE THE PROGRAM BOMBS***<br />
+		commit.transaction()<br />
+<br />
+<br />
+		tdsls989.shnt = tcyesno.yes		|Change status from 'Sent Report? 'No' to 'Yes'<br />
+		db.update(ttdsls989, db.retry)		|*** THIS IS ALSO WHERE THE PROGRAM BOMBS*** <br />
+		commit.transaction()</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mbdave</div><div class="date">10th June 2009, 08:21</div></div><div class="posttext">Hi,<br />
+<br />
+Do commit.transaction only one time after both updates.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zhgello</div><div class="date">15th June 2009, 22:14</div></div><div class="posttext">Thanks. That worked.<br />
+Doing the commit.transaction just one time for both db.updates solved the problem.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

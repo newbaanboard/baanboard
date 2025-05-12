@@ -1,0 +1,222 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="stpapi.insert gets hung, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] stpapi.insert gets hung AFS/DDC/OLE: Function servers" />
+	
+	<title>stpapi.insert gets hung [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; stpapi.insert gets hung</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">forsms2002</div><div class="date">3rd February 2003, 13:11</div></div><div class="posttext">i am on baan4. i am trying to create sales invoices and am using stpapi functions for the same. The session is tfacr4100m000. <br />
+<br />
+After assigining correct values to required fields, whenever the &quot;stpapi.insert( &quot;tfacr4100m000&quot;, 1,error )&quot; is executed, it gets hung.  When I checked in the session tfacr4100m000, I saw that a new header is created successfully.<br />
+<br />
+When i tried to debug. I saw that there is a line<br />
+zoom.to$(&quot;tfacr4101s000&quot;, z.session, &quot;&quot;, &quot;&quot;, 0).. which means, stpapi functions is not able to handle the zoom.to..<br />
+how to tackle this?  <br />
+<br />
+i am new to stpapi (afs) things so am not sure how to create detail after header is created.. i thing my problem is linked to this..<br />
+<br />
+any help would be greatly appreciated.<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">forsms2002</div><div class="date">3rd February 2003, 14:29</div></div><div class="posttext">I was not using <br />
+stpapi.handle.subproc( &quot;tfacr4100m000&quot;, &quot;tfacr4101s000&quot;, &quot;kill&quot; ) before calling <br />
+stpapi.insert( &quot;tfacr4100m000&quot;, true,error )<br />
+<br />
+so now the moment the sub-process tfacr4101s000 activates, it  gets killed by stpapi.handle.subproc..<br />
+<br />
+<br />
+but one problem still remains...<br />
+<br />
+after the insert, i have written <br />
+stpapi.end.session( &quot;tfacr4100m000&quot; ).  But still  I am forced to use end() to close/end in the main program to end it. is this a baan bug or am i missing something?<br />
+<br />
+Thanks,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd February 2003, 15:50</div></div><div class="posttext">Using stpapi.end.session( &quot;tfacr4100m000&quot; ) should shut down the tfacr4100m000 session - UNLESS there are still sub-sessions active.  Are there any sub-sessions open?  I take it you had to include end() in the tfacr4100m000 session, before the stpapi.end.session command would work.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">forsms2002</div><div class="date">4th February 2003, 07:50</div></div><div class="posttext">I have reproduced my code below:<br />
+Start.of.code:<br />
+choice.cont.process:<br />
+on.choice:<br />
+	create.sales.invoice.header()<br />
+                e=e<br />
+	|end()  Line AA1<br />
+|***FUNCTIONS <br />
+functions:<br />
+function create.sales.invoice.header()<br />
+{<br />
+domain tcmcs.long	ret<br />
+stpapi.put.field( &quot;tfacr4100m000&quot;, &quot;tfacr400.ttyp&quot;, &quot;NEW&quot; )stpapi.put.field( &quot;tfacr4100m000&quot;, &quot;tfacr400.ninv&quot;, str$(22) )stpapi.put.field( &quot;tfacr4100m000&quot;, &quot;tfacr400.cuno&quot;, &quot;GF001&quot; )stpapi.put.field( &quot;tfacr4100m000&quot;, &quot;tfacr400.ccur&quot;, &quot;XYZ&quot; )stpapi.put.field( &quot;tfacr4100m000&quot;, &quot;tfacr400.rate&quot;, str$(1) )	<br />
+stpapi.put.field( &quot;tfacr4100m000&quot;, &quot;tfacr400.cpay&quot;, &quot;A&quot; )	<br />
+stpapi.put.field( &quot;tfacr4100m000&quot;, &quot;tfacr400.vatc&quot;, str$(2) )stpapi.put.field( &quot;tfacr4100m000&quot;, &quot;tfacr400.ccty&quot;, &quot;USA&quot; )	<br />
+stpapi.put.field( &quot;tfacr4100m000&quot;, &quot;tfacr400.clan&quot;, &quot;ENG&quot;)	<br />
+stpapi.put.field( &quot;tfacr4100m000&quot;, &quot;tfacr400.inst&quot;, str$(1))	<br />
+stpapi.handle.subproc( &quot;tfacr4100m000&quot;, &quot;tfacr4101s000&quot;, &quot;kill&quot; )<br />
+stpapi.insert( &quot;tfacr4100m000&quot;, true,error ) LINE AA2<br />
+<br />
+stpapi.end.session( &quot;tfacr4100m000&quot; ) |LINE AA3<br />
+}<br />
+end.of.code<br />
+<br />
+1)after LINE AA3 is executed; when I check through &quot;ps&quot;; the session tfacr4100m000 is not there in the list which means that the session has ended normally (also the record is created and can be viewed trough tfacr4100m000.<br />
+2)Also, &quot;ps&quot; does not show any sub-session open.<br />
+3)as can be seen LINE AA1 is remarked so after  LINE AA3 , the control is transferred to the e=e statement and the session hungs forever.<br />
+4)if i make LINE AA1 active (by removing the remark) then after LINE AA3, control is transferred to e= e and then LINE AA1 and the session ends.<br />
+<br />
+My question is why I need to explicitly say &quot;end()&quot; my context is , i dont want to end the session; i want to give some message after the record is inserted.<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th February 2003, 16:31</div></div><div class="posttext">This certainly sounds like a bug - I have never had a API function server hang after successfully closing all sessions and sub-sessions.  What happens if you make the e=e statement a message statement?  Also what type of session is this? Just wondering if something on the session itself may be causing the problem.<br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jchandra</div><div class="date">5th February 2003, 18:12</div></div><div class="posttext">Please Check if there are any application locks. I faced this problem in the past (this was on Baan 5b though).<br />
+<br />
+Chandra.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">forsms2002</div><div class="date">6th February 2003, 07:42</div></div><div class="posttext">1) If I insert a message statement, it behaves normally.<br />
+2) It is a Maintain session. I am actually using it for processing records read from ASCII file.<br />
+<br />
+3)Since it has to executed by any one person at any given time, I do have an application lock in the starting, but I have also removed it after all records are through.<br />
+<br />
+I will look into the matter if its  a bug. Otherwise the status of the problem is &quot;status quo'.<br />
+<br />
+Thanks guys!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th February 2003, 21:07</div></div><div class="posttext">I just wonder if you do a sleep/pause after doing the stpapi.end.session( &quot;tfacr4100m000&quot; ) would fix the problem.  I have seen before that sleeping for a secord or two after closing a session prevented problems.  This seems to allow everything to shut down or sync up - not sure why. <br />
+In my case and another posted here on the board a session would run just fine in debug mode when stepping through the code, but would hang on one of the end.sessions commands when compiled normally.  In these cases a sleep command took care of the problem.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kathuria</div><div class="date">19th June 2009, 23:53</div></div><div class="posttext">Hi,<br />
+<br />
+I have written AFS to create invoice header and lines. Header is working OK but it's not creating line.It's giving error message Input is mandatory. But with same value it working from front end. I would like to say, If any one can help me, that will be good. i am attaching my codes also.<br />
+<br />
+<br />
+         stpapi.put.field(&quot;tfacr4100m000&quot;, &quot;tfacr400.ttyp&quot;, gbgld031.ttyp)<br />
+         stpapi.put.field(&quot;tfacr4100m000&quot;, &quot;tfacr400.cuno&quot;, gbgld031.cuno)<br />
+         stpapi.put.field(&quot;tfacr4100m000&quot;, &quot;tfacr400.refr&quot;,<br />
+                          &quot; Sale of Raw Material to GPSC for m/o &quot; &amp; tfgld005.desc)<br />
+         stpapi.handle.subproc(&quot;tfacr4100m000&quot;, &quot;tfacr4101s000&quot;, &quot;kill&quot;)<br />
+         ret = stpapi.insert(&quot;tfacr4100m000&quot;, true, w.err.msg)<br />
+      endif<br />
+      if ret  and isspace(w.err.msg)then<br />
+        stpapi.handle.subproc(&quot;tfacr4100m000&quot;, &quot;tfacr4101s000&quot;, &quot;update&quot;)<br />
+         stpapi.handle.subproc(&quot;tfacr4100m000&quot;, &quot;tfacr4101s000&quot;, &quot;add&quot;)<br />
+         stpapi.continue.process(&quot;tfacr4100m000&quot;, w.err.msg)<br />
+			stpapi.put.field(&quot;tfacr4101s000&quot;, &quot;tfacr401.leac&quot;,gbgld032.leat)<br />
+         stpapi.put.field(&quot;tfacr4101s000&quot;, &quot;tfacr401.dim1&quot;,gbgld034.dim1)<br />
+         stpapi.put.field(&quot;tfacr4101s000&quot;, &quot;tfacr401.dim2&quot;,&quot;&quot;)<br />
+         stpapi.put.field(&quot;tfacr4101s000&quot;, &quot;tfacr401.dim3&quot;,gbgld034.dim3)<br />
+         stpapi.put.field(&quot;tfacr4101s000&quot;, &quot;tfacr401.dim4&quot;,&quot;&quot;)<br />
+         stpapi.put.field(&quot;tfacr4101s000&quot;, &quot;tfacr401.dim5&quot;,&quot;&quot;)<br />
+         stpapi.put.field(&quot;tfacr4101s000&quot;, &quot;tfacr401.desc&quot;,<br />
+                          &quot; Sale of Raw Material to GPSC for m/o &quot; &amp; tfgld005.desc)<br />
+         stpapi.put.field(&quot;tfacr4101s000&quot;, &quot;tfacr401.quan&quot;,&quot;0.00&quot;)<br />
+         stpapi.put.field(&quot;tfacr4101s000&quot;, &quot;tfacr401.cuni&quot;,&quot;PCS&quot;)<br />
+         stpapi.put.field(&quot;tfacr4101s000&quot;, &quot;tfacr401.pric&quot;,&quot;0.00&quot;)<br />
+         stpapi.put.field(&quot;tfacr4101s000&quot;, &quot;tfacr401.amnt&quot;,str$(gbgld034.damt))<br />
+         ret = stpapi.insert(&quot;tfacr4101s000&quot;, true, w.err.msg)<br />
+<br />
+<br />
+Thanks &amp; regards,<br />
+Sanjay Kumar</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">esanmar</div><div class="date">17th September 2009, 14:52</div></div><div class="posttext">Did you solved it?<br />
+I have the same problem, <br />
+I've tried to duplicate the sessions and I've used api.mode to comment the zoom, and add the two fields in the screen:<br />
+stpapi.put.field(&quot;tfacr4101s001&quot;, &quot;tfacr400.ttyp&quot;,&quot;SVP&quot;)<br />
+stpapi.put.field(&quot;tfacr4101s001&quot;, &quot;tfacr400.ninv&quot;, cuentalin)<br />
+<br />
+But the problem still remains...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kmcinc</div><div class="date">22nd May 2010, 00:58</div></div><div class="posttext">I'm working on this AFS as well but my problem is different: I get an error message when inserting a line &quot;Session not available&quot;.  The update and add subproc handle commands don't seem to properly re-add subsession tfacr4101s000.  I tried every combination of using none, only one and all of the subproc handle commands to no avail.   Any ideas why?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kmcinc</div><div class="date">22nd May 2010, 01:20</div></div><div class="posttext">Never mind, I fixed my own problem.  The subsession automatically opens when hitting the save button in tfacr4100m000.  Killing the subsession using the subproc command was not necessary as I could simply start adding values and insert into tfacr4101s000 without adding any subprocs at all.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">22nd May 2010, 07:19</div></div><div class="posttext">Thanks for the update - but I am wondering how it works without the sub-processes being defined?  Usually defining them allows control from the main to the subsession. I know in a couple of display only sessions I don't have to define them or end the session, but not sure how this update works.  I wonder if tfacr4101s000 can be run on its own? Maybe by just starting it in maintain sessions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shaboo</div><div class="date">7th September 2010, 15:58</div></div><div class="posttext">I am getting the same message as Sanjay (kathuria) was getting (Input is Mandatory) when creating lines through AFS. <br />
+<br />
+Has anyone been able to solve this?<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shaboo</div><div class="date">7th September 2010, 17:30</div></div><div class="posttext">At least I have been able to find out that the error is due to dimension fields not getting populated through AFS call. If I use a ledger account which doesn't use any dimension, it works fine.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tushar.ravi</div><div class="date">5th March 2014, 09:51</div></div><div class="posttext">stpapi.insert( &quot;tisfc0101s000&quot;, 1, error )<br />
+<br />
+some time wrong value insert in table field ticst001.cwar. Actually for some item this field (ticst001.cwar)take value &quot;HRW001&quot; but value for this field will be &quot;HPR001&quot; , wrong value taken only for some item.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Babu N</div><div class="date">30th October 2015, 09:09</div></div><div class="posttext">I am getting the same message as Sanjay (kathuria) and Shaboo was getting (Input is Mandatory) when creating lines through AFS. <br />
+<br />
+Has anyone been able to solve this?<br />
+<br />
+Thanks<br />
+<br />
+Babu Nagarajan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">30th October 2015, 15:11</div></div><div class="posttext">Did you see the last post by shaboo - &quot;At least I have been able to find out that the error is due to dimension fields not getting populated through AFS call. If I use a ledger account which doesn't use any dimension, it works fine.&quot;.  <br />
+<br />
+Have you tried it with just a ledger account like stated?  If you own source code you can try to trace through the code - I am not familiar with the session.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Babu N</div><div class="date">30th October 2015, 19:27</div></div><div class="posttext">Hi Mark,<br />
+<br />
+I tried that as well.  I tried to post just the ledger A/c without the dimension.  But still I am getting the same error.<br />
+<br />
+Babu</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Babu N</div><div class="date">3rd November 2015, 07:21</div></div><div class="posttext">Hi Friends,<br />
+<br />
+Can anyone help me out from this.<br />
+<br />
+I am waiting.<br />
+<br />
+Thanks<br />
+<br />
+Regards<br />
+Babu</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd November 2015, 16:26</div></div><div class="posttext">You can try posting all your code.  Someone might see something right off-hand.  As it stands that is about all I can do and you may have to show some patience until someone else who has done api code for the session sees the thread.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Licence monitoring in SLM, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Licence monitoring in SLM Tools Development" />
+	
+	<title>Licence monitoring in SLM [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Licence monitoring in SLM</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jclju1</div><div class="date">23rd January 2008, 16:04</div></div><div class="posttext">I am trying to create Unix script which will print used SLM licenses in similar way as licmon do. What I did is attached script. I tried to format output of this script but unfortunately I am not so familiar with awk command.<br />
+<br />
+My question is - does somebody can advice how to use awk command and get something like that:<br />
+<br />
+Product id: nnnn<br />
+      Users: user1<br />
+                user2<br />
+                user3<br />
+      Total: 3<br />
+<br />
+Product id: nnnn<br />
+      Users: user1<br />
+               user2<br />
+      Total: 2<br />
+<br />
+Product id ...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd January 2008, 17:23</div></div><div class="posttext">Sorry I do not know the answer to your question.  This is just to let you know that the code and utilities forum is only for finalized code that you would like to share with us.  For questions like this I think the tools forum is appropriate.<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jclju1</div><div class="date">23rd January 2008, 18:45</div></div><div class="posttext">the code and utilities forum is only for finalized code that you would like to share with us. For questions like this I think the tools forum is appropriate.<br />
+<br />
+Sorry. Could you move this thread to tools folder?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">24th January 2008, 14:30</div></div><div class="posttext">bclmcmd -mondts &lt;hostname&gt; 2&gt;&amp;1 | grep -E &quot;id=|user=|count&quot; | grep -v &quot;_id&quot; | sed                     '/^&lt;tab&gt;&lt;tab&gt;/d' <br />
+<br />
+<br />
+Maybe not that fancy but perhaps good enough.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">24th January 2008, 20:53</div></div><div class="posttext">You may need to use cpan to install XML::Simple but i think newer perl dists have it.<br />
+<br />
+replace:<br />
+open(SLMOUT, 'SlmCmd -mondts &lt;insert your server&gt; -port &lt;insert your port&gt;|'); <br />
+<br />
+The server and port with your SLM server / Port. <br />
+the pipe at the end is intended and needed.<br />
+<br />
+There's probably a better way to handle that first big IF block but i was more interested in parsing the XML output.<br />
+<br />
+Oh - and this works with SLM 7.0.0.8 you may need to tweek for Bclm.<br />
+<br />
+Dave<br />
+<br />
+<br />
+#!/usr/local/bin/perl -w<br />
+<br />
+use XML::Simple;<br />
+<br />
+my $xml = &quot; &quot;;<br />
+<br />
+open(SLMOUT, 'SlmCmd -mondts &lt;insert your server&gt; -port &lt;insert your port&gt;|'); while ( $_ = &lt;SLMOUT&gt; ){<br />
+	if ( $_ =~ &quot;OK&quot; ){<br />
+		;;<br />
+	}<br />
+	elsif ( $_ =~ &quot;Retrieving&quot; ){<br />
+		;;<br />
+	}<br />
+	elsif ( $_ =~ &quot;Monitoring&quot; ){<br />
+		;;<br />
+	}<br />
+	elsif ( $_ =~ &quot;License-server&quot; ){<br />
+		;;<br />
+	}<br />
+	elsif ( $_ =~ &quot;Result&quot; ){<br />
+		;;<br />
+	}<br />
+	elsif ( ! $_ ){<br />
+		;;<br />
+	}<br />
+	else{<br />
+		$xml = &quot;$xml&quot; . $_ ;<br />
+	}<br />
+}<br />
+my $xmldoc = XMLin($xml);<br />
+<br />
+foreach my $key ( keys ( %{$xmldoc-&gt;{concurrentLicense}-&gt;{product}})){<br />
+	if ( $xmldoc-&gt;{concurrentLicense}-&gt;{product}-&gt;{$key}-&gt;{count} ) {<br />
+		$numusers = $xmldoc-&gt;{concurrentLicense}-&gt;{product}-&gt;{$key}-&gt;{count};<br />
+		print &quot;Product Id: &quot; .  $key . &quot;\n&quot;;<br />
+		print &quot;User Count: &quot; .  $numusers . &quot;\n&quot;;<br />
+                if ( $numusers == 1 ){<br />
+                        printf(&quot;%-11s&quot;,$xmldoc-&gt;{concurrentLicense}-&gt;{product}-&gt;{$key}-&gt;{user}-&gt;{user});<br />
+                        printf(&quot;%-20s&quot;,$xmldoc-&gt;{concurrentLicense}-&gt;{product}-&gt;{$key}-&gt;{user}-&gt;{desktop});<br />
+                        print &quot; &quot; . $xmldoc-&gt;{concurrentLicense}-&gt;{product}-&gt;{$key}-&gt;{user}-&gt;{process_id};<br />
+                        print &quot;\n&quot;;<br />
+                }<br />
+                else{<br />
+                        for (my $count = 0; $count &lt; $numusers; $count++){<br />
+                                printf(&quot;%-11s&quot;,$xmldoc-&gt;{concurrentLicense}-&gt;{product}-&gt;{$key}-&gt;{user}-&gt;[$count]-&gt;{user});<br />
+                                printf(&quot;%-20s&quot;,$xmldoc-&gt;{concurrentLicense}-&gt;{product}-&gt;{$key}-&gt;{user}-&gt;[$count]-&gt;{desktop});<br />
+                                print &quot; &quot; . $xmldoc-&gt;{concurrentLicense}-&gt;{product}-&gt;{$key}-&gt;{user}-&gt;[$count]-&gt;{process_id};<br />
+                                print &quot;\n&quot;;<br />
+                        }<br />
+                }<br />
+		print &quot;\n\n&quot;;<br />
+	}<br />
+}<br />
+<br />
+<br />
+Output looks like:<br />
+<br />
+Product Id: 10996<br />
+User Count: 29<br />
+gomartin         xx.yy.73.34     23847<br />
+ bsp752t             0.0.0.0     6317<br />
+     bsp         xx.yy.135.9     2794<br />
+jmterbor        xx.yy.21.104     15657<br />
+ hxjoshi        xx.yy.72.144     29975<br />
+     bsp        xx.yy.72.101     4817<br />
+  sdchen        xx.yy.72.108     16926<br />
+jamcginn        xx.yy.19.144     5311<br />
+ bsp715t             0.0.0.0     3848<br />
+     bsp       xx.yy.240.166     14560</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">uetdba</div><div class="date">31st January 2008, 05:46</div></div><div class="posttext">When I tried to execute the command as below from Unix prompt no user report comes out. Anyone knows what other parameters I missed?<br />
+<br />
+root@sa6<br />
+/software/slm/bin<br />
+# ls<br />
+BclmClientTest*  BclmConfig*      BclmServer*      asm_cli*<br />
+BclmCmd*         BclmId*          BclmUninstall*   asm_srv*<br />
+root@sa6<br />
+/software/slm/bin<br />
+# ./BclmCmd  -mondts sa6<br />
+Retrieving monitoring data from license-server.<br />
+        License-server host     : sa6<br />
+        License-server port     : 6005<br />
+        Monitoring type         : Details<br />
+root@umwsa6<br />
+/software/slm/bin<br />
+#<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">uetdba</div><div class="date">7th March 2008, 05:16</div></div><div class="posttext">We found out that we need to set BAANHOME environment. E.g.<br />
+export BAANHOME=/software/slm</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

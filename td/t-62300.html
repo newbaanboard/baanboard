@@ -1,0 +1,112 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Use of DAL Question, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Use of DAL Question Tools Development" />
+	
+	<title>Use of DAL Question [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Use of DAL Question</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">metropoj</div><div class="date">8th May 2012, 15:31</div></div><div class="posttext">Hi DAL experts !<br />
+<br />
+I have a question on function.<br />
+<br />
+We want to add in custom table and relate the values to  Items - Warehouse table whwmd210 INSTEAD of adding in our custom fields to the basic 210 LN table.<br />
+<br />
+We want the Items - Warehouse session to show the standard functionality of LN fields but also show our custom fields at the same time.<br />
+<br />
+I thought DAL could be used to do this but I think I need to copy LN session and customize, then write my own DAL to make the relation.<br />
+<br />
+Can I edit the LN form session to add in my own table and fields or do I need to make a new session and new Script to try and figure out the whwmd210 and my custom table ? I am worried I will not have the full funcitonality of the Items - Warehouse session from LN if I do this ...<br />
+<br />
+Can anyone shed some light on how they would try to resolve this ?<br />
+<br />
+We thought it would be less effort to keep LN tables standard if and when we do future FP upgrades....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ARijke</div><div class="date">8th May 2012, 17:13</div></div><div class="posttext">You can investigate the usage of a secondary table (see programmers manual). That will give you the possibility to add fields from a second table to the UI. This table needs to have a 1to1 relation with the whwmd210 table. For data validation the second table needs to have its own DAL.<br />
+<br />
+regards, Adriaan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">8th May 2012, 18:14</div></div><div class="posttext">Hi DAL experts !<br />
+<br />
+I have a question on function.<br />
+<br />
+We want to add in custom table and relate the values to  Items - Warehouse table whwmd210 INSTEAD of adding in our custom fields to the basic 210 LN table.<br />
+<br />
+We want the Items - Warehouse session to show the standard functionality of LN fields but also show our custom fields at the same time.<br />
+<br />
+I thought DAL could be used to do this but I think I need to copy LN session and customize, then write my own DAL to make the relation.<br />
+<br />
+Can I edit the LN form session to add in my own table and fields or do I need to make a new session and new Script to try and figure out the whwmd210 and my custom table ? I am worried I will not have the full funcitonality of the Items - Warehouse session from LN if I do this ...<br />
+<br />
+Can anyone shed some light on how they would try to resolve this ?<br />
+<br />
+We thought it would be less effort to keep LN tables standard if and when we do future FP upgrades....<br />
+<br />
+Hello,<br />
+from what Adriaan suggest with more details :<br />
+<br />
+Multi Table Overview<br />
+In order to support editing multiple tables, so called 'secondary tables' are introduced. Secondary tables have a 1:1 relation with the main table. It is not required that there is a database reference from the maintable to the secondary table. However it must be possible to fetch a secondary table record through a 4GL-Engine query extend. Such a fetch must result in zero or one secondary table record. Comparable to the functionality for the main table, the 4GL-Engine will handle transactions / reads etc. for secondary tables. A secondary table requires that a DAL2 implementation is available for that table. It will not be possible to use unmodified 'old' sessions in a MT way. At least some parts of the UI script for the session must change.<br />
+<br />
+Specific Requirements<br />
+<br />
+The query.extend functionality must be handled very carefully. For secondary tables to work properly, it is necessary to add the complete secondary table record to the session query. Selecting only a part of the fields will result in data loss. (Fields that are not present in the query will be emptied on save). Furthermore, the query.extend REPLACE construction must be kept in mind. In the current design no measures are taken to protect the coupling with secondary tables. A query.extend REPLACE will destroy the coupling to a secondary table (if the developer doesn’t add the secondary tables as previous). Also care must be taken to use the “UNREF CLEAR” construction in the query.extend.where clause. The 4GL-Engine requires that when no reference to a secondary table record is found, the related record buffer is cleared.<br />
+<br />
+When in a DAL script of a secondary table, the corresponding record from the maintable is needed, special care must be taken to prevent that the DAL of the secondary table overwrites the maintable record which is already read (and perhaps modified) by the 4GL-Engine. When a new secondary table record is added within the same transaction with the addition of a new maintable record, the DAL script of the secondary table record cannot yet fetch this maintable record from the database. Both above mentioned issues will be handled using the existing function: dal.get.object(). In the DAL script of the secondary table, the function dal.get.object() must be called to get the required maintable record. The implementation of this function will make sure that when the keyfields match with the keyfields of the current maintable record in the 4GL-Engine, no read from the database is done. Instead the 4GL-Engine maintained record is made actual.<br />
+<br />
+The following standard program features are handled differently for secondary tables.<br />
+<br />
+The 4GL-Engine will not generate the queries for retrieving and updating the secondary table records. The UI script of the application is responsible for passing the correct queries to the 4GL-Engine through the query.extend functions.<br />
+Maintain references and related reference buffers. The UI script of the application is responsible for filling reference fields referred to by secondary table fields (for instance descriptions).<br />
+Secondary tables without DAL2 scripts are not supported.<br />
+Auto complete in BW mode will not be available for secondary table fields.<br />
+Filters cannot use secondary table fields.<br />
+Secondary table fields cannot be shown above the grid as view fields.<br />
+The sort order is always based upon the available main table indices and not on secondary table indices.<br />
+Running MT sessions through application functionserver (AFS) is not supported.<br />
+When a main table record is deleted related secondary table records are not automatically deleted by the 4GL-Engine. The DAL of the main table is responsible for cleanup of related secondary table records.<br />
+Note <br />
+Multi Table functionality is available from Tools Interface Version (TIV)TIV 1075.<br />
+<br />
+Example<br />
+<br />
+before.program:<br />
+        query.extend.select( &quot;bpmdm001.* &quot;, EXTEND_APPEND)<br />
+        query.extend.from(   &quot;bpmdm001 &quot;, EXTEND_APPEND)<br />
+        query.extend.where(  &quot;:tccom001.emno REFERS TO bpmdm001 &quot; &amp;<br />
+                                               &quot;UNREF CLEAR and &quot; &amp;<br />
+                             EXTEND_APPEND)<br />
+        g.bpmdm001.table.id = sec.add.table(&quot;bpmdm001&quot;)<br />
+<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">toolswizard</div><div class="date">8th May 2012, 21:44</div></div><div class="posttext">You could look at using the current script in a custom session, that custom session being a new Multi Main Table session.  Common data would be at the top, and detail in two tabs in the bottom, one the original table, the second a custom table.<br />
+<br />
+Also a UE (User Exit) could be used on the original table.  This is a wrapper around the standard DAL2 that allows you to customize the dal, (create new or update other table) when you access the standard table.  When ever you save to the standard table, a custom table would be saved also.<br />
+<br />
+If there was a database relation, the 4gl engine would automatically read and update the form, but the UE would be responsible for updating the table.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">metropoj</div><div class="date">10th May 2012, 17:32</div></div><div class="posttext">Thanks all. I have lots to read up on  :) ....<br />
+<br />
+I have some training examples to work through and try to sort it all out as well ....</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

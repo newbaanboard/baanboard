@@ -1,0 +1,129 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="XML parsing using &quot;xmlFindSetOfSiblingNodes&quot;, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] XML parsing using &quot;xmlFindSetOfSiblingNodes&quot; Tools Development" />
+	
+	<title>XML parsing using &quot;xmlFindSetOfSiblingNodes&quot; [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; XML parsing using &quot;xmlFindSetOfSiblingNodes&quot;</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Trisli</div><div class="date">6th November 2006, 21:49</div></div><div class="posttext">Hi All,<br />
+<br />
+I would like to read an XML file. At the third level of nodes there may appear different types of nodes in a random sequence. Example:<br />
+<br />
+<br />
+&lt;Document&gt;<br />
+  &lt;Chapter&gt;<br />
+     &lt;Text&gt;<br />
+       ...<br />
+       ...<br />
+     &lt;/Text&gt;<br />
+     &lt;Graphics&gt;<br />
+       ...<br />
+       ...<br />
+     &lt;/Graphics&gt;<br />
+     &lt;Text&gt;<br />
+       ...<br />
+       ...<br />
+     &lt;/Text&gt;<br />
+     &lt;Graphics&gt;<br />
+       ...<br />
+       ...<br />
+     &lt;/Graphics&gt;<br />
+     &lt;Text&gt;<br />
+       ...<br />
+       ...<br />
+     &lt;/Text&gt;<br />
+  &lt;/Chapter&gt;<br />
+&lt;/Document&gt;<br />
+<br />
+As you can see the &quot;Text&quot; node appears 3 times and &quot;Graphics&quot; 2 times, and they are mixed randomly. Each of the types must be handled in its own way (...different code). My question is now: How is the structure read?<br />
+<br />
+<br />
+<br />
+Normally I would issue an &quot;xmlFindFirst&quot;, and then loop using &quot;xmlGetRightSibling&quot; until the end of the structure.  Each value of the structure is then read using &quot;xmlGetDataElement&quot;. This method works fine when browsing through a list of nodes with the same structure, but in my example I need to process certain sub-nodes before others. And then I run into problems...<br />
+<br />
+I have tried to use &quot;xmlFindSetOfSiblingNodes&quot;. When executing it, it correctly results in a list of the nodes of the specified types. The question is now how to I process the resulting &quot;enumeration&quot; list into nodes that I can decompose.<br />
+<br />
+What I cannot figure out is how to read the data of the individual nodes. The &quot;xmlFindSetOfSiblingNodes&quot; results in a &quot;enumerate list&quot; like:<br />
+&lt;Enumeration TYPE=&quot;InMemory XmlNodes&quot;&gt;<br />
+        &lt;e0&gt;id0&lt;/e0&gt;<br />
+        &lt;e1&gt;id1&lt;/e1&gt;<br />
+        ...<br />
+        &lt;en&gt;idn&lt;/en&gt;<br />
+&lt;/Enumeration&gt;<br />
+<br />
+The id0, id1, ... then point at the nodes, that I must process<br />
+<br />
+Can someone help me?<br />
+<br />
+Thanks in advance!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">9th November 2006, 00:39</div></div><div class="posttext">Hi Trisli,<br />
+<br />
+how about this for a fine piece of code? ;) <br />
+<br />
+<br />
+function main()<br />
+{<br />
+        long	input_file_id<br />
+        long	xml_id<br />
+        long	texts_enum, enum_node, textnode<br />
+        String	text_data(100)<br />
+        String	error_string(100)<br />
+<br />
+        |Open the XML file for reading.<br />
+        input_file_id = seq.open (&quot;document.xml&quot;, &quot;r&quot; )<br />
+<br />
+        |Parse the XML file<br />
+        xml_id = xmlRead(input_file_id, error_string)<br />
+        seq.close(input_file_id)<br />
+<br />
+	if xml_id then<br />
+		texts_enum = xmlFindNodes(xml_id, &quot;Text&quot;, 0)<br />
+	endif<br />
+<br />
+	if texts_enum then<br />
+		enum_node = xmlFindFirstMatch(&quot;fChild&quot;, texts_enum)<br />
+		while enum_node<br />
+			|get text data<br />
+			textnode = lval(xmlData$(enum_node))<br />
+			text_data = xmlData$(textnode) <br />
+			|get next node<br />
+			enum_node = xmlGetRightSibling(enum_node)<br />
+		endwhile<br />
+		|Free up memory<br />
+		xmlDelete(texts_enum)<br />
+	endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Trisli</div><div class="date">13th November 2006, 09:47</div></div><div class="posttext">Hi Vahdani,<br />
+<br />
+Thanks for your proposal. Unfortutenately it does not quite help me. <br />
+My challenge is that - after locating the first node node - executing a xmlGetRightSibling may result in various different node types. I need to sort and process the nodes in a certain sequence. <br />
+<br />
+xmlFindSetOfSiblingNodes seems to be a briliant way of determining sub-sets of data the way I need to do it. Unfortunately I found no documentation on how to process the sub-document created by this command. Following my post I made the code below. It seems to work according to my wishes:<br />
+<br />
+3007</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">13th November 2006, 18:59</div></div><div class="posttext">Hi Trisli,<br />
+<br />
+I'm glad you found a solution. I am not sure if you did carefully look at my proposed solution. Here I use xmlGetRightSibling to go through the enumeration and not through the original XML!  :)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

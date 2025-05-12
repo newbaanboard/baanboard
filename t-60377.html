@@ -1,0 +1,138 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS for tfacr4410m000 and Credit Notes, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS for tfacr4410m000 and Credit Notes AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS for tfacr4410m000 and Credit Notes [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS for tfacr4410m000 and Credit Notes</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">12th April 2011, 12:41</div></div><div class="posttext">Hello all,<br />
+<br />
+A few months ago I developed an AFS for Sales Invoices which has now been running live for a few months. Finance have now asked me to look at credit notes coming through the AFS as well.<br />
+<br />
+In theory this should be simple enough just use a Credit Notes Transaction Type in our case SCN. However for some reason the AFS is returning an insert error &quot;Series not defined&quot;. The series I am using defintely exists and I have proved this manually through the session. The AFS log also agrees with the variables I am putting into the session so I am at a loss to what is happening. Any ideas greatly appreciated. See below for code and AFS log.<br />
+<br />
+Cheers Neal<br />
+<br />
+tfacr4100m000(34)-RUNNING:<br />
+&gt;tfacr4100m000(34) put.field:tfacr400.ttyp SCN<br />
+&gt;tfacr4100m000(34) put.field:tfacr400.ninv 4<br />
+&gt;tfacr4100m000(34) put.field:tfacr400.cuno   B016<br />
+&gt;tfacr4100m000(34) put.field:tfacr400.refr 901579<br />
+&gt;tfacr4100m000 insert<br />
+11dll-&gt;serv (add.set+save34)<br />
+tfacr4100m000(34)-RUNNING:add.set+save<br />
+34serv&lt;-4gl (add.set+save10)<br />
+tfacr4100m000(34)-RUNNING:<br />
+&lt;tfacr4100m000 Series not defined<br />
+<br />
+<br />
+if m_credit = 1 then<br />
+		m_ttyp1 = &quot;SCN&quot;<br />
+	else<br />
+		m_ttyp1 = tdsls910.ttyp<br />
+	endif<br />
+			<br />
+	message(m_ttyp1)<br />
+	message(str$(tdsls910.ninv))<br />
+	message(tdsls945.cuno)<br />
+	message(str$(tdsls945.orno))<br />
+	<br />
+	stpapi.put.field( &quot;tfacr4100m000&quot;, &quot;tfacr400.ttyp&quot;, m_ttyp1 )<br />
+	stpapi.put.field( &quot;tfacr4100m000&quot;, &quot;tfacr400.ninv&quot;, str$(tdsls910.ninv))<br />
+	stpapi.put.field( &quot;tfacr4100m000&quot;, &quot;tfacr400.cuno&quot;, tdsls945.cuno)<br />
+	stpapi.put.field( &quot;tfacr4100m000&quot;, &quot;tfacr400.refr&quot;, str$(tdsls945.orno))<br />
+<br />
+	ret=stpapi.insert( &quot;tfacr4100m000&quot;, do.update, error  )		|INSERT<br />
+	if error &lt;&gt; &quot;&quot; then<br />
+		message(&quot;insert.err 1 tfacr4100m000 &quot; &amp; error)<br />
+		put.ptr=seq.puts(str$(tdsls945.orno) &amp; &quot; &quot; &amp; str$(tdsls945.pono) &amp; &quot;INSERT ERROR &quot; &amp; error,open.ptr)<br />
+	endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th April 2011, 16:14</div></div><div class="posttext">Well I went into my system, not a clue on what I was doing and picked order type RD1 (it said credit note type), series defaulted to 28, picked a customer, inserted a record.  Dropped your code into my test function server and it worked.  Session tfacr4101s000 was started in the background. Now I really don't if I actually tested a credit note - no clue where that series came from.  Looked around for it, but did not see anything obvious.  Not sure if it was really a valid test - I believe we are on SP28 for 4c4.  No clue what I am doing and now I need to go do some cleanup with table maintenance on test system.<br />
+<br />
+Have you tried a get field after the error for the series or ninv field?  Make sure the series is still correct.  Do you own source code where you could debug what happens in the session.<br />
+<br />
+<br />
+function creditnote()<br />
+{<br />
+	stpapi.put.field( &quot;tfacr4100m000&quot;, &quot;tfacr400.ttyp&quot;, &quot;RD1&quot; )<br />
+	stpapi.put.field( &quot;tfacr4100m000&quot;, &quot;tfacr400.ninv&quot;, str$(28))<br />
+	stpapi.put.field( &quot;tfacr4100m000&quot;, &quot;tfacr400.cuno&quot;, &quot;00500&quot;)<br />
+	stpapi.put.field( &quot;tfacr4100m000&quot;, &quot;tfacr400.refr&quot;, &quot;Testing&quot;)<br />
+<br />
+	rc=stpapi.insert( &quot;tfacr4100m000&quot;, 1, err  )		|INSERT<br />
+	if err &lt;&gt; &quot;&quot; then<br />
+		message(&quot;insert.err 1 tfacr4100m000 &quot; &amp; err)<br />
+		stpapi.end.session(&quot;tfacr4100m000&quot;)<br />
+	endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">12th April 2011, 16:35</div></div><div class="posttext">Hello Mark,<br />
+<br />
+Thanks for the input. This problem is real odd one.<br />
+<br />
+What's the best way of chasing the error I'm afraid my tracing skills aren't that clever these days. I'm guessing that the value of tfacr400.ninv must be incorrect but I can't see how. I've also tried a different credit transaction type but this does the same thing.<br />
+<br />
+Sadly I can't get hold of the source so I'll have to go into debug and have a good look round. <br />
+<br />
+We are only on SP18 for 4c4 so I'm not sure whether that would be an issue. I've checked for later versions of the session but cannot see any.<br />
+<br />
+Cheers Neal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Juergen</div><div class="date">12th April 2011, 17:37</div></div><div class="posttext">Hello Neal,<br />
+<br />
+I think SP18 could not be the problem. I did a quick test with the code posted by Mark on our old and frozen 4c4 (SP15) and it worked.<br />
+<br />
+Which series are defined for the used transaction type in session tfgld0114m000 &quot;Maintain series per transaction type&quot;?<br />
+<br />
+Regards,<br />
+Juergen</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">12th April 2011, 17:51</div></div><div class="posttext">Hello Juergen,<br />
+<br />
+Thanks for the input. The series for the transactions is defined in tfgld0114m000 for the Credit Type transaction SCN. I can also manually create SCN's for series 4 in the session.<br />
+<br />
+Any chance you can try Mark's code with a Sales Credit Note type transaction this may be the issue.<br />
+<br />
+Cheers<br />
+Neal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">12th April 2011, 18:13</div></div><div class="posttext">Hello guys,<br />
+<br />
+Just found the obvious thing I was missing the test Finance Company (which I'd forgotten about) is where the Sales Credit Notes are being created and guess what this company is missing the series !<br />
+<br />
+Feel pretty stupid now but at least everything now makes sense before I go home to sleep on it.<br />
+<br />
+Thanks for your help.<br />
+<br />
+Cheers Neal:):D</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Juergen</div><div class="date">12th April 2011, 18:25</div></div><div class="posttext">Hello Neal,<br />
+<br />
+I can feel with you, but tomorrow the world looks already differently ;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th April 2011, 21:48</div></div><div class="posttext">Bet there and done that! :) Glad you found the solution.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="DAL and Shared Memory, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] DAL and Shared Memory Tools Administration &amp; Installation" />
+	
+	<title>DAL and Shared Memory [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; DAL and Shared Memory</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">baanow</div><div class="date">15th July 2010, 08:10</div></div><div class="posttext">Have a question regarding how shared memory works with DALs.<br />
+<br />
+We have a customization to one of the DALs. The DAL invokes a DLL to insert records into  a new custom table.<br />
+<br />
+We would like to promote the DAL without affecting any users actively working in the system.<br />
+<br />
+<br />
+Question 1 : If a user is already logged into the session I'm assuming the old object of the DAL will be used and then the new code will not be effective until the user logs out and in again<br />
+<br />
+Question 2 : Since we have a new table created and the DAL inserts records into this table if the user does not log out and login again will this cause any issues<br />
+<br />
+We are on Baan 5c on Solaris<br />
+<br />
+<br />
+Thanks and Appreciate any help and pointers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">15th July 2010, 08:47</div></div><div class="posttext">Here are the answers:<br />
+<br />
+Q1. If the user leaves all sessions that use the DAL, the object is removed from core. So the next time the DAL is needed, the new object will be retrieved from disk.<br />
+<br />
+Q2. This depends. If it is only a new table, just converted to runtime, the user will be able to insert records in that table without re-login (if he gets the new DAL, see Q1). However, if the table has fields with a new domain linked to it, the user has to re-login.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanow</div><div class="date">15th July 2010, 14:46</div></div><div class="posttext">Thanks JaapJD. Clarifying little bit more.<br />
+<br />
+The re login will be required because the objects are brought to the memory differently.<br />
+<br />
+<br />
+1. Table definitions are put in the shared memory only once during login<br />
+<br />
+2. Objects like DLL, DAL, Forms ...etc are put in memory the first time the user accesses the object and kept in memory until the object is required. Once the referring sessions are closed the object is removed from the memory. The objects are brought back when the user accesses the session again.<br />
+<br />
+Because of the difference between table definition and DAL memory cache behavior we might have a problem if a user logins in and without logging out if he opens the session then the new DAL object will be used but it will not be able to insert records because the table definition is not there.<br />
+<br />
+Is my understanding right. <br />
+<br />
+Is there any documentation that explains how and when objects are put in memory and cleaned.<br />
+<br />
+Thanks and Appreciate your help</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">15th July 2010, 14:56</div></div><div class="posttext">To be more specific:<br />
+1. No, as soon they are needed<br />
+2. Yes (except for &quot;until&quot;, that should be &quot;as long as&quot;).<br />
+<br />
+I'm not aware of documentation explaining this. But updating your tables and/or objects when users are working in the system is always risky. I wouldn't take the risk...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanow</div><div class="date">15th July 2010, 15:14</div></div><div class="posttext">Ok got it.<br />
+<br />
+1. If the table definitions are loaded only when they are needed. Since we are creating new tables they will be loaded first time the user uses the new changed DAL.<br />
+<br />
+<br />
+Looking at your answers<br />
+<br />
+Scenario 1 : User opened a session and continue to using it<br />
+<br />
+       In this case the old DAL object will be used and the table definition will not be required<br />
+<br />
+Scenario 2 : User closes the session (terminating all links to the object) and without logging out reopens the session<br />
+<br />
+        In this case the new DAL will be used and since this will be first time the table is used the table definitions will be loaded in memory<br />
+<br />
+Scenario 3: User logs out and logs in again<br />
+<br />
+        New DAL and the table definition will be used<br />
+<br />
+Based on the current understanding theoretically there should not be any problem with all the above scenarios. If we had modified any existing table then we might have had issues.Since in our case the tables are new all scenarios will work without any noticeable issues.<br />
+<br />
+<br />
+But practically it is better to do the table changes during off works hours<br />
+<br />
+Thanks JaapJD</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">15th July 2010, 15:17</div></div><div class="posttext">Scenario 2 will fail if you have a new domain in your new table.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanow</div><div class="date">15th July 2010, 15:41</div></div><div class="posttext">Ok are the domains loaded only during user logs into Baan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">15th July 2010, 15:42</div></div><div class="posttext">It is per package. The first time a domain of a package is needed (because it is used in a table or an object) the domains of that package are loaded.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanow</div><div class="date">15th July 2010, 15:57</div></div><div class="posttext">Thanks Jaap now I have a very good idea. Thanks for your time and reply</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

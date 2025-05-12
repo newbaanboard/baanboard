@@ -1,0 +1,101 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Another printing question, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Another printing question Tools Development" />
+	
+	<title>Another printing question [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Another printing question</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">RobertB</div><div class="date">12th August 2002, 12:15</div></div><div class="posttext">This is one for the printing gurus out there...<br />
+<br />
+I have written several reports (Baan5.0c) where it would be nice to have the occasional field printed in some other font (italic, bold, reversed, whatever) based on some condition.<br />
+<br />
+So, for instance, there might be twelve fields across the page  within a detail section each representing monthly earnings and, if the value is, say, negative, the field should be printed bold. <br />
+<br />
+I'm aware of the Baan Windows Printing functions cf$ (to set font), pf$ (set printer font), pp$ (to send an escape sequence to the printer), but I'm thinking I can only use these with a spool.pr.line of my own making, and not with that which is created &quot;on-the-fly&quot; by the Report generator as it is actually printing. <br />
+<br />
+If I do create my own spool.pr.line variable and send it to the spooler with spool.line(), the pagination of the report goes &quot;out of synch&quot;.<br />
+<br />
+So, is it possible somehow to trap the automatically-generated report line and insert the required control-codes or BWP functions or is there a much easier solution I've overlooked?<br />
+<br />
+Puzzled,<br />
+RobertB</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th August 2002, 16:36</div></div><div class="posttext">I am not a printing guru, but could you put a couple of fields in the detail layout. One field before the detail record and one field after the detail record.  Then in the report script you would initialize the first field to set your special print conditions, the second field to turn them off. You could set your print condition for each of these fields based on some number being negative.<br />
+<br />
+Or you could use detail layouts to do the samething.  Like detail.1 could have the commands to do bold and italics. The detail.2 would be you record. Then detail.3 could have the commands to set everything back to normal.  In the report script you could do a check in detail.1 and use lattr.print=false to skip printing it.  The same with detail.3.<br />
+<br />
+Just some thoughts.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertB</div><div class="date">13th August 2002, 14:44</div></div><div class="posttext">Hi Mark,<br />
+<br />
+I'm not quite sure what you mean, but I'm after something like this :<br />
+<br />
+Monthly earnings:<br />
+Jan 2002   Feb 2002   Mar 2002   Apr 2002   May 2002  .....<br />
+ 1200.00     600.00    2500.00    -200.00     500.00<br />
+-2125.00    3000.00     450.00     795.00    4500.00<br />
+where the negative values should appear enhanced (bold red in this example). <br />
+<br />
+Anyway, I've just had the idea of doing the headers as single-column, but the numerical fields themselves as a set of 12 multi-column detail sections - I don't know if this is possible on the same page, but I'll give it a go. In this way, I could have just the two details, one normal, the other bold, and switch between them as per condition.<br />
+<br />
+Well, it pays the rent :p ...<br />
+Bob</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th August 2002, 15:55</div></div><div class="posttext">I see what you are looking for now.  Just wondering if instead of doing different detail layouts you could make your print fields strings. Then in the script you could check the number:<br />
+<br />
+<br />
+     somestr = str$(earnings)<br />
+     if earnings &lt; 0 then<br />
+        somestr = formatstr + somestr<br />
+     endif<br />
+<br />
+<br />
+Need less to say you would init you formatstr to what ever characters you wanted. Your report layout would have somestr as the field to be printed. A lot more coding, but fewer layouts to maintain if they you ever want to change the format. <br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertB</div><div class="date">13th August 2002, 17:52</div></div><div class="posttext">Much the better idea! - you mean like this:<br />
+detail.1:<br />
+before.field:<br />
+  prn.long.field = &quot;&quot;   <br />
+  fld.tab = 16<br />
+  for ii = 1 to 12 <br />
+    tab.pos = tab.pos + fld.tab<br />
+    fld.fmt.1 = ((double.cmp(xxttt001.month(ii), 0.0, 0.0001) = -1) ? cf$(1) : &quot;&quot;)<br />
+    fld.fmt.2 = ((double.cmp(xxttt001.month(ii), 0.0, 0.0001) = -1) ? cf$(0) : &quot;&quot;)<br />
+    this.field = edit$(xxttt001.month(ii), &quot;-----ZVD99&quot;)     <br />
+    prn.long.field = prn.long.field &amp; tab$(tab.pos) &amp; fld.fmt.1 &amp; this.field &amp; fld.fmt.2 <br />
+  endfor<br />
+BUT, and here I have to hang my head in shame, why don't I do this in each separate field ANYWAY?  - here I am running around like a chicken with no head, and the answer is staring me in the face:<br />
+detail.1:<br />
+before.field:<br />
+  for ii = 1 to 12<br />
+    mth(ii) = xxttt001.month(ii)<br />
+    if (double.cmp(mth(ii), 0.0, 0.0001) = -1) then<br />
+      mth(ii) = cf$(1) &amp; mth(ii) &amp; cf$(0)   | Toggle bold...<br />
+    endif<br />
+  endfor<br />
+Hoo boy, it's back to school for me, I think :confused: .....</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

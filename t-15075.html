@@ -1,0 +1,178 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="CreateObject, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] CreateObject AFS/DDC/OLE: Function servers" />
+	
+	<title>CreateObject [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; CreateObject</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">fbernaus</div><div class="date">19th April 2004, 17:57</div></div><div class="posttext">Hello,<br />
+<br />
+Somebody can help me in this? Do you know if there is a way to pass in the CreateObject(ProgId of Class for using AFS) the password with I want to connect to the session? That it is, I would like a way in which I could pass the parameters for the connection to the server. Any idea would be helpful.<br />
+<br />
+Thanks very much,<br />
+Best regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Al Smith</div><div class="date">21st April 2004, 17:56</div></div><div class="posttext">Here's something I put together a couple of years ago. I added some comments to try to explain what it's doing.<br />
+It's rather complicated and could use some cleaning up but maybe it will give you some ideas.<br />
+What it does is automatically send the Username and Password to the Logon window then clicks the OK button.<br />
+Option Explicit<br />
+Dim BaanObj As Baan4.Baan4<br />
+Dim lHwnd() As Long<br />
+Public winnum As Integer<br />
+<br />
+Declare Function ShellExecute Lib &quot;shell32.dll&quot; Alias &quot;ShellExecuteA&quot; _<br />
+(ByVal hWnd As Long, ByVal lpOperation As String, ByVal lpFile As String, _<br />
+ByVal lpParameters As String, ByVal lpDirectory As String, ByVal nShowCmd As Long) As Long<br />
+<br />
+Declare Function FindWindowEx Lib &quot;user32&quot; Alias &quot;FindWindowExA&quot; _<br />
+(ByVal hWnd1 As Long, ByVal hWnd2 As Long, ByVal lpsz1 As String, ByVal lpsz2 As String) As Long<br />
+<br />
+Declare Function FindWindow Lib &quot;user32&quot; Alias &quot;FindWindowA&quot; _<br />
+(ByVal lpClassName As String, ByVal lpWindowName As String) As Long<br />
+<br />
+Declare Function SendMessage Lib &quot;user32&quot; Alias &quot;SendMessageA&quot; _<br />
+(ByVal hWnd As Long, ByVal wMsg As Long, ByVal wParam As Long, lparam As Any) As Long<br />
+<br />
+Declare Function EnumChildWindows Lib &quot;user32&quot; _<br />
+(ByVal hWndParent As Long, ByVal lpEnumFunc As Long, ByVal lparam As Long) As Long<br />
+<br />
+Public Declare Function PostMessage Lib &quot;user32&quot; Alias &quot;PostMessageA&quot; (ByVal hWnd As Long, _<br />
+ByVal wMsg As Long, ByVal wParam As Long, ByVal lparam As Long) As Long<br />
+<br />
+Const WM_SETTEXT = &amp;HC<br />
+Const WM_LBUTTONDOWN = &amp;H201<br />
+Const WM_LBUTTONUP = &amp;H202<br />
+<br />
+'--------------------------------------------------------------------------<br />
+<br />
+Function EnumChildProc(ByVal hWnd As Long, ByVal lparam As Long) As Long<br />
+'The winnum variable counts the Child Processes in the Login Window<br />
+'and sets the index for the lHwnd(winnum) array. This array is the<br />
+'Windows Handle for the Child processes.<br />
+   winnum = winnum + 1<br />
+   ReDim Preserve lHwnd(winnum)<br />
+   lHwnd(winnum) = hWnd<br />
+   EnumChildProc = 1<br />
+End Function<br />
+<br />
+'--------------------------------------------------------------------------<br />
+<br />
+Sub Main()<br />
+   Start_Baan<br />
+   Find_Password_Window<br />
+   WaitForBaan<br />
+   OleOperations<br />
+End Sub<br />
+<br />
+'--------------------------------------------------------------------------<br />
+<br />
+Sub Start_Baan()<br />
+'testbox.bwc config - No username, No Password, Command = /Automation<br />
+   Call ShellExecute(0&amp;, &quot;Open&quot;, &quot;c:\baan\lib\user\testbox.bwc&quot;, vbNullString, vbNullString, 1)<br />
+End Sub<br />
+<br />
+'--------------------------------------------------------------------------<br />
+<br />
+Sub Find_Password_Window()<br />
+   Dim retval As Long<br />
+   ReDim lHwnd(1)<br />
+'Wait for Login window to appear. The title of the window, e.g. &quot;Login for sstest&quot;,<br />
+'must match exactly and is Case sensitive.<br />
+   Do Until lHwnd(0) &lt;&gt; 0<br />
+      lHwnd(0) = FindWindowEx(0, 0, vbNullString, &quot;Login for sstest&quot;)<br />
+      DoEvents<br />
+   Loop<br />
+'We have to wait for the Login window to fully form.<br />
+'It will have 9 child processes when fully formed.<br />
+'The Child Processes are detected by the Function EnumChildProc above.<br />
+'If the functions returns prematurely, the winnum variable is set to 0<br />
+'and the Child Processes are counted again.<br />
+DoAgain:<br />
+   retval = EnumChildWindows(lHwnd(0), AddressOf EnumChildProc, 0)<br />
+   If winnum &lt;&gt; 9 Then<br />
+      winnum = 0<br />
+      GoTo DoAgain<br />
+   End If<br />
+   DoEvents<br />
+'Sub to send the Username to the Login window's Username box.<br />
+   Enter_Username<br />
+'Sub to send the Password to the Login window's Password box.<br />
+   Enter_Password<br />
+'Sub to simulate a mouse click on the OK button in the Login window.<br />
+   Click_OK<br />
+End Sub<br />
+<br />
+'--------------------------------------------------------------------------<br />
+<br />
+Sub Enter_Username()<br />
+'Send the Username to the Login window's Username box.<br />
+   Dim sText As String<br />
+   sText = &quot;YourUserName&quot;<br />
+   Call SendMessage(lHwnd(9), WM_SETTEXT, Len(sText), ByVal sText)<br />
+   DoEvents<br />
+End Sub<br />
+<br />
+'--------------------------------------------------------------------------<br />
+<br />
+Sub Enter_Password()<br />
+'Send the Password to the Login window's Password box.<br />
+   Dim sText As String<br />
+   sText = &quot;YourPassword&quot;<br />
+   Call SendMessage(lHwnd(2), WM_SETTEXT, Len(sText), ByVal sText)<br />
+   DoEvents<br />
+End Sub<br />
+<br />
+'--------------------------------------------------------------------------<br />
+<br />
+Sub Click_OK()<br />
+'Simulate a mouse click on the OK button in the Login window.<br />
+   Call PostMessage(lHwnd(3), WM_LBUTTONDOWN, 0, 0)<br />
+   Call PostMessage(lHwnd(3), WM_LBUTTONUP, 0, 0)<br />
+End Sub<br />
+<br />
+'--------------------------------------------------------------------------<br />
+<br />
+Sub WaitForBaan()<br />
+   Dim w As Long<br />
+   Dim start As Long<br />
+   Do While w = 0<br />
+      w = FindWindow(vbNullString, &quot;Option Dialog&quot;)<br />
+   Loop<br />
+'I wish I could eliminate this but:<br />
+'Wait 5 seconds for Baan to fully initialize.<br />
+'After Baan is initialized, the CreateObject will use<br />
+'the current Baan session for BaanObj.<br />
+'If Baan is not fully initialized the CreateObject<br />
+'will try to start a new session.<br />
+   start = Timer<br />
+   Do Until Timer &gt; start + 5<br />
+   Loop<br />
+End Sub<br />
+<br />
+'--------------------------------------------------------------------------<br />
+<br />
+Sub OleOperations()<br />
+   Set BaanObj = CreateObject(&quot;Baan4.Application&quot;)<br />
+   BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.find(&quot; &amp; Chr(34) &amp; &quot;tiitm0101m000&quot; &amp; Chr(34) &amp; &quot;)&quot;<br />
+   Debug.Print BaanObj.ReturnValue<br />
+   BaanObj.ParseExecFunction &quot;ottstpapihand&quot;, &quot;stpapi.end.session(&quot; &amp; Chr(34) &amp; &quot;tiitm0101m000&quot; &amp; Chr(34) &amp; &quot;)&quot;<br />
+   BaanObj.Quit<br />
+End Sub</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

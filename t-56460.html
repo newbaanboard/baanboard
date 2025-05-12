@@ -1,0 +1,130 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Problem Saving Special Delivery Address (tdsls4103s000), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Problem Saving Special Delivery Address (tdsls4103s000) AFS/DDC/OLE: Function servers" />
+	
+	<title>Problem Saving Special Delivery Address (tdsls4103s000) [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Problem Saving Special Delivery Address (tdsls4103s000)</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jhargett</div><div class="date">3rd August 2009, 19:23</div></div><div class="posttext">I am having a problem using AFS to populate the subsession tdsls4103s000 which allows adding a special delivery address to the Sales Order header. After filling out the Sales Order header and saving it, then storing the returned Sales Order number, this function is called:<br />
+<br />
+<br />
+function long save_delivery_address()<br />
+{<br />
+  long ret<br />
+  string last_error(255)<br />
+  string msg(255)<br />
+<br />
+  last_error = &quot;&quot;<br />
+  output(&quot;Handle Subsession for Delivery Address: &quot; &amp; del_session)<br />
+  stpapi.handle.subproc(main_session, del_session, &quot;add&quot;)<br />
+  stpapi.application.option(main_session, 1, 2, last_error)<br />
+  if (last_error = &quot;&quot;) then<br />
+    output(&quot;ERROR: Could not start subsession for delivery to address:&quot; &amp; last_error)<br />
+    return (0)<br />
+  endif<br />
+<br />
+  stpapi.put.field( del_session, &quot;tdsls042.orno&quot;, str$(orno) )<br />
+  ccty = &quot;USA&quot;<br />
+  stpapi.put.field( del_session, &quot;tdsls042.ccty&quot;, ccty )<br />
+  ret = stpapi.update( del_session, false, last_error)<br />
+  if (ret = 0) then<br />
+    output(&quot;ERROR: Could not update data to subsession for delivery to address:&quot; &amp; last_error)<br />
+    return (0)<br />
+  endif<br />
+<br />
+  stpapi.get.field( del_session, &quot;tdsls042.nama&quot;, msg )<br />
+  output(&quot;Value of Nama: &quot; &amp; msg)<br />
+  stpapi.put.field( del_session, &quot;tdsls042.nama&quot;, nama )<br />
+  stpapi.get.field( del_session, &quot;tdsls042.nama&quot;, msg )<br />
+  output(&quot;Value of Nama: &quot; &amp; msg)<br />
+  stpapi.get.field( del_session, &quot;tdsls042.orno&quot;, msg )<br />
+  stpapi.put.field( del_session, &quot;tdsls042.namb&quot;, namb )<br />
+  stpapi.put.field( del_session, &quot;tdsls042.namc&quot;, namc )<br />
+  stpapi.put.field( del_session, &quot;tdsls042.namd&quot;, namd)<br />
+  stpapi.put.field( del_session, &quot;tdsls042.name&quot;, name )<br />
+  stpapi.put.field( del_session, &quot;tdsls042.namf&quot;, namf )<br />
+<br />
+<br />
+  ret = stpapi.insert( del_session, true, last_error)<br />
+  if (ret = 0) then<br />
+    output(&quot;ERROR: Could not insert to subsession for delivery to address:&quot; &amp; last_error)<br />
+    return (0)<br />
+  endif<br />
+  stpapi.end.session(del_session)<br />
+  output(&quot;End Subsession for Delivery Address&quot;)<br />
+  return (1)<br />
+}<br />
+<br />
+<br />
+The program returns an error after the stpapi.insert that says &quot;Country not found in the Countries table&quot;. This is the error you get in the session if you try to leave the country field blank, but as you can see, I am setting the ctty field to &quot;USA&quot;, which is a valid country in the countries table. Normally, when you pull up this session in Baan, all of the fields are filled out with the default delivery address of the customer. It seems when I pull up the session using AFS, these fields are not filled out. That makes it seem like maybe some initialization is not happening. I tried resolving that by adding the stpapi.update call to call the field sections, but it didn't seem to work. Any suggestions?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th August 2009, 23:00</div></div><div class="posttext">Is there a main session you can run versus the subsession?  That would be the easiest solution.  <br />
+<br />
+Next - does this &quot;stpapi.application.option(main_session, 1, 2, last_error)&quot; actually start the subsession?  In debug mode check the processes - before and right after this statement. You should see the subsession started - if not, that could explain why those other fields are not filled correctly. Do you own source so you can see what is happening between main and sub-sessions?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jhargett</div><div class="date">4th August 2009, 23:16</div></div><div class="posttext">No, I didn't see a main session that would do the same thing.<br />
+<br />
+The subsession does actually start but not until the first put statement.<br />
+<br />
+I do have source code for session tdsls4103s000 but I can't put it in debug mode because it doesn't compile. It seems I am missing some other object.<br />
+<br />
+Thanks for the reply.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th August 2009, 18:13</div></div><div class="posttext">The subsession does actually start but not until the first put statement.<br />
+<br />
+Then I think that is the initial problem you will have to overcome.  So is this subsession choice.user.x option on the form?  On my system just glancing at the form it is choice.user.1 - which would make the command stpapi.application.option(main_session, 1, 1, last_error).  Can you confirm this on your system.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jhargett</div><div class="date">5th August 2009, 18:23</div></div><div class="posttext">The first thing under the Application menu is Lines. That is started by the stpapi.continue.process. So, I assume that stpapi.application.option handles everything after that. The next menu option after lines on my system is Maintain Specific Postal Address. I want the 2nd menu option though, which is Maintain Specific Delivery Address. So, am I right in using 2 as the third parameter?<br />
+<br />
+As far as when the subsession starts, I thought it was normal to start after the put. After all, there is no command to start a main session, the session just starts after the first put statement.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th August 2009, 20:55</div></div><div class="posttext">The first thing under the Application menu is Lines. That is started by the stpapi.continue.process. So, I assume that stpapi.application.option handles everything after that. The next menu option after lines on my system is Maintain Specific Postal Address. I want the 2nd menu option though, which is Maintain Specific Delivery Address. So, am I right in using 2 as the third parameter?<br />
+Check the form to see which user option it is - on my system it is choice.user.1.  Which would result in the command I showed.<br />
+<br />
+As far as when the subsession starts, I thought it was normal to start after the put. After all, there is no command to start a main session, the session just starts after the first put statement.<br />
+Sub-sessions and main sessions are not the same.  Yes - a main session is activated with a put command.  That starts the session for input.  Sub-sessions are usually activited via an action command(insert, update, continue, application.option) on the main session.  When those commands are executed that is when the subsession is fired up.  That is how main sessions control sub-sessions.  In this case the put is executing outside the control of the main session - which means the sub-session does not have any of the table or global variables required upon its activation.  This is why when you look at the process id's using option dialog box - the sub-session parent id should be the main sessions NOT the session with the stpapi code in it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jhargett</div><div class="date">5th August 2009, 22:04</div></div><div class="posttext">I think I am starting to get it :) You, of course, were right about the session not starting until the put statement. The session was starting up but the parentid was the one with the stpapi code. <br />
+<br />
+I wasn't aware that there was a way to check which user option number to use. I looked at the Maintain Sales Order session and went to forms and then the &quot;Spec. Options&quot; button. it shows user.0 is the Specific Postal Address and user.1 is Maintain Specific Delivery Address. So I guess I need to use 1 there. <br />
+<br />
+I changed it to 1, and debugged the session again, but the session is still not starting up as soon as the stpapi.application.option is called. It doesn't start until the first put or get call and then the PPID is still the STPAPI session and not Maintain Sales Orders.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jhargett</div><div class="date">5th August 2009, 22:24</div></div><div class="posttext">Also, wanted to note that I am not getting the same error message. I now get the error:<br />
+&quot;Sales order not found&quot;<br />
+<br />
+It seems I have the exact same problem as has been brought up in this thread:<br />
+showthread.php?t=15152 (http://www.baanboard.com/baanboard/showthread.php?t=15152)<br />
+<br />
+but doesn't seem to be a problem for this user:<br />
+showpost.php?p=100629&amp;postcount=5 (http://www.baanboard.com/baanboard/showpost.php?p=100629&amp;postcount=5)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jhargett</div><div class="date">5th August 2009, 22:31</div></div><div class="posttext">It works now! I had to use the function stpapi.zoom.option instead of stpapi.application.option. What is the difference between these two?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th August 2009, 00:28</div></div><div class="posttext">The difference is that stpapi.application.option is for executing a choice.user.x option.  Stpapi.zoom is for zooming to a session off the menu on the special option.  In theory you should be able to use either method to execute a choice.user.x option.  BUT if the special zooms to a menu which allows you to select a subsession- then you need to use the stpapi.zoom option and the subsession you enter must be on the menu.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

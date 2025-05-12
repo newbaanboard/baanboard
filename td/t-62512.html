@@ -1,0 +1,97 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="dynamic where clause, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] dynamic where clause Tools Development" />
+	
+	<title>dynamic where clause [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; dynamic where clause</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">anant desai</div><div class="date">20th June 2012, 07:42</div></div><div class="posttext">I have a SELECT statement in which the<br />
+WHERE clause changes depending on entries<br />
+on the input form.Do I have to use Dynamic SQL<br />
+to do this?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">20th June 2012, 09:21</div></div><div class="posttext">Mostly not. Because you can also include non-table fields in where clauses. Example to include closed orders based on a flag on the form:<br />
+<br />
+where tisfc001.stat &lt; tistat.closed or<br />
+         :include.closed = tcyesno.yes</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">anant desai</div><div class="date">20th June 2012, 11:32</div></div><div class="posttext">What I want to achieve is as follows:<br />
+If the user enters Days diffrence then <br />
+the where clause should be Order date inrange stdt and endt<br />
+where stdt is TODAY and endt is stdt - Days Diffrence,<br />
+else the user enters range of Order Numbers in which case<br />
+where clause becomes tdsls040.orno inrange orno.f and orno.t<br />
+where orno.f and orno.t are input fields on the form.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">20th June 2012, 13:38</div></div><div class="posttext">Still no need for dynamic SQL, but for performance reasons I would write 2 queries:<br />
+<br />
+if diff.days = 0 then<br />
+   select tdsls040.*<br />
+   from tdsls040<br />
+   where tdsls040.orno inrange :orno.f and :orno.t<br />
+   selectdo<br />
+       ...<br />
+   endselect<br />
+else<br />
+   select tdsls040.*<br />
+   from tdsls040<br />
+   where tdsls040.odat inrange :endt and :stdt<br />
+   selectdo<br />
+       ...<br />
+   endselect<br />
+<br />
+<br />
+Note: endt and stdt seem to be in wrong order, but must be coded this way based on your description.<br />
+<br />
+Other possibility but worse for performance:<br />
+<br />
+   select tdsls040.*<br />
+   from tdsls040<br />
+   where (:diff.days = 0 and tdsls040.orno inrange :orno.f and :orno.t)<br />
+     or (:diff.days &lt;&gt; 0 and tdsls040.odat inrange :endt and :stdt)<br />
+   selectdo<br />
+       ...<br />
+   endselect<br />
+<br />
+<br />
+The 3rd possibility is indeed dynamic SQL:<br />
+<br />
+query = &quot;select tdsls040.* from tdsls040 where &quot;<br />
+if diff.days = 0 then<br />
+   query = query &amp; &quot;tdsls040.orno inrange &quot; &amp; str$(orno.f) &amp; &quot; and &quot; &amp; srtr$(orno.t)<br />
+else<br />
+   query = query &amp; &quot;tdsls040.odat inrange &quot; &amp; str$(endt) &amp; &quot; and &quot; &amp; str$(stdt)<br />
+endif<br />
+<br />
+sql.id = sql.parse(query)<br />
+ret = sql.exec(sql.id)<br />
+while sql.fetch(sql.id) = 0<br />
+   ...<br />
+endwhile<br />
+<br />
+<br />
+Note: code is not tested by me...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">anant desai</div><div class="date">20th June 2012, 14:02</div></div><div class="posttext">Thank you once again. I think Options 1 is the <br />
+best choice.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

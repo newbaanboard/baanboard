@@ -1,0 +1,100 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Getting data from BAAN to Excel, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Getting data from BAAN to Excel AFS/DDC/OLE: Function servers" />
+	
+	<title>Getting data from BAAN to Excel [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Getting data from BAAN to Excel</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">bongielondy</div><div class="date">26th November 2012, 10:37</div></div><div class="posttext">I am trying to get data from baan to excel. the error that i get says there is a problem with the query. Maybe the problem is the table name. How can I see the table names in BAAN. i have attached the code and the screen shot.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th November 2012, 15:43</div></div><div class="posttext">Are you sure ttadv348 is the correct table?  That is a tools table.  This table does not exist on my system. If it is the correct tableyou might want to confirm which company the table is in - a lot of tools tables are in company 000.  Then your query would need to have ttadv348._compnr=0 added to it.  Plus I did not see a screen shot of the error, but I would verify the table and company number first.  Other than that the code looked okay to me.  I pulled a piece of your code out:<br />
+<br />
+<br />
+Sub getItemDescrFromBaan()<br />
+    Dim t As Range<br />
+    Set t = Range(&quot;ServiceOrder&quot;)<br />
+    <br />
+    query = &quot;select ttadv348.* from ttadv348 where ttadv348.Customer ='TEB001'&quot;<br />
+   <br />
+    If Not startBaan Then Exit Sub<br />
+    If Not GetCustomer(query) Then Exit Sub<br />
+    If FetchNext(query_id) Then<br />
+        t.Offset(, 1) = GetStrData(&quot;ttadv3480.ServiceOrder&quot;)<br />
+        t.Offset(, 2) = GetStrData(&quot;ttadv3480.Installation&quot;)<br />
+        QueryEnd (query_id)<br />
+    Else<br />
+        t.Offset(, 1) = &quot;Unknown Item&quot;<br />
+        t.Offset(, 2).ClearContents<br />
+    End If<br />
+End Sub<br />
+Function GetCustomer(ByVal query As String) As Boolean<br />
+    GetCustomer = False<br />
+    On Error Resume Next<br />
+    baanObj.ParseExecFunction Query_dll, &quot;olesql_parse(&quot; &amp; Chr(34) &amp; query &amp; Chr(34) &amp; &quot;)&quot;<br />
+    If Err.Number &gt; 0 Then<br />
+        Err.Clear<br />
+        If startBaanReally Then<br />
+            baanObj.ParseExecFunction Query_dll, &quot;olesql_parse(&quot; &amp; Chr(34) &amp; query &amp; Chr(34) &amp; &quot;)&quot;<br />
+        Else<br />
+            Exit Function<br />
+        End If<br />
+        If Err.Number &gt; 0 Then<br />
+            Err.Clear<br />
+            Exit Function<br />
+        End If<br />
+    End If<br />
+    query_id = Val(baanObj.ReturnValue)<br />
+    If query_id = 0 Then<br />
+        Application.StatusBar = Left(query, 80)<br />
+        MsgBox (&quot;Error in query&quot; &amp; Chr(10) &amp; &quot;(&quot; &amp; query &amp; &quot;)&quot; &amp; Chr(10) _<br />
+              &amp; &quot;/ or no data within selection ? ...&quot;)<br />
+    Else<br />
+        GetQid = True<br />
+    End If<br />
+End Function<br />
+<br />
+<br />
+And then a piece of some code I played with at one time:<br />
+<br />
+uery = &quot;select tiitm001.* from tiitm001 where tiitm001.item = 'PLM7249020'&quot;<br />
+<br />
+B_function = &quot;olesql_parse(&quot; &amp; Chr(34) &amp; Query &amp; Chr(34) &amp; &quot;)&quot;<br />
+' execute the function olesql_parse from DLL ottdllsql_query<br />
+BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+<br />
+query_id = Val(BaanObj.ReturnValue)<br />
+If query_id = 0 Then<br />
+MsgBox &quot;function olesql_parse fails&quot;<br />
+End If<br />
+<br />
+' The function olesql_fetch reads one query result, in this example the (string) value of ttaad200.user<br />
+' The identification number of the query must be passed as argument to this function<br />
+B_function = &quot;olesql_fetch(&quot; &amp; query_id &amp; &quot;)&quot;<br />
+BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+' Get Location<br />
+B_function2 = &quot;&quot;<br />
+temp_string = &quot;tiitm001.ccur&quot;<br />
+Supplier = String(32, &quot; &quot;)<br />
+B_function2 = &quot;olesql_getstring(&quot; &amp; Chr(34) &amp; temp_string &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; Supplier &amp; Chr(34) &amp; &quot;)&quot;<br />
+BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function2<br />
+temp_string = BaanObj.FunctionCall<br />
+Location = Mid(temp_string, 35, 32)<br />
+Location = Trim(Location)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

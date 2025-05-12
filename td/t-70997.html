@@ -1,0 +1,119 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Text field on Report, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Text field on Report Tools Development" />
+	
+	<title>Text field on Report [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Text field on Report</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ben.kansas</div><div class="date">11th April 2018, 21:31</div></div><div class="posttext">Hello,<br />
+<br />
+We have a custom session to print our Contract Acknowledgement in LN 10.5 using LN UI.<br />
+<br />
+On the report, we want to print the contract line text (tpctm110.text).  We've placed it on the report in its own layout.  <br />
+<br />
+When the text field has a large amount of text, the report prints the first line, then skips to a new page.  The new page is blank (no text from the text field, though it does print the other before field layouts).  Then prints the remainder of the data on the report.  <br />
+<br />
+The full text is not printed.<br />
+<br />
+Any advice on how to fix this?<br />
+<br />
+Thanks,<br />
+Ben</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th April 2018, 22:31</div></div><div class="posttext">Does it do the same thing if sending it to a display or a file?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ben.kansas</div><div class="date">11th April 2018, 23:51</div></div><div class="posttext">Sending to Display the text is truncated after the first line.<br />
+<br />
+However, sending to a file, all of the text prints.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th April 2018, 15:36</div></div><div class="posttext">I am not sure about your version, but we have had instances where the users cut and paste into text from word(for example) and this causes some weird things to happen.  I was wondering if you could confirm it is plain text?  This is about the only thing I can think of right offhand.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ben.kansas</div><div class="date">12th April 2018, 19:39</div></div><div class="posttext">So I took your advice.  I retyped all of the text to make sure that it was plain text.  Now I am getting about half of the text printing.<br />
+<br />
+It looks like the report is then trying to do a page break, but then isn't continuing with printing the text field.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th April 2018, 15:44</div></div><div class="posttext">I was just looking at our print PO's and the layout that does text and I do not see anything special around it.  Do you have any print page breaks turned on for the other layouts?  One thing you can try is cloning it to a new report - then delete all layouts except text.  Run it see what happens - then add layouts one at a time watching what happens with each addition.  I am not even sure that will help.  Swagging it here.<br />
+<br />
+We do printing via UNIX printers.  Most of our printers have formfeed checked - not sure if any of this makes a difference or not.<br />
+<br />
+PS - when you re-typed it you spelled department wrong.  That almost looks like our standard PO type text.  :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ben.kansas</div><div class="date">13th April 2018, 18:48</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Thanks for the advice.  I took it.<br />
+<br />
+I re-discovered in the process that on the layout I set the output expression to lattr.break, which would prevent the layout from printing on a page break, regardless of whether the text is complete.<br />
+<br />
+Because the layout is a before.field type, I don't want it to print every time there's a new page.  So I need to do some manual control on when the when the layout is printed.<br />
+<br />
+Any suggestions on detecting that the text isn't complete and using lattr.print to control whether the layout prints?<br />
+<br />
+Maybe something using lattr.textlineno and comparing it to the total number of lines in the text field?<br />
+<br />
+txt.file = bse.temp.dir$() &amp; &quot;/ConTxt&quot;<br />
+lines = text.read(&quot;tpctm110.text&quot;, &quot;2&quot;, kw1, kw2, kw3, kw4, grp, opt, txt.file, 0)<br />
+<br />
+if not lattr.break then<br />
+    if lattr.textlineno &lt;= lines  then<br />
+        lattr.print = TRUE<br />
+    else<br />
+        lattr.print = FALSE<br />
+    endif<br />
+else<br />
+    lattr.print = TRUE<br />
+endif<br />
+<br />
+<br />
+<br />
+Thanks,<br />
+Ben</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th April 2018, 00:59</div></div><div class="posttext">Hmm - could you set a variable to like print.mylayout = true.  Then in the after.layout set it to false.  Then in the before layout test if print.mylayout the print it, if false set my print.layout = false.  You then go into the layout for when you want to trigger it to print again - you just have to figure out when you want it to print again and set the print.mylayout back to true.  I have actually used empy layouts just to trigger the script to do something.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ben.kansas</div><div class="date">16th April 2018, 21:03</div></div><div class="posttext">Here's the really frustrating part.<br />
+<br />
+When the report is printed via BWPrint, it is fine.  All the text prints and layouts are handled correctly.<br />
+<br />
+However, we use LN UI and send our documents to the DOM for printing.  When run through the DOM, the report cuts off half of the text.<br />
+<br />
+If I remove the text field before print section, then it prints all of the text, but doesn't handle page breaks correctly.<br />
+<br />
+field.tpctm110.text:<br />
+before.print:<br />
+	txt.file = bse.tmp.dir$() &amp; &quot;/ConTxt&quot;<br />
+	txt.lines = text.read(&quot;text&quot;, &quot;2&quot;, kw1, kw2, kw3, kw4, grp, opt, txt.file, 0)<br />
+	need(txt.lines)<br />
+<br />
+<br />
+Any advice on handling this with the DOM?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th April 2018, 15:09</div></div><div class="posttext">Sorry I do not know anything about the LN UI or DOM.  Wait and see if someone comes along on DOM usage.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ben.kansas</div><div class="date">19th April 2018, 22:45</div></div><div class="posttext">Any help with DOM usage?</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

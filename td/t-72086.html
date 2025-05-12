@@ -1,0 +1,286 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to use DAL to insert/update a text field?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to use DAL to insert/update a text field? Tools Development" />
+	
+	<title>How to use DAL to insert/update a text field? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; How to use DAL to insert/update a text field?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">6th August 2019, 05:46</div></div><div class="posttext">I tried putting a string into a field using this command along with other fields.<br />
+<br />
+. . .<br />
+dal.set.field(&quot;tsclm100.txta&quot;, &quot;Test Text&quot;)<br />
+. . .<br />
+<br />
+The other fields are correctly saved except this text field.<br />
+Any suggestion?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">6th August 2019, 08:13</div></div><div class="posttext">Text fields do store a numeric value. It's the number of the text stored in the text tables. Therefore, you will have to create the text itself before storing the text number in the table.<br />
+See text.to buf(..) and text.write(..) in the programmers reference guide. When I create a new text in LN I usually store the text in a text file on the server and then text.write(..) is used to create a new text in the database (this will create a new text number). The next step is to store the text number in the text field and perform an update on the table.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">6th August 2019, 10:12</div></div><div class="posttext">I tried this following code.<br />
+<br />
+string	temp.file1(500), text(300)<br />
+	string	kw1(17),kw2(17),kw3(17),kw4(17)<br />
+	long	write.return, input.file, seq<br />
+<br />
+	select	tsclm100.txta<br />
+	from	tsclm100 for update<br />
+	where   tsclm100.ccll = :ticket.number<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		message(ticket.number)<br />
+		temp.file1 = creat.tmp.file$(bse.tmp.dir$())<br />
+		temp.file1 = strip$(temp.file1)<br />
+		input.file = seq.open(temp.file1,&quot;w&quot;)<br />
+		seq = seq.puts(&quot;Test Text&quot;, input.file)<br />
+		seq = seq.close(input.file)<br />
+		write.return = text.write(&quot;tsclm100.txta&quot;, &quot;2&quot;, kw1, kw2, kw3, kw4, &quot;text&quot;, &quot;&quot;, temp.file1)<br />
+		db.update(ttsclm100, db.retry)<br />
+		seq = seq.unlink(temp.file1)<br />
+		commit.transaction()<br />
+		message(write.return)<br />
+	endselect<br />
+<br />
+where ticket.number is the Call Number.<br />
+This code does create a new text and put the text id into the database. However, when I access the detail session (tsclm1100m000) the text displays in the comment input field rather than in the comment history field, and once the session is closed the text disappears. The data in the table tsclm100 becomes blank and no comment history is added.<br />
+What I am trying to do is just to add a comment to the Ticket.<br />
+What did I do wrong?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">6th August 2019, 11:57</div></div><div class="posttext">Try creating the new text in a dumy field.<br />
+<br />
+extern domain tctxtn new.xta<br />
+<br />
+(..)<br />
+write.return = text.write(&quot;new.txta&quot;, &quot;2&quot;, kw1, kw2, kw3, kw4, &quot;text&quot;, &quot;&quot;, temp.file1)<br />
+tsclm100.txta = new.txta<br />
+db.update(..)<br />
+(..)<br />
+<br />
+I've checked my old source. I did something like this:<br />
+<br />
+dal.new.object(&quot;tsbsc110&quot;)  <br />
+(..)<br />
+err = text.write(&quot;tscfg200.txta&quot;, language$, &quot;Cluster-Installation&quot;, tscfg200.desc, &quot;&quot;, &quot;&quot;, &quot;text&quot;, &quot;text&quot;, text.file)<br />
+(..)<br />
+dal.set.field(&quot;tscfg200.txta&quot;, tscfg200.txta)<br />
+ret = dal.save.object(&quot;tsbsc110&quot;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">6th August 2019, 13:53</div></div><div class="posttext">Still does not work.<br />
+The text is created with a new id and stored in the table, but if I start the session and then close it, the text data just disappears.<br />
+In the session, the text will not display in the Comment History too, which is where it should be displayed.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">6th August 2019, 16:16</div></div><div class="posttext">There may be some hidden logic in the session copying the new text into the history fields.<br />
+We’re not using TS but we do have sources.<br />
+In the script tsclm1100 in choice.text.manager/after,choice a function is calls (update.history.texts())<br />
+This function simply calls a DLL function:<br />
+<br />
+	db.retry.point()<br />
+	tsclm.dll1025.update.history()<br />
+	commit.transaction()<br />
+<br />
+The DLL functions needs to have tsclm100 set. Hope this helps.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">7th August 2019, 05:55</div></div><div class="posttext">There may be some hidden logic in the session copying the new text into the history fields.<br />
+We’re not using TS but we do have sources.<br />
+In the script tsclm1100 in choice.text.manager/after,choice a function is calls (update.history.texts())<br />
+This function simply calls a DLL function:<br />
+<br />
+	db.retry.point()<br />
+	tsclm.dll1025.update.history()<br />
+	commit.transaction()<br />
+<br />
+The DLL functions needs to have tsclm100 set. Hope this helps.<br />
+<br />
+I tried it several times with DAL but it just does not work as expected.<br />
+So, I decided to update its related tables that I could find, which are Call Transaction Logging (tsclm180) and Call History (tsclm810).<br />
+I can now add the comment using these steps:<br />
+1. Get the ticket number (Create one or get one)<br />
+2. Prepare the text (Create a new text and get its text id)<br />
+3. Update tsclm180 and tsclm810 with the necessary fields<br />
+<br />
+Here is the actual code for step 2-3.<br />
+function add.comment(domain tcorno ticket.number)<br />
+{<br />
+	string	temp.file1(500), text(300), kw1(17),kw2(17),kw3(17),kw4(17)<br />
+	long	write.return, input.file, seq<br />
+	<br />
+	temp.file1 = creat.tmp.file$(bse.tmp.dir$())<br />
+	temp.file1 = strip$(temp.file1)<br />
+	input.file = seq.open(temp.file1,&quot;w&quot;)<br />
+	seq = seq.puts(&quot;Test Text&quot;, input.file)<br />
+	seq = seq.close(input.file)<br />
+	write.return = text.write(&quot;tsclm100.txta&quot;, &quot;2&quot;, kw1, kw2, kw3, kw4, &quot;text&quot;, &quot;&quot;, temp.file1)<br />
+	seq = seq.unlink(temp.file1)<br />
+	if tsclm100.txta &gt; 0 then<br />
+		domain	tsmdm.serd	sequence.number<br />
+		domain	tcmcs.s200m	error.msg<br />
+		error.msg = &quot;&quot;<br />
+		select	tsclm180.seqn:sequence.number<br />
+		from	tsclm180<br />
+		where	tsclm180.ccll = :ticket.number<br />
+		order by	tsclm180.seqn ASC<br />
+		as set with 1 rows<br />
+		selectdo<br />
+			if dal.new.object(&quot;tsclm180&quot;) &lt;&gt; 0 then<br />
+				dal.get.error.message(error.msg)<br />
+				message(error.msg)<br />
+			endif<br />
+			dal.set.field(&quot;tsclm180.ccll&quot;, ticket.number)<br />
+			dal.set.field(&quot;tsclm180.seqn&quot;, sequence.number - 1)<br />
+			dal.set.field(&quot;tsclm180.trtc&quot;, utc.num())<br />
+			dal.set.field(&quot;tsclm180.user&quot;, &quot;baan&quot;)<br />
+			dal.set.field(&quot;tsclm180.cfld&quot;, tsclm.cfld.txtf)<br />
+			dal.set.field(&quot;tsclm180.nval&quot;, &quot;&quot;)<br />
+			dal.set.field(&quot;tsclm180.txtf&quot;, tsclm100.txta)<br />
+			if dal.save.object(&quot;tsclm180&quot;) &lt;&gt; 0 then<br />
+				dal.get.error.message(error.msg)<br />
+				message(error.msg)<br />
+			endif<br />
+			commit.transaction()<br />
+			message(ticket.number)<br />
+		endselect<br />
+		select	tsclm810.txta, tsclm810.txtk<br />
+		from	tsclm810 for update<br />
+		where	tsclm810.ccll = :ticket.number<br />
+		selectdo<br />
+			dal.change.object(&quot;tsclm810&quot;)<br />
+			dal.set.field(&quot;tsclm810.txta&quot;, tsclm100.txta)<br />
+			dal.set.field(&quot;tsclm810.txtk&quot;, tsclm100.txta)<br />
+			if dal.save.object(&quot;tsclm810&quot;) &lt;&gt; 0 then<br />
+				dal.get.error.message(error.msg)<br />
+				message(error.msg)<br />
+			endif<br />
+			commit.transaction()<br />
+			message(tsclm100.txta)<br />
+		endselect<br />
+	endif<br />
+}<br />
+<br />
+The problem is solved now. Thank you for helping.<br />
+Moreover, I suggest that a mod edit this title a little bit so that it describes this topic in a more specific way because this is not about general DAL text field update. It is more like a solution for Call/Ticket process.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">7th August 2019, 16:10</div></div><div class="posttext">Strangely i couldnt see any db.retry.point in your code..</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">8th August 2019, 04:52</div></div><div class="posttext">Strangely i couldnt see any db.retry.point in your code..<br />
+<br />
+Yes, because there isn't one.<br />
+Where do you suggest I put it?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">8th August 2019, 11:26</div></div><div class="posttext">Yes, because there isn't one.<br />
+Where do you suggest I put it?<br />
+<br />
+Beginning of the Transaction.<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+function add.comment(domain tcorno ticket.number)<br />
+{<br />
+	string	temp.file1(500), text(300), kw1(17),kw2(17),kw3(17),kw4(17)<br />
+	long	write.return, input.file, seq<br />
+	<br />
+	<br />
+        <br />
+        db.retry.point()<br />
+        temp.file1 = creat.tmp.file$(bse.tmp.dir$())<br />
+	temp.file1 = strip$(temp.file1)<br />
+	input.file = seq.open(temp.file1,&quot;w&quot;)<br />
+	seq = seq.puts(&quot;Test Text&quot;, input.file)<br />
+	seq = seq.close(input.file)<br />
+	write.return = text.write(&quot;tsclm100.txta&quot;, &quot;2&quot;, kw1, kw2, kw3, kw4, &quot;text&quot;, &quot;&quot;, temp.file1)<br />
+	seq = seq.unlink(temp.file1)<br />
+	if tsclm100.txta &gt; 0 then<br />
+		domain	tsmdm.serd	sequence.number<br />
+		domain	tcmcs.s200m	error.msg<br />
+		error.msg = &quot;&quot;<br />
+		select	tsclm180.seqn:sequence.number<br />
+		from	tsclm180<br />
+		where	tsclm180.ccll = :ticket.number<br />
+		order by	tsclm180.seqn ASC<br />
+		as set with 1 rows<br />
+		selectdo<br />
+			if dal.new.object(&quot;tsclm180&quot;) &lt;&gt; 0 then<br />
+				dal.get.error.message(error.msg)<br />
+				message(error.msg)<br />
+			endif<br />
+			dal.set.field(&quot;tsclm180.ccll&quot;, ticket.number)<br />
+			dal.set.field(&quot;tsclm180.seqn&quot;, sequence.number - 1)<br />
+			dal.set.field(&quot;tsclm180.trtc&quot;, utc.num())<br />
+			dal.set.field(&quot;tsclm180.user&quot;, &quot;baan&quot;)<br />
+			dal.set.field(&quot;tsclm180.cfld&quot;, tsclm.cfld.txtf)<br />
+			dal.set.field(&quot;tsclm180.nval&quot;, &quot;&quot;)<br />
+			dal.set.field(&quot;tsclm180.txtf&quot;, tsclm100.txta)<br />
+			if dal.save.object(&quot;tsclm180&quot;) &lt;&gt; 0 then<br />
+				dal.get.error.message(error.msg)<br />
+				message(error.msg)<br />
+			endif<br />
+			commit.transaction()<br />
+			message(ticket.number)<br />
+		endselect<br />
+		select	tsclm810.txta, tsclm810.txtk<br />
+		from	tsclm810 for update<br />
+		where	tsclm810.ccll = :ticket.number<br />
+		selectdo<br />
+			dal.change.object(&quot;tsclm810&quot;)<br />
+			dal.set.field(&quot;tsclm810.txta&quot;, tsclm100.txta)<br />
+			dal.set.field(&quot;tsclm810.txtk&quot;, tsclm100.txta)<br />
+			if dal.save.object(&quot;tsclm810&quot;) &lt;&gt; 0 then<br />
+				dal.get.error.message(error.msg)<br />
+				message(error.msg)<br />
+			endif<br />
+			commit.transaction()<br />
+			message(tsclm100.txta)<br />
+		endselect<br />
+	endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Marek_C</div><div class="date">12th September 2019, 11:01</div></div><div class="posttext">There is nice Infor's function to get text number from string.<br />
+<br />
+<br />
+function description: tcbod.dll0038.get.text.number.for.string <br />
+Expl:    The purpose of this function is adds a text to the text manager with the specified text in the specified language.<br />
+Pre:    db.retry.point is set.<br />
+Post:   Call 'commit.transaction()/abort.transaction()'.<br />
+	i.string                - String to save as text.<br />
+	i.table.field.text  - Table (text) field for text defaults.<br />
+				      For example: tdsls040.txta<br />
+	i.lanugage          - Language or system language<br />
+				      For example: &quot;2&quot;<br />
+				      If empty, the system language (language$) is taken.<br />
+Output: o.text.number   - The created text number<br />
+Return: 0 if OK <br />
+             DALHOOKERROR    if error<br />
+<br />
+	tcbod.dll0038.get.text.number.for.string(<br />
+					i.string,<br />
+					i.table.field.text,<br />
+					i.language,<br />
+					o.text.number) |* ref</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

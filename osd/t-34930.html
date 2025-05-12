@@ -1,0 +1,125 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Table Row Counts for all Tables, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Table Row Counts for all Tables Operating Systems &amp; Databases" />
+	
+	<title>Table Row Counts for all Tables [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Table Row Counts for all Tables</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">27th April 2007, 00:41</div></div><div class="posttext">I ask this without much hope of an easy answer.<br />
+<br />
+Does anyone know if there is a quick way to get a row count of all tables in a Baan company. We are migrating from Triton 3.1a / Baanbase to Baan IVc4 / Oracle. In one of our test migrations (using bdbpre and post) we found that several tables did not cross with all rows. <br />
+<br />
+What I am looking for is some sort of before and after snapshot to help verify the data, without opening up each and every table in GTM to count the rows.<br />
+<br />
+Thanks,<br />
+Rob</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Darren Phillips</div><div class="date">27th April 2007, 00:52</div></div><div class="posttext">does the session ttaad4222m000 count number of records by table exist in triton 3.1a. If so that will do the job.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">30th April 2007, 16:26</div></div><div class="posttext">bdbpre as well as bdbpost will give you a count of processed records for each table.<br />
+Thus comparing the logfiles should do the trick.<br />
+Another method is to dump the table once again after conversion and simply count the rows with wc -l <br />
+<br />
+hth<br />
+<br />
+Norbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">2nd May 2007, 15:42</div></div><div class="posttext">If wish to get this in 4gl program , u can use db.nr.rows function . Otherwise ttaad4222m000 is the best way to get the record count .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rdbailey</div><div class="date">4th June 2007, 22:59</div></div><div class="posttext">Hi Rob,<br />
+<br />
+This is a bit of a late response but....<br />
+<br />
+We ran into the same question here and came up with the script below.  It gives you the database name, table name and # of rows for each qualifying table.  You can narrow it down using company number (as we did) with the &quot;tabname&quot; field.<br />
+<br />
+This was done for Informix, but should be a easy conversion for Oracle.  I hope this helps....<br />
+<br />
+<br />
+DATABASE sysmaster;<br />
+<br />
+SELECT<br />
+	systabnames.dbsname,<br />
+	systabnames.tabname,<br />
+	systabinfo.ti_nrows<br />
+FROM<br />
+	systabinfo, systabnames<br />
+WHERE<br />
+	systabinfo.ti_partnum = systabnames.partnum<br />
+	and<br />
+	systabnames.dbsname = &quot;baandb&quot;<br />
+	and<br />
+	systabnames.tabname like &quot;%001&quot;<br />
+	and<br />
+	systabinfo.ti_nrows &gt; 0<br />
+ORDER BY<br />
+	systabinfo.ti_nrows desc</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">11th June 2007, 15:48</div></div><div class="posttext">Actually, this can not be converted to oracle so easily, as the corresponding views simply do not exists or rely on statistics, which might simply be wrong.<br />
+<br />
+But otherwise nice.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">victor_cleto</div><div class="date">12th June 2007, 16:13</div></div><div class="posttext">In Oracle, and for BaanIV (and V?) you can use the following commands:<br />
+<br />
+-- replace XXX below by your company number<br />
+-- (google for the commands you do not know)<br />
+declare<br />
+ nrrows integer;<br />
+begin<br />
+ for i in (<br />
+  select table_name from all_all_tables where table_name like '%XXX'<br />
+ ) loop<br />
+  execute immediate 'select count(*) from '||i.table_name into nrrows;<br />
+  dbms_output.put_line(lpad(i.table_name,12)||': '||nrrows||' row(s)');<br />
+ end loop;<br />
+end;<br />
+<br />
+[Above works using Toad 9.0.1 against Oracle 9.2.0.6, you may need to adapt for your Oracle version or to be run thru sqlplus, must be run as the schema owner or with select rights into the affected tables]</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">12th June 2007, 16:44</div></div><div class="posttext">Hi Victor,<br />
+<br />
+thanks for the script, I was looking for something like this for some time!<br />
+There were some minor spelling mistakes in there to get it run. So here a slightly corrected version:<br />
+<br />
+<br />
+set serveroutput on SIZE 1000000<br />
+<br />
+declare<br />
+  nrrows integer;<br />
+begin<br />
+  for i in ( select table_name from all_tables where table_name like '%100' )<br />
+  loop<br />
+    execute immediate 'select count(*) from '||i.table_name into nrrows;<br />
+    dbms_output.put_line(lpad(i.table_name,12)||': '||nrrows);<br />
+  end loop;<br />
+end;<br />
+/<br />
+<br />
+<br />
+Note 1: The &quot;set serveroutput ...&quot; is required if run from sqlplus<br />
+Note 2: You have to execute the script as the shema user (ie baan)<br />
+Note 3: Above example is for company 100<br />
+Note 4: The &quot;/&quot; will start the PL/SQL Block</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

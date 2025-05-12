@@ -1,0 +1,135 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content=".txt file - Notepad vs Wordpad, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] .txt file - Notepad vs Wordpad Tools Development" />
+	
+	<title>.txt file - Notepad vs Wordpad [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; .txt file - Notepad vs Wordpad</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">popeye</div><div class="date">28th February 2003, 20:18</div></div><div class="posttext">Hi, <br />
+   I am creating a .txt file in my program script.<br />
+   I am using chr$(10) for new line(s).<br />
+<br />
+   The .txt file opens properly in wordpad.<br />
+<br />
+   But when I try opening it in notepad, the new line character is replaced by some<br />
+   weird ascii character (looks lieka small black box). All the lines appear to be <br />
+   Concatenated (no new lines).<br />
+   <br />
+   Why is that?<br />
+   Thanks.<br />
+  Popeye ;o)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">28th February 2003, 21:32</div></div><div class="posttext">Notepad (and some other Windows apps) looks for both carriage return (ASCII 13) and line feed (ASCII 10).  When it only finds the latter, it displays the funky graphics character.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">28th February 2003, 21:40</div></div><div class="posttext">I think this explains more -<br />
+UNIX and DOS: Binary vs. Ascii, or CR-LF issues (http://galaxy.ps.uci.edu/users/esirko/howto/crlf.html) <br />
+<br />
+UNIX and DOS: Binary vs. Ascii, or CR-LF issues<br />
+The ASCII code is a standardized computer code which corresponds every letter, number, punctuation mark, etc. to a number between 0 and 255. This is the way computers store text files: each character in the file corresponds to a byte (8 bits, 2^8 = 256 possible combinations).<br />
+The line feed (LF) has ASCII code 10, and the carriage return (CR) has ASCII code 13. When computers first proliferated, there was some debate over how the end of lines should be stored in the file. To this day, UNIX systems use only the LF, while DOS systems use CRLF. That is, if your file looks like this: <br />
+<br />
+hello<br />
+UNIX would store this file as: 104 - 101 - 10 - 108 - 108 - 111 <br />
+while DOS would store this file as: 104 - 101 - 13 - 10 - 108 - 108 - 111.<br />
+I've highlighted red the ASCII bytes which designate the new line.<br />
+<br />
+It is now widely acknowledged that the DOS system is more cumbersome; after all why do you need to include two bytes if you can get the same information with just one byte?<br />
+<br />
+VMS follows the UNIX convention, whereas Windows (obviously) follows the DOS convention. <br />
+<br />
+<br />
+--------------------------------------------------------------------------------<br />
+Now, this CRLF/LF discrepancy can cause problems when FTP-ing files between computers. You probably know that there are two modes of transferring files in FTP: binary and ASCII. In binary mode, files transfer exactly from one machine to the other with no file conversion. In ASCII mode, the FTP program tries to fix the file so that new lines are converted as appropriate. Both methods have their share of problems, depending on what you want to do. Let's take an example.... <br />
+You have a text file on a UNIX system; you want to transfer it to the DOS system.<br />
+<br />
+When FTP-ing a file from UNIX to DOS under ascii mode: it changes all instances of LF to CRLF (i.e. inserts the extra byte of value 13 before the byte of value 10). Now you can read the file on your Windows/DOS system and everything will read fine.<br />
+<br />
+But what if you had transferred under binary mode? It would leave the LF as is, leaving the file unchanged. The Windows program Notepad can't handle it correctly, and you get black boxes instead of new lines. Open it in MS Word or Wordpad, however, and these two programs are smart enough to realize that the LF actually means a newline.<br />
+<br />
+Now, let's go the other way....<br />
+<br />
+When FTP-ing a file from DOS to UNIX under ascii mode: it changes all instances of CRLF to LF. All is well again.<br />
+<br />
+Let's say you transferred the file from VMS to DOS under binary mode, and want to transfer it right back, also under binary mode. Seems like since binary mode doesn't alter the file, the new file on VMS system should match the file that you started with, right? Wrong! That's because VMS changes the record format and attributes when you transfer as binary mode, because VMS thinks you're transferring a program or image. Even though the bytes don't change, when you try to read the file, VMS doesn't realize it's a text file and displays it wrong.<br />
+--------------------------------------------------------------------------------<br />
+Some other things to note. <br />
+The ^M you see in emacs is the CR part of CRLF. <br />
+The zip option -l changes LF to CRLF. This completely screws up programs, so never do this on binary data. I personally think that it's not worth trying to backup things in DOS format... just keep it in UNIX format.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">1st March 2003, 01:04</div></div><div class="posttext">Here is the source code to get the similar output on the Notepad and the Wordpad-<br />
+<br />
+#pragma used dll 	ottdllbw<br />
+function	main()<br />
+{<br />
+long	fp<br />
+string 	buffer(256)<br />
+string	fpath(80)<br />
+fpath = &quot;C:\Temp\np.txt&quot;<br />
+fp = seq.open.local(fpath, &quot;w&quot;)<br />
+if fp &lt; 0 then<br />
+	mess(&quot;zmadms0010&quot;, 1)	|* File Handling Errors<br />
+	exit(1)<br />
+endif<br />
+buffer = &quot; Hello World &quot; &amp; chr$(13) &amp; chr$(10)<br />
+buffer = strip$(shiftl$(buffer))<br />
+e = seq.write.local(buffer, len(buffer), fp)<br />
+seq.close.local(fp)<br />
+e = app_start(&quot;wordpad &quot; &amp; fpath, &quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;)<br />
+e = app_start(&quot;notepad &quot; &amp; fpath, &quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BigJohn</div><div class="date">1st March 2003, 01:45</div></div><div class="posttext">Hi,<br />
+   I ran the unix2dos command after creating the file.<br />
+   Everything works fine.<br />
+   Thanks.<br />
+Cheers,<br />
+Popeye:)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">1st March 2003, 01:59</div></div><div class="posttext">John that command looks valid for Sun/Compaq/Tru-Unix.<br />
+<br />
+Its not available on HP-Unix.<br />
+<br />
+On HP its - <br />
+<br />
+&gt;man ux2dos<br />
+<br />
+ dos2ux(1)                                                         dos2ux(1)<br />
+<br />
+ NAME<br />
+      dos2ux, ux2dos - convert ASCII file format<br />
+<br />
+ SYNOPSIS<br />
+      dos2ux file...<br />
+<br />
+      ux2dos file...<br />
+<br />
+ DESCRIPTION<br />
+      dos2ux and ux2dos read each specified file in sequence and write it to<br />
+      standard output, converting to HP-UX format or to DOS format,<br />
+      respectively.  Each file can be either DOS format or HP-UX format for<br />
+      either command.<br />
+<br />
+<br />
+So I think handling in the BaaN source code makes it OS/platform independent. :p</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

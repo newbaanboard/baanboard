@@ -1,0 +1,233 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Select for Period and Year on form, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Select for Period and Year on form Tools Development" />
+	
+	<title>Select for Period and Year on form [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Select for Period and Year on form</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">baanprog</div><div class="date">23rd June 2004, 10:13</div></div><div class="posttext">Hi,<br />
+<br />
+Iam working on a session which has Period From and To fields and Year From and To fields on the form.<br />
+<br />
+I have to write a select for filtering based on form inputs of period and year on table tdinv760.<br />
+<br />
+I know this select is tricky and need logic for how to write where condition in the select for the periods and year inputted on form.<br />
+<br />
+Also separately I have to find out for a date which period it falls into and there by use the input of period and year again on form to filter.I would need inputs on this too.Any Dll will be helpful.<br />
+<br />
+I would appreciate a complete solution for both.Iam on BaanIVc4<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">24th June 2004, 11:51</div></div><div class="posttext">Hello,<br />
+<br />
+Since I am on Baan5.0b and not on BaanIV, we do not have table tdinv 760 on our systems, but I will try to give you the main lines:<br />
+<br />
+From what you wrote, I assume that in tdinv760 there is a date, and you want to check whether that falls into the input form.f -&gt; form.t /year.f -&gt; year.t range on form. If the tdinv760-date field is a utc format, you use the following:<br />
+<br />
+		domain	tfgld.year	yearno<br />
+		domain	tfgld.prod	period<br />
+	long				dayno<br />
+	long				hours<br />
+	long				minutes<br />
+	long				seconds<br />
+	long				dummy.result<br />
+		dummy.result = utc.to.date(tdinv760.date, yearno, <br />
+			       period, dayno, hours, minutes, seconds)<br />
+<br />
+If it is a date format, you use dummy.result = num.to.date(tdinv760.date, yearno, period, dayno)<br />
+<br />
+Is this the only filtering of records which you do on your select? In other words if you will not do the year/period filtering in the select-where clause, but in the selectdo, will it be a big hit on performance..? Because filtering it in the selectdo would be the easiest thing. <br />
+<br />
+<br />
+Good luck!<br />
+<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanprog</div><div class="date">24th June 2004, 12:08</div></div><div class="posttext">:mad: <br />
+<br />
+The table tdinv760 in BaanIVc4 is like this<br />
+<br />
+for an Item and Year the Actual Issue for period is stored as a double value.<br />
+<br />
+The actual issue by period is a depth field and has 13 depth.So 1 is the first period  actual issue and 2  is the second  period actrual issue and so on.<br />
+<br />
+My problem is based on user input of year/period from to fields like (2003/7 to 2004/3) I have to find the average Actual Issue.<br />
+<br />
+My problem is how to write a select on a depth field??<br />
+<br />
+or how to filter records based on the form input of period which I cannot use in the where condition of the table.I have to find out all valid periods based on form input and then find out the average which Iam trying.<br />
+<br />
+Hope some one will come up with a solution. I have  come up with lot of in -efficient solutions which Iam coding  :) but need some good solution.<br />
+<br />
+Thanks<br />
+Baanprog</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">24th June 2004, 12:23</div></div><div class="posttext">Ok, so the following idea should work:<br />
+<br />
+In the select you write <br />
+where tdinv760.year inrange :year.f and :year.t<br />
+and in the selectdo you write:<br />
+	|** for example year 2003 when selection = from 2002 to 2004<br />
+if tdinv760.year &lt;&gt; year.f and tdinv760.year &lt;&gt; year.t then<br />
+	for i = 1 to 13 <br />
+		sum.issue = sum.issue + tdinc760.issue(i)<br />
+		tot.prods = tot.prods + 1<br />
+		i = i + 1<br />
+	endfor<br />
+else<br />
+	|** for example year 2002 when selection = from 2002 to 2004<br />
+	if tdinv760.year = :year.f then<br />
+		for i = period.f to 13<br />
+			sum.issue = sum.issue + tdinv760.issue(i)<br />
+			tot.prods = tot.prods + 1<br />
+			i = i + 1<br />
+		endfor<br />
+	else<br />
+	|** for example year 2004 when selection = from 2002 to 2004<br />
+		for i = 1 to period.to<br />
+			sum.issue = sum.issue + tdinv760.issue(i)<br />
+			tot.prods = tot.prods + 1<br />
+			i = i + 1<br />
+		endfor<br />
+	endif<br />
+endif<br />
+average.issue = sum.issue / tot.prods<br />
+<br />
+<br />
+Hope this helps.<br />
+Let me know.<br />
+<br />
+Good luck!!<br />
+<br />
+En.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanprog</div><div class="date">24th June 2004, 14:06</div></div><div class="posttext">What you have written is perfect!! but I dont think we need i = i + 1  in the for loop.<br />
+<br />
+Now i have one more issue  :)   :) .<br />
+<br />
+I have to find out max actual demand in the given range of periods??This is more cumbersome i guess.<br />
+<br />
+I would appreciate your valuable input.<br />
+<br />
+thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">24th June 2004, 14:37</div></div><div class="posttext">Hi!!<br />
+<br />
+Of course you are right, and the i = i + 1 was misplaced in the for/endfor loop. The reason I wrote it is because initially I wrote it as a while/endwhile like while i &lt;= 13, and then you would have to increase the i. After changing the for/endfor I simply forgot to remove that line from the code.<br />
+<br />
+As for the other issue:<br />
+I'm not sure if I understand you well. Do you mean that you just have to know for which year/period of the given selection-range the actual issue was the highest, and what the highest actual issue was for the selection? If that's the case, then you simply maintain a few extra values, and add a check by each selected line (each time you increase the sum.issue), like this:<br />
+if tdinv760.issue &gt; max.issue then<br />
+	max.issue = tdinv760.issue<br />
+	max.year = yearno<br />
+	max.prod = period<br />
+endif<br />
+<br />
+<br />
+If this is not what you meant, let me know, and we will try to assist further.<br />
+<br />
+Good luck!!<br />
+En.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanprog</div><div class="date">24th June 2004, 15:02</div></div><div class="posttext">Hi En,<br />
+<br />
+Iam calculating Average Issue and Max Issue in which period for given range for an item.<br />
+<br />
+The table has Item and Year in the index with Item the upper index part.<br />
+<br />
+So I can pool out the average issue by your method. Also I declared an array for actual.issue and store for evey period accrordingly in the same code you have given I have added my line like below.<br />
+<br />
+	<br />
+	|** for example year 2003 when selection = from 2002 to 2004<br />
+if tdinv760.year &lt;&gt; year.f and tdinv760.year &lt;&gt; year.t then<br />
+	for i = 1 to 13 <br />
+                          actual.issue(i) = actual.issue(i) + tdinv760.issue(i)<br />
+                          sum.issue = sum.issue + tdinc760.issue(i)<br />
+		tot.prods = tot.prods + 1<br />
+	endfor<br />
+else<br />
+	|** for example year 2002 when selection = from 2002 to 2004<br />
+	if tdinv760.year = :year.f then<br />
+	        for i = period.f to 13<br />
+                              actual.issue(i) = actual.issue(i) + tdinv760.issue(i)<br />
+                              sum.issue = sum.issue + tdinv760.issue(i)<br />
+		    tot.prods = tot.prods + 1<br />
+	        endfor<br />
+	else<br />
+	|** for example year 2004 when selection = from 2002 to 2004<br />
+	        for i = 1 to period.to<br />
+                                actual.issue(i) = actual.issue(i) + tdinv760.issue(i)<br />
+                                sum.issue = sum.issue + tdinv760.issue(i)<br />
+		      tot.prods = tot.prods + 1<br />
+	        endfor<br />
+             endif<br />
+endif<br />
+average.issue = sum.issue / tot.prods<br />
+<br />
+<br />
+now my problem is to to sort the array values using qss.sort(), Iam trying that.Do u  think this will work??<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">24th June 2004, 16:14</div></div><div class="posttext">qss.sort will work but it will not be meaningful if the not all the periods of  a year are selected.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baanprog</div><div class="date">25th June 2004, 07:25</div></div><div class="posttext">Hitesh,<br />
+<br />
+by using qss.sort i did get the greatest value in an array.But Iam not sure whether i used it properly.<br />
+<br />
+long def(1,4)<br />
+<br />
+qss.start(def,1,1)<br />
+qss.way(def,1,QSS.DOWN)<br />
+qss.type(def,1,DB.DOUBLE)<br />
+<br />
+ret = qss.sort(actual.issue, def)<br />
+<br />
+the first element in the array is always the maximum value.So actual.issue(1) gives me what I want.<br />
+<br />
+Hitesh any inputs if we want even the period when it happend??<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">25th June 2004, 07:44</div></div><div class="posttext">In order that u get a period also along with the quantity , u need to <br />
+store the quantity (double) and period (integer) in a string array.<br />
+<br />
+Assuming max period len as 2 and max double len as 16 , u need create <br />
+a string array of 18(2+16) characters and 13 dimensions (for each<br />
+period). Update htis string with function edit$. At the end use qss.sort <br />
+on this string array with qss.start at 3 character  qss.length of 16 and <br />
+qss.type of db.double. Finally use the period &amp; quantity value in the sorted <br />
+string array.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">avpatil</div><div class="date">6th July 2004, 07:48</div></div><div class="posttext">Hi,<br />
+Do you have til lissue with max. I think it is very straightforward. Copy the value from the field to a tem field. Compare the field value with temp value for each record. You can do ths in for loop and you will get the maximun.<br />
+<br />
+Arvind</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

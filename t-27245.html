@@ -1,0 +1,226 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Where-used device in job sessions, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Where-used device in job sessions Code &amp; Utilities" />
+	
+	<title>Where-used device in job sessions [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Code &amp; Utilities</a> &gt; Where-used device in job sessions</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">richard</div><div class="date">31st May 2006, 15:02</div></div><div class="posttext">Hello,<br />
+<br />
+We made a session to print which job session is printed on a specific device or device list.<br />
+We have some printers with more than one hundred outputs, so it's easy for the user or administrator to see all sessions in one shot.<br />
+ttaad5400 gives also the information but not summarized.<br />
+<br />
+|******************************************************************************<br />
+|* tcsss5400_940  0  VRC B40O c4 prod<br />
+|* Liste des job liés à une imprimante donnée<br />
+|* guth<br />
+|* 17/05/06 [10:35]<br />
+|******************************************************************************<br />
+|* Script Type: 4<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** DECLARATION SECTION ***************************<br />
+declaration:<br />
+<br />
+	table	tttaad501		|-- Session par job --<br />
+	table	tttaad503		|-- Var entrée par job --<br />
+	table	tttaad510		|-- Historique Job<br />
+	table	tttaad511		|-- Détails historique job<br />
+	table	tttadv380		|-- Query<br />
+<br />
+	extern	domain	tcedi.prnt	dev.f, dev.t<br />
+	extern	domain	tcyesno		uniq.histo<br />
+	extern	domain	tcyesno		incl.inact<br />
+	extern	domain	tcncmp		societe<br />
+	extern	domain	tcmcs.st13	sess.query<br />
+	extern	domain	tcmcs.str60	desc.s.q<br />
+	domain	tcedi.prnt		max.z<br />
+	long	sig.eg<br />
+<br />
+|****************************** PROGRAM     SECTION ***************************<br />
+before.program:<br />
+	max.z = string.set$(&quot;~&quot;, 50)<br />
+|****************************** ZOOM FROM   SECTION ***************************<br />
+|****************************** FORM	     SECTION **************************<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+|****************************** CHOICE      SECTION ***************************<br />
+choice.cont.process:<br />
+on.choice:<br />
+	execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+	if rprt_open() then<br />
+		liste()<br />
+		rprt_close()<br />
+	else<br />
+		message(&quot;Traitement abandonné !&quot;)<br />
+		choice.again()<br />
+	endif<br />
+|****************************** FIELD       SECTION ***************************<br />
+field.dev.f:<br />
+when.field.changes:<br />
+	dev.t = spes(dev.f) &amp; max.z<br />
+<br />
+field.uniq.histo:<br />
+check.input:<br />
+	if uniq.histo = empty then<br />
+		message(&quot;Saisie obligatoire !&quot;)<br />
+		set.input.error(&quot;&quot;)<br />
+	endif<br />
+<br />
+field.incl.inact:<br />
+check.input:<br />
+	if incl.inact = empty then<br />
+		message(&quot;Saisie obligatoire !&quot;)<br />
+		set.input.error(&quot;&quot;)<br />
+	endif<br />
+	<br />
+|****************************** MAIN TABLE  SECTION ***************************<br />
+|****************************** FUNCTION    SECTION ***************************<br />
+functions:<br />
+<br />
+function domain tcmcs.str100 spes(domain tcmcs.str100 entrant)<br />
+{<br />
+	return( strip$(shiftl$(entrant)) )<br />
+}<br />
+<br />
+function liste()<br />
+{<br />
+	societe = get.compnr()<br />
+<br />
+	select	ttaad501.cjob, ttaad501.cpac, ttaad501.cmod, ttaad501.cses,<br />
+		ttaad501.devc, ttaad501.acti, ttaad500.desc<br />
+	from	ttaad501, ttaad500<br />
+	where	ttaad501.devc inrange :dev.f and :dev.t<br />
+	and	ttaad501.cjob refers to ttaad500<br />
+	selectdo<br />
+		if incl.inact = tcyesno.no and ttaad501.acti &lt;&gt; ttyeno.yes then<br />
+			continue<br />
+		endif<br />
+		sess.query = ttaad501.cpac &amp; ttaad501.cmod &amp; ttaad501.cses<br />
+		tt.session.desc(sess.query, desc.s.q)<br />
+		remonte.dernier.histo.job(compnr)<br />
+	endselect<br />
+<br />
+<br />
+	if societe = 0 then<br />
+		return<br />
+	endif<br />
+	societe = 000<br />
+	<br />
+	select	ttaad501.cjob, ttaad501.cpac, ttaad501.cmod, ttaad501.cses,<br />
+		ttaad501.devc, ttaad501.acti, ttaad501.seri, ttaad500.desc<br />
+	from	ttaad501, ttaad500<br />
+	where	ttaad501.devc inrange :dev.f and :dev.t<br />
+	and	ttaad501.cjob refers to ttaad500<br />
+	and	ttaad500._compnr = 000<br />
+	and	ttaad501._compnr = 000<br />
+	selectdo<br />
+		if incl.inact = tcyesno.no and ttaad501.acti &lt;&gt; ttyeno.yes then<br />
+			continue<br />
+		endif<br />
+		sess.query = ttaad501.cpac &amp; ttaad501.cmod &amp; ttaad501.cses<br />
+		tt.session.desc(sess.query, desc.s.q)<br />
+		if ttaad501.cpac = &quot;tt&quot; and <br />
+		   ttaad501.cmod = &quot;adv&quot; and <br />
+		   ttaad501.cses = &quot;3180m000&quot; then<br />
+			select	ttaad503.rcrd<br />
+			from	ttaad503<br />
+			where	ttaad503._index1 = {:ttaad501.cjob, :ttaad501.seri}<br />
+			and	ttaad503._compnr = 000<br />
+			as set with 1 rows<br />
+			selectdo<br />
+				sig.eg = pos(ttaad503.rcrd, &quot;=&quot;)<br />
+				sess.query = ttaad503.rcrd((sig.eg + 2); 9)<br />
+				select	ttadv380.cqur,<br />
+					ttadv380.desc<br />
+				from	ttadv380<br />
+				where	ttadv380._index1 = {:sess.query}<br />
+				and	ttadv380._compnr = 000<br />
+				selectdo<br />
+					sess.query = &quot;Q: &quot; &amp; spes(ttadv380.cqur)<br />
+					desc.s.q = ttadv380.desc<br />
+				selectempty<br />
+				endselect<br />
+			endselect<br />
+		endif<br />
+		remonte.dernier.histo.job(000)<br />
+	endselect<br />
+}<br />
+<br />
+function remonte.dernier.histo.job(domain tcncmp soc)<br />
+{<br />
+	if soc = 0 then<br />
+		select	ttaad511.cjob, ttaad511.edte, ttaad511.stim,<br />
+			ttaad511.sdts, ttaad511.stis,<br />
+			ttaad511.rerr<br />
+		from	ttaad511<br />
+		where	ttaad511._index1 = {:ttaad501.cjob}<br />
+		and	ttaad511.cpac = :ttaad501.cpac<br />
+		and	ttaad511.cmod = :ttaad501.cmod<br />
+		and	ttaad511.cses = :ttaad501.cses<br />
+		and	ttaad511._compnr = 000<br />
+		order by ttaad511.cjob, ttaad511.edte desc, ttaad511.stim desc<br />
+		as set with 1 rows<br />
+		selectdo<br />
+			rprt_send()<br />
+		selectempty<br />
+			if uniq.histo = tcyesno.no then<br />
+				ttaad511.edte = 0<br />
+				ttaad511.sdts = 0<br />
+				ttaad511.stim = 0<br />
+				ttaad511.stis = 0<br />
+				ttaad511.rerr = empty<br />
+				rprt_send()<br />
+			endif<br />
+		endselect<br />
+	else<br />
+		select	ttaad511.cjob, ttaad511.edte, ttaad511.stim,<br />
+			ttaad511.sdts, ttaad511.stis,<br />
+			ttaad511.rerr<br />
+		from	ttaad511<br />
+		where	ttaad511._index1 = {:ttaad501.cjob}<br />
+		and	ttaad511.cpac = :ttaad501.cpac<br />
+		and	ttaad511.cmod = :ttaad501.cmod<br />
+		and	ttaad511.cses = :ttaad501.cses<br />
+		order by ttaad511.cjob, ttaad511.edte desc, ttaad511.stim desc<br />
+		as set with 1 rows<br />
+		selectdo<br />
+			rprt_send()<br />
+		selectempty<br />
+			if uniq.histo = tcyesno.no then<br />
+				ttaad511.edte = 0<br />
+				ttaad511.sdts = 0<br />
+				ttaad511.stim = 0<br />
+				ttaad511.stis = 0<br />
+				ttaad511.rerr = empty<br />
+				rprt_send()<br />
+			endif<br />
+		endselect<br />
+	endif<br />
+}<br />
+<br />
+<br />
+regards</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="refreshing big databases, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] refreshing big databases Operating Systems &amp; Databases" />
+	
+	<title>refreshing big databases [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; refreshing big databases</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">eppesuiG</div><div class="date">25th October 2002, 13:01</div></div><div class="posttext">Hi All,<br />
+we have a large baan system that we are migrating to a new (different) hardware configuration.<br />
+The new configuration is baanIVc4, 6.1c.05.02, oracle 8.0.6.2.0. Everything on HP-UX 11.00 and IBM storage SAN (Shark). The oracle instance is about 400Gb of data.<br />
+<br />
+The backup is made once a week in this way: we do a snapshot of the SAN (with oracle and baan stopped) and mount all the volumes to a different HP machine. Then we backup this copy of the oracle instance. Of course we also have archive log activated, so -- in the event of failure -- once we restore our backup from tape, we will apply all the archived logs.<br />
+<br />
+The question. For our test environment we would like to have uptodate data coming from the live environment. We cannot stop the live environment every day in order to have a new backup, because we have many jobs running.<br />
+<br />
+Maybe one possible option is to apply the archive logs from the production instance to the instance taken from the snapshot.<br />
+<br />
+Another solution is to have a second database used by baan in parallel with the first one. (This is something I never saw in action, but I read that you may change your tabledef6.1 in order to make baan read/write to bothdatabases.)<br />
+<br />
+Other solutions are still welcome. Do you have any experience/advice?<br />
+<br />
+I thank you very much,<br />
+Giuseppe Sacco</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">25th October 2002, 15:12</div></div><div class="posttext">Hi Giuseppe,<br />
+<br />
+unfortunately I have to give you some bad news:<br />
+<br />
+a) Applying archivelogs from production system to test system<br />
+<br />
+This only works, if you never actually use the test system. So it is not very helpfull.<br />
+<br />
+As soon as you do a transaction on the test system, this will change the sequence numbers and oracle will not allow to apply the archivelogs of the production system any more. Actually I think opening the database is enough, to stop Oracle from doing so.<br />
+<br />
+I actually tried this once for a customer and this was our conclusion.<br />
+<br />
+b) Manipulating the tabledef6.1<br />
+<br />
+Yes, there are features in the tabledef to convince a bshell to update two databases. But actually I do not trust Baan here very much. Let's assume you commit a transaction in Baan SQL, then this will commit the two databases. Obviously this will happen somewhat in sequence, so if the second database crashes, after the first commited, then Baan has to undo the first commit?<br />
+<br />
+Baan would need to use techniques from distributed databases (2-Phase/3-phase protocolls) to achieve this. <br />
+<br />
+Honestly I doubt this!!<br />
+<br />
+<br />
+Why don't you try the following:<br />
+<br />
+Option 1: Use online Backups. <br />
+<br />
+You put the database into online backup mode, create the snapshot, backup your data to the test system and play a recovery there.<br />
+On your production system you can put the database out of online backup mode, directly after the snapshot was created!<br />
+<br />
+No downtime needed.<br />
+<br />
+Option 2: Use the snapshot<br />
+<br />
+Again put the production database into online backup mode, create a snapshot, mount the snapshot on the test system and use it.<br />
+<br />
+Whether this is feasable from a IO perfromance point of view depends how IBM implements the snapshot. I am more familiar with HP XP's. Here you could do it.<br />
+<br />
+<br />
+Regards<br />
+<br />
+Markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eppesuiG</div><div class="date">25th October 2002, 15:53</div></div><div class="posttext">Thanks Markus,<br />
+of course our test instance will be modified, but we may think about having a third instance in 'read only' mode.<br />
+<br />
+Let's repeat it from scratch:<br />
+we will stop baan/oracle once a week and we will do a physical snapshot. Then we will copy the snapshot to a 'middle' machine and remount the oracle instance. This instance will never be modified and will be used for copying (via file system, not via exp/imp) to the test environment.<br />
+Every day we may copy the archive log from the live system to the middle one, and import it. Then we will have a middle system updated every day. Whenever we will need a copy for testing, then we will copy from the middle environment.<br />
+Every week the middle environment is created from start. This solutions need 400Gb for the middle environment.<br />
+<br />
+The solution of copying the datafiles while the database is in online backup mode is not so appealing since oracle is able to write to the datafiles *even* during backup mode. You will not notice it since oracle will not change the corresponding SCN in the controlfile, but you may try it: just put it in online backup, make a transaction and force a log switch. :-(<br />
+<br />
+Of course the solution of having baan use multiple database is probably the worst one, but if you have two identical machines is -- maybe -- feasable. Again you need 400Gb more.<br />
+<br />
+Another solution we are evaluating is having the volume group that hosts oracle data in double mirroring. Then we could detach a copy, mount it elsewhere, copying everyting to test, and then rattaching to the original volume and resyncronize it. This is again a waste of 400Gb.<br />
+<br />
+A big problem related to making snapshot on the IBM Shark is that you have to disable th eVG while making the snapshot. :-(<br />
+<br />
+Bye,<br />
+Giuseppe</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">25th October 2002, 16:17</div></div><div class="posttext">Hmmmm,<br />
+<br />
+just some comments:<br />
+<br />
+a) I understand the concept of the middle system and it should work. But what good is a read only database. If you copy from the middel system, then you migt as well copy from the origional system (apart from the IO overhead on the origional system naturally).<br />
+<br />
+b) The double mirror should work, but also ist just a fancy way of copying, right?<br />
+<br />
+c) Yes, during an online backup, oracle writes to the database files. Does that do any harm? After copying during a online backup, you apply the archivelogs, which were written between end and start of the copy process. After that you have a consistent database with the content of the end of the copy process. Works very nicely. We do it all the time.<br />
+Because you can combine this with a snapshot, the actual copy time is very short, so you onlly have to apply very few archivelogs.<br />
+So, why is this stopping you?<br />
+<br />
+Must have missed something ...<br />
+<br />
+Markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eppesuiG</div><div class="date">25th October 2002, 16:25</div></div><div class="posttext">Your third option is our option :-) but we cannot mix it with the snapshot since it seems -- we are still investigating -- that the IBM shark is not able to do a snapshot if the volume is active. :-(<br />
+<br />
+We will see how long a file system copy will last over NFS to a second machine.<br />
+<br />
+Thanks again,<br />
+Giuseppe Sacco</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

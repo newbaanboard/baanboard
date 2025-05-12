@@ -1,0 +1,186 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="delete from, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] delete from Tools Development" />
+	
+	<title>delete from [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; delete from</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Rinkashiki</div><div class="date">6th August 2019, 11:50</div></div><div class="posttext">hello<br />
+somebody faced such design?<br />
+delete from table<br />
+enddelete<br />
+commit.transaction ()<br />
+<br />
+gives out an error of Error 107 (Record is locked) <br />
+though works at night</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th August 2019, 15:01</div></div><div class="posttext">Not sure I understand.  What do you mean it works at night?  Are you locking the records before the delete?  I have usually seen something like this when the commit.transaction was not doe at the right spot and the transaction was not ended successfully.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">6th August 2019, 15:29</div></div><div class="posttext">Hello,<br />
+why not ?<br />
+<br />
+db.clear.table()<br />
+Syntax:<br />
+<br />
+function long  db.clear.table  (long table_id [, long flag] [, long comp_nr])<br />
+<br />
+Description<br />
+<br />
+<br />
+This deletes all data from a specified table. Reference counters are automatically updated.<br />
+<br />
+By default, all deleted records are saved in rollback segments. Consequently, using this function to clear a large table can result in reduced performance and, in some cases, can cause overflow of the internal rollback segments.<br />
+<br />
+Note that this function cannot be used within a transaction if the option NO.ROLLBACK is given; see Transaction handling.<br />
+<br />
+<br />
+Arguments<br />
+<br />
+long table_id The table ID, as returned by db.bind().<br />
+ <br />
+[long flag ] Use this optional argument to indicate whether the delete operation must be performed as a single transaction or as multiple transactions. The possible values are:<br />
+<br />
+0 WITH.ROLLBACK The table is cleared in a single transaction. All records are saved in rollback segments. This is the default option. <br />
+1 NO.ROLLBACK The table is cleared in one or more transactions, depending on the number of records in the table. Each transaction is automatically committed after 20 records have been deleted. The number of records deleted in the final transaction can be 20 or less; this depends on how many records remain to be deleted.<br />
+<br />
+When you use this option, transactions are small and records are not saved in rollback segments.<br />
+<br />
+When you use this option, you must place db.clear.table() at the start of the transaction.<br />
+ <br />
+The table is cleared in a single transaction. All records are saved in rollback segments. This is the default option.<br />
+<br />
+The table is cleared in one or more transactions, depending on the number of records in the table. Each transaction is automatically committed after 20 records have been deleted. The number of records deleted in the final transaction can be 20 or less; this depends on how many records remain to be deleted.<br />
+<br />
+When you use this option, transactions are small and records are not saved in rollback segments.<br />
+<br />
+When you use this option, you must place db.clear.table() at the start of the transaction.<br />
+ <br />
+[long comp_nr ] This optional argument specifies a company number for the table. The default company is the company of the user.<br />
+ <br />
+Return values<br />
+<br />
+0 success<br />
+<br />
+&lt;&gt;0 error<br />
+<br />
+Context<br />
+<br />
+This function can be used in all script types.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Rinkashiki</div><div class="date">7th August 2019, 06:29</div></div><div class="posttext">about this db.clear.table I know. but it is necessary to remove records on a condition:<br />
+delete from tisfc001<br />
+where tisfc001.osta=1<br />
+enddelete<br />
+commit.transaction ()</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th August 2019, 14:48</div></div><div class="posttext">My code would look like<br />
+<br />
+db.retry.point()<br />
+select tisfc001.* <br />
+from tisfc001 for update<br />
+where tisfc001.osta=1<br />
+  db.delete(ttisfc001, db.retry)<br />
+  commit.transaction()<br />
+endselect<br />
+<br />
+Now we can debate where to put the commit, but inside the select it will commit each record.  This way if something errors out you can re-run it and not have to re-delete a bunch of records.  Now depending on what I am doing I might commit every 50 or 100 records.  But if I am delete 1000's of records I typically never commit after all the records.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">7th August 2019, 19:41</div></div><div class="posttext">Now we can debate where to put the commit, but inside the select it will commit each record. This way if something errors out you can re-run it and not have to re-delete a bunch of records. Now depending on what I am doing I might commit every 50 or 100 records. But if I am delete 1000's of records I typically never commit after all the records.<br />
+From the Design Principles Guide -<br />
+<br />
+Size of database transactions<br />
+Problem<br />
+For optimal performance, database transactions must not be too small and not too large. However they must always be logical transactions. <br />
+<br />
+Large transactions will also have relatively long locking times. Depending on the frequency of updates done by other users, this can cause locking problems. <br />
+<br />
+Other problems can also occur, for example, run-time tools (bshell, driver, and so on) consume more memory and CPU, more rollback segments are needed in the RDBMS. <br />
+<br />
+Solution<br />
+If possible, do not implement the commit.transaction() for each single update. On the other hand, if possible, do not implement the commit.transaction() for too many updates. <br />
+<br />
+It is difficult to give hard numbers for this. The optimal transaction size depends on many factors. <br />
+<br />
+Currently a general rule can be about 100 to 250 updates per commit. (The commit rate). Apply these numbers only if the chances are small that other users update the same records. <br />
+<br />
+Example<br />
+Bad situation: one commit per updatedb.retry.point() <br />
+<br />
+select  table.*<br />
+from    table for update<br />
+order by table._index1 with retry<br />
+selectdo<br />
+    ...<br />
+    db.update(table, db.retry)<br />
+    commit.transaction()<br />
+endselect<br />
+Bad situation: commit for (more than) 1000 updates <br />
+<br />
+db.retry.point()<br />
+select  table.*<br />
+from    table for update <br />
+selectdo        |* table can have more than<br />
+    ...     |* 1000 rows !<br />
+       db.update(table, db.retry)<br />
+endselect<br />
+commit.transaction()<br />
+Improved: commit per 100 updates <br />
+<br />
+long      number.of.updates<br />
+ <br />
+db.retry.point()<br />
+number.of.updates = 0<br />
+select  table.*<br />
+from    table for update<br />
+order by table._index1 with retry<br />
+selectdo<br />
+    ...<br />
+    db.update(table, db.retry)<br />
+    number.of.updates = number.of.updates + 1<br />
+    if number.of.updates = 100 then<br />
+        commit.transaction()<br />
+        number.of.updates = 0<br />
+    endif<br />
+selecteos<br />
+    commit.transaction()<br />
+endselect<br />
+The selecteos section with the commit.transaction() is needed. It will be explained in help page 'implementation of selecteos'.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">7th August 2019, 19:47</div></div><div class="posttext">delete from table<br />
+enddelete<br />
+commit.transaction ()<br />
+<br />
+gives out an error of Error 107 (Record is locked) <br />
+Rinkashiki,<br />
+<br />
+To delete a record, you need exclusive access i.e., no other transaction has a lock on the same record.<br />
+<br />
+It appears like you are trying to delete via MS-SQL than Baan/LN-SQL code-<br />
+To control the transaction size you can specify the number of rows or conditions etc. Refer to - SQL Server DELETE<br />
+ (http://www.sqlservertutorial.net/sql-server-basics/sql-server-delete/)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Rinkashiki</div><div class="date">9th August 2019, 03:51</div></div><div class="posttext">thanks to all for answers. the matter is that year the program worked without problems. and now started giving out a mistake. I will test still</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

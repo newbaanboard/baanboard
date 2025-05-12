@@ -1,0 +1,196 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="bdbpre6.1, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] bdbpre6.1 Tools Administration &amp; Installation" />
+	
+	<title>bdbpre6.1 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; bdbpre6.1</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">shrikantc</div><div class="date">2nd October 2003, 09:56</div></div><div class="posttext">Rgularly we are extracting 10-15 tables using bdbpre6.1 and same are imported to SQL server using dts. Only one table i.e tfgld203 is giving wrong data <br />
+Output coming from bdbpre6.1 is as follows<br />
+<br />
+500|1999|A050100001|IND|754e3|754e3|0|0|0|0|0|0|<br />
+<br />
+where as data is <br />
+500|1999|A050100001|IND|754000.0000|754000.0000|0|0|0|0|0|0|<br />
+<br />
+in some records/rows it is giving correct output and in some the above problem is there.<br />
+<br />
+What could be wrong in above case.<br />
+<br />
+<br />
+Shrikant</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Martin</div><div class="date">2nd October 2003, 11:37</div></div><div class="posttext">Hi,<br />
+<br />
+i had also some Problems with bdbpre like this :<br />
+<br />
+data content in Oracle : 7.34000<br />
+data in ascii file after dumping the table :<br />
+7.339999999999998 or 7.340000000008 or somthing else, but not 7.34 !<br />
+Very nice in financiell transaktions.<br />
+Opening an baan case 2 weeks ago, until now no solution proposed.<br />
+Seems, that the problem occurs with fiields in format = double.<br />
+<br />
+Martin</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">2nd October 2003, 15:56</div></div><div class="posttext">We are also following the similar problem. As Martin poiinted out , the problem is with doubles only.<br />
+<br />
+The reason for e (meaning exponential) is that if the amount can not fit in 18 characters it writes the same in exponential format. <br />
+<br />
+As the GL balances are big amounts,it must be writing the amounts in e  when exporting. If u see the export of tfgld102 / 106 , u will see the amounts with more decimal numbers (as descirbed by Martin)<br />
+<br />
+Due to this error our customised programs go wrong and we have raised case with Baan support almost 10 days ago.<br />
+<br />
+I investigated little further and found that machine representation of doubles are different using store.double functions for values 0.3 and 0.30000000000000 . Due to these, our SQL behaves erratic returning different results depending on what program calculated in the double variable bound to SQL query. In debugger mode it always displays 0.3 . So it's more confusing !<br />
+<br />
+Initially I thought the problem is with customized tables only but later on when I checked standard tables like tfgld102 , tipcs022 etc, I realized the problem is with standard tables also.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Martin</div><div class="date">2nd October 2003, 16:07</div></div><div class="posttext">H Hitesh,<br />
+<br />
+the problem is not only more digits after the decimal point, its also the problem, that the value for the double fields in the exportfile differs from the value which is stored in the database.<br />
+Baan Support is working more then 2 weeks on this case, answer from the support analyst : thats normal (HAHAHAHAHA).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">2nd October 2003, 17:24</div></div><div class="posttext">I think the export problem is probably with new porting set (mine being 6.1c.06.06) . Just now we upgraded to 6.1c.07 and the situation is same.<br />
+<br />
+However I remember having problem in my SQL much earlier for which I did could not have any proper explanation.<br />
+<br />
+So even if the problem is solved for porting set and the export is rounded to what is shown in GTM (though internally the program may be storing the same wrong values) , the real problem may still persists if the trailing zeros (like 0.3  and 0.3000000000000) are not tackled properly. It must also give the same mchine representation in store.double function also in order to solve the problems like what we face (erratic behaviour of SQL)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">suhas-mahajan</div><div class="date">2nd October 2003, 23:42</div></div><div class="posttext">I think you people encountered the famous double/float datatype problem. BaaN also accepts that BaaN cannot handle double/float datatype in terms of database, which results as Hitesh pointed out, wrong result of SQL and Shrikant too. I already faced similar problem. http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=8834<br />
+<br />
+Hence you cannot get distinct double/float values when you use that in select statement.<br />
+<br />
+-Suhas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">3rd October 2003, 01:13</div></div><div class="posttext">Here is more info from my case with float/double data storage formats in Oracle database. I had this discussion with Suhas offline for his issue.<br />
+<br />
+The domain rounding is done only for displaying the corresponding data in the normal baan situation, such as a field on a form.<br />
+In the example it does not specify to round this value according the domain, and in standard sessions the standard program is doing that before displaying the value.<br />
+The data is not rounded in a program script or when it is written to the database. The database driver or the bshell is not allowed to round the data. Otherwise the precision would decrease everytime the value is stored. Therefore the script is calculating with complete values. <br />
+So the complete value is used always for the for double datatype unless rounding up is done explicitly.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Martin</div><div class="date">3rd October 2003, 10:21</div></div><div class="posttext">@all<br />
+<br />
+nice, very nice.<br />
+And what happens with third party products like crystal report ?<br />
+<br />
+Martin</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">3rd October 2003, 11:27</div></div><div class="posttext">Suhas,<br />
+<br />
+Group by with normal doubles /floats will work if internally the values have the same representation. However this is not the reality . Hence the group by may yield the same value as group more than once if the internal representation is different.<br />
+<br />
+Prashanth,<br />
+<br />
+I think there is good complexity with doubles / float as u explained. Further there are functions like round, table.round &amp; double.cmp to deal with such situations. <br />
+<br />
+But what is the reason that store.double function returns different representations for 0.3 &amp; 0.300000000 . I think trailing zero's can always be eliminated. We will check if the table.round function makes any difference or not and if yes how much.<br />
+<br />
+Martin,<br />
+<br />
+It sounds bit embarassing but it's true that there is a possibility (though very remote) that after lot of multiplications / division on floats / double s and intervining roundings done by programmer, Baan  results (for that matter even third partyproducts) may differ from what we arrive at with calculator.<br />
+<br />
+Crystal reports merely extracts data. So it will use the results returned by the database driver (ie real machine representation and NOT rounded value). If one can do the rounding at row level, it can be avoided . Some crystal expert will guide better in this matter.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">suhas-mahajan</div><div class="date">6th October 2003, 10:15</div></div><div class="posttext">Hitesh,<br />
+<br />
+Group by with normal doubles /floats will work if internally the values have the same representation. <br />
+<br />
+What you mean to say? Can you create attached query and run it at your side? I want to give report to my management for &quot;Rate differences of same item purchased from same supplier&quot;. I will be thankful to you if you make it correct.<br />
+<br />
+Thanks in advance.<br />
+<br />
+-Suhas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">6th October 2003, 11:12</div></div><div class="posttext">I would recommend u to check the export of tdpur041 (provided u have porting set which writes the real double value and does not round it off like 6.1c.06.06 or 6.1c.07). If u see the table export and the price in tdpur041, it would be different for the result set records in your query. <br />
+<br />
+Please reply with your investigation. Even I am curious to know the results.<br />
+<br />
+I know the the purchase price in India Localization is a result after lot of multilication/division. So it could be a possible scenario.<br />
+<br />
+Here I have a table wherein 0.3000 (shown in GTM ) is stored as 0.299999999999999 in one place and 0.300000000000004 in another.  Hope this explains this the strange behaviour of double/floats in SQL query.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">suhas-mahajan</div><div class="date">7th October 2003, 08:00</div></div><div class="posttext">Hitesh,<br />
+<br />
+I have checked the export and here is the result of my investigation. I am not able to understand any thing. My porting set is 6.1c.06.02.<br />
+<br />
+<br />
+110014|1|  A002|     SUB900F2326||1|1|3.5166571428571398|6|NOS<br />
+110014|3|  A002|     SUB900F2326||1|1|3.5168000000000004|6|NOS<br />
+110120|1|  A002|     SUB900F2326||1|1|3.5166499999999998|6|NOS<br />
+110107|1|  A002|     SUB900F2326||1|1|3.5166599999999999|6|NOS<br />
+110142|1|  A002|     SUB900F2326||1|1|3.5166666666666697|6|NOS<br />
+110022|1|  A002|     SUB900F2326||1|1|3.5166518706404601|6|NOS<br />
+110032|5|  A002|     SUB900F2326||1|1|3.5166535433070898|6|NOS<br />
+<br />
+<br />
+Waiting for some clues.<br />
+<br />
+-Suhas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">7th October 2003, 10:02</div></div><div class="posttext">All these are same upto 4 decimals but different at a higher precision levels. Hence  the SQL query group by returns different rows. <br />
+<br />
+If u see the machine representation of all these values using store.double function, all are different . <br />
+<br />
+Never mind . If ur requirement is as simple as u explained in in last post , u can use double.cmp / round function and skip the rows using lattr.print = false report script for SQL query . That will give u the result u desire.<br />
+<br />
+If u feel there is something seriously wrong ( like trailing zero treated differently e.g 0.3 &lt;&gt; 0.3000000000), bring it out to the notice of BGS, they may correct it . Our case is pending with BGS for help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shrikantc</div><div class="date">9th October 2003, 09:30</div></div><div class="posttext">This is the replay I got from BGS<br />
+<br />
+The out which you are getting is correct as per fucntionality.<br />
+<br />
+754e3 is equal to 754 * 10^3 is equal to 754000.000<br />
+bdbpre uses scientific notation for its double numbers. The output is correct.<br />
+OR you might be viewing this output in MS-Excel.<br />
+<br />
+The conclusion is that the output you are getting is as the functionality.<br />
+<br />
+Hence this case is being closed</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">9th October 2003, 10:38</div></div><div class="posttext">Earlier the doubles were not written this way. With some new porting set (don't know)  this different way of writing doubles/floats is introduced . Operationally it does not affect in anyway in  Baan or other applications such as Excel.<br />
+<br />
+Even the problems like group by with doubles floats or weird SQL  results returned (like 0.3 &lt;&gt; 0.3000000000000) can be tackled with functions in Baan like round, format.round,table.round, double.cmp. We also agreed with Baan support to use the round functions available in Baan so that the situations we had in our customized program will not arise.<br />
+<br />
+So in effect the situtation remains the same as before. And export dump backup size will increase where doubles /floats are used extensively.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">micku_100</div><div class="date">10th April 2006, 08:12</div></div><div class="posttext">Hi,<br />
+<br />
+Are u clicking/selecting fixed length record check box while dumping the data..?<br />
+<br />
+if yes, then can that be a problem..? just a guess..<br />
+<br />
+Regards,<br />
+Nilesh</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

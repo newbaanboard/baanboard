@@ -1,0 +1,185 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Report Performance, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Report Performance Tools Development" />
+	
+	<title>Report Performance [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Report Performance</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Lokendra Kumar</div><div class="date">18th July 2003, 09:17</div></div><div class="posttext">Hi All,<br />
+<br />
+Is there any other way to increase the speed of a report. I have used proper index also. There are more then 11,00,000 rows in table tdltc102 (Lot transaction for Lot Tracking).<br />
+<br />
+I have input value on form for Transaction Date only and Order Type is alwasy &quot;Receipt from Process&quot; and used index no. 4 of table.<br />
+<br />
+Select Statement is like this:<br />
+<br />
+select	tdltc102.*<br />
+from	tdltc102<br />
+where      tdltc102._index4 inrange :tord.f, :cprj.f,  :tiitm100.reli, <br />
+                :tiitm100.cntr, :orno.f, :pono.f, :clot.f, :trdt.f}<br />
+ and	{:tord.t, :cprj.t, :tiitm100.reli, :tiitm100.cntr,<br />
+                 :orno.t, :pono.t, :clot.t, :trdt.t}<br />
+order by tdltc102._index4<br />
+selectdo<br />
+	rprt_send()<br />
+endselect<br />
+ <br />
+Report is taking 30-45 minuts in processing.<br />
+<br />
+Thanks in advance<br />
+<br />
+Lokendra Kumar</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">srinivas</div><div class="date">18th July 2003, 09:54</div></div><div class="posttext">Select tdltc102.*<br />
+From   tdltc102<br />
+Where tdltc102._index4 inrange {:tord.f} and {:tord.t}<br />
+And     tdltc102.trdt between :trdt.f and :trdt.t<br />
+<br />
+--------------------------------------------------<br />
+<br />
+Select tdltc102.*<br />
+From   tdltc102<br />
+Where tdltc102._index5 inrange {:tord.f} and {:tord.t}<br />
+And     tdltc102.trdt between :trdt.f and :trdt.t<br />
+<br />
+----------------------------------------------------<br />
+<br />
+Select tdltc102.*<br />
+From   tdltc102<br />
+Where tdltc102.tord=tdltc.tord.ptrocess.finish<br />
+And     tdltc102.trdt between :trdt.f and :trdt.t<br />
+<br />
+--------------------------------------------------------<br />
+<br />
+<br />
+May be one of them will work in a betterway.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">18th July 2003, 10:14</div></div><div class="posttext">As none of the fields with fixed value (reli and cntr) are the first field of an index it completely depends on the value of the dynamic fields. <br />
+<br />
+If one of these fields are mostly static or contain a small range and first field of an index, you can try to use that index. As it seems that you always want to order by index 4 it can become a problem to hint to use a non index 4 index in a Level 2 environment.<br />
+<br />
+Good luck,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tjbyfield</div><div class="date">18th July 2003, 11:33</div></div><div class="posttext">Hi Lokendra Kumar, <br />
+<br />
+You haven't mentioned what RDBMS you are using or the hardware environment.  I think the resultant hints to RDBMS from the baan sql. _indexn will depend to a large extent on what database you have.<br />
+<br />
+The available indexes are certainly not ideal for this query. Whilst you always want one order type, how much will this help ? [Will it get down to say 1 mil records from 11 mill?].  Are you able to narrow down some of the other high order fields? For example could you get the candidate order or project number or item numbers from another query quickly. <br />
+<br />
+The fact that there are 11 mill records shouldn't mean that the query will take a lot of time unless the RDBMS has to resort to a full table scan.  In your case it should be able to use the indexes.<br />
+<br />
+The fact that it is taking so long raises questions as to the DB and harware tuning/configuration. Is there a reasonable amount processing capacity and real memory available.  Are the indexes on differrent physical spindles to the data and the logs etc.<br />
+<br />
+Terry</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">estotz</div><div class="date">18th July 2003, 17:24</div></div><div class="posttext">If speed is the underlying requirement for the report and this session uses transaction date as the main selection criteria, then simply add an index for transaction date to the table.  It is really not a big deal to customize the table and add an additional index if it is important to you to get better throughput.<br />
+<br />
+It will add a little bit of overhead when writing to the table and increased disk space, but that will be negligible.  <br />
+<br />
+Make the index unique by copying your index4 to a new index (or whatever unique index), but edit the first field of the index as the transaction date.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">18th July 2003, 18:03</div></div><div class="posttext">tybyfield,<br />
+I think Lokendra are speaking about 1,100,000 records, not 11,000,000. <br />
+I find only in India this (unusual for non-indian people) way to count big numbers. <br />
+They don't count the million and the billion, but the 100,000 and the 10,000,000 (one of them, I think the 100,000 , it's called &quot;Crore&quot; and the other I don't remember how)...<br />
+Maybe Lokendra can help me to remember?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tjbyfield</div><div class="date">19th July 2003, 03:17</div></div><div class="posttext">I have cut and pasted your sql with all .f's set to min and .t's set to max except date which was set to a 1/5/2003 (recent) and run against an oracle 805 db with 700,000 records on BaanIVc AIX platform.<br />
+<br />
+It took about 5 seconds to return 488 records. I also ran with date only and no index hint [where tdltc102.trdt inrange  :trdt.f and :trdt.t],  this took 150 seconds.<br />
+<br />
+Looks like you may have a capacity or tuning problem.<br />
+<br />
+Terry</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Lokendra Kumar</div><div class="date">19th July 2003, 08:31</div></div><div class="posttext">Hi All, <br />
+<br />
+I would like to give thanks to all for your response. As per as system config is concern we are using Infomix 7 as Database and Digital Unix 4.0 as O/S in a Centralsied Server/Database scenario.<br />
+<br />
+Total no. of rows in table are 11 Lacs (11,00,000). Adding an index in a changed sequence (i.e. trdt, tord, item,........ clot) is not possible as it is 24 hours running live site.<br />
+<br />
+Problem is that we have input field transaction date only which is last field in the index 4 or 5.<br />
+<br />
+Any way thanks <br />
+<br />
+Lokendra</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tjbyfield</div><div class="date">19th July 2003, 09:05</div></div><div class="posttext">Hi  Lokendra<br />
+<br />
+Whilst the suggestion of adding an index would certainly help you report program, I am not keen on that approach as I think there is a fundamental DB config / tuning problem and/or a hardware capacity problem. I you were to add this index you would probably reason that you should also add a whole lot of other indexes for reports that appear to run slowly. <br />
+<br />
+Adding indexes is adding a customisation that has to be manitained for ever. I would only recommend this if this was for an online transaction that had a high usage and an unacceptably slow response time.  <br />
+<br />
+However for information: the index that estotz suggested could be added with minimal disruption to users. It would be built online but only available to users when they next logon. <br />
+<br />
+As to the db tuning you would need to know the nitty gritty of table and index placements, disk drive activity, cpu and memory usage, virtual memory statistics etc.  If the program is only run once a day as an audit of the prior day production then the run time may not be all that big a problem. Just a pitty that it takes such a long time for a relatively small report.<br />
+ <br />
+Terry</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">estotz</div><div class="date">19th July 2003, 16:45</div></div><div class="posttext">If you can not add an index to a table because your reasoning that this is a 24/7 situation, does this mean that other db maintenance issues are not done routinely either?<br />
+<br />
+Yes, it appears you may have a performance issue.  Still not sure if you have 11,000,000 rows or 110,000 rows in your table.<br />
+<br />
+As for customizing and adding the index, I really don't know what the deal with &quot;having to worry about the customization forever&quot;.  On a scale of a customization is is one of the easiest things to worry about.<br />
+<br />
+You need to figure out if you have a performance issue or if adding an index would even have an effect.  You should not be blindly adding indexes in a production environment before bench marking it in your development environment.  Same for the development of your report in the first place.  If you don't have a development or test environment, you probably have more issues than the slow report problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">21st July 2003, 10:19</div></div><div class="posttext">Terry,<br />
+<br />
+You are running Oracle Level 2, Lokendra is using Infomix Level 1. There is a huge difference between these 2. The moste important are in this case:<br />
+<br />
+Level 1:<br />
+- Row level read by index<br />
+- Hash colums<br />
+<br />
+Level 2:<br />
+- Native SQL<br />
+- No hash colums<br />
+<br />
+So Lokendra can't add indexes on the fly as the Baan database driver has to do add a column to the table and fill this colum before creating the index.<br />
+<br />
+Furthermore Level 2 gains in this query as in Level 1 reads all rows to the driver by index and do the filtering there.<br />
+<br />
+The query you tried on your database results in something completely different in a Level 1 environment. Sometimes 5 seconds is too much especially when the query is executed multiple times.<br />
+<br />
+So the real problem is that the query can't return its data fast enough because no proper index is available (Remember Level 1 always uses an index). Maybe an index can be added somewhere at Christmas as every 24/7 organisation has some planned down time.<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tjbyfield</div><div class="date">23rd July 2003, 07:43</div></div><div class="posttext">Thank you Dick for the insight into Informix setup.  My experience is limited to Oracle, DB2 and Baan native db.  I get to learn so much from this Baanboard.<br />
+<br />
+As to Lokendra's initial problem. I do think that regardless of the flavour of the RDBMS, half an hour is a long while to retreive a day's worth of transactions from 1.1 million fairly small records.  As such I was suggesting that before applying a 'band-aid' fix that the fundanental problem be isolated/addressed. <br />
+<br />
+In the mean time I think tfgld410 may be able to provide most of the high level tdltc102._index4 fields. Lokendra is running a report that is probably only run a few times a day and if the run time can be got down to a couple of minutes without adding an index or reconfiguring software, then it may not be cost effective to spend any more time making it run faster still. <br />
+<br />
+Terry</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

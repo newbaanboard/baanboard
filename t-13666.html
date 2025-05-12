@@ -1,0 +1,119 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Printing Multiple Reports in AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Printing Multiple Reports in AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>Printing Multiple Reports in AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Printing Multiple Reports in AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">FoxZapper</div><div class="date">19th November 2003, 15:17</div></div><div class="posttext">Ok, I know that we cannot set more than one report in an AFS program for a single session.<br />
+<br />
+I am trying to Print the Picking list for an order and am setting the correct Picking List Report and also providing a default Location.<br />
+<br />
+Since the Print Picking List session-tdsls4402m000 pops up the error report-rtdsls440202100 as well, I am not able to set values.<br />
+<br />
+I want to avoid this additional report. How can I do this?<br />
+Is there any paramater in BaaN where we can set &quot;No Error Report required&quot;? :D <br />
+<br />
+Code:<br />
+<br />
+stpapi.set.report(&quot;tdsls4402m000&quot;, &quot;rtdsls440201000&quot;, &quot;ASCIF&quot;, error.msg)<br />
+if isspace(error.msg) then<br />
+	stpapi.put.field( &quot;tdsls4402m000&quot;, &quot;spool.fileout&quot;, filepath.picking.list)<br />
+	stpapi.continue.process(&quot;tdsls4402m000&quot;, error.msg)<br />
+else<br />
+	err.mesg = sprintf$(&quot;Picking List could not be printed for Sales Order - %s &quot;,order.no.str)<br />
+	create.err.file()<br />
+	invoice.error = false<br />
+endif<br />
+stpapi.end.session( &quot;tdsls4402m000&quot;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">19th November 2003, 15:35</div></div><div class="posttext">Are there any flags on the session that allows you to suppress the report?  My suspicion is that you probably will not be able to suppress it with out source code.  Does it send the report to the same device you selected for the picklist report?  If it sends it to the same file after the pick list, then you may just be able to write code to strip the info out of the file.<br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">FoxZapper</div><div class="date">19th November 2003, 15:44</div></div><div class="posttext">Hi Mark,<br />
+<br />
+That was the first thing I did. Looked for Flags to disable this option. Couldn't find it (in the time I spent on it)<br />
+<br />
+If you notice my code, I am sending the Picking List to the ASCIF Device, but am also setting the spool.fileout variable by providing a specific folder on the BaaN server. This File path is held in the variable 'filepath.picking.list'<br />
+<br />
+stpapi.put.field( &quot;tdsls4402m000&quot;, &quot;spool.fileout&quot;, filepath.picking.list)<br />
+<br />
+Assuming that I do send it to the same device, then how can I write a code to strip the information out of the file?<br />
+<br />
+Regards,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">19th November 2003, 16:15</div></div><div class="posttext">Well first I assumed that the problem was that both reports were ending up in the same file.  So with your code where does the error report end up(terminal, screen, overwrite current file sent by picklist)?<br />
+<br />
+My thought was that if both reports ended up in one file you could modify the header on each report to have something like &quot;Pick&quot; or &quot;Error&quot; in the first line and character.  You do a read on the first 4 character and if the equal &quot;Pick&quot; then you write the record to another file, until you hit &quot;Error&quot;. Then you discard records until you hit the next &quot;Pick&quot;.  Does this make sense? It would be simple little while statement I think and you could modify the reports the way you want.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">FoxZapper</div><div class="date">19th November 2003, 16:41</div></div><div class="posttext">Actually, what happens is that the user is asked to &quot;select devices&quot; for 2 reports.<br />
+1. The Actual Picking List<br />
+2. The error report<br />
+<br />
+These are 2 of the many reports attached to the session.<br />
+The trouble is setting the 2 reports using the stpapi.set.report<br />
+<br />
+Even if point them to the same device, setting the report is where I am stuck.<br />
+<br />
+Thanks for taking the time Mark.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kbartelds</div><div class="date">19th November 2003, 18:00</div></div><div class="posttext">It is not possible to select to reports, the second reports that is popping up, is the error report for ship complete. This has been build in a while ago in this session, you might not see this after installing if you have changed the form. The field is prnt.error, which should be set to no.<br />
+<br />
+This code is working (for me it is): See attachment<br />
+Good luck.<br />
+<br />
+Regards,<br />
+Klaas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">FoxZapper</div><div class="date">20th November 2003, 07:14</div></div><div class="posttext">Thanks for your help Klaas,<br />
+<br />
+I checked it out and found that I don't have a Form field called prnt.error on my form.<br />
+If your code is working, is it for a new form?<br />
+Should I add this form field to my existing form?<br />
+Or should I apply some BaaN patch?<br />
+<br />
+Regards,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kbartelds</div><div class="date">20th November 2003, 10:15</div></div><div class="posttext">Hi,<br />
+<br />
+Check if solution 157879 has been installed, if so, the field prnt.error should be on the form, check the form in your update vrc.<br />
+<br />
+Regards,<br />
+Klaas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">FoxZapper</div><div class="date">20th November 2003, 11:28</div></div><div class="posttext">Hi Klaas,<br />
+<br />
+I installed the solution and it worked like a charm.<br />
+You were of immense help. :)<br />
+Thanks.<br />
+<br />
+Regards</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

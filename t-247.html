@@ -1,0 +1,88 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Oracle level 2 performance, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Oracle level 2 performance Performance &amp; Tuning" />
+	
+	<title>Oracle level 2 performance [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Performance &amp; Tuning</a> &gt; Oracle level 2 performance</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">richard</div><div class="date">8th October 2001, 17:43</div></div><div class="posttext">We are migrating from informix level 1 to oracle level 2.<br />
+The results are rather good (15% less disk space, queries much faster), but some sessions slower.<br />
+<br />
+Specially: tccom1101, tccom2101, tdsls4101 and tdpur4101. Also the first-set/last-set actions are slow. (about 15 seconds).<br />
+The response time was 3 minutes before changing optimizer_max_permutations to 1500.<br />
+The time is so bad at the very first execution. Did you make the same experience and what were the actions to solve the problem ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">8th October 2001, 18:01</div></div><div class="posttext">Hi Richard,<br />
+<br />
+The optimizer_max_permutation will prevent the Oracle optimizer from going into a 'loop' when looking for the best query execution path. The default value for max. number of permutation is 80,000!<br />
+<br />
+Also make sure that you have set up the optimizer_mode to CHOOSE and that you have up-to-date histogram data (statistics) on all your Baan tables. If no statistics exist, Oracle will switch to rule-based execution pathes which is bad. Only cost-based optimization (CBO) should be used.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">naabi0</div><div class="date">8th October 2001, 20:36</div></div><div class="posttext">Are you talking about computing statistics for columns?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">9th October 2001, 10:31</div></div><div class="posttext">Yes</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bsyeven</div><div class="date">11th October 2001, 01:27</div></div><div class="posttext">I don't believe histograms will have any effect on Oracle's processing of Baan SQL because Baan uses bind variables.  When the CBO processes a query containing bind variables, it must use default selectivities.  If anyone disagrees, please explain.<br />
+<br />
+I would be interested to know if you do notice an improvement after computing columns stats - please let me know.<br />
+<br />
+Thanks,<br />
+Brandon</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Martin</div><div class="date">11th October 2001, 07:50</div></div><div class="posttext">thats correct.<br />
+<br />
+which database version you are using ?<br />
+we have 8.1.7 and i have set the optimizer mode to &quot;first_rows&quot;<br />
+(because Baan set a sql-hint for use first_rows).<br />
+the optimizer_max_permutation is set to 800.<br />
+But the best performance hint is to activate parallel query an update for tables and indexes, so i have now responstime for starting sessions for 3 seconds and skip to last row for 5 seconds.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">11th October 2001, 15:48</div></div><div class="posttext">It's not a matter of 'or-or' but rather 'and-and'. First of all, I think every one would agree that CBO is the best way to drive any SQL query for Baan. The way the CBO will work depends on several things:<br />
+<br />
+ parameter OPTIMIZER_MODE<br />
+ session OPTIMIZER_GOAL<br />
+ SQL hints<br />
+<br />
+The order of taking precedance is from bottom to top. Thus a hardcoded SQL hint will overrule the standard if OPTIMIZER_MODE if they wouldn't agree.<br />
+<br />
+Using OPTIMIZER_MODE=CHOOSE does not exclude the FIRST_ROW hints (hints take precedence) but makes sure that any queries where the SQL hint is incomplete, invalid or missing will use a proper execution plan IF statistics are available. A good example of invalidhints is any statement with an ORDER BY clause. In those cases the FIRST_ROWS hint is ignored.<br />
+<br />
+As to the bind variables: the Oracle CBO does have problems with optimizing queries when bind variables are used in 'like' and range constructs but from experience I can say that failing to update the statistics on a weekly basis (or more frequent) *does* cause a performance hit.<br />
+<br />
+I am not an export in Oracle matters so if someone can give me better insights, I will stand corrected!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bsyeven</div><div class="date">11th October 2001, 18:30</div></div><div class="posttext">I agree that computing statistics regularly (weekly) is a must for the CBO to work optimally, but you do not need to compute statistics on columns.  Column statistics = histograms.  These are ignored by the CBO when using bind variables and default selectivities are used instead.<br />
+<br />
+This is all you need to run:<br />
+EXECUTE dbms_utility.analyze_schema('BAAN','COMPUTE')<br />
+<br />
+<br />
+You do NOT need to run:<br />
+analyze table ttxyz123100 compute statistics for columns . . .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">11th October 2001, 18:34</div></div><div class="posttext">That's my mistake, the statistics we calculate are not for the columns, I assumed they were the same thing. Another thing learned today :)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

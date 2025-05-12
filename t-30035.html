@@ -1,0 +1,315 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Auto Maintain Receipt, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Auto Maintain Receipt AFS/DDC/OLE: Function servers" />
+	
+	<title>Auto Maintain Receipt [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Auto Maintain Receipt</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">benter</div><div class="date">17th January 2007, 03:51</div></div><div class="posttext">Hi, Dear all,<br />
+I made a session to realize the auto maintain receipt function, I test the program, I found the session can work in Baan4c4(SP9), but if I migrate this program to Baan4c4(SP16), the session could not work.<br />
+My source code as following:<br />
+ <br />
+| Creating a receipt always use 0 for the tdpur045.reno field.<br />
+    <br />
+        purchase.order=101935<br />
+ <br />
+        stpapi.handle.subproc(&quot;tdpur4120m000&quot;,&quot;tdpur4224s000&quot;,&quot;add&quot;)<br />
+  stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,str$(0))<br />
+  stpapi.change.view(&quot;tdpur4120m000&quot;)<br />
+ if not isspace(msg) then<br />
+  stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+  message(receipt.number)<br />
+ endif<br />
+| Always use tdpur4224s000 to create receipt for all lines.<br />
+    <br />
+        stpapi.put.field(&quot;tdpur4224s000&quot;,&quot;form.orno&quot;,str$(purchase.order))<br />
+   stpapi.continue.process(&quot;tdpur4224s000&quot;,msg)<br />
+  stpapi.end.session(&quot;tdpur4224s000&quot;)<br />
+             |Currently tdpur4224s000 continue returns Process is gone<br />
+ if not isspace(msg) and strip$(msg)&lt;&gt; &quot;Process is gone&quot; then<br />
+  stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+  message(receipt.number)<br />
+ endif<br />
+ msg = &quot;&quot;<br />
+ suspend(3000)<br />
+  stpapi.get.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,dummy)<br />
+ receipt.number = dummy<br />
+        receipt.number1=val(dummy)    <br />
+     <br />
+      <br />
+        select tdpur045.*<br />
+        from   tdpur045<br />
+        where  tdpur045.reno=:receipt.number1 and tdpur045.dqua=0<br />
+        selectdo<br />
+               purchase.order=tdpur045.orno<br />
+               purchase.line =tdpur045.pono<br />
+               stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,receipt.number)                <br />
+               stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.orno&quot;,str$(purchase.order))<br />
+               stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.pono&quot;,str$(purchase.line))<br />
+               stpapi.find(&quot;tdpur4120m000&quot;)<br />
+               <br />
+               get.quan.and.lot()  <br />
+                  <br />
+               received.date=date.num()<br />
+               purchaselot.date=date.num()<br />
+               conv.factor  =1<br />
+             modify_receipt(lval(receipt.number),<br />
+   purchase.order,<br />
+   purchase.line,<br />
+   packingslip.qty,<br />
+   received.qty,<br />
+   received.date,<br />
+   purchase.lot,<br />
+   purchaselot.date,<br />
+   conv.factor,<br />
+   purchase.unit,<br />
+   purchase.item,<br />
+   msg)<br />
+               suspend(3000) <br />
+        endselect <br />
+        stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+         <br />
+}<br />
+function get.quan.and.lot()<br />
+{<br />
+     select *<br />
+     from  tdpur041<br />
+     where tdpur041.orno=:purchase.order and tdpur041.pono=:purchase.line<br />
+     selectdo<br />
+           purchase.lot = tdpur041.clot<br />
+           packingslip.qty =tdpur041.oqua<br />
+           received.qty = tdpur041.oqua<br />
+           purchase.item=tdpur041.item<br />
+           purchase.unit=tdpur041.cuqp<br />
+     endselect<br />
+}<br />
+|******************************************************************************<br />
+|* API Code for modifying an existing receipt.<br />
+|******************************************************************************<br />
+function extern modify_receipt( domain tcrcno  receipt.number,<br />
+    domain  tcorno  purchase.order,<br />
+    domain tcpono   purchase.line,<br />
+    domain tcqiv1  packingslip.qty,<br />
+    domain tcqiv1  received.qty,<br />
+    domain tcdate  received.date,<br />
+    domain tdltc.clot purchase.lot,<br />
+    domain tcdate  purchaselot.date,<br />
+    domain tcconv  conv.factor,<br />
+    domain tccuni  purchase.unit,<br />
+    domain tcitem  purchase.item,<br />
+    ref     string          msg())<br />
+{<br />
+  long rc, cnt<br />
+  string dummy(6), error_code(16)<br />
+ domain tcorno get.orno<br />
+ domain tcpono get.pono<br />
+        conv.factor =1<br />
+ <br />
+ select tiitm001.stgu, tiitm001.kitm<br />
+ from tiitm001<br />
+ where tiitm001._index1 = {:purchase.item}<br />
+ as set with 1 rows<br />
+ selectdo<br />
+ endselect<br />
+ <br />
+ msg = &quot;&quot;<br />
+| boi.call = &quot;tdboidll0011.Create&quot;<br />
+<br />
+| Prepare to handle lot controlled items. <br />
+ if ((not isspace(purchase.lot) or conv.factor&gt;1 )<br />
+ and (tiitm001.kitm=tckitm.purchase or tiitm001.kitm = tckitm.manufacture)) then<br />
+  stpapi.handle.subproc(&quot;tdpur4120m000&quot;,&quot;tdilc4113s000&quot;,&quot;add&quot;)<br />
+ endif<br />
+ <br />
+ stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.diqu&quot;,str$(packingslip.qty))<br />
+ stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.date&quot;,str$(received.date))<br />
+ stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.dqua&quot;,str$(received.qty))<br />
+stpapi.update(&quot;tdpur4120m000&quot;,1,msg)<br />
+ if not isspace(msg) then<br />
+  if not isspace(purchase.lot) or conv.factor&gt;1 then<br />
+   stpapi.end.session(&quot;tdilc4113s000&quot;)<br />
+  endif<br />
+  stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+  abort()<br />
+ endif<br />
+| Need to handle the conversion factor.<br />
+ if ((not isspace(purchase.lot) or conv.factor&gt;1 or  purchase.unit &lt;&gt; tiitm001.stgu)<br />
+ and (tiitm001.kitm=tckitm.purchase or tiitm001.kitm = tckitm.manufacture)) then<br />
+  stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.clot&quot;,purchase.lot)<br />
+  stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.date&quot;,str$(purchaselot.date))<br />
+  stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.qstr&quot;,str$(received.qty*conv.factor))<br />
+  stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.qstc&quot;,str$(received.qty*conv.factor))<br />
+  stpapi.insert(&quot;tdilc4113s000&quot;,1,msg)<br />
+  error_code = stpapi.get.mess.code(&quot;tdilc4113s000&quot;)<br />
+  if strip$(error_code) = &quot;tdilc40062&quot; then<br />
+   msg = &quot;&quot;<br />
+  endif<br />
+  stpapi.end.session(&quot;tdilc4113s000&quot;)<br />
+ endif<br />
+|  stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+}<br />
+ <br />
+ <br />
+In SP16 enviroment, the program was hold in the script ' stpapi.update(&quot;tdpur4120m000&quot;,1,msg)' ,  How can do for this case?<br />
+ <br />
+Help me!   Thanks a lot!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th January 2007, 15:31</div></div><div class="posttext">Hmmm - this code looks familiar. :)<br />
+<br />
+Do you have source code for tdpur4120m000?  I know I had to use qkey(source extender) to modify tdpur4120m000 to get it to work, but I think I did that on SP18 or SP19.  You might have to play with the boi.call variable to see if that will work for you.  You should search on this forum for boi.call.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">benter</div><div class="date">18th January 2007, 01:55</div></div><div class="posttext">Of course I have the source code of tdpur4120m000, but don't know how to modify the script. I want to know in Baan system, wether have function or procedure to take place the key action ' TAB'?  If I can simulate the key action, I think perhaps the problem could slove!<br />
+<br />
+Thanks Mark!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">benter</div><div class="date">18th January 2007, 01:59</div></div><div class="posttext">Dear Mark,<br />
+You said you had did in SP18 /SP19, could you tell me the way you did?<br />
+I think if you could do in SP18/SP19, I also can do it in SP16!<br />
+Ths</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Thomasm</div><div class="date">18th January 2007, 08:56</div></div><div class="posttext">Familiar code indeed. Thanks Mark for sharing with us all.<br />
+<br />
+I agree with Mark, you might need to uncomment the boi.call variable. I see my code is slightly different but I cannot remember exactly why. I had to experiment a bit and this is the result. I implemented it on SP12 and we are now on SP20, with no stops in between.<br />
+<br />
+Good luck,<br />
+/Thomas<br />
+<br />
+function extern modify_receipt(	domain	tcrcno		receipt.number,<br />
+				domain  tcorno		purchase.order,<br />
+				domain	tcpono  	purchase.line,<br />
+				domain	tcqiv1		packingslip.qty,<br />
+				domain	tcqiv1		received.qty,<br />
+				domain	tcdate		received.date,<br />
+				domain	tdltc.clot	purchase.lot,<br />
+				domain	tcdate		purchaselot.date,<br />
+				domain	tcconv		conv.factor,<br />
+				domain	tccuni		purchase.unit,<br />
+				domain	tcitem		purchase.item,<br />
+				ref     string          msg())<br />
+{<br />
+	long 	rc<br />
+	string	dummy(6), error_code(16)<br />
+	<br />
+	select	tiitm001.stgu, tiitm001.kitm<br />
+	from	tiitm001<br />
+	where	tiitm001._index1 = {:purchase.item}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	endselect<br />
+	<br />
+	msg = &quot;&quot;<br />
+	boi.call = &quot;tdboidll0011.Create&quot;<br />
+ 	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,str$(receipt.number))<br />
+  	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.orno&quot;,str$(purchase.order))<br />
+ 	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.pono&quot;,str$(purchase.line))<br />
+	rc = stpapi.find(&quot;tdpur4120m000&quot;,msg)<br />
+	if not isspace(msg) or rc&lt;&gt;1 then<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return<br />
+	endif<br />
+	stpapi.get.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.orno&quot;,dummy)<br />
+| Prepare to handle lot controlled items.	<br />
+	if ((not isspace(purchase.lot) or conv.factor&gt;1 or  purchase.unit &lt;&gt; tiitm001.stgu)<br />
+	and (tiitm001.kitm=tckitm.purchase or tiitm001.kitm = tckitm.manufacture))	then<br />
+		stpapi.handle.subproc(&quot;tdpur4120m000&quot;,&quot;tdilc4113s000&quot;,&quot;add&quot;)<br />
+	endif<br />
+	<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.diqu&quot;,str$(packingslip.qty))<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.date&quot;,str$(received.date))<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.dqua&quot;,str$(received.qty))<br />
+	rc = stpapi.update(&quot;tdpur4120m000&quot;,1,msg)<br />
+	if not isspace(msg) or rc&lt;&gt;1 then<br />
+		if not isspace(purchase.lot) or conv.factor&gt;1 then<br />
+			stpapi.end.session(&quot;tdilc4113s000&quot;)<br />
+		endif<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return<br />
+	endif<br />
+<br />
+| Need to handle the conversion factor.<br />
+	if ((not isspace(purchase.lot) or conv.factor&gt;1 or  purchase.unit &lt;&gt; tiitm001.stgu)<br />
+	and (tiitm001.kitm=tckitm.purchase or tiitm001.kitm = tckitm.manufacture))	then<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.clot&quot;,purchase.lot)<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.date&quot;,str$(purchaselot.date))<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.qstr&quot;,str$(received.qty*conv.factor))<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.qstc&quot;,str$(received.qty*conv.factor))<br />
+		stpapi.insert(&quot;tdilc4113s000&quot;,1,msg)<br />
+		error_code = stpapi.get.mess.code(&quot;tdilc4113s000&quot;,msg)<br />
+		if strip$(error_code) = &quot;tdilc40062&quot; then<br />
+			msg = &quot;&quot;<br />
+		endif<br />
+		stpapi.end.session(&quot;tdilc4113s000&quot;)<br />
+	endif<br />
+ 	stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th January 2007, 15:59</div></div><div class="posttext">Thanks Thomas.  I am wondering how you got past all the WM code they inserted in one of the service packs.  That is what caused my problem.<br />
+<br />
+<br />
+|******************************************************************************<br />
+|* 20050418	Mark Holland	04/18/2005<br />
+|* Added boi variables and set g.sub.session for service pack changes.  These<br />
+|* changes allow the receipt afs programs to work.<br />
+| 20050418.st Added these variables<br />
+	extern  domain  tcmcs.str132    boi.call<br />
+	extern		long		boi.bqua.flag<br />
+	extern	domain	tcbool		g.sub.session	| 20050418.end<br />
+field.tdpur045.dqua:<br />
+before.input:<br />
+|20050418.st Added this if statement. Might need to modify this to check<br />
+| the calling session to make sure it was tdapi.<br />
+	if api.mode then<br />
+		g.sub.session = true<br />
+	endif				|20050418.end<br />
+	|#call<br />
+	|#pobj added by QKEY 3.70<br />
+	_pobj_exe1(&quot;before.input.tdpur045.dqua&quot;)<br />
+	|#end add by QKEY<br />
+<br />
+The above code worked for me on that SP.  We just did 20 and I did not need to make any changes to these sessions.  I only had to change one of my API sessions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Thomasm</div><div class="date">18th January 2007, 16:08</div></div><div class="posttext">Mark,<br />
+<br />
+Not sure what you are referring to here... I do not have the source so I have not made any adjustments to the called session. This is how I understand you at least...<br />
+<br />
+So the code in my example works for calling the session to modify the receipt, in SP12 and SP20. However, we are not using lot control, which I believe you are? Maybe that is the difference.<br />
+<br />
+/Thomas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th January 2007, 16:15</div></div><div class="posttext">Oops - what I was talking about was in that SP in 2005.  The tdpur4120m000 session and someothers was being integrated with a warehouse management system they were marketing at that time.  There was just a ton of new code in the sessions that caused me some problems.<br />
+<br />
+And yes you are correct it was lot controlled items causing the problem.  If I recall correctly we discovered this when trying to receive lot controlled items.  That is where the SSA baan code(with the new warehouse management code) was doing funny stuff.  My little qkey fix just set a variable to make it do the right thing that I needed.  Not elegant, but it worked.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">benter</div><div class="date">19th January 2007, 08:59</div></div><div class="posttext">Thanks Mark and Thomas!<br />
+<br />
+The way you sugguested to uncomment the Boi.call, I tried, but still could not hold on the 'stpapi.update(&quot;tdpur4120m000&quot;,1,msg)' script.<br />
+I think perhaps some solution could slove this problem.<br />
+I will modify the source code of tdpur4120 to test, I will tell you the test result.<br />
+Next two days I will enjoy weekend, so it need to wait for two days.<br />
+<br />
+Anyway, thanks for your help!</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

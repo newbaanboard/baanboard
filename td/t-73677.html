@@ -1,0 +1,121 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Identify VRC of current table (converted to RDD), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Identify VRC of current table (converted to RDD) Tools Development" />
+	
+	<title>Identify VRC of current table (converted to RDD) [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Identify VRC of current table (converted to RDD)</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">12th January 2021, 14:00</div></div><div class="posttext">Hello gurus,<br />
+<br />
+I'd like to know whether a predefined function exists which, simply, would return the VRC of the current active table definition.  <br />
+<br />
+For example:<br />
+- a company has 20 package comb. and many VRCs.  <br />
+- a table &quot;x&quot; is present in many levels.<br />
+<br />
+I don't want to evaluate each level via derivation structure.  Surely Baan/Infor LN doesn't do this every time a table is accessed?  <br />
+<br />
+So, in a perfect world, a predefined function might exist which returns  VRC of the current / active table.  Alternatively, could it be that the current/active table's VRC (CRDD) is declared in some tools table (e.g. Runtime Components)?  Any ideas?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">12th January 2021, 15:13</div></div><div class="posttext">Hi,<br />
+<br />
+I don't know of any functions but I think the standard program &quot;Print Current Table Definitions for Package VRC (ttadv4421m000)&quot; does give you exactly the information you need. That is the actual Table defintion VRC for your Customer-VRC.<br />
+<br />
+Here for exampla I see that the Table definition for tdpur100 for my customer VRC 106C_0_dev1 comes from the standard VRC 106U_0_a000</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th January 2021, 15:14</div></div><div class="posttext">Check out the ottdllvrcsearch library.  I pulled out so really really old code that was never used.<br />
+<br />
+        #pragma used dll ottdllvrcsearch		| Search VRC Structure<br />
+<br />
+| Get starting VRC for each table. Using users current package/vrc.<br />
+		get_current_pvrc()<br />
+		<br />
+| Search VRC will return true when the curr fields point to the lastest<br />
+| VRC for the table.<br />
+		rc = 0<br />
+		while rc = 0 and strip$(curr.tver(1,1)) &lt;&gt; &quot;&quot;<br />
+			rc = vrc_search_table(ttadv422.cpac,ttadv422.cmod,ttadv422.flno,<br />
+				tdep,curr.tver,curr.trel,curr.tcus)<br />
+			if rc = 0 then<br />
+				get_parent_pvrc()<br />
+			endif<br />
+		endwhile<br />
+<br />
+|******************************************************************************<br />
+| Used to get the users current VRC.  You always want to start in that VRC.<br />
+|******************************************************************************<br />
+function get_current_pvrc()<br />
+{<br />
+	select	ttadv040.*<br />
+	from	ttadv040<br />
+	where	ttadv040.user = :logname$<br />
+	and	ttadv040._compnr = 0<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	endselect<br />
+	curr.tver(1,1) = ttadv040.vers<br />
+	curr.trel(1,1) = ttadv040.rele<br />
+	curr.tcus(1,1) = ttadv040.cust<br />
+}<br />
+<br />
+|******************************************************************************<br />
+| Used to get the &quot;derived from&quot; VRC for a given VRC.<br />
+|******************************************************************************<br />
+function get_parent_pvrc()<br />
+{<br />
+	domain	ttadv.vers	tver<br />
+	domain	ttadv.rele	trel<br />
+	domain	ttadv.cust	tcus<br />
+<br />
+	tver = curr.tver(1,1)<br />
+	trel = curr.trel(1,1)<br />
+	tcus = curr.tcus(1,1)<br />
+<br />
+	select	ttadv111.*<br />
+	from	ttadv111<br />
+	where	ttadv111._index1 = {:ttadv422.cpac,:tver,:trel,:tcus}<br />
+	and	ttadv111._compnr = 0<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		curr.tver(1,1) = ttadv111.vedf<br />
+		curr.trel(1,1) = ttadv111.redf<br />
+		curr.tcus(1,1) = ttadv111.cudf<br />
+	selectempty   <br />
+		curr.tver(1,1) = &quot;&quot;<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">12th January 2021, 16:05</div></div><div class="posttext">Thanks Mark and Vahdani,<br />
+<br />
+Mark - vrc_search_table requires traversing the derivation structure - in order to finally find the correct (and current) tabeldef's VRC where I can then analyze the components) . In my case these are many.  To many in the structure.  All I want is the current, active table definition being used by the system (on which data is present in the database.   How could this be achieved?  I had in mind the exchange package. It generates asci file formats - based on current table def.  Any idea which function is called?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th January 2021, 20:42</div></div><div class="posttext">I am not sure what exchange or anything else uses.  There could be another library in LN (or even 4c4) for that matter that would return the VRC. There were 3 or 4 VRC dll's but I did not see anything that would work.<br />
+<br />
+What I do know is that in 4c4 there is a data dictionary directory for the VRC the company is in.  This is built based off all the tables no matter which VRC is the home VRC for that table. I am not sure it is in any table in the system that says - hey here is the current VRC the table is in that this VRC uses.   I know I could read the dictionary file out on the file system to see what makes up the table. I can't imagine even with 20 VRC's it would like long to walk up the structure.  Actually with my code what I did not was eventually write the table name and VRC it was found in into a table.  I never found a use for it after that one flirt with VRCs and the tables.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">12th January 2021, 21:44</div></div><div class="posttext">Mark - vrc_search_table requires traversing the derivation structure - in order to finally find the correct (and current) tabeldef's VRC where I can then analyze the components) . In my case these are many. To many in the structure. All I want is the current, active table definition being used by the system (on which data is present in the database. How could this be achieved? I had in mind the exchange package. It generates asci file formats - based on current table def. Any idea which function is called?<br />
+<br />
+1 - You have to analyze why do you need 20 levels of VRC, Package Combination, it is an overhead in process, disk, execution time, confusion in understanding the derivation structure etc.<br />
+2 - The current versions of domains, tables are taken from the user's package combination setting, and you can refer to the dictionary of the tables from the $BSE/dict/dd&lt;package-combination&gt;/d&lt;package&gt;&lt;module&gt; directory and the files d&lt;tablename&gt; have the table definition.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

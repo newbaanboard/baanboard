@@ -1,0 +1,207 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="report script problem, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] report script problem Tools Development" />
+	
+	<title>report script problem [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; report script problem</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">evertsen</div><div class="date">3rd October 2002, 22:28</div></div><div class="posttext">Hi,<br />
+<br />
+I am trying to add additional detail to an existing report.  When an installment invoice is printed it gives no details, just a total of what is owed/paid.  I would like to add the details of all sales order lines for the order.  However, my script is not behaving as I thought it would.  Here's the code<br />
+<br />
+<br />
+detail.1:<br />
+before.layout:<br />
+<br />
+	select 	tdsls041.*<br />
+	from 	tdsls041<br />
+	where 	tdsls041._index1 = {:tdsls045.orno, :temp.pono} <br />
+	selectdo<br />
+	selectempty<br />
+		lattr.print = false<br />
+	endselect<br />
+<br />
+after.layout:	<br />
+<br />
+	if temp.pono &lt; 701 then<br />
+		temp.pono = temp.pono + 1<br />
+		layout.again()<br />
+	endif<br />
+<br />
+<br />
+The problem is this prints nothing until I remove lattr.print from selectempty.  Then it prints 700 lines changing the values as it pulls lines from tdsls041.  Any explanations/fixes appreciated.<br />
+<br />
+Thanks,<br />
+Ev</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th October 2002, 14:49</div></div><div class="posttext">It looks like it does not find temp.pono=1 so it sets lattr.print to false and then never resets it - try this.<br />
+<br />
+Mark<br />
+<br />
+<br />
+detail.1:<br />
+before.layout:<br />
+      select  tdsls041.*<br />
+      from    tdsls041<br />
+      where   tdsls041._index1 = {:tdsls045.orno, :temp.pono} <br />
+      selectdo<br />
+           lattr.print = true<br />
+      selectempty<br />
+           lattr.print = false<br />
+      endselect<br />
+<br />
+after.layout:   <br />
+      if temp.pono &lt; 701 then<br />
+           temp.pono = temp.pono + 1<br />
+           layout.again()<br />
+      endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">4th October 2002, 14:51</div></div><div class="posttext">Before you hit the detail.1 layout, did you set the value of temp.pono to the first valid record in tdsls041 for that order number?  If you just set it to something arbitrary (like 0), then you would hit selectempty and leave.  As it stands, unless you number your lines by 1 (rather than by, for example, 5 or 10), you will not get all of you lines.  Also, even if you numbered by one, if a line was deleted in the sequence, that would cause you to miss the lines after that.<br />
+<br />
+It might work better to try something like this:<br />
+<br />
+<br />
+&lt;layout hit before detail.1&gt;:<br />
+before.layout:<br />
+	temp.pono = 1<br />
+<br />
+detail.1:<br />
+before.layout:<br />
+	select	tdsls041.*<br />
+	from	tdsls041<br />
+	where	tdsls041._index1 inrange {:tdsls045.orno, :temp.pono}<br />
+				and	{:tdsls045.orno}<br />
+	as set with 1 rows<br />
+	selectempty<br />
+		lattr.print = false<br />
+	endselect<br />
+<br />
+after.layout:<br />
+	if temp.pono &lt;=700 then<br />
+		temp.pono = tdsls041.pono + 1<br />
+		layout.again()<br />
+	endif<br />
+<br />
+<br />
+This should handle any non-consequetive position numbers.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th October 2002, 15:06</div></div><div class="posttext">Ed,<br />
+<br />
+I looked at this last night and again this morning. Could you do something like this to keep it from cycling through 700 times?<br />
+<br />
+<br />
+<br />
+&lt;layout hit before detail.1&gt;:<br />
+before.layout:<br />
+	temp.pono = 1<br />
+<br />
+detail.1:<br />
+before.layout:<br />
+	select  tdsls041.*<br />
+	from    tdsls041<br />
+	where   tdsls041._index1 inrange {:tdsls045.orno, :temp.pono}<br />
+	and     {:tdsls045.orno}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		lattr.print = true<br />
+	selectempty<br />
+		lattr.print = false<br />
+	endselect<br />
+<br />
+after.layout:<br />
+	select  tdsls041.*<br />
+	from    tdsls041<br />
+	where   tdsls041._index1 = {:tdsls045.orno}<br />
+	and 	tdsls041.pono &gt; :temp.pono}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		temp.pono = tdsls041.pono<br />
+	selectempty<br />
+		temp.pono = 0<br />
+	endselect<br />
+	if temp.pono &gt; 0 then<br />
+		layout.again()<br />
+	endif<br />
+<br />
+<br />
+It looks like it would work, but it seems like I am missing something.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evertsen</div><div class="date">4th October 2002, 18:48</div></div><div class="posttext">Thanks evesely.  Works great.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">4th October 2002, 19:37</div></div><div class="posttext">Mark,<br />
+<br />
+Your last solution should work.  However, the select in the after.layout seems like extra effort.  The inrange in the before.layout should get the next real record as long as we increment the temp.pono variable in the after.layout.<br />
+<br />
+-Ed</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th October 2002, 21:25</div></div><div class="posttext">I was thinking that the second code would stop the layout.again after the last position.  So if each order had 700 lines then my code would have extra overhead, but if each order only had 50 positions then my code would stop the extra 650 queries the original code was executing. Without being familiar with the sessions and data I was really just guessing.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">~Vamsi</div><div class="date">4th October 2002, 21:28</div></div><div class="posttext">I watched the thread progress with interest. Here is something I use in one of my scripts.&lt;layout hit before detail.1&gt;:<br />
+before.layout:<br />
+	more.records = true<br />
+	temp.pono = 0<br />
+<br />
+detail.1:<br />
+before.layout:<br />
+	select  tdsls041.*<br />
+	from    tdsls041<br />
+	where   tdsls041._index1 = {:tdsls045.orno}<br />
+	and	tdsls041.pono &gt; :temp.pono<br />
+	|assuming that tdsls041.pono does not take a value of 0<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		lattr.print = true<br />
+		temp.pono = tdsls041.pono<br />
+	selectempty<br />
+		lattr.print = false<br />
+		more.records = false<br />
+	endselect<br />
+<br />
+after.layout:<br />
+	|No more firing the select 700 times!!!<br />
+	|Also no more confusion as to what happens<br />
+	|if pono has a value of 999!<br />
+	if more.records then<br />
+		layout.again()<br />
+	endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evertsen</div><div class="date">5th October 2002, 06:00</div></div><div class="posttext">Originally posted by ~Vamsi <br />
+<br />
+<br />
+	and	tdsls041.pono &gt; :temp.pono<br />
+ <br />
+<br />
+This is very intriguing... I was not aware this could be used.  <br />
+<br />
+However, in evesely's solution the select does not continue on needless.  I've tested this and found it stops immediately after finding the last valid position number.  <br />
+<br />
+Ev</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Referenced tablefield in buffer/debug but not displaying on form, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Referenced tablefield in buffer/debug but not displaying on form Tools Development" />
+	
+	<title>Referenced tablefield in buffer/debug but not displaying on form [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Referenced tablefield in buffer/debug but not displaying on form</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">23rd January 2023, 18:02</div></div><div class="posttext">We have 2 custom tables.   Table Y references to X via a cmba (combined) field.  Similar to b4 tdsls045 (Y) referencing tdsls041 (X).  <br />
+<br />
+I created a session type 3 based on table Y.  Added some fields to the form from Table X.  They do not display.  <br />
+<br />
+1 - In debug, table X values are in buffer, but not displayed on form....<br />
+2 - Added display(&quot;xxxxx.xxxx&quot;) in several UI sections, but then strangely, the buffered field value (enum) is reset to zero immediately after the call (in Debug)<br />
+<br />
+The session simply refuses to display tablesfields from X on the form.  Created a brand new session. Same behavior.  Disabled the DAL.  Still persists.<br />
+<br />
+I'm out of ideas.  Any clues?<br />
+Cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">23rd January 2023, 18:16</div></div><div class="posttext">Do you use a MMT session with relations between them defined?<br />
+And query.extend.from() + query.extend.where() in the before program?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">23rd January 2023, 18:32</div></div><div class="posttext">Nope.  Its just a simple session. Simple code</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">23rd January 2023, 18:50</div></div><div class="posttext">This is truly bizarre.  I created an extern variable identical to the table field.  Added it ( &quot;form.991.dtab&quot; )  to the form and voila, it displays correctly! But, the table field txmid991.dtab does not...<br />
+<br />
+ See my code below.<br />
+<br />
+declaration:<br />
+	table 	ttxmid992<br />
+	table	ttxmid991<br />
+	<br />
+	extern	domain	tcmcs.str8  form.991.dtab<br />
+<br />
+|****************************** PROGRAM     SECTION ***************************<br />
+|****************************** ZOOM FROM   SECTION ***************************<br />
+|****************************** FORM	     SECTION ***************************<br />
+|****************************** CHOICE      SECTION ***************************<br />
+|****************************** FIELD       SECTION ***************************<br />
+<br />
+before.display.object:<br />
+	if isspace(txmid991.dtab) then	<br />
+		message(&quot;hello&quot;)<br />
+	endif<br />
+|	display(&quot;txmid991.dtab&quot;)<br />
+	form.991.dtab = txmid991.dtab<br />
+	display.fld( actual.occ, &quot;form.991.dtab&quot; )<br />
+	display.fld( actual.occ, &quot;txmid991.dtab&quot; )</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">23rd January 2023, 18:57</div></div><div class="posttext">This is truly bizarre.  I created an extern variable identical to the table field.  Added it ( &quot;form.991.dtab&quot; )  to the form and voila, it displays correctly! But, the table field txmid991.dtab does not...<br />
+<br />
+ See my code below.<br />
+<br />
+declaration:<br />
+	table 	ttxmid992<br />
+	table	ttxmid991So far so good. But now I would like to suggest: |****************************** PROGRAM     SECTION ***************************<br />
+before.program:<br />
+query.extend.select(&quot;txmid991.*&quot;)<br />
+query.extend.from(&quot;txmid991&quot;)<br />
+query.extend.where(&quot;txmid992.cmba refers to txmid991&quot;)<br />
+So your dataset will be read as one (linked) dataset.<br />
+|****************************** FIELD       SECTION ***************************<br />
+<br />
+before.display.object:<br />
+	display.fld( actual.occ, &quot;txmid991.dtab&quot; )<br />
+Fun thing is Ctrl-Shift-8 revealing your query to read the data on screen shows you that those tables are linked now.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">23rd January 2023, 19:30</div></div><div class="posttext">Thanks Omeluuk,<br />
+<br />
+What I cant understand is how the table field values of txmid991 are actually in the buffer (due to table ref) and also available in debugger.  And I can set variables equal to them, which display correctly.  But they themselves are not being initialized.  I can only imagine it's due to the reference from txmid992 to txmid991 via cmba combined field.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">23rd January 2023, 19:39</div></div><div class="posttext">Hello Omeluuk,<br />
+<br />
+Added the query.extends as you recommended.  Still, the field txmid991.dtab is not displayed.  This is really odd.  It must be due to the reference...?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">23rd January 2023, 20:21</div></div><div class="posttext">This combined field has 4 fields, because the primary index of txmid991 has 4 keys.  Other combined fields referring other tables work fine. But they all have 2 or 3 fields. Not 4.<br />
+<br />
+Is there some kind of &quot;max keys&quot;  in LN for references to work correctly on dynamic forms?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">23rd January 2023, 22:27</div></div><div class="posttext">Can you post your query used to show records based on the session?<br />
+With and without my proposal?<br />
+<br />
+When adding (referred)  tables on the form (like description fields, addable in the DFE by clicking on the &quot;link&quot; icon) then 4GL will automagically link these fields onto the form. This will be shown on the Query tab in Ctrl-Shift-8.<br />
+<br />
+Exact magic is unknown to me, but I suppose declaring the table in the script &quot;re-initializes&quot; a record buffer for the linked table thus conflicting with the default use. Declaring a table will declare all its table field variables (and more) as external variables and also its record buffer.<br />
+<br />
+Running a session in debug mode will create external variable mappings for otherwise local variables so the debugger (as a separate session) also can manipulate these variables. So running in debug mode is not a full 100% proof that things are worked out correctly.<br />
+<br />
+As far as I know there is no limit to combined fields to be correct. There may be on the length of references on database level, but this should be clear from the Known Limits section in the programmers manual.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">23rd January 2023, 22:29</div></div><div class="posttext">Hello Omeluuk,<br />
+<br />
+Added the query.extends as you recommended.  Still, the field txmid991.dtab is not displayed.  This is really odd.  It must be due to the reference...?<br />
+<br />
+Then try without the &quot;before display object&quot; section. When read with the query extend one should assume it has the referred value.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">24th January 2023, 16:09</div></div><div class="posttext">Hello Omeluuk,<br />
+<br />
+Firstly, thanks for taking the time to look into this.  Greatly appreciated.<br />
+<br />
+I found the problem, but not sure how to solve it.  BTW, This can easily be replicated in any Baan/Infor system.  Table settings below.   <br />
+<br />
+The issue is Company number Zero - #3 below.   <br />
+<br />
+Parent table has 4 keys in primary index:<br />
+1 -  Group Co (always &lt;&gt;0) domain tcncmp<br />
+2 -  Environment (2xchar text)<br />
+3 - Company (default = 0 representing All companies, but can be co specific). Domain tcncmp<br />
+4 - Table (8xchar text)<br />
+<br />
+Child table has an additional key – tablefield<br />
+1 -  Group Co (always &lt;&gt;0) domain tcncmp<br />
+2 -  Environment (2xchar text)<br />
+3 - Company (default = 0 representing All companies, but can be co specific). Domain tcncmp<br />
+4 - Table (8xchar text)<br />
+5 - Table-field (8xchar text)<br />
+<br />
+The reference from child to parent via combined field works perfectly now as long as #1 GROUP &amp; #3 Company both have values greater than ZERO.   But, by default, company #3 will be zero.  So the reference is problematic.  It corrupts calls to the parent from child in program scripts and DAL.<br />
+<br />
+Initially, I thought it could be the special company domains tccomp and tcncmp.  So I created a new tx domain of type integer.  But..... the issue persists.  See attached screenshot.<br />
+<br />
+Note – I looked at table tdsls401 and tdsls402.  401 contains sqnb (also integer) usually zero.  402 references 401 perfectly and the related sessions seem to work as expected.<br />
+<br />
+I hope we can solve this. Else I will wait for official support and give an update here anyhow.<br />
+<br />
+Cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">25th January 2023, 01:02</div></div><div class="posttext">Hello Omeluuk,<br />
+<br />
+Firstly, thanks for taking the time to look into this.  Greatly appreciated.WelcomeI found the problem, but not sure how to solve it.  BTW, This can easily be replicated in any Baan/Infor system.  Table settings below.   <br />
+The issue is Company number Zero - #3 below.<br />
+Similar I have such table field:... and (tccom905.comp = :4 or tccom905.comp = 0)<br />
+order by tccom905._index1 desc<br />
+as set with 1 rows<br />
+hint use index 1 on tccom905<br />
+wherebind(4, get.compnr()) But in my case it is not in a combined field nor index. Eager to learn what the solution is Support will be offering...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">25th January 2023, 07:55</div></div><div class="posttext">I'm curious to know whether this is a Database issue, so if anyone has the time to reproduce the setup (2 tables, cmba ref and 2 sessions), I'd massively appreciate it .<br />
+<br />
+Cheers!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">25th January 2023, 09:15</div></div><div class="posttext">FYI, for now I'm converting comp field to use domain txvcmp (virtual co - now a string) in order to utilize the zero (blank) and easy convert the domain back to integer later (which should auto-convert the data too).  And, I also wont have  sql calls.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">31st January 2023, 19:29</div></div><div class="posttext">Reference mode on parent 'combined' field can be set to &quot;mandatory&quot; while it's children may be set to &quot;mandatory unless empty&quot; (if related to other tables individually).  <br />
+<br />
+References then appear correctly on the form.  <br />
+<br />
+No problems found [yet] with ref mode mandatory.  <br />
+<br />
+This solution works for both numbered fields = 0 and empty strings.<br />
+<br />
+Cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">2nd February 2023, 18:11</div></div><div class="posttext">Glad you found and shared your solution.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

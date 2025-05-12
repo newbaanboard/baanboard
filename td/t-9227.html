@@ -1,0 +1,130 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Baan Text Upload, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Baan Text Upload Tools Development" />
+	
+	<title>Baan Text Upload [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Baan Text Upload</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">sant123</div><div class="date">12th March 2003, 20:58</div></div><div class="posttext">I have an input ascii file with the part no and a 60char long text(String) seperated by a delimiter, I have written a session to load the Item Text in Baan, I am not sure that is the optimal way of doing it, hence I need some inputs. The steps are as follows:<br />
+<br />
+Read the input Ascii file,<br />
+( format Item1~someString<br />
+              Item1~someString1<br />
+              Item3~somestring2<br />
+               ........etc<br />
+)<br />
+<br />
+Open a tempfile for write<br />
+<br />
+Read each input line and write the text string to the temp file, after all the text lines are written for an Item use text.write() function to write the Baan Text and commit.<br />
+<br />
+For text.write there has to be an input file, Is there anything else I can do to avoid this file processing, or Is there anyother way of loading text to Baan ( apart from Baan Exchange).<br />
+<br />
+Appreciate any help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">KDrysch</div><div class="date">13th March 2003, 16:12</div></div><div class="posttext">We just recently converted onto Baan Vc and we used Exchange to load text. That was the only option available other than writing your own program (as you did).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pandy1909</div><div class="date">3rd October 2003, 13:36</div></div><div class="posttext">I have to update my Item text from an ascii file with data say as follows:<br />
+<br />
+Item Code ~ Line1Text~Line2Text~Line3Text<br />
+Item Code1 ~ Line1Text~Line2Text<br />
+Item Code2 ~ Line1Text~Line2Text~Line3Text~Line4Text<br />
+........<br />
+<br />
+Going through this and other posts, i intend to try the following:<br />
+<br />
+1. Read the seq file.<br />
+1a. while not eof<br />
+<br />
+    create a temporary file<br />
+    <br />
+    |*  tempfile.name = creat.tmp.file$(bse.tmp.dir$())<br />
+    |*  tempfile.seq = seq.open(tempfile.name,&quot;w&quot;)<br />
+   <br />
+{<br />
+2. write each text between the separating charector as a text line<br />
+    to a temporary file (basically i intend to read the each line char by char, till i encounter the ~ sign and then upto the point, write the buffer.<br />
+(Q. If anyone knows a better method of reading a file , where fields are delimeted by a char, please advise)<br />
+}<br />
+<br />
+     |*  e = seq.puts(tmp_buf,80,tempfile.seq)<br />
+     |*  seq.close(tempfile.seq)<br />
+<br />
+3.now update the item text with the temp created text file in step 2<br />
+<br />
+     |* rc = text.write(&quot;tiitm001.txta&quot;,&quot;lang&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;,tempfile.name) <br />
+     <br />
+    <br />
+Do you think this would work? Will it create the text with as many lines as there are in text file ?<br />
+<br />
+I do not want to use exchange.<br />
+<br />
+thanks for you help<br />
+<br />
+SP</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">3rd October 2003, 15:15</div></div><div class="posttext">Should work OK.  Just one change in step 3:if tiitm001.txta = 0 then<br />
+   text.write(...)<br />
+else<br />
+   text.rewrite(...)<br />
+endif<br />
+As for the number of lines, the function text.write will write the whole file to the text field, regardless of the number of lines.  Parsing into lines can be done better as well:function long parse(string inputstr(1024), string seperator(1), long outfile)<br />
+{<br />
+   string linestr(80)<br />
+   long   numlines<br />
+<br />
+   numlines = 0<br />
+   while (len(inputstr) &gt; 0)<br />
+      linestr = inputstr(1;pos(inputstr, seperator) - 1)<br />
+      inputstr = inputstr(pos(inputstr, seperator) + 1;1024)<br />
+      if numlines = 0 then<br />
+         | This is the item number<br />
+         numlines = numlines + 1<br />
+      else<br />
+         seq.puts(linestr, outfile)<br />
+         numlines = numlines + 1<br />
+      endif<br />
+   endwhile<br />
+<br />
+   return(numlines)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">3rd October 2003, 15:20</div></div><div class="posttext">Oops!  Forgot something.  The text.(re)write functions creates or updates the text, but not the item table.  Thus, the first piece of code should be:<br />
+<br />
+db.retry.point()<br />
+item = inputstr(1;pos(inputstr, &quot;~&quot;) - 1)<br />
+select  tiitm001.*<br />
+from    tiitm001 for update<br />
+where   tiitm001.item = :item<br />
+selectdo<br />
+   if parse(inputstr, &quot;~&quot;) &gt; 0 then<br />
+      if tiitm001.txta = 0 then<br />
+         text.write(...)<br />
+      else<br />
+         text.rewrite(...)<br />
+      endif<br />
+      db.update(ttiitm001, db.retry)<br />
+   endif<br />
+endselect<br />
+commit.transaction()</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

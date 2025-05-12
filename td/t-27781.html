@@ -1,0 +1,87 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Validation with set.input.error(), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Validation with set.input.error() Tools Development" />
+	
+	<title>Validation with set.input.error() [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Validation with set.input.error()</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Joy Conner</div><div class="date">3rd August 2006, 15:54</div></div><div class="posttext">I use set.input.error() in the check.input field sections and I have experienced some intermitant integrity problems since we have migrated from IVc3 to IVc4.  I use QKEY and I have significant logic added to the order entry program which is executed when user tabs through the quantity ordered field.  The custom logic calculates a price or returns an error.  Here is my code:<br />
+<br />
+field.tdsls041.oqua:<br />
+after.input:<br />
+       error.sw = tcyesno.no<br />
+       tdsls041.pric = calculate.price()<br />
+check.input:<br />
+        if error.sw = tcyesno.yes then<br />
+                 set.input.error(&quot;&quot;, error.msg)<br />
+        endif<br />
+error.sw and error.msg are global variables set in the function calculate.price().<br />
+<br />
+Several times, I have simulated an error condition, tried to save the data and I have not been successful.  This is a brainstorming exercise.<br />
+<br />
+One observation that I have made for nearly all transactions that were written in error is the Price Level field on form1 of Maintain Sales Order Lines is &quot;Item&quot;, versus &quot;Manually Entered&quot;.  I do not know what my user is executing to bring this about.  Any ideas on this?  Some keystroke combination that causes the standard package to read the sales price in the item master and save the data?<br />
+<br />
+Another consideration is what more I should do to trap an error condition.  For example.<br />
+<br />
+main.table.io:<br />
+before.write:<br />
+        if error.sw = tcyesno.yes then<br />
+              abort.io(error.message)<br />
+        endif<br />
+<br />
+Any other ideas?<br />
+<br />
+Thank you in advance for your responses. - Joy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd August 2006, 17:03</div></div><div class="posttext">Are you sure it is the user and not something else in Baan?  The reason I say this is that we have a program with a header and lines.  I have not been able to duplicate it, but in some cases the header gets deleted and the lines remain.  Users claim they can not do that also - but something somewhere does it.  Just a warning I guess.<br />
+<br />
+The next question is do you make sure check.all.input runs?  In a couple of Baan session I have managed to &quot;click&quot; past an error.  I mean the error.sw will not be set unless the oqua was changed or input.  Could they just change from manually entered to item after doing it right once. I really do not know anything about the session.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rjohmit</div><div class="date">3rd August 2006, 17:06</div></div><div class="posttext">Is that the proper syntax for set.input.error?  Does it display the error message properly?  When I use set.input.error, it looks something like this... <br />
+<br />
+set.input.error(&quot;tdinv9464.01&quot;,1)<br />
+<br />
+The &quot;tdinv9464.01&quot; is a message defined in the &quot;Maintain Message&quot; session.  So I'm confused by the a null string in the message argument and a variable containing the error message in the 2nd argument.<br />
+<br />
+The help on set.input.error says that the message must be defined in the data dictionary.  If the empty string is given as the argument, no error message is given.  It also states that the message argument may contain format characters as &quot;%d&quot;, &quot;%s&quot; for parameter substitution.  The values which must be substituted are specified in the second, third, ... arguments of the function.<br />
+<br />
+I'm wondering if you're confusing the function.  Just a guess.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rjohmit</div><div class="date">3rd August 2006, 17:08</div></div><div class="posttext">Could they just change from manually entered to item after doing it right once. I really do not know anything about the session.<br />
+I believe that field is display only...the system sets it based on where the price came from.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">3rd August 2006, 22:45</div></div><div class="posttext">The problem is most likely that they price is reset based on another field they enter, not just Order Quantity.  You may set it fine, with no 'error.sw' as they go through the quantity, but another field they change resets the price when it's changed.  So you should maybe trace the price field and see when it's changed, if you can duplicate.<br />
+<br />
+The check before write should also trap the errors, but you are checking for 'error.sw' being set.  It will not be set correctly if they passed the order quantity check and the price was changed elsewhere.  You would need to call the routine that checks for the error again.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Joy Conner</div><div class="date">3rd August 2006, 23:00</div></div><div class="posttext">The error.sw is set to tcyesno.no when user executes recover.set.  <br />
+<br />
+It was intended that when a user encounters some error condition, a message is displayed, user is allowed to undo, effectively reversing the error.sw to tcyesno.no and they continue with the next sales line.  And I assumed that the user would follow up internally about the line producing an error message.<br />
+<br />
+I have learned that clicking the undo button twice leaves the error.sw set to no.  The second undo puts the record back in the buffer and the user is allowed to save the record.<br />
+<br />
+Guess I need to give more thought to this.:( <br />
+<br />
+I want to thank everyone for their feedback.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

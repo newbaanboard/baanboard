@@ -1,0 +1,120 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Query Performance, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Query Performance Tools Development" />
+	
+	<title>Query Performance [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Query Performance</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">stecorp</div><div class="date">1st April 2013, 11:34</div></div><div class="posttext">I have created the report session to output only the Demand forecast for the sales items based on the user selection. <br />
+<br />
+Please find the attached file for session filters. Actually it is working but its taking long time , Is there any other way to write this query in performance<br />
+point of view.<br />
+<br />
+select	a.item, a.plni<br />
+	from cprpd100 a<br />
+	where a.item in (select tcibd001.item from tcibd001<br />
+			where tcibd001.item &gt;=:i.item.f<br />
+			and tcibd001.item &lt;=:i.item.t<br />
+			and tcibd001.csig = &quot;40&quot;  <br />
+			and tcibd001.citg = :i.citg)<br />
+	 and Exists (select tdisa010.item from tdisa010<br />
+                                       where tdisa010.stbp &gt;= :i.stbp.f<br />
+			and tdisa010.stbp &lt;= :i.stbp.t<br />
+			and tdisa010.item = a.item)<br />
+<br />
+Any help in this regard is highly appreciated.<br />
+<br />
+Thanks in advance...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">saumya</div><div class="date">1st April 2013, 12:19</div></div><div class="posttext">Use index, instead of tcibd001.item use tcibd001._index1;<br />
+instead of tcibd001.citg use tcibd001._index4<br />
+instead of tdisa010.stbp use tdisa010._index2<br />
+instead of tdisa010.item use tdisa010._index3</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">1st April 2013, 12:23</div></div><div class="posttext">select	a.item, a.plni<br />
+from cprpd100 a<br />
+where a.item in (select tcibd001.item from tcibd001<br />
+where tcibd001._index1 inrange {:item.f} and {:item.t}<br />
+and tcibd001.csig = &quot;40&quot; <br />
+and tcibd001._index4 = :i.citg)<br />
+and Exists (select tdisa010.item from tdisa010<br />
+where tdisa010._index3 = a.item<br />
+and tdisa010._index2 inrange {:i.stbp.f}and {:i.stbp.t})<br />
+<br />
+Try this. Query using indexes are faster.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">stecorp</div><div class="date">2nd April 2013, 03:05</div></div><div class="posttext">Hi saumya and bhushanchanda,<br />
+<br />
+Thanks a lot for your great help. Now the query is very fast.<br />
+<br />
+As I am new to tools development, your explanations helped me to understand the usage of Index.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">knkt03734</div><div class="date">15th April 2013, 22:21</div></div><div class="posttext">I am new and start to learn this language. I have task need to convert the script into sql.  There are some things that i need your help with.<br />
+<br />
+1. What is._index1, 2, 3, 4 <br />
+Why use  tcibd001._index1 instead of   tcibd001.item  and <br />
+instead of tcibd001.citg use tcibd001._index4 ?<br />
+instead of tdisa010.stbp use tdisa010._index2?<br />
+instead of tdisa010.item use tdisa010._index3?<br />
+<br />
+2. What is the meaning of &gt;=:i.item.f ?<br />
+<br />
+3. what is inrange {:item.f} and {:item.t} ?<br />
+<br />
+4. tibom010._index1 = {:tdsls401.item} ?<br />
+<br />
+Thank you<br />
+<br />
+KTKN</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">15th April 2013, 23:43</div></div><div class="posttext">1. Not sure about SQL, but with Oracle using the _index4 tells the optimizer or the oracle query plan to use that specific index.  Not sure if the wording is correct.<br />
+<br />
+2. &gt;= :i.item.f means find all items greater than the value of i.item.f.    <br />
+<br />
+3. The inrange means to find all values between the item.f and item.t.  <br />
+<br />
+4. The tibom010._index1  questions means use index 1 and find the items matching the tdsls401.item.  In this case it only uses the item part of the index.<br />
+<br />
+There is a manual attached to the forum that I suggest you peruse for write baan sql code.  It might answer some of your questions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">16th April 2013, 06:07</div></div><div class="posttext">Hi,<br />
+<br />
+By your question I will assume that you have not yet got your tools training. But for your questions in addition to Mark's answers I would like to add a few lines.<br />
+<br />
+1. If you know, every table has some primary keys. So, indexes are nothing but the primary keys of a table. A primary key can be a group of fields or a single field of a particular table. The 1st primary key is index1 , 2nd primary key is index2 and likewise.<br />
+So, when you say tablename._index1 it means 1st primary key of a table.<br />
+<br />
+2. &gt;= :i.item.f states that, you are querying for the items greater than or equal to the items in a table where i.item.f is a form field and not a table field.<br />
+<br />
+3. Inrange is used to get the values between two fields. Here, item.f and item.t<br />
+<br />
+4. tibom010._index1 is compared with tdsls401.item which will give you all the records of tibom010 table where tibom010.item field of tibom010 table are equal to tdsls401.item field in table tdsls401<br />
+<br />
+You can get Programmers Guide which comes with Standard LN installation media's else as Mark suggested use this :- Programmer's Manual (http://www.baanboard.com/programmers_manual_baanerp) of Baanboard.<br />
+<br />
+Keep practicing.<br />
+<br />
+NOTE:- Its not always possible to use index fields as we sometimes need to put the other table fields in the WHERE clause. But, whenever the field in WHERE clause is an index field, you should use in the above mentioned way as index based searching/querying is always a faster way to get the data.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

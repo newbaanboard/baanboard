@@ -1,0 +1,138 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Entering data on form type 3, with barcode; data+tab, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Entering data on form type 3, with barcode; data+tab Tools Development" />
+	
+	<title>Entering data on form type 3, with barcode; data+tab [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Entering data on form type 3, with barcode; data+tab</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">pellus</div><div class="date">9th May 2007, 20:45</div></div><div class="posttext">I have a problem that probably is simple but I don't get it right.<br />
+(LN fp3)<br />
+The user has a sheet with barcodes, like a form type 3. On top a sls order number, and then rows with serial numbers. <br />
+The scanning equipment is programmed to deliver data+tab to baan.<br />
+<br />
+The input screen should look like the barcode sheet, i.e. type 3. A header with the sls order and lines with serial numbers.<br />
+<br />
+Now I want to fill in a table from this sheet, using the barcodes. The user should only have to scan, no keying at all.<br />
+<br />
+Main problem: I can get the header field (sls order) to be ready for input when starting the session. But then the 'tab' from the barcode, after getting the sls order in, should make the lines on the screen (serial numbers) ready to take the next scan. How to do this.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">16th May 2007, 10:47</div></div><div class="posttext">I use such a system as part of our freight management. The user has to scan barcodes (EAN13 and CR as endchar) on the packages to build SSCCs. No keying is required.<br />
+<br />
+A snapshot of the form is attached.<br />
+<br />
+This is the part of the code for the barcode-scanning:<br />
+<br />
+<br />
+|****************************** field section ********************************* <br />
+field.modus.f:<br />
+before.display:<br />
+	if isspace(modus.f)<br />
+	then<br />
+		modus.f = &quot;Bereit&quot;  |* Ready<br />
+	endif<br />
+<br />
+	attr.cf = 4<br />
+<br />
+|****************************** function section ******************************<br />
+functions:<br />
+<br />
+function start.input.data()<br />
+{<br />
+<br />
+	long        i<br />
+	string      keyin.char(1)<br />
+	domain      tcbool      exit.loop<br />
+<br />
+	exit.loop = false<br />
+<br />
+	| Bildschirm anzeige<br />
+	modus.f = &quot;Datenerfassung ein&quot;  |* Ready for automatic input<br />
+	display(&quot;modus.f&quot;)<br />
+<br />
+	repeat <br />
+		for i = 1 to 14<br />
+			refresh()<br />
+			keyin.char = keyin$()<br />
+			if keyin.char = chr$(27) <br />
+			then<br />
+				exit.loop = add.new.nve()<br />
+				break<br />
+			else<br />
+				if keyin.char &lt;&gt; chr$(13)<br />
+					and i &lt; 14<br />
+				then<br />
+					if keyin.char = &quot;a&quot;<br />
+						or keyin.char = &quot;A&quot;<br />
+					then<br />
+						add.whole.delivery()<br />
+						result.string = &quot;&quot;<br />
+						exit.loop = FALSE<br />
+						break<br />
+					else<br />
+						result.string(i;1) = keyin.char<br />
+					endif<br />
+				else<br />
+					exit.loop = false<br />
+					break<br />
+				endif<br />
+			endif<br />
+		endfor<br />
+        <br />
+		| Eingabe beenden oder Datensatz erzeugen<br />
+		if not exit.loop<br />
+		then<br />
+			in.eanc = result.string<br />
+			<br />
+			if not isspace(in.eanc)<br />
+			then<br />
+				add.new.package(<br />
+						in.eanc)<br />
+			endif<br />
+		endif<br />
+		result.string = &quot;&quot;<br />
+	until exit.loop<br />
+<br />
+	modus.f = &quot;&quot;<br />
+	display(&quot;modus.f&quot;)<br />
+}<br />
+<br />
+Escape cancels the input, a or A adds all packages of a delivery to a SSCC (in german NVE).<br />
+<br />
+Hope this helps<br />
+<br />
+Regards<br />
+Christof</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pellus</div><div class="date">17th May 2007, 17:39</div></div><div class="posttext">Thanks for your input Cseqgn. In fact I think I did the screen-handling anyway but your reply triggs another question: What do you mean by building SSCC. (I don't know what SSCC is). I have the feeling we are doing about the same thing. Do you use SSA LN &quot;Handling Units&quot;?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">18th May 2007, 15:45</div></div><div class="posttext">No, I'm on Baan IV. We've written our own freight management (it started a few years ago with: I only need 4 lists and we are not a transportation company... . :D ).<br />
+<br />
+SSCC means Serial Shipping Container Code, an standardized, worldwide unique international package code. <br />
+<br />
+Sorry, I cannot explain it well in english, for further information take a look at wikipedia (http://en.wikipedia.org/wiki/Serial_Shipping_Container_Code). <br />
+<br />
+Regards<br />
+Christof</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pellus</div><div class="date">20th May 2007, 13:58</div></div><div class="posttext">Yes, now I am educated on the matter, after some more googling. Thanks.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

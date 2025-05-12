@@ -1,0 +1,338 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Uploading of text, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Uploading of text Tools Development" />
+	
+	<title>Uploading of text [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Uploading of text</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">teddybear</div><div class="date">4th August 2005, 08:30</div></div><div class="posttext">I understand that uploading of text from Excel is not supported by API. Is there any other way that we can upload text into BaaN ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Rita Kotecha</div><div class="date">4th August 2005, 14:22</div></div><div class="posttext">Have you tried ttaad4227m000 create table from sequential dump ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th August 2005, 14:49</div></div><div class="posttext">You can load text using exchange schemes.  Or you can just write a program to read the text and write it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">4th August 2005, 17:45</div></div><div class="posttext">I did write some code for an Exchange Script condition which pulls text out of a spreadsheet / ascii file and adds it as text against the item. If anybody is interested I'll post it.<br />
+<br />
+Cheers<br />
+Neal Matthews<br />
+IT Support Analyst<br />
+ATY Automotive &amp; Industrial Components (UK) Ltd.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">prademaker</div><div class="date">8th August 2005, 15:00</div></div><div class="posttext">I came across the same limits of AFS. I wanted to add text to a specific salesorder line.<br />
+<br />
+I solved my problem by writing two functions. The first finds the salesorder and eventually existing text, the second one creates/rewrites the text using the standard functions TEXT.WRITE and TEXT.REWRITE from bic_text.<br />
+<br />
+Both are in a custom dll &quot;zoslsdllvbbaan&quot;.<br />
+<br />
+From a VB-application, the user selects the Order/line and  the text. Hitting the button sends it right into Baan using OLE.<br />
+<br />
+Here's my Baan code, i hope it's usefull to anyone:<br />
+<br />
+<br />
+function extern	domain tcinvn	zoslsdllvbbaan.find.text( 	<br />
+		 			domain	tcorno	i.orno,<br />
+		 			domain	tcpono  i.pono,<br />
+					string i.text(4000) )<br />
+{<br />
+	domain tcmcs.str1 current.clan<br />
+	db.retry.point()	<br />
+	select tdsls041.txta, tdsls040.clan<br />
+	from	tdsls041 for update, tdsls040<br />
+	where tdsls041._index1 = { :i.orno, :i.pono }<br />
+	and tdsls041.orno refers to tdsls040<br />
+	selectdo<br />
+	selectempty<br />
+	endselect<br />
+		on case tdsls040.clan<br />
+		case &quot;  N&quot;:<br />
+			current.clan = &quot;1&quot;<br />
+			break<br />
+		case &quot; NL&quot;:<br />
+			current.clan = &quot;1&quot;<br />
+			break<br />
+		case &quot;  F&quot;:<br />
+			current.clan = &quot;4&quot;<br />
+			break<br />
+		case &quot; FR&quot;:<br />
+			current.clan = &quot;4&quot;<br />
+			break<br />
+		case &quot;  E&quot;:<br />
+			current.clan = &quot;2&quot;<br />
+			break<br />
+		case &quot;  D&quot;:<br />
+			current.clan = &quot;3&quot;<br />
+			break<br />
+		default:<br />
+			current.clan = &quot;1&quot;<br />
+		endcase<br />
+		write.item.text( tdsls041.txta, &quot;tdsls041.txta&quot;, current.clan, i.text)<br />
+		db.update(ttdsls041, db.retry)<br />
+		commit.transaction()<br />
+	 <br />
+<br />
+	return( tdsls041.txta )<br />
+	<br />
+}<br />
+<br />
+		<br />
+<br />
+function write.item.text( domain tcinvn text.number, domain tcmcs.str15 text.field, <br />
+			  domain tcmcs.str1 clan, string  i.text(4000))<br />
+{<br />
+	long		l.ret<br />
+	long		l.layout.lfn<br />
+	string		l.layout(128)<br />
+	string 		line(80)<br />
+<br />
+	long counter<br />
+		<br />
+	if strip$(i.text) &gt; &quot;&quot; then<br />
+		<br />
+		l.layout = creat.tmp.file$(bse.tmp.dir$())	| Create a temporary ASCII file.		<br />
+		l.layout.lfn = seq.open(l.layout, &quot;a&quot;)		| Open ASCII file.		<br />
+		l.ret = seq.puts(i.text, l.layout.lfn) 		| Write string that must be added to text into  ASCII file.<br />
+		seq.close(l.layout.lfn)				| Close ASCII file.<br />
+		attr.textkw1$  = &quot;Verkoop&quot;<br />
+		attr.textkw2$  = &quot;&quot;<br />
+		attr.textkw3$  = str$(tdsls041.orno)<br />
+		attr.textkw4$  = &quot;&quot;<br />
+		attr.textgrp   = &quot;tsls&quot;<br />
+		attr.textopt$  = &quot;&quot;<br />
+		attr.textlang$ = clan		 <br />
+	| If text present, then rewrite, else write!<br />
+		if text.number &lt;&gt; 0 then<br />
+			l.ret = TEXT.REWRITE(<br />
+					text.field, <br />
+					attr.textlang$,<br />
+					attr.textkw1$,<br />
+					attr.textkw2$,<br />
+					attr.textkw3$,<br />
+					attr.textkw4$,<br />
+					attr.textgrp, <br />
+					attr.textopt$, <br />
+					l.layout)<br />
+		else<br />
+			l.ret = TEXT.WRITE(<br />
+					text.field, <br />
+					attr.textlang$,<br />
+					attr.textkw1$,<br />
+					attr.textkw2$,<br />
+					attr.textkw3$,<br />
+					attr.textkw4$,<br />
+					attr.textgrp, <br />
+					attr.textopt$, <br />
+					l.layout)<br />
+		endif<br />
+		seq.unlink(l.layout)<br />
+	endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bkkland</div><div class="date">6th May 2011, 00:23</div></div><div class="posttext">I did write some code for an Exchange Script condition which pulls text out of a spreadsheet / ascii file and adds it as text against the item. If anybody is interested I'll post it.<br />
+<br />
+Cheers<br />
+Neal Matthews<br />
+IT Support Analyst<br />
+ATY Automotive &amp; Industrial Components (UK) Ltd.<br />
+<br />
+<br />
+Hi Neal,<br />
+<br />
+could you share the code? I want to uplaod test to item table using echange scheme but didn't work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mpfaender</div><div class="date">6th May 2011, 11:06</div></div><div class="posttext">Hi bkkland,<br />
+<br />
+when you want to insert text with exchange schemes you've to consider somethings. The structure of cvs file must be as following.<br />
+<br />
+In this example we want appending text to table tccom110 (Sold To).<br />
+<br />
+4711 the number of Sold To, 4712 is the second Sold To.<br />
+{\{...}\}  entclose all text rows<br />
+txta defines the text field in table tccom110<br />
+the value 2 after txta defines the language of the text. it's import the language number must be on position 9!!!<br />
+<br />
+4711<br />
+{\{txta    2<br />
+Sold to of 4711 text row 1<br />
+Sold to of 4711 text row 2<br />
+Sold to of 4711 text row 3<br />
+Sold to of 4711 text row 4<br />
+}\}<br />
+4712<br />
+{\{txta    2<br />
+Sold to of 4712 text row 1<br />
+Sold to of 4712 text row 2<br />
+Sold to of 4712 text row 3<br />
+Sold to of 4712 text row 4<br />
+}\}<br />
+<br />
+When you have more then one fields to update table tccom110 the structure looks like this.<br />
+The second value after the Sold To number is the Sold To Status for example.<br />
+4711^1<br />
+{\{txta    2<br />
+Sold to of 4711 text row 1<br />
+Sold to of 4711 text row 2<br />
+Sold to of 4711 text row 3<br />
+Sold to of 4711 text row 4<br />
+}\}<br />
+<br />
+best regards<br />
+michael</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bkkland</div><div class="date">6th May 2011, 18:44</div></div><div class="posttext">Is the format the same for single line text? <br />
+<br />
+I'm trying to upload the item text (tiitm001)<br />
+<br />
+Now the condition syntax is OK, but the import data still has error, which I don't know what it is. :confused:<br />
+<br />
+Do you include the path of the text file on the text.write(...)?<br />
+<br />
+Thank you for oyur help!!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">12th May 2011, 13:52</div></div><div class="posttext">Hello sorry for the delay it took me a while to dig this out from our old server. This basically was generating text for items already loaded onto our system from a spreadsheet which I saved as a csv file. The csv file is then read and a temp file generated for each item. Finally the text.rewrite function is called. Please test before using. <br />
+<br />
+Good luck Neal<br />
+<br />
+|****************************************************************<br />
+|*** Exchange script for purch text creation<br />
+|*** NAM 18/08/03<br />
+|****************************************************************<br />
+|**<br />
+|** Use low level file handling to pull in downloaded files<br />
+|**<br />
+|** Function then writes and appends to required tables<br />
+|**<br />
+|****************************************************************<br />
+<br />
+long open.ptr,put.ptr,close.ptr,fd,rt,size,mode,read,nrbytes<br />
+long m_pos,offset,n,m_start,m_end<br />
+<br />
+string m_bit(1),m_string(159),m_item(7),m_type(17)<br />
+string m_grade(28),m_dima(5),m_dimb(5),m_wall(6),m_length(8),m_tol(7),m_draw(27),m_other(47)<br />
+string cdir(80),fname(80)<br />
+<br />
+cdir = &quot;/triappiv/exchange/pur003/textfile/&quot;<br />
+<br />
+fd = dir.open(cdir)<br />
+<br />
+fname = &quot;text.txt&quot;<br />
+<br />
+open.ptr = seq.open(strip$(cdir) &amp; strip$(fname),&quot;rt&quot;)<br />
+<br />
+|message(strip$(cdir) &amp; strip$(fname))<br />
+n = 0<br />
+m_start = 0<br />
+m_pos = 0<br />
+<br />
+	repeat<br />
+		offset = seq.seek(m_pos,0,open.ptr)<br />
+		read = seq.read(m_bit,1,open.ptr)<br />
+<br />
+		if m_bit=chr$(10) then<br />
+			m_end = n<br />
+<br />
+			offset = seq.seek(m_start,0,open.ptr)<br />
+			read = seq.read(m_string,m_end - m_start,open.ptr)<br />
+		<br />
+			m_item = m_string(2;7)<br />
+			m_type = m_string(9;17)<br />
+			m_grade = m_string(26;28)<br />
+			m_dima = m_string(54;5)			<br />
+			m_dimb = m_string(59;5)<br />
+			m_wall = m_string(64;6)<br />
+			m_length = m_string(70;8)<br />
+			m_tol = m_string(78;7)<br />
+			m_draw = m_string(85;27)<br />
+			m_other = m_string(112;47)<br />
+<br />
+			|message(m_item) <br />
+			|message(m_type)		<br />
+			|message(m_grade)<br />
+			|message(m_dima)<br />
+			|message(m_dimb)<br />
+			|message(m_wall)<br />
+			|message(m_length)<br />
+			|message(m_tol)<br />
+			|message(m_draw)<br />
+			|message(m_other)<br />
+			<br />
+			txtwrite(m_item,m_type,m_grade,m_dima,m_dimb,m_wall,m_length,m_tol,m_draw,m_other)<br />
+			<br />
+			m_start = m_end + 1<br />
+		endif<br />
+	<br />
+		n = n + 1	<br />
+		m_pos = n<br />
+	<br />
+	until m_bit = &quot;&quot;<br />
+<br />
+return (false)<br />
+}<br />
+<br />
+function txtwrite(string m_item(7), string m_type(17), string m_grade(28), <br />
+			string m_dima(5), string m_dimb(5), string m_wall(6), <br />
+			string m_length(8), string m_tol(7), string m_draw(27), <br />
+			string m_other(47))<br />
+{<br />
+<br />
+long ret<br />
+table ttttxt001<br />
+string m_text(4000)<br />
+<br />
+|* Use text write function for each item but first set up text in tmp file<br />
+<br />
+m_text=	&quot;TYPE - &quot; &amp; m_type &amp; chr$(10) &amp; chr$(13) &amp; <br />
+	&quot;GRADE - &quot; &amp; m_grade &amp; chr$(10) &amp; chr$(13) &amp; <br />
+	&quot;DIAMETER/DIM A - &quot; &amp; m_dima &amp; chr$(10) &amp; chr$(13) &amp; <br />
+	&quot;DIM B - &quot; &amp; m_dimb &amp; chr$(10) &amp; chr$(13) &amp; <br />
+	&quot;WALL - &quot; &amp; m_wall &amp; chr$(10) &amp; chr$(13) &amp; <br />
+	&quot;LENGTH - &quot; &amp; m_length &amp; chr$(10) &amp; chr$(13) &amp; <br />
+	&quot;LENGTH TOL. - &quot; &amp; m_tol &amp; chr$(10) &amp; chr$(13) &amp; <br />
+	&quot;DRAWING - &quot; &amp; m_draw &amp; chr$(10) &amp; chr$(13) &amp; <br />
+	&quot;OTHER REQUIREMENTS - &quot; &amp; m_other<br />
+<br />
+ret = seq.open(&quot;/triappiv/exchange/pur003/textfile/text.log&quot;,&quot;a+&quot;)<br />
+seq.puts(&quot;&quot;,ret)<br />
+seq.puts(m_item,ret)<br />
+seq.puts(m_text,ret)<br />
+seq.puts(&quot;&quot;,ret)<br />
+seq.close(ret)<br />
+<br />
+ret = seq.open(&quot;/triappiv/exchange/pur003/textfile/&quot; &amp; m_item &amp; &quot;.txt&quot;, &quot;w+&quot;)<br />
+seq.puts(m_text,ret)<br />
+seq.close(ret)<br />
+<br />
+select tiitm001.item,tiitm001.seak,tiitm001.seab,tiitm001.txta from tiitm001 for update <br />
+where tiitm001._index1 ={:m_item}<br />
+selectdo<br />
+ret = text.rewrite(&quot;tiitm001.txta&quot;,&quot;2&quot;,&quot;Item text G&quot;, tiitm001.seak, tiitm001.seab, <br />
+		tiitm001.item,&quot;text&quot;,&quot;text&quot;, &quot;/triappiv/exchange/pur003/textfile/&quot; &amp; m_item &amp; &quot;.txt&quot;)<br />
+<br />
+db.update(ttiitm001,DB.RETRY)<br />
+<br />
+endselect<br />
+commit.transaction()</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

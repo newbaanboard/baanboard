@@ -1,0 +1,116 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="&quot;ttstpsplopen&quot; handling in tfgld1111s000 using AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] &quot;ttstpsplopen&quot; handling in tfgld1111s000 using AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>&quot;ttstpsplopen&quot; handling in tfgld1111s000 using AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; &quot;ttstpsplopen&quot; handling in tfgld1111s000 using AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">kiran kumar</div><div class="date">15th June 2011, 13:26</div></div><div class="posttext">Hi Gurus,<br />
+<br />
+            I want to finalize the batches using AFS. I am calling the session tfgld1110m000 and clicking the select button with proper run no. and getting the sub session tfgld1111s000 to select the all batches to finalize. When I am clicking the Finalize button , a report should be displayed automatically.But here the spool device handler &quot;ttstpsplopen&quot; sub process session window is popping out for manual input. How to handle the &quot;ttsstpsplopen&quot; in AFS ? Please find the attachment of my sample script and suggest me that any modifications required.<br />
+<br />
+Thanks in advance</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">15th June 2011, 15:42</div></div><div class="posttext">Since I really do not know these sessions - which session generates the report? Is it tfgld1111s000?  If so then try setting the report using stpapi.set.report.  If it is a subsession that tfgld1111s000 spawns then you need to control that and set stpapi.set.report for it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kiran kumar</div><div class="date">27th July 2011, 11:22</div></div><div class="posttext">Hi Mark,<br />
+<br />
+             We can use stpapi.set.report when the report linked to particular session. Here the reports linked to other sub session which is generating after &quot;Generate&quot; button click event. I am trying to handle the sub session but some parameter values not passing to that session from parent session.Can you suggest me any other solution pls?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th July 2011, 15:23</div></div><div class="posttext">Post all of your code.  I might be able to make suggestions.  From looking at the code you have attached - I would expect to see something like this:<br />
+<br />
+ |after all batches selection <br />
+	stpapi.set.report(&quot;tfgld1111s000&quot;,&quot;rtfgld121111000&quot;,&quot;D&quot;,err.mesg)<br />
+	stpapi.continue.process(&quot;tfgld1111s000&quot;,err.mesg)<br />
+ 	stpapi.end.session(&quot;tfgld1111s000&quot;)<br />
+  	stpapi.end.session(&quot;tfgld1111s000&quot;)<br />
+	stpapi.end.session(&quot;tfgld1110m000&quot;)<br />
+<br />
+That is all I would expect to see.  You do not have to put any fields to ttstpsplopen<br />
+<br />
+This is a simple sample I created once.<br />
+<br />
+ 	spool.device = &quot;D66&quot;<br />
+ 	stpapi.set.report(&quot;tcmcs0403m000&quot;,&quot;rtcmcs040301000&quot;,spool.device,err)<br />
+ 	stpapi.continue.process(&quot;tcmcs0403m000&quot;,err)<br />
+ 	stpapi.end.session(&quot;tcmcs0403m000&quot;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kiran kumar</div><div class="date">27th July 2011, 17:31</div></div><div class="posttext">Hi Mark ,<br />
+Thank you for your quick response. Please find the new attachment.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th July 2011, 19:46</div></div><div class="posttext">There are issues and I can make a recommendation, but don't have a solution.  There have been known issues with sessions that automatically zoom to another session and start running. So first the code - I stripped out everything I did not need to process a single batch.<br />
+<br />
+<br />
+	stpapi.put.field(&quot;tfgld1110m000&quot;,&quot;tfgld109.year&quot;,str$(2011))<br />
+	stpapi.put.field(&quot;tfgld1110m000&quot;,&quot;tfgld109.trun&quot;,str$(6))<br />
+	rc=stpapi.find(&quot;tfgld1110m000&quot;)<br />
+	if rc=1 then<br />
+		 		<br />
+		 stpapi.handle.subproc( &quot;tfgld1110m000&quot;,&quot;tfgld1111s000&quot;,&quot;add&quot; )<br />
+		 stpapi.continue.process(&quot;tfgld1110m000&quot;, err)<br />
+<br />
+		 	if strip$(err)&lt;&gt;&quot;&quot; then<br />
+				stpapi.recover(&quot;tfgld1110m000&quot;, err)<br />
+			endif<br />
+<br />
+				stpapi.put.field(&quot;tfgld1111s000&quot;,&quot;tfgld100.btno&quot;,str$(6))<br />
+				rc=stpapi.find(&quot;tfgld1111s000&quot;) <br />
+				if rc=1 then<br />
+					stpapi.put.field(&quot;tfgld1111s000&quot;,&quot;sel&quot;,str$(tcyesno.yes))<br />
+					stpapi.update(&quot;tfgld1111s000&quot;,1,err)<br />
+|					stpapi.save(&quot;tfgld1111s000&quot;,err)<br />
+					if strip$(err)&lt;&gt;&quot;&quot; then<br />
+						stpapi.recover(&quot;tfgld1111s000&quot;,err)<br />
+					endif<br />
+				endif<br />
+<br />
+			stpapi.handle.subproc(&quot;tfgld1111s000&quot;,&quot;tfgld1211s000&quot;,&quot;add&quot;)<br />
+			spool.device = &quot;D66&quot;<br />
+			stpapi.set.report(&quot;tfgld1111s000&quot;,&quot;rtfgld121111000&quot;,&quot;D66&quot;,err)<br />
+			stpapi.continue.process(&quot;tfgld1111s000&quot;,err)<br />
+			stpapi.end.session(&quot;tfgld1211s000&quot;)<br />
+			stpapi.end.session(&quot;tfgld1111s000&quot;)<br />
+	endif	<br />
+	stpapi.end.session(&quot;tfgld1110m000&quot;)<br />
+<br />
+<br />
+This line 	stpapi.continue.process(&quot;tfgld1111s000&quot;,err) starts the tfgld1211s000 session, which was in the foreground - not in the background as expected.  It then immediately asked for a spool device.  This should not happen when running sessions in API mode.<br />
+<br />
+Now I have a few suggestions:<br />
+(1) Contact infor with this issue and see if they fix it.<br />
+(2) Is there another session that would finalize batches?<br />
+(3) If you own source code - put the sessions in debug mode step thru them and see what you need to do to get it to run in API mode.  I have never done this since we do not own source code.  I don't know what this would take.<br />
+(4) What I did once and I do not know if it will work in this case.  What I did was when one session immediately called the subsession next - I could not control the subsession to update the records.  What I was to create my own session.  In my session I just put an empty field.  Then a continue button to zoom to the subsession in question.  This allowed my api code to control the subsession - I could then update the records. I don't know if this is possible in your case - maybe clone tfgld1212s000 to a main session.  Then call it separately from the original sessions where you select the batches.  To do this you would need to figure out what to put on the form to get it to process correctly.  This is something you can play around with.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kiran kumar</div><div class="date">28th July 2011, 09:37</div></div><div class="posttext">Hi Mark,<br />
+              Here we are not having any source code, because all are standard sessions. I'll check that any other sessions will fulfill my requirement or not and then I'll get back to you. Thank you for Knowledge Transfer.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kiran kumar</div><div class="date">3rd August 2011, 08:37</div></div><div class="posttext">Hi Mark,<br />
+                I approached to infor regarding this issue, but I didn't get the solution. Another session(tfgld1210m000) is there to fulfill my requirement but its also having the same issue as discussed above. Can u suggest me if any work around is there to Finalize the batches please?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd August 2011, 18:01</div></div><div class="posttext">The only work around I can think of is to use something to extend source code.  You can see the ~vamsi free ware in the code and utities form.  What you can try is to use this method to see if you can control that subsession which pops in the foreground.  This takes a lot of work and sometimes just flat out guess work.  What you end up with is a modification that wraps around the original object.  I have done this a couple of times with our Qkey project - I try to not recommend it because you can spend weeks making sure you do not break it for normal use, but fix it for API use.  It can become very complex in making sure you get the &quot;if api.mode then&quot; in all the right places.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

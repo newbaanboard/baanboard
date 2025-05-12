@@ -1,0 +1,139 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="stpapi (called session - empty select), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] stpapi (called session - empty select) AFS/DDC/OLE: Function servers" />
+	
+	<title>stpapi (called session - empty select) [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; stpapi (called session - empty select)</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Smiffy</div><div class="date">12th November 2001, 12:59</div></div><div class="posttext">Does anyone know how to handle the following problem.<br />
+<br />
+I have created a session which calls three existing sessions via function server.<br />
+<br />
+The final session is run via stpapi.put commands with the required selection ranges.  We have tested the session and the only problem, is when the selection criteria given results in an empty select.  Usually the user is given the standard message 'no data within selection' when the called session is run on its own.<br />
+<br />
+How do you cater for this ?  I have tried using end() and stop() (within the 'selectempty' section when called by my session), but the program just freezes.  <br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Smiffy</div><div class="date">12th November 2001, 16:37</div></div><div class="posttext">The third session being called via function server is a report by the way.  I have kind of solved my problem, but not in the way that I would like.<br />
+<br />
+My first 2 STPAPI called sessions are run per production order from a list which has been previously compiled to a table.  e.g.<br />
+<br />
+select table1.pdno<br />
+from   table<br />
+selectdo<br />
+    stpapi.calls.for.sess1<br />
+endselect<br />
+<br />
+select table1.pdno<br />
+from   table1<br />
+selectdo<br />
+    stpapi.calls.for.sess2<br />
+selectempty<br />
+    empty.flag = yes<br />
+endselect<br />
+<br />
+if empy.flag &lt;&gt; yes then<br />
+    stpapi.call.for.sess3<br />
+else<br />
+    message(&quot;Sorry, selection empty....)<br />
+endif<br />
+<br />
+Obviously, this is a simplified example of my code.  I also found for some reason I was getting a fatal error telling me that a transaction was still open, when I tried quitting the session.  This was overcome by using the abort.transaction command after the message.<br />
+<br />
+I would still like to know if there is a way to handle a 'selectempty'  of a report, when it is called via STPAPI methodology.  Has anyone come across a similar problem ?<br />
+<br />
+<br />
+Thanks<br />
+<br />
+P.S. I have discovered quite a bit to do with handling printing when using STPAPI calls, so if anyone has any difficulty with this,  I might be able to help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th November 2001, 21:56</div></div><div class="posttext">Could you use the get.mess code to get the last message from a session?  I had to use this with the manual transfer session.  The manual transfer session would not return an error, but a warning. So my stpapi.continue always looked like it worked , but it really did not.  So I had to start checking for messages.  Have not tried this on one of my reporting FS's yet.<br />
+<br />
+I have also had problems with the stpapi.set.report command.  In some of the baan sessions they do report.open(I think- can not remember the actual command) and not rprt_open.  When they used the report.open command I could not select any report other that the first.  This happened in two sessions.  We do not own source, so I worked around it.<br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Smiffy</div><div class="date">13th November 2001, 11:11</div></div><div class="posttext">I think you are referring to the function open.report, which is contained in the baan standard function 'tccom0010.   I have access to source code where I work.  Unfortunately, this means my solution isn't of much use to yourself at the moment.  <br />
+<br />
+My solution involves allowing the user to define the printer once in the new controlling sessions script.  This is done using the spool.open command (last parameter = 1, allowing the user to define the device at runtime).  The spool is immediately closed with spool.close.<br />
+<br />
+In the called reports (session scripts),  the api.mode has to be temporarily set to false before the execute(print.data) command.  After the command it shoudl be set back to its previous value (if called by the new controlling session).<br />
+<br />
+Wherever a spool.open command exists, a conditional statement should be added ; if called by your new controlling session then the spool.open commands last parameter should be zero; otherwise it should be as the original statement.  Setting the last parameter to zero, set the device to the previous value given (spool.device)<br />
+<br />
+However, some reports use report.open, this means changing the tccom0010 function in a similar way.  The statement which called the function brp.open.language  had to be made conditional in the same way as spool.open was previously.  The device also had to be imported into the script.  The device is called 'sp.device' in this functions script.<br />
+<br />
+I hope this information proves useful to you in the future or anyone else that may require it.  Obviously, I found the solution to my problem with quite a lot of trial and error and there may be a better way (but I don't  know it).  <br />
+<br />
+<br />
+Thanks <br />
+<br />
+<br />
+Smiffy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th November 2001, 15:43</div></div><div class="posttext">The question is would the stpapi.get.mess.code return the &quot;No data&quot; error for the reports? Just wondering if this would work instead of the empty flag. <br />
+<br />
+Without the source I have had always had to use the trial and error method.  Nothing is never as it seems.  The only ones that run the way I expect them to are the FS's I do on sessions developed for the company.  You solution is a good one for those that have source code. Sigh.<br />
+<br />
+<br />
+Good Luck!<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">p.cole</div><div class="date">14th November 2001, 14:24</div></div><div class="posttext">Originally posted by mark_h <br />
+The question is would the stpapi.get.mess.code return the &quot;No data&quot; error for the reports? Just wondering if this would work instead of the empty flag. <br />
+<br />
+<br />
+It works for me: using stpapi.get.mess.code() gives the message code tccoms0024 &quot;No data found for report, no report is printed&quot; after calling stpapi.print.report() for no data<br />
+<br />
+Phil</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Smiffy</div><div class="date">15th November 2001, 13:55</div></div><div class="posttext">Thanks for your reply.<br />
+<br />
+Stpapi.get.mess.code doesn't work for me.  Does this function only work after using  stpapi.print.report ?  I do not use stpapi.print.report in my code. <br />
+<br />
+Do you have access to any documentation of stpapi commands?  The only document I have is not very detailed.  As I said earlier, my solution works but may not be the only solution or the best solution.  <br />
+<br />
+thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">15th November 2001, 16:14</div></div><div class="posttext">I attached all the documentation I have on the stpapi commands in another thread. It is probably stuff you have already seen, but I just thought I would mention it.  And since I am using netscape and do not know how to embed links here is the thread:<br />
+<br />
+http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=286<br />
+<br />
+I use the stpapi.mess.code on my manual transfer FS.  For some reason that session does not return an error when the continue takes place and there is something wrong with the transfer data.  When running by hand you get warnings. So in the FS after the continue I do a get stpapi.mess.code to see if there was a message.  So you can use this function in other places. I have not tried it in any of my reporting FS's yet.<br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">p.cole</div><div class="date">16th November 2001, 02:02</div></div><div class="posttext">Originally posted by Smiffy <br />
+Stpapi.get.mess.code doesn't work for me.  Does this function only work after using  stpapi.print.report ?  I do not use stpapi.print.report in my code. <br />
+<br />
+<br />
+Yes. In the instance I tested I needed to call stpapi.print.report to get stpapi.get.mess.code to return an error code.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

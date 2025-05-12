@@ -1,0 +1,171 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Get result set of standard form command, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Get result set of standard form command Tools Development" />
+	
+	<title>Get result set of standard form command [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Get result set of standard form command</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">martin.f</div><div class="date">29th January 2020, 11:22</div></div><div class="posttext">Hello Developers,<br />
+<br />
+We use the session tdsls3204m000 to generate sales orders out of contracts.<br />
+We run this program as a job and it runs over all contracts.<br />
+<br />
+After the execution of generate sales orders I want to populate each generated sales order with additional information.<br />
+I want to do this in the &quot;After Command&quot; hook of the Standard Form Command &quot;exec.cont.process&quot;<br />
+<br />
+<br />
+function extern void function.exec.cont.process.after.command()<br />
+{       <br />
+        domain tcorno orno<br />
+        orno = tdsls400.orno<br />
+        db.retry.point()<br />
+        select  tdsls400.*<br />
+        from    tdsls400 for update<br />
+        where   tdsls400._index1 = {:tdsls400.orno}<br />
+        selectdo<br />
+                dal.change.object(&quot;tdsls400&quot;)<br />
+<br />
+                dal.set.field(&quot;tdsls400.cdf_ades&quot;, tdsls300.cdf_ades)<br />
+                dal.set.field(&quot;tdsls400.cdf_dlan&quot;, tdsls300.cdf_dlan)<br />
+  <br />
+                dal.save.object(&quot;tdsls400&quot;)<br />
+        endselect<br />
+        commit.transaction()<br />
+}<br />
+<br />
+<br />
+The problem is, that tdsls400.orno is always the orno of the last generated sales order. <br />
+I need all order numbers - not just the last to iterate over all.<br />
+Is this possible?<br />
+<br />
+What I need is the mapping between contract number and sales order number, exactly as it is printed on the &quot;generated sales order acknowledgement&quot; document.<br />
+Is there any variable that I can read?<br />
+<br />
+Regards <br />
+Martin</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">29th January 2020, 15:40</div></div><div class="posttext">Can't you do this in the table extension of tdsls400? In the before.save hook you can check some variable (e.g. one set in the exec.cont.process.before.command hook of the session extension) whether you are busy with generation of orders from contracts and they you can simply copy the fields over.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">martin.f</div><div class="date">29th January 2020, 16:06</div></div><div class="posttext">thanks for your reply.<br />
+<br />
+So you mean setting an external variable in the session and importing it in the table extension. Is a variable declared as &quot;extern&quot; automatically visible in the table extension or do I have to import it?<br />
+<br />
+The job runs always over all contracts and, only for those where it is necessary, sales orders are generated. How do I know this in the before command hook, as not every contract generates a sales order?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">29th January 2020, 16:49</div></div><div class="posttext">if you define the same external variable in the session extension and the table extension they are mapped on each other. (This is ugly programming, but it works...) No import needed.<br />
+Alternative is to define it external only in the session extension and use the get.var(pid, &quot;&lt;external variable in session extension&gt;&quot;, &lt;local variable in table extension&gt;&quot; in the before.open.object.set hook.<br />
+<br />
+The trick is that the table extension needs to know that it runs in a context of generating sales orders for contracts. Only when that is the case, additional CDFs have to be filled on the sales order. You may expect that when a sales order is generated for a contract, at the moment the sales order is inserted (and the before.save hook of the table extension is called), the tdsls300 record for the contract is current. If not... then it will be difficult.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">martin.f</div><div class="date">30th January 2020, 16:18</div></div><div class="posttext">I found the table tdsls340 (delivery items sales contract) which has exactly the mapping between sales order tdsls340.orno and contract tdsls340.cono.<br />
+<br />
+The code posted below rises an error in dal.save.object.<br />
+<br />
+The strange thing is, that this code already worked as expected - than I tried to insert transaction handling with db.retry.point()   commit.transaction(). After this testing it never worked although deleting this transaction stuff.<br />
+<br />
+These error messages appear:<br />
+<br />
+The order-status is &quot;Closed&quot;. tdslss400.3 (However status is open)<br />
+The field &quot;contract&quot; in &quot;sales orders&quot; can not be changed. There are line items. tdsls400.2 (the contract generates sales orders with positions - thats right.)<br />
+<br />
+Can someone help me with this?<br />
+<br />
+This is my code in the table extension:<br />
+<br />
+<br />
+| Hook declarations<br />
+#context_on &quot;declarations&quot;<br />
+|global declarations for extension script.<br />
+<br />
+table   ttdsls400<br />
+table   ttdsls300<br />
+table   ttdsls301<br />
+<br />
+<br />
+long ret<br />
+<br />
+<br />
+#context_on &quot;functions&quot;<br />
+<br />
+function get.old.values()<br />
+{<br />
+	old.orno = tdsls304.orno<br />
+}<br />
+<br />
+<br />
+<br />
+function populate.sales.order(domain tcorno orno)<br />
+{<br />
+        select  tdsls400.*<br />
+        from    tdsls400 for update<br />
+        where   tdsls400.orno = orno and tdsls400.sotp = &quot;04&quot;<br />
+        <br />
+        selectdo<br />
+                ret = dal.change.object(&quot;tdsls400&quot;)<br />
+                <br />
+                dal.set.field(&quot;tdsls400.prno&quot;, tdsls300.cono)<br />
+                <br />
+                ret = dal.save.object(&quot;tdsls400&quot;)<br />
+        endselect<br />
+<br />
+}<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+#context_on &quot;before.save&quot;<br />
+function extern long before.save.object(long mode)<br />
+{<br />
+	on case mode<br />
+	case DAL_NEW:<br />
+		break<br />
+	case DAL_UPDATE:<br />
+		with.old.object.values.do(get.old.values)<br />
+		break<br />
+	endcase<br />
+	return(0)<br />
+}<br />
+<br />
+<br />
+<br />
+<br />
+#context_on &quot;after.save&quot;<br />
+function extern long after.save.object(long mode)<br />
+{<br />
+	on case mode<br />
+	case DAL_NEW:<br />
+		break<br />
+	case DAL_UPDATE:<br />
+	        | orno has been inserted --&gt; sales order created<br />
+		if tdsls304.orno &lt;&gt; old.orno then<br />
+			| write information<br />
+			populate.sales.order(tdsls304.orno)<br />
+		endif	<br />
+		break<br />
+	endcase<br />
+	return(0)<br />
+}<br />
+#context_off</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

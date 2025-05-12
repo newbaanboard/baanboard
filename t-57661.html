@@ -1,0 +1,105 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Using AFS in timfc0101m000, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Using AFS in timfc0101m000 AFS/DDC/OLE: Function servers" />
+	
+	<title>Using AFS in timfc0101m000 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Using AFS in timfc0101m000</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">avy666</div><div class="date">21st January 2010, 12:51</div></div><div class="posttext">Hi :)<br />
+I need to update the field &quot;frm.mat.to.cancel&quot; in session &quot;timfc0101m000&quot; and to run process change quantity (process.chg.qty). But when the field &quot;frm.mat.to.cancel&quot; has been changed,the action &quot;when.field.changes&quot; is not ran and the variable &quot;changed.header&quot; is not changed to &quot;true&quot; at the script.<br />
+<br />
+stpapi.put.field(&quot;ticst0101m000&quot;,&quot;ticst001.pdno&quot;,_pdno)<br />
+stpapi.put.field(&quot;ticst0101m000&quot;,&quot;ticst001.pono&quot;,str$(_pono))<br />
+ret=stpapi.find(&quot;ticst0101m000&quot;, err.msg)<br />
+if ret then<br />
+ ret=stpapi.mark(&quot;ticst0101m000&quot;, err.msg)<br />
+ if ret then<br />
+  stpapi.handle.subproc(&quot;ticst0101m000&quot;, &quot;timfc0101m000&quot;, &quot;add&quot;)<br />
+  stpapi.form.command(&quot;ticst0101m000&quot;,2,&quot;timfc0101m000&quot;, err.msg)<br />
+  stpapi.put.field(&quot;timfc0101m000&quot;,&quot;timfc001.pdno&quot;,_pdno)<br />
+  stpapi.put.field(&quot;timfc0101m000&quot;,&quot;timfc001.pono&quot;,str$(_pono))<br />
+  ret=stpapi.find(&quot;timfc0101m000&quot;, msg.out)<br />
+  if ret then<br />
+   stpapi.synchronize.dialog(&quot;timfc0101m000&quot;, &quot;modify&quot;, err.msg)<br />
+   stpapi.put.field(&quot;timfc0101m000&quot;,&quot;frm.mat.to.cancel&quot;,str$(_iswh))<br />
+   stpapi.update(&quot;timfc0101m000&quot;, false, err.msg)<br />
+   stpapi.form.command(&quot;timfc0101m000&quot;,5,&quot;process.chg.qty&quot;,err.msg)<br />
+  endif<br />
+ endif<br />
+ stpapi.end.session(&quot;timfc0101m000&quot;)<br />
+endif<br />
+stpapi.end.session(&quot;ticst0101m000&quot;)<br />
+<br />
+<br />
+How can i cancel the material line in this session via AFS?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th January 2010, 22:58</div></div><div class="posttext">Have you tried stpapi.update(&quot;timfc0101m000&quot;, true, err.msg) instead of stpapi.update(&quot;timfc0101m000&quot;, false, err.msg).  No promises this will work, nor am I familiar with this feature.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baan_guru</div><div class="date">15th May 2021, 13:25</div></div><div class="posttext">After 'change.view' it resets the frm.mat.to.cancel to zero. Thus using put.var to set the variable 'frm.mat.to.cancel' again in AFS.<br />
+<br />
+<br />
+<br />
+<br />
+select	timfc001.*<br />
+from	timfc001<br />
+where	timfc001._index1 = {:i.pdno, :i.pono}<br />
+order by timfc001._index1<br />
+as set with 1 rows<br />
+selectdo<br />
+	afs.process.id = -1<br />
+	stpapi.put.field(&quot;timfc0101m000&quot;, &quot;timfc001.pdno&quot;, timfc001.pdno)<br />
+<br />
+	procid = pid<br />
+	procid = pstat(procid, progname, info)<br />
+	while procid &gt; 0<br />
+		prev.progname = progname<br />
+		afs.process.id = procid<br />
+		procid = pstat(procid, progname, info)<br />
+		if progname = &quot;timfc0101m000&quot; and pos(prev.progname, &quot;ottstpapiserv&quot;) &gt; 0 then<br />
+			break<br />
+		else<br />
+			afs.process.id = -1<br />
+		endif<br />
+	endwhile<br />
+<br />
+	if afs.process.id &lt; 0 then<br />
+		o.err.msg = &quot;Error in starting AFS.&quot;<br />
+		return(false)<br />
+	endif<br />
+<br />
+	stpapi.put.field(&quot;timfc0101m000&quot;, &quot;timfc001.pono&quot;, str$(timfc001.pono))<br />
+	stpapi.put.field(&quot;timfc0101m000&quot;, &quot;timfc001.effn&quot;, str$(timfc001.effn))<br />
+	stpapi.put.field(&quot;timfc0101m000&quot;, &quot;timfc001.seqn&quot;, str$(timfc001.seqn))<br />
+	stpapi.put.field(&quot;timfc0101m000&quot;, &quot;timfc001.ittp&quot;, str$(etol(timfc001.ittp)))<br />
+	if stpapi.find(&quot;timfc0101m000&quot;, o.err.msg) = 1 then<br />
+		stpapi.put.field(&quot;timfc0101m000&quot;, &quot;frm.mat.to.cancel&quot;, str$(i.qnty))<br />
+		if stpapi.change.view(&quot;timfc0101m000&quot;, o.err.msg) = 1 then<br />
+			put.var(afs.process.id, &quot;frm.mat.to.cancel&quot;, i.qnty)<br />
+			stpapi.form.command(&quot;timfc0101m000&quot;, 5, &quot;process.chg.qty&quot;, o.err.msg)<br />
+			if isspace(o.err.msg) then<br />
+				return(true)<br />
+			endif<br />
+		endif<br />
+	else<br />
+		o.err.msg = &quot;Record not found in 'Production warehouse Orders'&quot;<br />
+	endif<br />
+endselect</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

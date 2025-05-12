@@ -1,0 +1,88 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Oracle 8i Block Size, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Oracle 8i Block Size Performance &amp; Tuning" />
+	
+	<title>Oracle 8i Block Size [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Performance &amp; Tuning</a> &gt; Oracle 8i Block Size</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">naabi0</div><div class="date">14th September 2001, 22:28</div></div><div class="posttext">Hello,<br />
+<br />
+I recently installed Baan 4c4 on a new Dec/Compaq/HP ES40 Alpha box.  We are running Tru64 Unix 5.1 and Oracle 8i 8.1.7.<br />
+After almost 1 month of installation time, I finally got Baan and 8 service packs installed.  I installed all of the localizations except the language specific ones and I did not install the Aerospace and Defense localization.  It was a long process.  The most confusing part was getting the porting set to work.  I put on 6.1c.06.02 and I think I still have problems because when I try to run MRP using Table Boosters I lose my host mode connection.<br />
+<br />
+At this time, my main question concerns block sizes.<br />
+<br />
+On our old Alpha box, we are running Tru64 Unix 4.0D, Oracle 7.3.4 and Baan 4c2.  Our database was created with an 8k block size.  We also do software raid 0+1 with 256k stripe sizes.<br />
+<br />
+I set the new machine up to us a 16k block size in Oracle and more then doubled the size of the SGA.  Also, it is hardware raid.  The HSZ80 controllers were setup to read and write to cache with a 256 block chunk (I don't know what size a block is at this point, maybe 512 bytes) and the stripe sets have a 256k stripe size.  I also decided to use Locally Managed Tablespaces and the redo logs are not residing on raid disks.<br />
+<br />
+The new Alpha box is twice as fast as the old and has twice as much ram but seems to be slower in most situations using Baan.  Is Oracle 8i just slower then Oracle 7 or did I go over board with the block sizes.<br />
+<br />
+Thanks for any advice.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">14th September 2001, 23:31</div></div><div class="posttext">With most of these questions, the answer is: it depends...<br />
+<br />
+According to Oracle Support, Oracle8i *is* slower so this would be another case where added functionality has to be compensated by better hardware. With the new hardware setup you describe, I'd assume it should have improved your situation: faster CPU, more RAM, hardware RAID. I am not familiar with striping as I prefer a simple RAID 1 setup with a larger I/O cache. <br />
+<br />
+Some questions you should ask:<br />
+ How big is your I/O cache? Is it sufficient? What RAID level do you use now?<br />
+ Can you extract performance statistics from your RAID controller? If so, what do they show?<br />
+  What are your Oracle performance indicators like? hit ratio's?<br />
+<br />
+I haven't used locally managed tablespaces myself but I wonder does it have any impact on how you calculate statistics? Do you generate statistics at all?<br />
+<br />
+As to the 16K block size: here's some pointers:<br />
+  small block sizes (4k-8k) tend to be better for OLTP systems than larger block sizes (16k-32k). OLTP is characterized by random writes and small, granuler data sets (like Baan)<br />
+  bigger block sizes give better index performance<br />
+  bigger block sizes can cause a waste on I/O if you don't use the full 16K of data when read into the buffer<br />
+  bigger block sizes can cause more contention as more transactions can possibly run against 1 block.<br />
+<br />
+Did you adjust your init.ora parameters when switching from 8K to 16K?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">naabi0</div><div class="date">15th September 2001, 00:30</div></div><div class="posttext">I did change the init.ora parameters accordingly and our cache size is 256M.<br />
+<br />
+Do you now of any one using a 16K block size with Oracle.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">15th September 2001, 00:36</div></div><div class="posttext">We use 8K max.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">James</div><div class="date">18th September 2001, 14:22</div></div><div class="posttext">Hi,<br />
+<br />
+A good idea would be to determine 'what' is exactly running slower, and by how much.<br />
+<br />
+Access to Baan?  Displaying data?  Processing of sessions?  Printing of reports?<br />
+<br />
+What is the factor difference?  5% or 20%?<br />
+<br />
+If you can pinpoint an area which is running slow then this area can be analysed.  Unix processes, i/o, memory, cpu, disk stats can be anaysed/monitored - eventually a bottleneck will be found.  Oracle stats for the sql statement being run can also be analysed.<br />
+<br />
+Oracle8 is indeed slightly slower than Oracle7.  And Oracle8 works in a different way that needs to be setup correctly depending upon the OS configuration.  Certain settings need to be carefully tuned during the migration to Oracle8, namely the db writer proceses.<br />
+<br />
+Judging by the upgrade in hardware, this should offset any minor performance reduction in Oracle8 and Baan should in fact perform better.<br />
+<br />
+Also, for Oracle, I would stick to 8k block size when using Baan, unless your OS block size is greater than 8k.<br />
+<br />
+Let us know if you need more info.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">naabi0</div><div class="date">18th September 2001, 23:14</div></div><div class="posttext">How do you determine the OS block size?  I thought it was 512 bytes.  Our I/O write and read size is 256K.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

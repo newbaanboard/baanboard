@@ -1,0 +1,144 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Question on handling sub sessions using AFS., baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Question on handling sub sessions using AFS. AFS/DDC/OLE: Function servers" />
+	
+	<title>Question on handling sub sessions using AFS. [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Question on handling sub sessions using AFS.</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">r_nagu</div><div class="date">8th August 2002, 23:07</div></div><div class="posttext">Hi Guys,<br />
+	I have a question on handling sub sessions using AFS.<br />
+<br />
+I am trying to automate Match and Approve process for Purchase Orders. Now, I was able to automate the process using AFS till the Matching stage but I am having some problems when it comes to Approving. When I am back on the main session (tfacp1131m001) after Matching the PO, I am using the following code to get into Approve session.<br />
+<br />
+Start baan code:<br />
+<br />
+stpapi.handle.subproc(tfacp1130m001, tfacp1140s000, add)<br />
+<br />
+stpapi.handle.subproc(tfacp1140s000, tfacp1141s000, add)<br />
+<br />
+stpapi.application.option(tfacp1130m001, 1, 0, err.msg)<br />
+<br />
+message(Procssing)<br />
+<br />
+End baan code:<br />
+<br />
+As soon as the line stpapi.application.option(tfacp1130m001, 1, 0, err.msg) is executed, the program hangs. The reason is that, when Approve button is hit on the screen, you are zoomed to two session (tfacp1140s000 and tfacp1141s000) at the same time and I am not able to get the control of one of the zoom session (tfacp1141s000).<br />
+<br />
+Do you guys have any ideas?<br />
+<br />
+<br />
+Appreciate your feedback.<br />
+<br />
+Thanks,<br />
+Nagesh</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th August 2002, 23:50</div></div><div class="posttext">Just wondering what would happen if you moved your stpapi.application.option in front of the stpapi.handle.subproc for tfacp1141s000?<br />
+<br />
+I am not familiar with this process, but do you have to put data into both the tfacp1140s000 and the tfacp1141s001 session?  Just wondering if maybe you could kill one of them.<br />
+<br />
+Last but not least try a stpapi.zoom to the tfacp1140s000 session.  I do know in one function server I did (purchase order) I had to use stpapi.handle.subproc on the maintain reason code, and then stpapi.zoom for the distribution, even though the baan script did a zoom.to for both sessions.  Never did figure out why that worked, but it did give me control of the distribution session. You could try this to see if it gives you control of the tfacp1140s000 session. <br />
+<br />
+Just some guesses.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">r_nagu</div><div class="date">9th August 2002, 16:25</div></div><div class="posttext">Mark,<br />
+	Thanks for the suggestions.<br />
+<br />
+I dont have to enter the data in session tfacp1141s000 up front. I can kill it so that I will be on session tfacp1140s000 and then can go back to session tfacp1141s000 and maintain the data. <br />
+	<br />
+But, the problem is that I am not able to kill the session tfacp1141s000. I tried the following code<br />
+<br />
+Start baan code:<br />
+<br />
+stpapi.handle.subproc(tfacp1130m001, tfacp1140s000, add)<br />
+<br />
+stpapi.handle.subproc(tfacp1140s000, tfacp1141s000, kill) <br />
+<br />
+                                             OR<br />
+<br />
+stpapi.handle.subproc(tfacp1130m001, tfacp1141s000, kill) <br />
+<br />
+stpapi.application.option(tfacp1130m001, 1, 0, err.msg)<br />
+<br />
+message(Processing)<br />
+<br />
+End baan code:<br />
+<br />
+I am still able to get the control back.<br />
+<br />
+Any ideas?<br />
+<br />
+Thanks,<br />
+Nagesh</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">9th August 2002, 17:47</div></div><div class="posttext">I found this in the AFS document I have:<br />
+<br />
+<br />
+stpapi.put.field(&quot;dtfsa1501m000&quot;, &quot;dtfsa101.seno&quot;, str$(i.seno))<br />
+ret = stpapi.find(&quot;dtfsa1501m000&quot;, error.msg)<br />
+if ret = 1 then		<br />
+       stpapi.handle.subproc(&quot;dtfsa1501m000&quot;, &quot;dtfsa1201m000&quot;, &quot;add&quot;)<br />
+       stpapi.zoom.option(&quot;dtfsa1501m000&quot;, 2, &quot;dtfsa1201m000&quot;, error.msg)<br />
+       stpapi.continue.process(&quot;dtfsa1201m000&quot;, error.msg)<br />
+endif<br />
+<br />
+<br />
+<br />
+So maybe what you need is:<br />
+<br />
+<br />
+       stpapi.handle.subproc(&quot;tfacp1130m001&quot;, &quot;tfacp1140s000&quot;, &quot;add&quot;)<br />
+       stpapi.zoom.option(&quot;tfacp1130m001&quot;, 2, &quot;tfacp1140s000&quot;, error.msg)<br />
+stpapi.application.option(tfacp1130m001, 1, 0, err.msg)<br />
+<br />
+<br />
+Or maybe something like:<br />
+<br />
+       stpapi.handle.subproc(&quot;tfacp1130m001&quot;, &quot;tfacp1140s000&quot;, &quot;add&quot;)<br />
+       stpapi.zoom.option(&quot;tfacp1130m001&quot;, 2, &quot;tfacp1140s000&quot;, error.msg)<br />
+       stpapi.handle.subproc(&quot;tfacp1140s000&quot;, &quot;tfacp1141s000&quot;, &quot;add&quot;)<br />
+stpapi.application.option(tfacp1130m001, 1, 0, err.msg)<br />
+<br />
+<br />
+I may have plenty of ideas, just none of them may work.  Also you might want to check with Baan support to see if anyone has logged a problem like this.  I looked real quick for a solution, but I did not see one. <br />
+<br />
+Also you may even want to try a stpapi.zoom from the tfacp1140s000 to tfacp1141s000 session.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">r_nagu</div><div class="date">9th August 2002, 19:34</div></div><div class="posttext">Mark,<br />
+       For some reason looks like AFS is not able to handle when more than one sub sessions are started from a main session. I tried you suggestions and it can not move pass the first sub session (control is not returned back to the main program).<br />
+	<br />
+       Anyway, I was able to solve my problem with a work around. The reason why session tfgld1140s000 was automatically zooming to session tfgld1141s000 was because of Fiscal Year not been set in the session tfgld1140s000. So, I set the fiscal year in this session itself and now I am not zoomed to session tfgld1141s000 automatically.<br />
+<br />
+       I will try to play around with this type of situation some time later and will let you know what I find out.<br />
+<br />
+Thanks for your help,<br />
+Nagesh</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">9th August 2002, 20:30</div></div><div class="posttext">Thanks for the reply and I look forward to the update.  I know when I used some of the tfgld sessions It started different sessions than you mentioned.  I was also able to just end a few of them like tfacp1130s000.  They were not needed for what I was doing.<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

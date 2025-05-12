@@ -1,0 +1,138 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Insert Outbound Line through DAL., baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Insert Outbound Line through DAL. Tools Development" />
+	
+	<title>Insert Outbound Line through DAL. [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Insert Outbound Line through DAL.</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">patwanirav</div><div class="date">11th July 2015, 06:03</div></div><div class="posttext">can anyone provide a code which insert the outbound line for warehouse order type (SFC Manual) and (Project Manual) through DAL, which will works properly in concurrent transaction?<br />
+<br />
+I had written the code for the same, but it is failing in concurrent transaction.<br />
+can anyone help for this ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bpanda</div><div class="date">21st July 2015, 09:29</div></div><div class="posttext">Hi Nirav,<br />
+<br />
+Can you share some details..<br />
+If any error message you are getting...?<br />
+Can you share your code here?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patwanirav</div><div class="date">22nd July 2015, 05:48</div></div><div class="posttext">Hello Dear..<br />
+    I had written the below code to insert outbound line through DAL. But when I do the concurrent transaction using this code, it is giving me fatal error &quot;Record locked for table whwmd215&quot;.<br />
+<br />
+dal.reset.error.messages(0)<br />
+ret = dal.new.object(&quot;whinh220&quot;)<br />
+if ret &lt;&gt; 0 then<br />
+	dal.get.error.message(o.err.mesg)<br />
+	if isspace(o.err.mesg) then<br />
+		o.err.mesg = &quot;Error while creating warehouse order lines&quot;<br />
+	endif<br />
+	return(false)<br />
+else<br />
+	dal.set.field(&quot;whinh220.oorg&quot;, etol(oorg))<br />
+	dal.set.field(&quot;whinh220.orno&quot;, orno)<br />
+	dal.set.field(&quot;whinh220.oset&quot;, oset)<br />
+	dal.set.field(&quot;whinh220.item&quot;, item)<br />
+	dal.set.field(&quot;whinh220.lsel&quot;, etol(lsel))<br />
+	dal.set.field(&quot;whinh220.clot&quot;, clot)	<br />
+	dal.set.field(&quot;whinh220.qoro&quot;, qoro)<br />
+	<br />
+	if oorg = whinh.oorg.project.man then<br />
+		dal.set.field(&quot;whinh220.tspa&quot;, &quot;WMR&quot;)<br />
+		dal.set.field(&quot;whinh220.tact&quot;, &quot;ACT01&quot;)<br />
+		dal.set.field(&quot;whinh220.tcco&quot;, ticpr007.acpm)<br />
+	endif<br />
+		<br />
+	ret = dal.save.object(&quot;whinh220&quot;, DB.RETRY) |, db.return.rowchanged + db.return.dupl + db.return.error)<br />
+endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">saumya</div><div class="date">22nd July 2015, 06:43</div></div><div class="posttext">error is &quot;Record locked for table whwmd215&quot;, which is for whwmd215 table. in your code its not there. Can you put whole code.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manish_patel</div><div class="date">23rd July 2015, 00:18</div></div><div class="posttext">ret = dal.save.object(&quot;whinh220&quot;, DB.RETRY) |, db.return.rowchanged + db.return.dupl + db.return.error)<br />
+<br />
+<br />
+Is DB.RETRY flag required in dal.save.object() ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patwanirav</div><div class="date">23rd July 2015, 06:00</div></div><div class="posttext">Dear Saumya,<br />
+    If you tried this code, then you will able to get this error. In DAL of whinh220, there are several tables updated and modified. Whwmd215 is one of those table and on which I am getting table locked error or record changed after delayed lock error.<br />
+<br />
+Dear Manish,<br />
+    I had used db.retry bcoz I am getting record changed after delayed lock error  while doing concurrent transaction. Hence I had used the db.retry to overcome this error. Sometime it works for the concurrent transaction, but sometime fails.<br />
+<br />
+Any kind of help is appreciated. Thanks in advance. :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">23rd July 2015, 14:36</div></div><div class="posttext">Hi,<br />
+<br />
+Make sure you are reading table whinh200 every time, before creating a new record in whinh220. Try creating the order manually. Make sure its not creating new set. If the item data differs, it may create a new set and wont allow you to add the order in same order set.<br />
+<br />
+Here's a working script. <br />
+<br />
+ <br />
+        select	whinh200.*<br />
+	from	whinh200 <br />
+	where	whinh200._index1={:i.oorg,:i.orno}<br />
+	selectdo<br />
+	endselect<br />
+	<br />
+	db.store.record(twhinh200)<br />
+	<br />
+	dal.new.object(&quot;whinh220&quot;)<br />
+        dal.set.field(&quot;whinh220.oorg&quot;,i.oorg)<br />
+	dal.set.field(&quot;whinh220.orno&quot;,i.orno)<br />
+	dal.set.field(&quot;whinh220.pono&quot;,i.pono)<br />
+	dal.set.field(&quot;whinh220.seqn&quot;,i.seqn)<br />
+	dal.set.field(&quot;whinh220.oset&quot;,1)<br />
+	dal.set.field(&quot;whinh220.cwar&quot;,i.sfco)<br />
+	dal.set.field(&quot;whinh220.comp&quot;,i.sfcp)<br />
+	dal.set.field(&quot;whinh220.item&quot;,i.sitm)<br />
+	dal.set.field(&quot;whinh220.qoro&quot;,i.qord)<br />
+	dal.set.field(&quot;whinh220.qord&quot;,i.qord)<br />
+	dal.set.field(&quot;whinh220.qoor&quot;,i.qord)<br />
+	dal.set.field(&quot;whinh220.hstq&quot;,tchstp.no)<br />
+	dal.set.field(&quot;whinh220.refe&quot;,i.rodr&amp;&quot;/&quot;&amp;str$(i.pono))<br />
+	ret = dal.save.object(&quot;whinh220&quot;)<br />
+	if ret = 0 then<br />
+                commit.transaction()<br />
+                | Created successfully<br />
+	else<br />
+                abort.transaction()<br />
+		| Failed<br />
+        endif<br />
+<br />
+You might not need db.retry. You can add db.retry.point() before dal.new.object()<br />
+<br />
+I doubt, there might be some problem with the item. I will suggest to first try and create the order manually. Also, debugging is the best way to point out the error.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patwanirav</div><div class="date">28th July 2015, 06:20</div></div><div class="posttext">Hi Bhushan, <br />
+the code you had suggested is not working in concurrent transaction, giving fatal error 201 (Record changed after delayed lock).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">28th July 2015, 09:34</div></div><div class="posttext">Hi,<br />
+<br />
+If possible, post your complete code. That will help to understand the issue better.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mubarak</div><div class="date">16th June 2020, 23:19</div></div><div class="posttext">fatal error tisfc0120m000 in DLL. owhinh220.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

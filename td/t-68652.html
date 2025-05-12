@@ -1,0 +1,248 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to find records using dal.* commands, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to find records using dal.* commands Tools Development" />
+	
+	<title>How to find records using dal.* commands [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; How to find records using dal.* commands</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">eric.dizon</div><div class="date">19th February 2016, 23:17</div></div><div class="posttext">I am trying to use Dal.* commands that would trigger DAL validations on my code, but I cannot seem to find an example for searching a record and updating it after it found?<br />
+   <br />
+     Please check if this code make sense?<br />
+<br />
+      dal.update(&quot;cxcsb010&quot;, tcxcsb010, l.res, TRUE DB.RETRY)<br />
+      dal.set.field(&quot;cxcsb010.orno&quot;, cxcsp080.orno)<br />
+      dal.set.field(&quot;cxcsb010.mser&quot;, l.clot)<br />
+      dal.set.field(&quot;cxcsb010.mtmk&quot;, cxcsp080.ctst)<br />
+      dal.set.field(&quot;cxcsb010.enmk&quot;, cxcsp080.cten)<br />
+      dal.set.field(&quot;cxcsb010.tomt&quot;, cxcsp080.ctmt)<br />
+      ret = dal.save.object(&quot;cxcsb010&quot;, l.err)<br />
+      if ret = 0 then<br />
+         commit.transaction()<br />
+         else<br />
+            abort.transaction()<br />
+            dal.get.error.message(err)<br />
+            message(err)<br />
+         endif<br />
+      endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">20th February 2016, 01:19</div></div><div class="posttext">You use a normal select statement to find the record that you want to change. This is basically the same as if you wanted to use the db.* functions. Following is your example but with DAL2 methods:<br />
+<br />
+#include &lt;bic_dam&gt;<br />
+<br />
+	db.retry.point()<br />
+	select	cxcsb010.*<br />
+	from	cxcsb010 for update<br />
+	where	cxcsb010.xxxx = :yyyy<br />
+	selectdo<br />
+		dal.change.object(&quot;cxcsb010&quot;)<br />
+		dal.set.field(&quot;cxcsb010.orno&quot;, cxcsp080.orno)<br />
+		dal.set.field(&quot;cxcsb010.mser&quot;, l.clot)<br />
+		dal.set.field(&quot;cxcsb010.mtmk&quot;, cxcsp080.ctst)<br />
+		dal.set.field(&quot;cxcsb010.enmk&quot;, cxcsp080.cten)<br />
+		dal.set.field(&quot;cxcsb010.tomt&quot;, cxcsp080.ctmt)<br />
+		ret = dal.save.object(&quot;cxcsb010&quot;)<br />
+		if ret = 0 then<br />
+			commit.transaction()<br />
+		else<br />
+			abort.transaction()<br />
+			show.dal.messages()<br />
+		endif<br />
+	selectempty<br />
+		|Maybe add a new record??<br />
+		dal.new.object(&quot;cxcsb010&quot;)<br />
+		dal.set.field(&quot;cxcsb010.xxxx&quot;, yyyy)<br />
+		...<br />
+		ret = dal.save.object(&quot;cxcsb010&quot;)<br />
+		if ret = 0 then<br />
+			commit.transaction()<br />
+		else<br />
+			abort.transaction()<br />
+			show.dal.messages()<br />
+		endif		<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">20th February 2016, 07:13</div></div><div class="posttext">There is a command called dal.get.object and from the Programmers guide the descriptions given is<br />
+<br />
+<br />
+Syntax:<br />
+function long dal.get.object  (string tbl.name, long lock [, string key_field1] [, string key_value1],  ...)<br />
+<br />
+Description<br />
+<br />
+Reads a record of the given table. In case the lock parameter is set to true, the record is locked for update. This function accepts a list of primary key field/value pairs. <br />
+<br />
+The sequence of the actions is as follows:<br />
+<br />
+The key fields are set according to the passed list of fields <br />
+The before.get.object hook is called with the DAL_FIND option <br />
+The record is read or locked <br />
+Record level permission is checked <br />
+The after.get.object hook is called with the DAL_FIND option <br />
+In case this function is called in the context of a 4GL-Session for a table which is either defined as the maintable or a secondary table for this session, this function will check if the requested record is already present in the 4GL-Engine buffers. If so, the 4GL-Engine record buffer is fetched and will not be read from the database. This is especially useful when in a DAL script of a secondary table the corresponding maintable record is needed. <br />
+<br />
+Note<br />
+The dal.get.object() function will return the table fields which are updated through the UI script or by the UI. However, in case these table fields are changed in a DAL script before the dal.get.object() function is called, the dal.get.object() will overwrite these changes. <br />
+<br />
+<br />
+Arguments<br />
+string tbl.name the table name of the DAL.<br />
+ <br />
+long lock if true the record is locked for update<br />
+ <br />
+[string key_field1]   <br />
+[string key_value1]   <br />
+ ... List of primary key field / value pairs in the format &quot;ppmmm999.ffff&quot;, value. In case of array elements, specify the field as &quot;ppmmm999.ffff(element)&quot; <br />
+ <br />
+ <br />
+Return values<br />
+0 Record is read or locked for update <br />
+DALHOOKERROR One of the hooks blocked the read action <br />
+DALNOOBJPERM No record level permission <br />
+&gt;0 The error code of the read action in case this failed (e.g. ENOREC)  <br />
+ <br />
+Context<br />
+This function is implemented in the 4GL Engine and can be used in all script types. <br />
+<br />
+Hooks called<br />
+before.open.object.set() if this is the first call to the DAL <br />
+before.get.object() <br />
+after.get.object() <br />
+Error Handling<br />
+In case a database error occurs (a return value greater than 0), then this function will set an error message. E.g. in case a record is not found then an error message is set. So if you want to ignore such an error, make sure that you reset the dal error message stack by calling dal.reset.error.messages() or dal.clear.error.messages(). <br />
+<br />
+Note<br />
+This function is can be used in Update Sessions as well as Integrations via OpenWorld. However, be aware that since this function calls the before.get.object() and after.get.object() hooks it cannot match the performance of a BaanSQL query. So in most cases, it is advised to write your own query. <br />
+<br />
+<br />
+<br />
+You have to test the usage and i think it should be something like<br />
+<br />
+<br />
+<br />
+dal.get.object(&quot;cxcsb010&quot;,TRUE,&quot;cxcsb010.orno&quot;,&quot;cxcsp080.orno&quot;,&quot;cxcsb010.mser&quot;,&quot;l.clot&quot;)<br />
+<br />
+<br />
+<br />
+Writing the above code would mean the below thing<br />
+1) TRUE -  Indicates the Record is locked for update<br />
+2)  &quot;cxcsb010.orno&quot;,&quot;cxcsp080.orno&quot; - The Primary Key-Value Pair one<br />
+3)  &quot;cxcsb010.mser&quot;,&quot;l.clot&quot; - The Primary Key-Value Pair two<br />
+<br />
+You may include more or less of the primary key/value combination depending upon your requirement.<br />
+<br />
+The Return Value of the dal method is specified as<br />
+0 - If the Record is locked for Update<br />
+&lt;&gt; 0 - Error in case of Record Reading.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eric.dizon</div><div class="date">22nd February 2016, 18:41</div></div><div class="posttext">Thanks vahdani.  I tried it and it worked great!  Thanks for your suggestion Ajesh too, but is there a distinct difference between what Vahdani suggested or they the same thing?  If I need to make my code use just DAL2 methods I would consider it or should be using dal.get.object()  instead?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">23rd February 2016, 06:36</div></div><div class="posttext">Hi Eric<br />
+<br />
+Both the suggestions are different. You could use both the suggestions and both will work equally good. The thing with programming in general is that you can use 100 ways to achieve or get the same result. Of course there would be differences between each method, some would take slightly more memory or computation resources etc, i.e. If you really want to go in detail.<br />
+<br />
+You could try both methods. I do not have a Baan Login now otherwise i would have tested my Code.<br />
+<br />
+<br />
+<br />
+#include &lt;bic_dam&gt;<br />
+<br />
+<br />
+long ret.val,ret<br />
+string mess.code<br />
+<br />
+<br />
+db.retry.point()<br />
+<br />
+ret.val = dal.get.object(&quot;cxcsb010&quot;,TRUE,&quot;cxcsb010.orno&quot;,&quot;cxcsp080.orno&quot;,&quot;cxcsb010.mser&quot;,&quot;l.clot&quot;)<br />
+<br />
+If ret.val &lt;&gt; 0 then<br />
+        dal.get.error.message(mess.code)<br />
+        return(DALHOOKERROR)<br />
+endif<br />
+<br />
+dal.set.field(&quot;cxcsb010.mtmk&quot;, cxcsp080.ctst)<br />
+dal.set.field(&quot;cxcsb010.enmk&quot;, cxcsp080.cten)<br />
+dal.set.field(&quot;cxcsb010.tomt&quot;, cxcsp080.ctmt)<br />
+ret = dal.save.object(&quot;cxcsb010&quot;)<br />
+f ret = 0 then<br />
+	commit.transaction()<br />
+else<br />
+	abort.transaction()<br />
+	show.dal.messages()<br />
+endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">23rd February 2016, 09:41</div></div><div class="posttext">One learns a new thing every day!<br />
+I have done DAL prorgamming since it was intruduced and I never knew anything about dal.get.object() function! I did a search: apparantly this is used mostly in standard BDE programing/DLLs.<br />
+<br />
+Another thing I noticed was this comment in the documentation:<br />
+       So in most cases, it is advised to write your own query.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">benito</div><div class="date">23rd February 2016, 15:52</div></div><div class="posttext">One learns a new thing every day!<br />
+I have done DAL prorgamming since it was intruduced and I never knew anything about dal.get.object() function! I did a search: apparantly this is used mostly in standard BDE programing/DLLs.&lt;snipped&gt;<br />
+<br />
+same here! need to try this one out next time :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eric.dizon</div><div class="date">23rd February 2016, 18:24</div></div><div class="posttext">I've learned a lot from this thread.  Thanks for opening my eyes to the power of DAL2 commands.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sakthi kj</div><div class="date">3rd July 2018, 07:19</div></div><div class="posttext">I am fresher...…...:confused:  <br />
+<br />
+what is the result of this query....give me result plss…..<br />
+<br />
+<br />
+<br />
+#include &lt;bic_dam&gt;<br />
+<br />
+<br />
+long ret.val,ret<br />
+string mess.code<br />
+<br />
+<br />
+db.retry.point()<br />
+<br />
+ret.val = dal.get.object(&quot;cxcsb010&quot;,TRUE,&quot;cxcsb010.orno&quot;,&quot;cxcsp080.orno&quot;,&quot;cxcsb010.mser&quot;,&quot;l.clot&quot;)<br />
+<br />
+If ret.val &lt;&gt; 0 then<br />
+        dal.get.error.message(mess.code)<br />
+        return(DALHOOKERROR)<br />
+endif<br />
+<br />
+dal.set.field(&quot;cxcsb010.mtmk&quot;, cxcsp080.ctst)<br />
+dal.set.field(&quot;cxcsb010.enmk&quot;, cxcsp080.cten)<br />
+dal.set.field(&quot;cxcsb010.tomt&quot;, cxcsp080.ctmt)<br />
+ret = dal.save.object(&quot;cxcsb010&quot;)<br />
+f ret = 0 then<br />
+	commit.transaction()<br />
+else<br />
+	abort.transaction()<br />
+	show.dal.messages()<br />
+endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">3rd July 2018, 08:39</div></div><div class="posttext">A specific record from cxcsb010 is locked for update, the record with key fields, as the current value of &quot;cxcsb010.orno&quot;,&quot;cxcsp080.orno&quot;,&quot;cxcsb010.mser&quot;,&quot;l.clot&quot;<br />
+<br />
+And then specific fields like cxcsb010.mtmk,cxcsb010.enmk,cxcsb010.tomt are updated for that specific locked record.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Synchronize parent, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Synchronize parent Tools Development" />
+	
+	<title>Synchronize parent [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Synchronize parent</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Youp2001</div><div class="date">26th August 2005, 11:28</div></div><div class="posttext">Hi,<br />
+<br />
+I'm looking for a way to synchronize the parent session with the child dialog session. Synchronizing should be done from within the child session.<br />
+<br />
+Parent and child session use the same main table and the the child session is synchronized by using command set.synchronized.dialog(&lt;child session&gt;). <br />
+<br />
+This is what happens:<br />
+Form the overview session the synchronized dialog session is started for a specific record. In the synchronized dialog session a processing session is started that, if everything works ok, adds a new record to the main table of the overview and synchronized dialog session. <br />
+After this processing session has ended, the new created record should be displayed in the synchronized dialog session (this is easy to achieve). <br />
+I want to have the overview session updated also, so it is displaying the correct (new created) record. <br />
+<br />
+Anyone has any ideas how to achieve this?<br />
+<br />
+Youp</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">26th August 2005, 16:53</div></div><div class="posttext">Have you tried the 'refresh.parent' option?  It's available as a regular function call, though not documented I've seen it in standard code, generally in the 'after.update.db.commit' section:<br />
+<br />
+<br />
+refresh.parent(1)<br />
+<br />
+or<br />
+<br />
+refresh.parent(-1)<br />
+<br />
+<br />
+<br />
+Since there is no doc, I'm not positive what the difference is with 1 or -1.  I've not played with it myself, only to know that it HOSED MY API CALL!  You should wrap these with:<br />
+<br />
+<br />
+if not api.mode then<br />
+   refresh.parent(1)<br />
+endif<br />
+<br />
+<br />
+Also, while searching for this, I found a library call in tccomdll0000, for a similar need, but I have not used this either:<br />
+<br />
+function extern tccom.dll0000.refresh.parent()<br />
+<br />
+	DllUsage<br />
+	Expl. : This function refreshes the screen of the parent process<br />
+	Pre   :<br />
+	Post  : the command 'execute(find.data)' is adviced to have the <br />
+		window of the child current<br />
+	Input : <br />
+	Output:<br />
+	EndDllUsage</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Youp2001</div><div class="date">29th August 2005, 10:23</div></div><div class="posttext">Thanks for the reply. <br />
+<br />
+I tried refresh.parent but this does not seem to have the wanted result. I think the problem in my situation is, is that the record displayed in the synchronized child changes after executing the processing session. The refresh.parent just seems to update the parent session, but not based on the record currently displayed in the synchronized child session. <br />
+<br />
+This is also the case when using the functionality from tccomdll0000. This DLL does a find.data, but based on the current record in the parent session; not in the synchronized child.<br />
+<br />
+Youp</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">30th August 2005, 00:04</div></div><div class="posttext">Youp,<br />
+<br />
+Yours is a good example for the implementation of Process Change Manager (PRCM). I am doubtful if this functionality is implemented in your BaaN version.<br />
+<br />
+There was another posting on the board on this topic - prcm.register() (http://www.baanboard.com/baanboard/showthread.php?t=19048&amp;highlight=prcm)<br />
+SSA ERP LN 6.1 Programmers Guide <br />
+Process Change Manager Code Examples<br />
+--------------------------------------------------------------------------------<br />
+The most common use of the Process Change Manager is to trigger other sessions to refresh the data on the screen. This can be achieved by registering observer sessions to a certain table. E.g. if updates are done in an Order Header table, then any session that registered itself for this table will be notified, by means of a BMS message.<br />
+<br />
+Process Change Manager (PRCM)<br />
+You can use this function in combination with the Process Change Manager (PRCM) functionality to refresh occurrences. In case updates have been done by other sessions on one or more tables that your session uses, PRCM can be used to notify your session about those changes. Your session then can refresh its data. <br />
+Alternatively, you can try to use - void refresh( [long wind_id] ) with the window_id.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Youp2001</div><div class="date">30th August 2005, 09:09</div></div><div class="posttext">Well I found a solution that works at least for me  :) . This is how I solved it:<br />
+<br />
+In my synchoronized child session, after the process that has created a new record in my main table, I create a bms message containing the key fields of my new created record. <br />
+<br />
+The bms message is picked up by my parent session and in this session, based on the received bms message, the main table is read and the new created record becomes the current record (set the key fields to correct values, read main table with a select and execute a find data to show the correct records on the screen). <br />
+<br />
+After this, the parent session sends a bms message back to my synchronized dialog session. I needed this last part because otherwise the window of the parent session was displayed on top and now I get my synchronized dialog window on top showing the correct record.<br />
+<br />
+Youp</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">30th August 2005, 20:45</div></div><div class="posttext">Glad you found a solution. Here is a sample code which does the same and much easier -<br />
+<br />
+|******************************************************************************	<br />
+before.program:<br />
+	import(&quot;prog.name$&quot;, coming.from)<br />
+	coming.from = strip$(coming.from)<br />
+	curr.comp = get.compnr()<br />
+	change.company(MIGRATION.COMPANY)<br />
+	prcm.register(&quot;zmmig212&quot;)<br />
+	prcm.register(&quot;zmmig213&quot;)<br />
+<br />
+after.program:<br />
+	prcm.unregister(&quot;zmmig212&quot;)<br />
+	prcm.unregister(&quot;zmmig213&quot;)<br />
+	change.company(curr.comp)<br />
+|****************************** CHOICE      SECTION ***************************<br />
+choice.bms:<br />
+on.choice:<br />
+	if prcm.bms.is.notification() then<br />
+		on case prcm.get.subject()<br />
+		case &quot;zmmig212&quot;:<br />
+		case &quot;zmmig213&quot;:<br />
+			|* Refresh all data on the screen<br />
+			refresh.all.occs()<br />
+			break<br />
+		endcase<br />
+	endif<br />
+|******************************************************************************	<br />
+<br />
+A 3GL session has to implement its own event loop: <br />
+<br />
+function main()<br />
+{<br />
+	long event(EVTMAXSIZE)<br />
+<br />
+	prcm.register(&quot;tisfc001&quot;)<br />
+	...<br />
+	while true<br />
+		next.event(event)<br />
+		on case evt.type(event)<br />
+		case EVTBUCKETMESSAGE:<br />
+			if prcm.bms.is.notification(evt.bms.command(event)) then<br />
+				on case prcm.get.subject()<br />
+				case &quot;tisfc001&quot;: <br />
+				|* An update is done on table tisfc001<br />
+				...<br />
+				endcase<br />
+			endif<br />
+			break<br />
+		...<br />
+		endcase<br />
+		...<br />
+	endwhile<br />
+	...<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">30th August 2005, 20:51</div></div><div class="posttext">Right - they all use the bms calls, even the tccomdll0000 calls I referred to on our Baan V system.<br />
+<br />
+Which leads me to think, if SSA is not going to port the PRCM functions down to Baan V that we could probably write our own, including what you did Youp.   Create a Baan boards library that can be used in Baan V to do what PRCM functions do in LN? <br />
+<br />
+Even Baan IV?  That uses bms, but not synchronization...<br />
+<br />
+So much to do, so little time.  Youp..maybe you could post your code in the Code and Utilities area, and we can add to it as the need/time comes up to get more over there...?<br />
+<br />
+To early to tell if they will port anything down, but I'm betting not.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

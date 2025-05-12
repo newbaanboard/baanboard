@@ -1,0 +1,304 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Oracle 8i performance solution, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Oracle 8i performance solution Performance &amp; Tuning" />
+	
+	<title>Oracle 8i performance solution [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Performance &amp; Tuning</a> &gt; Oracle 8i performance solution</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">gguymer</div><div class="date">7th January 2002, 17:47</div></div><div class="posttext">After upgrading to Oracle 8.1.7 from 7.3.4, we started having major performance problems. Queries that took minutes started taking hours both in the Baan and native Oracle environments. I had a suspicion that the Oracle optimizer was at the heart of this and it was. I'm not sure what those changes were, but they definitely had an impact on existing queries.  After  looking through Oracle Metalink issues regarding the 8i optimizer, I was made aware of an optimizer setting called &quot;optimizer_features_enable&quot;, which by default, is set to the current Oracle version. We found that after setting it to &quot;8.0.6&quot;, that our performance returned to normal for Baan and native Oracle. I know that the Baan/Oracle8 driver was compiled under version 8.0.6 and had heard that other Baan sites using Oracle 8.0.x were running OK, so that is why we tried that particular setting.  Baan also recommends setting &quot;optimzer_max_permutations&quot; to 1500 and other Baan sites do too. Hope this helps.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">7th January 2002, 18:08</div></div><div class="posttext">Hadn't heard about the optimizer_features_enable. Something worth checking. The optimizer_max_permutations definitively has a major impact on some queries as it avoids the Oracle optimizer to go into too big a loop. Default number of allowed permutations is about 80,000!<br />
+<br />
+Some of our sites are running 8.1.7 with the optimizer_features_enable set to default and without any major issues. Thanks for the info though!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bherkend</div><div class="date">8th January 2002, 12:09</div></div><div class="posttext">Setting the value to 8.0.6.  includes the following features (PARAMETER of init.ora) of the optimizer:<br />
+<br />
+index fast full scans (9i) (FAST_FULL_SCAN_ENABLED)<br />
+bitmap access path for tables woth only btree indexes<br />
+(B_TREE_BITMAP_PLANS)<br />
+complex view merging (9i) (COMPLEX_VIEW_MERGING)<br />
+push join predicate (9i) (PUSH_JOIN_PREDICATE)<br />
+<br />
+Parameter was introduces in 8.0.4.<br />
+<br />
+See Oracle Metalink Note 68462.1</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">P-Matt</div><div class="date">16th January 2002, 18:31</div></div><div class="posttext">I'm tagging to this original thread because I think the optimizer may be part of my solution, but I have many more questions.<br />
+<br />
+Here is the scoop.<br />
+<br />
+NT 4.0 sp5, BaaN IVc2, Oracle 8.1.6 - upgraded April 01 from 7.3.4<br />
+Sessions started to run slow after the upgrade.  Baan Tech support had me run :<br />
+<br />
+analyze table {tablename} estimate statistics sample 20 percent; <br />
+<br />
+for all of my tables, then  I ran:<br />
+<br />
+analyze index &lt;tablename&gt;$IDX1 compute statistics;<br />
+<br />
+for what appears to be all indexes on all tables.<br />
+<br />
+We also changed the value for max_permutations to 1500.<br />
+<br />
+That seemed to fix the system for awhile.  However, the system locked up in December, and ever since that reboot (and several after that), sessions are geting slower and slower.  I have run the analyze commands agan, but that didn't seem to help this time.<br />
+<br />
+Anyone have any ideas for me?  Baan Tech says to upgrade Oracle to 8.1.7, check for fragmented tables and indexes, and upgrade my porting set.<br />
+<br />
+What do you guys think?  There appears to be an awful lot of credible knowledge here.<br />
+<br />
+Thanks in advance.<br />
+Also, does anyone know where can I find documentation on how to tune Oracle/Baan?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">James</div><div class="date">17th January 2002, 02:03</div></div><div class="posttext">Hi P-Matt,<br />
+<br />
+There could be many reasons for your problem.<br />
+<br />
+Firstly, how often do you run the analyse stats?  This needs to be run at minimum once a week (!) and if time allows run at 100%.  A good optimum value is 40% (any higher than 40% then Oracle chooses to 'compute' stats at 100% anyway).  Even after as little as 3 days, table stats can quickly become obsolete (for busy tables) - Oracle will recognise that the stats are no longer valid and may choose not to use the stats at all and opt for potentially time consuming table scans.<br />
+<br />
+Secondly its normal that over time, sessions appear to go slower.  Data is constantly being appended to tables, thus inserts and selects on these tables will be slower over time.  Even more so if the tables become fragmented.  Lots of companies look into data warehousing or archiving to purge old data from large/frequently used tables.<br />
+<br />
+Db-reorgs should be performed quite regularly on a Baan environment.  At least once a year, even twice.  A lots depends on how the Oracle environment has been setup also.  Are all your Baan company tables in their own Oracle tablespace?  And the indexes, are they in another tablespace?  You can try and dump the data for one Baan company, delete the tables in Oracle, then reimport the dump - this is a quick and easy way of removing fragmentation, but you must first make sure the ora_storage file is setup correctly.  It is preferable that each table is loaded into 1 Oracle extent - for this you need to estimate the size of each table, then set the appropriate initial extent size in ora_storage. <br />
+<br />
+What are you using as the storage medium? (RAID etc.)  Have you eliminated any disk problems?  And which sessions are running slow?<br />
+<br />
+Is the performance problem consistent?  Or just at month end/beginning when load is high and users complaining the most? :)<br />
+<br />
+Upgrading to 8.1.7, or upgrading the Porting Set are unlikely to solve the performance problem - but can help with other things.<br />
+<br />
+From an Oracle point-of-view, have a DBA check out stats, and fragmentation.  For Baan, check the settings in the ora_storage and db_resource files - plently of info elsewhere on this message board regarding these files.<br />
+<br />
+Email or PM me if you need more info.<br />
+<br />
+Good luck.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Martin</div><div class="date">17th January 2002, 10:15</div></div><div class="posttext">could be useful for performancel to recreate the indices for reorganize the index-tree. So do for each index : alter index indexname rebuild.<br />
+Could be done online.<br />
+<br />
+Martin</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">17th January 2002, 10:43</div></div><div class="posttext">To my opinion you should check if the index tree is not so nice anymore. That could be the case if you e.g. have archived. If you only add new records to tables the rebuild doesn't help. On metalink you can find queries in order to get an advice if index rebuild would help.<br />
+<br />
+One of my customers has exported/imported their 30Gb Baan Oracle database to get ride of the fragmentation. The fragmentation is gone however it did give us a better performance. What I understood from Oracle is that since 7.3.4 Oracle handles the extend information better so having fragmentation is not that bad.<br />
+<br />
+Han</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Martin</div><div class="date">17th January 2002, 10:53</div></div><div class="posttext">Hi Han,<br />
+<br />
+the problem is not the fragmentation. If you have a lot of inserts in a table, also a lot of indices are created, so the b-tree of the index is split in a lot of chunks. Rebuild the index, recreates the indextree so Oracle could read the indextree faster.<br />
+If a rebuild of an index is usefull you could check as following :<br />
+<br />
+analyze index index_name validate structure<br />
+then query the index_stats view :<br />
+select (del_lf_rows/lf_rows)* 100 as index_usage from index_stats.<br />
+if index_usage &gt; 20% then recreate the index.<br />
+<br />
+Martin</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">SRWSRW</div><div class="date">17th January 2002, 20:27</div></div><div class="posttext">The only serious performance problem we hit 7.3.4 to 8.1.6 was the damned BAAN pdaemon.<br />
+<br />
+This seemed to suddenly start eating as much CPU<br />
+as it had done with early versions of 7.3.4 before<br />
+we told it to mellow out people don't print stuff <br />
+that frequently.<br />
+<br />
+Thanks to Anil and Peter for reminding me about<br />
+max_permutations. <br />
+<br />
+We went to great lengths to effect this with Oracle 7.3.4 (Yes Oracle know how) but it disappeared after the upgrade.<br />
+<br />
+A quick session trace suggests pdaemon might benefit from max permutations. Hmm there is a pattern developing here.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">P-Matt</div><div class="date">17th January 2002, 23:17</div></div><div class="posttext">I would like to thank everyone for their input.  <br />
+<br />
+James:  Admittingly, I do not run the analyze often enough.  I was told to run this only when the system is not being used - which when my batch jobs run so long, is never.  Can I run the analyze while other sessions are running?<br />
+<br />
+How many extents on an index is too many?<br />
+I did what the Baan Tech said and did a reorg on one of the tables (tfgld419300) - the index for idx1 went from 17 to 19.<br />
+via the sql:  <br />
+select segment_name,count(*) from dba_extents<br />
+where segment_type='INDEX' having count(*) &gt; 5<br />
+group by segment_name;<br />
+<br />
+Martin: When I issue the sql you supplied, I see an index_usage of ~1.345% on this particular table.  Others came back with 0.<br />
+<br />
+I think you and Han have a point with the index-tree thing.<br />
+<br />
+Whatever happended, happened when the system locked up that night.  I have a test server that has a duplicate of this database, and it is running fine.  I'm trying to compare things, but don't really know where to start.<br />
+<br />
+What a mess huh?<br />
+<br />
+I am continuing to read my performance tuning sections of manuals...<br />
+<br />
+Thanks again for everyones input and help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">18th January 2002, 08:56</div></div><div class="posttext">Solaris 2.6, Oracle 8.05, Baan5.0b, two tier<br />
+<br />
+We have been (and are) suffering major performance issues for some time now. We tried just about every Oracle setting there is. Some seem to work for a short time, but eventually it all goes down the drain again.<br />
+<br />
+Tired of fighting fires, we ended up throwing more CPU's and memory at our E10K. This gave us some air but Oracle is still not responding properly to Baan requests.<br />
+<br />
+We are now experiencing a bunch of 107 errors, caused by time-outs in the communication between Baan and Oracle. Running the queries directly in Oracle works just fine. This leads me to supsicions towards the Baan Oracle driver.<br />
+<br />
+Other performance nuisances are caused by Safari and Vertex. Vertex fragments the shared memory pool at an incredible rate. Constant flushing and pinning seems to have a positive effect on our system's performance.<br />
+<br />
+I don't believe there is a silver bullet in these matters. It is a long and hard recursive road of observing, identifying and improving.<br />
+<br />
+Perhaps we could all compare system settings. ha...ha...ha</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">18th January 2002, 09:39</div></div><div class="posttext">P-matt: sure you can analyze online.<br />
+<br />
+19 extents for a table is not that much. However if it went from 17 to 19 the reorg didn't help, did you modify the ora_storage before doing the reorg with help of the baan tools? You have to because otherwise it probably will not help.<br />
+<br />
+Index usage seems all right to me.<br />
+<br />
+You have to exclude things: is it a general problem, is it a problem of a particular session, if it is try to trace and check if the session uses a bad query. <br />
+<br />
+Some thing to check which I remember by head of my latest performance issues:<br />
+Check your index optimization settings in the ora_storage: if you use level II it should be 0214, if not you can have strange performance problems. <br />
+<br />
+The same applies if Baan has defined the references wrong meaning that a delete of a record results in a full table scan in another table in order to check if a reference exists. A bug we found in 5c a few months ago...<br />
+<br />
+Run a SQL_TRACE of slow queries, run tkprof. A session that took 1 hour to show the results on the screen took only 30 seconds after I removed the statistics ... The analyze can have a bad effect also!<br />
+<br />
+On batch jobs use ORA_MAX_ARRAY_xxxx, RDS_FULL settings. Try to run batch jobs in full host mode.<br />
+<br />
+Francesco: of course quering the oracle db directly is more efficient than Baan does. Baan has to translate the baan sql to Oracle, read the Baan dd etc. That's the consequence of being flexible, i.e. being able to support Oracle/Informix etc.<br />
+<br />
+I agree that most of the time there is not a golden tip to solve matters like these. However they can be solved in nearly all situations but it takes time.<br />
+<br />
+Kind regards,<br />
+Han</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Martin</div><div class="date">18th January 2002, 09:44</div></div><div class="posttext">I would give you same generell information about tuning ORACLE 8.1.x and BaaN:<br />
+<br />
+It is very difficult to tune Oracle, because every Hardware constellation is different. So you need a software to view, what the database is done when Baan running. You could take Spotlight from Quest Software (very expensive) or take the new Oracle 9i Client. With the 9i Client a new Diagnostic Pack is delivered with a very god Performance Manager. You could get a lot of Reports, detailed Information for each SQl-Statement, Locks .....<br />
+This is the only way, to see what is happening in Oracle, when Baan is running. <br />
+<br />
+Some tipps for Oracle 8.1.x :<br />
+<br />
+Have you recreated the TEMP-Tablespace defined as &quot;local managed&quot;<br />
+Have you recreated Rollback-Tablespace  defined as &quot;local managed&quot; ?<br />
+Have you more than one Rollbacktablespace and split the Rollback segments over this Tablespaces ?<br />
+In which order Rollback segments will be assign online in the initxxx.ora ? (RBS1,RBS2,RBS3 .... ) Better this way : 4 Tablespaces for Rollbacksegments, assign RBS1,RBS2 to TBS1, RBS3,RBS4 to TBS2, RBS5,RBS6 to TBS 3 and RBS7,RBS8 to TBS4.<br />
+Now change the Parameter in the initxxx.ora to :ROLLBACK_SEGMENTS=(RB1,RBS3,RBS5,RBS7,RBS2;RBS4,RBS6,RBS8).<br />
+Never, never put the controlfiles on the same Disk as the Datafiles, this will degree Performance.<br />
+Have you set the JAVA_POOL_SIZE to zero ?<br />
+<br />
+Hpe this help a litte bit.<br />
+<br />
+Martin</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JamesV</div><div class="date">18th January 2002, 14:57</div></div><div class="posttext">Francesco,<br />
+<br />
+Since you suspect the settings for the Baan Oracle driver, can you please post your db_resource settings for comment.<br />
+<br />
+I have to go right now (appt in 1 minute) but one thing I would look at would be the use of the async IO since you are at an old version of Solaris -- are you using aysnc IO?<br />
+<br />
+-- Jim</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bherkend</div><div class="date">18th January 2002, 15:10</div></div><div class="posttext">Fransesco,<br />
+check ora_timeout (on unix ! ) to use {0,60,60,60,0}  instead of {60,60,60,60,60} to get rid of 107 errors.<br />
+Beate</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gguymer</div><div class="date">18th January 2002, 18:26</div></div><div class="posttext">We thought this optimizer setting was the magic bullet, but it turns out that it wasn't. We were desperate to try anything. Since then we have stepped back and looked at the whole picture. We have noticed that our database server's paging has gone way up which indicates not enough memory. Past experiences related by other Baan/Oracle upgrades indicated that Oracle 8i consumes more memory. So, we are going to add more memory and see what happens. Lately, I have personally spent a great deal of time reseaching Oracle memory tuning. Most of you know that there are three areas that bear looking at, and they are the Library cache, Dictionary cache, Block Buffer cache hit ratios when dealing with efficient Oracle memory usage. There are several queries based on V$ views that can be used to evaluate these that Oracle and several others provide for this purpose. Another tool that is new to Oracle 8i is STATSPACK and if you haven't installed it, do so. There is a web page that Oracle pointed me to that takes the output from the STATPACK report script and creates another report that provides a higher level of interpretation and advice for you to look at. The nice thing about it is that it is free.  The information is only as useful as your understanding of Oracle internal workings. It is located at: http://www.oraperf.com, and it works for either STATSPACK or UTLBSTAT/UTLESTAT outputs. One thing that Baan Tools support has recommended that we haven't tried yet is to revert back to the Baan/Oracle 7 driver. They have indicated that it has reduced memory usage and provided better performance for some customers. One question they asked us before they suggested it was, &quot;Is your database using the US7ASCII characterset?&quot; If yes, then try it, otherwise its not recommended. We are not sure if we want to try this just yet.  I'll keep you posted on our progress.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zaidlaz</div><div class="date">20th January 2002, 08:55</div></div><div class="posttext">Hi,<br />
+<br />
+After reading thru this thread I would like to highlight that baan is really an I/O intensive application. Nevertheless your RAID controller card performance plays an important part in giving you the performance required. Not to mentioned how you organised your oracle datafiles. Placing your biggest table in a tablespaces of it's own might help too. For PC Servers the latest of the RAID supports the ULTRA 160s and I believe the ULTRA 320 or more in on the way... <br />
+<br />
+<br />
+Best Wishes,<br />
+Zaid</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">P-Matt</div><div class="date">26th January 2002, 01:43</div></div><div class="posttext">Hello everyone.<br />
+<br />
+Does anyone know anyhing about Locally Managed Tablespaces?<br />
+Could this be my problem?  (slow baan sessions) <br />
+When I issue a<br />
+select tablespace_name, extent_management<br />
+from dba_tablespaces; <br />
+<br />
+Each tablespace has a value of 'Dictionary' in Extent_management.<br />
+<br />
+- How do I set my tablespaces to Locally Managed?<br />
+- Do I want to?<br />
+<br />
+Thanx.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zaidlaz</div><div class="date">26th January 2002, 08:39</div></div><div class="posttext">Locally managed tablespace only in 8i &amp; above<br />
+In Oracle 8.1.6, you may now migrate dictionary managed tablespaces to locally managed tablespaces, where in 8.1.5 this was not possible. <br />
+<br />
+Advantages<br />
+=========<br />
+ **Reduced recursive space management<br />
+ **Reduced contention on data dictionary tables<br />
+ **No rollback generated<br />
+ **No coalescing required<br />
+<br />
+example (assuming that the database block is 2k)<br />
+CREATE TABLESPACE tdsls040_1 <br />
+DATAFILE 'file_tdsls040_1.dbf' SIZE 500M<br />
+		EXTENT MANAGEMENT LOCAL <br />
+                UNIFORM SIZE 128K<br />
+<br />
+This statement creates a locally managed tablespace in which every extent is 128K and each bit in the bit map describes 64 blocks. In essence, if we assume a default database block size of 2K, and that each bit in the map represents one extent (128K), then each bit maps (128k UNIFORM SIZE / 2k ORACLE BLOCK SIZE) 64 oracle blocks.<br />
+<br />
+Additional steps in Baan<br />
+-------------------------------<br />
+1) bdbpre table tdsls040<br />
+<br />
+2) ** You need to drop the table tdsls040 from it's old tablespace<br />
+<br />
+3) Edit for ora_storage<br />
+tdsls040:555:T:group:0214:MSGSIZE:PCTFREE 5 TABLESPACE TDSLS040_1_DAT INITRANS 3<br />
+<br />
+3) bdbpost table tdsls040  (The data of this table will be updated to the new tablespace TDSLS040_1)<br />
+<br />
+*** PS: The above steps require you to be in a careful, clear state of mind. This is an example to give you an idea of how you can improve your  access to large baan tables but it is not the ultimate  &amp; the best solution coz it all depends on the current state of your Baan system (both hardware &amp; software)*** <br />
+<br />
+<br />
+All the above will enhance your performance to a certain extent nevertheless it would be beneficial if you also analyse your I/O problem from the hardware point of view.<br />
+<br />
+<br />
+Best Wishes,<br />
+Zaid</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">26th January 2002, 14:07</div></div><div class="posttext">You can convert existing TS as well by means of the dbms_space_admin package.<br />
+<br />
+Han</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

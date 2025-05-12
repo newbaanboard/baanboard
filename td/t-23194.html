@@ -1,0 +1,125 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="text.write, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] text.write Tools Development" />
+	
+	<title>text.write [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; text.write</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">blanchap</div><div class="date">16th February 2005, 21:10</div></div><div class="posttext">Hi,<br />
+<br />
+anyone ever used the text.write function?  I'm trying to populate automatically the header text using this function and it does not work.  Here is part of my code:<br />
+<br />
+#include &lt;bic_text&gt;<br />
+<br />
+zoom.to$(&quot;tdwsl0201sc00&quot;,z.session,&quot;&quot;,&quot;&quot;,0)    |session that creates a tmp file<br />
+stat = import(&quot;tmp.sort.file&quot;,zoom.file)            |get the tmp file back<br />
+<br />
+stat = text.write(&quot;tdwsl001.txta&quot;,&quot;2&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;,tmp.sort.file)<br />
+<br />
+Text does not get created.<br />
+<br />
+have any suggestions?<br />
+<br />
+thanks<br />
+<br />
+PB</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">16th February 2005, 21:25</div></div><div class="posttext">Refer to this piece of code -<br />
+<br />
+<br />
+function extern long before.save.object(long mode)<br />
+{<br />
+domain	tcmcs.long6 	max.reqid<br />
+<br />
+if mode = DAL_NEW then<br />
+	select	max(zmmig200.reqid):max.reqid<br />
+	from	zmmig200<br />
+	selectdo<br />
+	endselect<br />
+	zmmig200.reqid = max.reqid + 1<br />
+endif<br />
+if zmmig200.note = 0 then<br />
+	return(put.def.mig.text())<br />
+endif<br />
+.....<br />
+}<br />
+<br />
+|******************************************************************************<br />
+function extern	long	put.def.mig.text()<br />
+{<br />
+long	fp<br />
+string	temp.file(256)<br />
+<br />
+temp.file = creat.tmp.file$(bse.tmp.dir$())<br />
+fp = seq.open(temp.file,&quot;w&quot;)<br />
+if fp &lt; 1 then<br />
+	dal.set.error.message(&quot;zmmigs0006&quot;)	|* File Handling Errors<br />
+	return(DALHOOKERROR)<br />
+endif<br />
+e = seq.puts(&quot;Migration Request # &quot; &amp; str$(zmmig200.reqid), fp)<br />
+e = seq.puts(&quot;Description of Change: &quot;, fp)<br />
+e = seq.puts(&quot;Menus/sessions affected: &quot;, fp)<br />
+e = seq.puts(&quot;Process Dependencies: &quot;, fp)<br />
+e = seq.puts(&quot;System test: &quot;, fp)<br />
+e = seq.puts(&quot;Setup required: &quot;, fp)<br />
+e = seq.puts(&quot;&quot;, fp)<br />
+e = seq.puts(&quot;Other Systems affected and how: &quot;, fp)<br />
+e = seq.close(fp)<br />
+|txtg = start.session(MODAL,&quot;tttxt1110m000&quot;,&quot;zmmig1100m000&quot;,&quot;tttxt0005._index1&quot;)<br />
+|if isspace(txtg) then<br />
+|	dal.set.error.message(&quot;zmmigs0005&quot;)|* Text group has to be selected<br />
+|	return(DALHOOKERROR)<br />
+|endif<br />
+tttxt005.txtg = &quot;text&quot;<br />
+e = text.write(&quot;zmmig200.note&quot;, &quot;&quot;, &quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;, tttxt005.txtg, &quot;&quot;, temp.file)<br />
+e = file.rm(temp.file)<br />
+return(0)<br />
+}<br />
+|******************************************************************************</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">blanchap</div><div class="date">17th February 2005, 15:45</div></div><div class="posttext">Hi,<br />
+<br />
+Thanks, the text.write is working now (it's returning a text number into txta field).  The only thing is that it's not updating the table.  Session is still asking me if i want to create a new text.<br />
+<br />
+choice.text.manager:<br />
+before.choice:<br />
+	zoom.to$(&quot;tdwsl0201sc00&quot;,z.session,&quot;&quot;,&quot;&quot;,0)<br />
+	stat = import(&quot;tmp.sort.file&quot;,zoom.file)<br />
+	stat = text.write(&quot;tdwsl001.txta&quot;,&quot;2&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;text&quot;,&quot;&quot;,zoom.file)<br />
+	commit.transaction()<br />
+<br />
+could it be because i'm doing it in a before.choice of the text.manager?<br />
+<br />
+regards<br />
+<br />
+PB</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">blanchap</div><div class="date">18th February 2005, 18:22</div></div><div class="posttext">Hi,<br />
+<br />
+yes, it was because i was in choice.text.manager<br />
+<br />
+function text.write worked.  Thanks for your help<br />
+<br />
+regards<br />
+<br />
+PB</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

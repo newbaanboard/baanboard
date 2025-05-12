@@ -1,0 +1,94 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="ttstpcreatdll manual, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] ttstpcreatdll manual AFS/DDC/OLE: Function servers" />
+	
+	<title>ttstpcreatdll manual [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; ttstpcreatdll manual</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">pitfloner</div><div class="date">28th February 2006, 11:16</div></div><div class="posttext">I don't know so much about how ttstpcreatdll works. E.g.:<br />
+1. How to execute choice.print.data<br />
+2. How to call a subsession<br />
+3. How to close the session<br />
+and so on.<br />
+<br />
+Does anyone know if it exist any manual about this subject?<br />
+<br />
+Thank you,<br />
+<br />
+Joan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">28th February 2006, 15:32</div></div><div class="posttext">See the sticky thread at the top of this forum.  Basically all ttstpcreatdll does is create a library of stpapi commands for the session.  This library does not always contain all of the commands.  I used this early on just to get an idea of what commands you could use on a session.  Again, keep in mind it may not contain all of the commands.  Also how sessions react may vary from system to system. Also see my signature for my latest mantra. Now for your questions.<br />
+<br />
+(1) Usually stpapi.continue.process does the trick.  But this may vary from session to session.<br />
+(2) You only have to worry about handling the sub-sessions.  So once you have control of the sub-sessions you just send the stpapi commands to the sub-session.<br />
+(3) stpapi.end.session closes a session.  Below is just a sample subroutine I use to delete outbound.  You can search this forum for other examples.  You might even find code for the session you are looking at automating.<br />
+<br />
+<br />
+function extern delete_outbound_seqn(	domain	tcmcs.str12	runnumber,<br />
+					domain  tdilc.kooa	order.type,<br />
+					domain	tcorno		order.number,<br />
+					domain	tcpono		order.position,<br />
+					domain	tcmcs.long	order.serb,<br />
+					ref     string          msg())<br />
+{<br />
+	msg = &quot;&quot;<br />
+	stpapi.handle.subproc(&quot;tdilc4101m000&quot;,&quot;tdilc4102s000&quot;,&quot;add&quot;)<br />
+	stpapi.put.field(&quot;tdilc4101m000&quot;,&quot;runnumber&quot;,runnumber)<br />
+	stpapi.put.field(&quot;tdilc4101m000&quot;,&quot;k.o.order&quot;,str$(order.type))<br />
+	stpapi.put.field(&quot;tdilc4101m000&quot;,&quot;ordernr&quot;,str$(order.number))<br />
+	stpapi.continue.process(&quot;tdilc4101m000&quot;,msg)<br />
+	if not isspace(msg) then<br />
+		stpapi.end.session(&quot;tdilc4101m000&quot;)<br />
+		return<br />
+	endif<br />
+	stpapi.enum.answer(&quot;tdilc4102s000&quot;,&quot;ttstpq0100&quot;,tcyesno.yes)<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.koor&quot;,str$(order.type))<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.orno&quot;,str$(order.number))<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.pono&quot;,str$(order.position))<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.sera&quot;,&quot;0&quot;)<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.serb&quot;,str$(order.serb))<br />
+	rc = stpapi.find(&quot;tdilc4102s000&quot;,msg)<br />
+	if rc = 1 then<br />
+		stpapi.delete(&quot;tdilc4102s000&quot;,true,msg)<br />
+	else<br />
+		msg = &quot;Position not found on tdilc4101m000 for delete.&quot;<br />
+	endif<br />
+	stpapi.end.session(&quot;tdilc4513s000&quot;)<br />
+	stpapi.end.session(&quot;tdilc4102s000&quot;)<br />
+	stpapi.end.session(&quot;tdilc4101m000&quot;)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pitfloner</div><div class="date">1st March 2006, 13:23</div></div><div class="posttext">After creating the dll with ttstpcreatdll, a new llibrary is created. <br />
+<br />
+If I want to user the session, do I have to use the functions saved in the dll, instead of stpapi?<br />
+<br />
+Thanks,<br />
+<br />
+Juan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">1st March 2006, 15:29</div></div><div class="posttext">You do not have to use the library created by the DLL.  I usually just generate the libraries to look at.  I then use the stpapi commands in the program or in a library like my example.  I prefer using the stpapi commands versus the library - I think it makes it easier to see what is happening in the code.  Plus - remember my warning, not all of the commands may be created by ttstpcreatdll.  Also some of the libraries may not compile - usually because of duplicate function names.  Another reason to use stpapi code directly is because when you have problems, you can cut and paste the code directly into a post in this forum.  That will make it easier for others to see what could be causing the problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dzorrilla</div><div class="date">27th February 2009, 09:18</div></div><div class="posttext">Thank you so much for this theard.<br />
+<br />
+David.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

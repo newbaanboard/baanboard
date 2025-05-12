@@ -1,0 +1,207 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="DB.EQ &amp; Table Lock ?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] DB.EQ &amp; Table Lock ? Tools Development" />
+	
+	<title>DB.EQ &amp; Table Lock ? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; DB.EQ &amp; Table Lock ?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">2nd November 2006, 14:55</div></div><div class="posttext">Hi all friends,<br />
+Nowadays we have a strange db lock problem for tiitm001 table. In our system sometimes this table is locked for a long time about 1 hour. or more than 15 minutes. Normally , other users don't  do any  operations depens on this. I have many alternatives to solve it but I want to evalute yours comment first. When someone use session tisfc0101m000 and do any update operation to this , it causes lock problem. When I look at source I saw this code :<br />
+this code locks only one record or all table ?<br />
+According to me , it locks only one record on tiitm001. This means that other user do any update operations on tiitm001 except the locked record  on tiitm001. And another question WHEN this lock turn into unlock ??? after any commit???   Thanks ...<br />
+function read.standard.item.locked()<br />
+{<br />
+	long            save.error.bypass<br />
+	long            retry.count<br />
+<br />
+	tiitm001.item = tisfc001.mitm<br />
+	save.error.bypass = error.bypass<br />
+	error.bypass = 2<br />
+	retry.count  = 0<br />
+	db.eq(ttiitm001,db.lock)<br />
+	while db.error(ttiitm001) = ELOCKED<br />
+		if retry.count &lt; 10 then<br />
+			mess(&quot;tisfcs0249&quot;,0,strip$(shiftl$(<br />
+				tiitm001.item)), retry.count)<br />
+			| Standard item %s is locked , Retry %d  sec.<br />
+			retry.count = retry.count + 1<br />
+			suspend (1000) | 1 seconds<br />
+			db.eq(ttiitm001,db.lock)<br />
+		else<br />
+			clean.mess()<br />
+			item.locked = true<br />
+			return<br />
+		endif<br />
+	endwhile<br />
+	error.bypass = save.error.bypass<br />
+	if retry.count &lt;&gt; 0 then<br />
+		 clean.mess()<br />
+	endif<br />
+	item.locked = false<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">2nd November 2006, 15:14</div></div><div class="posttext">This db.eq locks only current record and not the complete table. Further the lock is removed on db.update and after that commit.transaction() or after a new record is read on the same table .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">2nd November 2006, 17:03</div></div><div class="posttext">Further the lock is removed on db.update and after that commit.transaction() or after a new record is read on the same table .<br />
+Not completely true. <br />
+<br />
+The record lock is set during the db.eq as the db.lock is used (not to be confused with db.delayed.lock). <br />
+<br />
+The lock is released after a commit.transaction() or abort.transaction().<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">3rd November 2006, 06:13</div></div><div class="posttext">True I missed out Abort.transaction() . Thanks for the correction .<br />
+<br />
+Also the lock on a particular record is moved to another record when using other db.* statements .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">3rd November 2006, 08:37</div></div><div class="posttext">thanks for your reply <br />
+Hitache I couldn't understand last sentence. what do you mean ?<br />
+Also the lock on a particular record is moved to another record when using other db.* statements .<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">3rd November 2006, 15:05</div></div><div class="posttext">Hitache I couldn't understand last sentence. what do you mean ?<br />
+I think Hitache refers to a delayed lock with is not relevant as you have a direct lock in the code you provided.<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">6th November 2006, 08:14</div></div><div class="posttext">Are you sure that ? Was it silly ? <br />
+According to you , for example <br />
+<br />
+            tiitm001.item = tisfc001.mitm<br />
+	db.eq(ttiitm001,db.lock)<br />
+           select * <br />
+           from ttiitm001<br />
+           selectdo<br />
+                 ****<br />
+                 *********************<br />
+           endselect<br />
+<br />
+<br />
+           Does  it lock all fields of item table ?<br />
+<br />
+Thanks Hitache</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">6th November 2006, 09:14</div></div><div class="posttext">Yup  Soloman , <br />
+Besides commit and abort , the lock will remove at the normal end of the program.<br />
+<br />
+When the record is locked , all it's fileds are locked for update. U can always view the record many times.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">6th November 2006, 10:06</div></div><div class="posttext">Hitash,<br />
+<br />
+This is luckily completely wrong. Else we should have had many more issues in our application. Let me know if you do have any proof for this. Let me proof that you are wrong.<br />
+<br />
+Assume the following code:<br />
+long a<br />
+db.first(ttiitm001)<br />
+db.eq(ttiitm001,db.lock)<br />
+select * <br />
+from tiitm001<br />
+order by tiitm001._index1<br />
+selectdo<br />
+        a = a + 1<br />
+endselect<br />
+<br />
+When you compile this and start this with debug option you can easily go though all the code. Start another bshell where you start ttaad4100 and select the first record of tiitm001. If you press the option to change a record you will get (depending on your db_resource settings) sooner or later an 107 error. <br />
+<br />
+From the point the db.lock has been set until the end of the code the record is locked. No other records are (luckily) locked.<br />
+<br />
+At least that is what my tests proved locally.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">6th November 2006, 14:00</div></div><div class="posttext">Thanks for your comments. Additionally What about my db_resource parameter. Does one of them cause easily locking? Our porting set is 6.1c.06.07 ,  Baan IV c3<br />
+<br />
+dbsinit:01<br />
+ora_init:0111000<br />
+rds_full:5<br />
+ssts_set_rows:5<br />
+ora_max_array_insert:2<br />
+ora_max_array_fetch:5<br />
+lock_retry:20*100,10*1000,5*1000<br />
+oracle_client_home:/baan/bse/lib/ora/oracle_home<br />
+nls_lang:american_america.we8iso8859p9<br />
+nls_sort:binary<br />
+ora_default_tablespace:comp601<br />
+ora_temporary_tablespace:temp<br />
+ora_column_format:8<br />
+<br />
+<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">6th November 2006, 14:04</div></div><div class="posttext">So even if u dont do commit or abort, db.unbind will remove the lock .  So I am also right :) <br />
+<br />
+U can check the same in ur own test code only .<br />
+So I checked it with:<br />
+<br />
+db.first(ttiitm001)<br />
+db.eq(ttiitm001,db.lock)<br />
+db.unbind(ttiitm001)<br />
+<br />
+After the db.unbind the lock is still on the first record of tiitm001. Did I miss something else?<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">6th November 2006, 14:08</div></div><div class="posttext">Additionally What about my db_resource parameter. Does one of them cause easily locking? Our porting set is 6.1c.06.07 ,  Baan IV c3<br />
+No problems here, the lock_retry is maybe a bit low if you see a lot of 107 errors, but in general your db_resource parameters are not the cause for your locing.<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">6th November 2006, 14:14</div></div><div class="posttext">I think so Dikk . Thanks for your comment.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">7th November 2006, 15:49</div></div><div class="posttext">So I checked it with:<br />
+<br />
+db.first(ttiitm001)<br />
+db.eq(ttiitm001,db.lock)<br />
+db.unbind(ttiitm001)<br />
+<br />
+After the db.unbind the lock is still on the first record of tiitm001. Did I miss something else?<br />
+<br />
+Kind regards,<br />
+Dick<br />
+Hi , <br />
+<br />
+Both of u r right . My earlier understanding of physical lock was based on delayed lock. <br />
+And db.unbind also was based on test carried in haste . And old adage 'haste makes waste' <br />
+perfectly  suited it. Thanks to both u for bringing clarity on this .<br />
+<br />
+If a program ends without a COMMIT_TRANSACTION or ABORT_TRANSACTION after the last database call, an undo of the transaction will be executed. This will also happen when a  process is canceled.<br />
+<br />
+If program stops abnormally / fatally , then the physical lock remains . In such a case , rc.stop and rc.start are the only options to remove the lock. This may be true for some database driver only. This should not be tested for obvious reasons . Physical lock is accessible as a fake row attribute (&lt;table&gt;._dlock).</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,197 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="DAL?AFS not working for updating tisfc010.rsdt field, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] DAL?AFS not working for updating tisfc010.rsdt field Tools Development" />
+	
+	<title>DAL?AFS not working for updating tisfc010.rsdt field [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; DAL?AFS not working for updating tisfc010.rsdt field</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">krushna</div><div class="date">3rd November 2015, 20:35</div></div><div class="posttext">Hi Guys,<br />
+<br />
+I am trying to update field tisfc010.rsdt using DAL but am getting error message: - &quot;The Data Access Layer doesn't allow the operation update on table tisfc010&quot;.<br />
+Here is the program for the same:-<br />
+<br />
+              ret =  dal.change.object(&quot;tisfc010&quot;)<br />
+		dal.set.field(&quot;tisfc010.rsdt&quot;,utc)<br />
+		ret = dal.save.object(&quot;tisfc010&quot;)<br />
+		if ret = 0 then<br />
+			commit.transaction()<br />
+		else<br />
+			dal.get.error.message(error)			<br />
+			abort.transaction()<br />
+		endif<br />
+<br />
+Also I tried AFS for session tisfc0110m000 but its also not updating the same, neither it is giving any error.<br />
+<br />
+                stpapi.put.field(&quot;tisfc0110m000&quot;,&quot;tisfc010.pdno&quot;,pdno)<br />
+		stpapi.put.field(&quot;tisfc0110m000&quot;,&quot;tisfc0101.opno&quot;,str$(pono))<br />
+		ret = stpapi.find(&quot;tisfc0110m000&quot;, error )<br />
+		if ret = 1 then<br />
+			ret = stpapi.mark(&quot;tisfc0110m000&quot;, error )<br />
+			stpapi.synchronize.dialog(&quot;tisfc0110m000&quot;, &quot;Modify&quot; , error)<br />
+			stpapi.put.field(&quot;tisfc0110m000&quot;,&quot;tisfc010.rsdt&quot;,str$(utc))<br />
+			ret = stpapi.update(&quot;tisfc0110m000&quot;, false, error)<br />
+			stpapi.save(&quot;tisfc0110m000&quot;, error)<br />
+		endif<br />
+		stpapi.end.session(&quot;tisfc0110m000&quot;)<br />
+		stpapi.end.session(&quot;tisfc0110m000&quot;)<br />
+<br />
+Please help me out on this.<br />
+<br />
+Thanks,<br />
+Krishna</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">benito</div><div class="date">3rd November 2015, 20:47</div></div><div class="posttext">please try with:<br />
+<br />
+dal.set.field(&quot;tisfc010.rsdt&quot;,utc.num())</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">3rd November 2015, 21:04</div></div><div class="posttext">I have found that DAL doesn't work well (or at all) in tisfc010 and automation is best done in AFS.  I think the mark that you have in your code may be the cause since it isn't needed for a synchronized dialog.  I have something similar (but different fields) that works fine.<br />
+<br />
+<br />
+stpapi.put.field(&quot;tisfc0110m000&quot;,&quot;tisfc010.pdno&quot;,pdno)<br />
+stpapi.put.field(&quot;tisfc0110m000&quot;,&quot;tisfc0101.opno&quot;,str$(pono))<br />
+ret = stpapi.find(&quot;tisfc0110m000&quot;, error )<br />
+if ret = 1 then<br />
+|          (not needed here since synchronized dialog) ret = stpapi.mark(&quot;tisfc0110m000&quot;, error)<br />
+    ret = stpapi.synchronize.dialog(&quot;tisfc0110m000&quot;, &quot;Modify&quot; , error)<br />
+    if (ret =1) then<br />
+        stpapi.put.field(&quot;tisfc0110m000&quot;,&quot;tisfc010.rsdt&quot;,str$(utc))<br />
+        ret = stpapi.update(&quot;tisfc0110m000&quot;, false, error)<br />
+        stpapi.save(&quot;tisfc0110m000&quot;, error)<br />
+    endif<br />
+endif<br />
+stpapi.end.session(&quot;tisfc0110m000&quot;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd November 2015, 22:10</div></div><div class="posttext">Okay - I have to ask, even thou I do not know ln or baan 5.  Are you basically sync'ing tisfc0110m000 with itself?  When I read the documentation the put fields would go against the sync'ed session, or a subsession, and the update(or insert) would then then go against the main session.  In the post it makes me wonder what the stpapi.sync is even doing.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">krushna</div><div class="date">4th November 2015, 12:58</div></div><div class="posttext">I did tried by commenting stpapi.synchronize.dialog command but with no success.<br />
+Also I tried with commenting stpapi.mark but it still not updating the same.<br />
+This is LN FP7 version.<br />
+<br />
+Please help me out if I am missing anything.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">4th November 2015, 14:39</div></div><div class="posttext">Hi Krishna,<br />
+<br />
+you cannot do in DAL something that you can not do manually. That is the whole purpose of DALs. <br />
+<br />
+The DAL for tisfc010 has a method.is.allowed function which is called first in background before insert, update or delete actions.  In tisfc010 DAL an update is not allowed if the order status is not correct.<br />
+<br />
+So please check if you can do waht you want manually and if necessary check the production order status in your program.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th November 2015, 15:27</div></div><div class="posttext">See the above answer first - this must be something that can be done manually first.  So that means the session tisfc0110m000 must also allow the update to occur before AFS code will work.  Besides that there are other considerations for AFS to work - session object version, stpapi libraries and even the porting set once impacted us.  Anyway if you can update that field manually then in theory if all is correct AFS code should work also.  The only code I have that works on 4c4 updates the warehouse.  Mine is very simple and the suspend is in there to just give a pause before the program I have keeps running - it does other updates also.<br />
+<br />
+function modify.estmat.warehouse()<br />
+{<br />
+	stpapi.put.field(&quot;tisfc0110m000&quot;, &quot;ticst001.pdno&quot;, str$(tisfc001.pdno))<br />
+	stpapi.put.field(&quot;tisfc0110m000&quot;, &quot;ticst001.pono&quot;, str$(ticst001.pono))<br />
+	ret.code = stpapi.find(&quot;tisfc0110m000&quot;, fserr)<br />
+	if(ret.code = 1) then<br />
+		stpapi.put.field(&quot;tisfc0110m000&quot;, &quot;ticst001.cwar&quot;, project.cwar)<br />
+		ret.code = stpapi.update(&quot;tisfc0110m000&quot;, 1, fserr)<br />
+		if(strip$(fserr)&lt;&gt;&quot;&quot;) then<br />
+			fserr = sprintf$(&quot;2a - Modify %s&quot;,fserr)<br />
+		endif<br />
+	else<br />
+		fserr = sprintf$(&quot;2b - find. %s&quot;,fserr)<br />
+	endif<br />
+	stpapi.end.session(&quot;tisfc0110m000&quot;)<br />
+	suspend(500)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">benito</div><div class="date">4th November 2015, 15:36</div></div><div class="posttext">i tried this in my system and this works. i did spend a lot of time trying to make this to work with DAL before and was unsuccessful as well. before you can invoke the function below, you need to make your checks for production order status. etc, otherwise this field will not update.<br />
+<br />
+<br />
+function extern update.remainder.date()<br />
+{<br />
+	domain	tcpdno 	i_pdno<br />
+	domain	tcdate	chg.date<br />
+	string update.msg( 150 )<br />
+	string end.msg( 150 )<br />
+	string sess( 13 )<br />
+	string err.id(100)<br />
+	string err.msg(100)<br />
+<br />
+	i_pdno = &quot;TR0000957&quot;<br />
+	chg.date = 1446538705 <br />
+<br />
+	sess = &quot;tisfc0110m000&quot;<br />
+	err.id = &quot;&quot;<br />
+	err.msg = &quot;&quot; | reset<br />
+	<br />
+	| find the operation for the production order<br />
+	stpapi.put.field( sess, &quot;tisfc010.pdno&quot;, ( i_pdno ) )<br />
+	stpapi.put.field( sess, &quot;tisfc010.opno&quot;, str$( 10 ) )<br />
+<br />
+	if ( stpapi.find( sess ) = 1 ) then 					 		<br />
+		ret = stpapi.synchronize.dialog(sess, &quot;modify&quot;, err.msg)<br />
+		if ret then<br />
+			stpapi.put.field( sess, &quot;tisfc010.rsdt&quot;, str$( chg.date) ) 		<br />
+			ret = stpapi.update(sess, true, update.msg)<br />
+		endif<br />
+	endif<br />
+	stpapi.end.session( sess, end.msg )<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">4th November 2015, 15:44</div></div><div class="posttext">As said, I guess there seems to be an issue with the DAL. Probably a bug as there is no straightforward DAL allowed to modify (even if manually you can)<br />
+<br />
+Another problem is with the AFS. The following code should have been worked but it doesn't (Instead of having all good return values)-<br />
+<br />
+stpapi.put.field(&quot;tisfc0110m000&quot;,&quot;tisfc010.pdno&quot;,pdno)<br />
+stpapi.put.field(&quot;tisfc0110m000&quot;,&quot;tisfc0101.opno&quot;,str$(pono))<br />
+ret = stpapi.find(&quot;tisfc0110m000&quot;, error )<br />
+if ret = 1 then<br />
+|          (not needed here since synchronized dialog) ret = stpapi.mark(&quot;tisfc0110m000&quot;, error)<br />
+    ret = stpapi.synchronize.dialog(&quot;tisfc0110m000&quot;, &quot;Modify&quot; , error)<br />
+    if (ret =1) then<br />
+        stpapi.put.field(&quot;tisfc0110m000&quot;,&quot;tisfc010.rsdt&quot;,str$(utc))<br />
+        ret = stpapi.update(&quot;tisfc0110m000&quot;, false, error)<br />
+        stpapi.save(&quot;tisfc0110m000&quot;, error)<br />
+    endif<br />
+endif<br />
+stpapi.end.session(&quot;tisfc0110m000&quot;)<br />
+<br />
+Tried many variations with the above -<br />
+1. stpapi.update() with true<br />
+2. multiple stpapi.update()<br />
+3. splitting rsdt into .segment.1 and .segment.2<br />
+etc..<br />
+<br />
+No luck!<br />
+<br />
+mark_h: Okay - I have to ask, even thou I do not know ln or baan 5. Are you basically sync'ing tisfc0110m000 with itself? When I read the documentation the put fields would go against the sync'ed session, or a subsession, and the update(or insert) would then then go against the main session. In the post it makes me wonder what the stpapi.sync is even doing.<br />
+<br />
+Mark, the session gives the error message saying &quot;Update Not allowed on this session, use Sync&quot; which is the reason to for that. Its the same session, just a double click for sync window. (Though, manually you don't need it) Weird! :)<br />
+<br />
+Update- As Benito, already posted - The domain is what might be causing an issue for you. You might need to build the date in the format of domain tcutcs and then assign it to the field to make it work</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">benito</div><div class="date">4th November 2015, 15:58</div></div><div class="posttext">&lt;snip&gt; ... makes me wonder what the stpapi.sync is even doing.<br />
+<br />
+mark, just to answer your question, in LN there are additional fields in &quot;session&quot; (see attached). since you need to get out of the list window and go to the sync dialog for update, the sync is needed.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th November 2015, 19:56</div></div><div class="posttext">Thanks Bushan and benito!!</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

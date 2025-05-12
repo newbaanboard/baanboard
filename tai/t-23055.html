@@ -1,0 +1,150 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Printing issues going from HP-UX to 2K3 srvr, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Printing issues going from HP-UX to 2K3 srvr Tools Administration &amp; Installation" />
+	
+	<title>Printing issues going from HP-UX to 2K3 srvr [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Printing issues going from HP-UX to 2K3 srvr</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">dmcnally</div><div class="date">2nd February 2005, 22:55</div></div><div class="posttext">Migrating from IVc3 on HP-UX 11.00 w/ Informix to IVc4 on MS Server 2K3 w/ MS SQL Server 2K.<br />
+<br />
+I've been told that with the Microsoft binaries, in the session Maintain Device Data (ttaad3100m000) the &quot;Direct&quot; option is not available for the Device Type<br />
+and that I can't specify a driver file as I could with the Unix binaries.<br />
+<br />
+This presents a challenge, because we have developed custom sessions that route output directly to different printers based on a user profile and user selected criteria using the brp.open() function and the spool.device, spool.report variables . We have also modified the printer driver scripts in $BSE/lib/printinf/h  to add custom fonts and initialization strings for tray control so that certain reports will pull stock from certain trays using PCL codes.<br />
+<br />
+We (the IT group) have told our end users that we are &quot;upgrading&quot; Baan. We don't want to have to tell them that in order to that we have to give up some functionality.<br />
+<br />
+I've been told that we can use bwprint on the client side to handle our <br />
+printing needs. This is fine, but it means that I now have to touch every work station as opposed to just having one driver on the server.<br />
+<br />
+I am picking the brains of our migration consultants for ways of duplicating the printing functionality of the Unix version in the Microsoft version.<br />
+But I thought I would also start a thread on the baanboard to see if anyone has any thoughts or experience  with  Direct printing using  the Microsoft platform. Does anyone know if you can get there from here ?<br />
+<br />
+Thanks in advance for any thoughts,<br />
+dmcnally</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sibon1</div><div class="date">3rd February 2005, 09:39</div></div><div class="posttext">Hi,<br />
+<br />
+We have now 7 years experience with bwprint and i can tell you the following:<br />
+<br />
+you can control different bins on different printers:<br />
+<br />
+1) define paper types (ttaad3110m000)<br />
+2) define fonts by paper type (ttaad3111m000)<br />
+3) create one device per paper bin and assign the according paper type (ttaad3100m000)<br />
+4) in Session ttaad3105m000 you can assing a report to the paper type<br />
+5) in Session ttaad3106m000 you have to insert the devices by user<br />
+<br />
+When you have done this, the user gets suggested the correct device.<br />
+<br />
+Normally Baan is printing to the virtually bin 0; to change this, you have to do a small programming in the report script:<br />
+<br />
+before.program:<br />
+   spool.pr.line = pc$(4)<br />
+this means, this report is assigned to the virtually bin 4!<br />
+<br />
+In the registry of the local computer you have to insert the following registry keys to assign a virtually bin to a real paper bin:<br />
+<br />
+for example:<br />
+goto Regedit, HKEY_LOCAL_MACHINE\Software\Baan\bwprint\bins\&lt;yourbaanprintername&gt;<br />
+[HKEY_LOCAL_MACHINE\SOFTWARE\Baan\bwprint\Bins\ZA58]<br />
+&quot;Bin1&quot;=dword:00000002<br />
+&quot;Bin2&quot;=dword:0000000b<br />
+<br />
+The parameters for the bins depends on your printer driver and you can find it by printing with bwprint and in the preview mode and assign the bins manually.<br />
+<br />
+Hope this helps you.<br />
+Josef</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">3rd February 2005, 12:59</div></div><div class="posttext">I am by far no Baan on windows guru. Actually I think your migration is a mistake, but that's a different story.<br />
+<br />
+Still maybe I have an idea:<br />
+<br />
+When you configure in Baan on NT a printer of type &quot;windows&quot;, you can leave the printer queue empty and he will print on the default printer of the client PC. But you can specify sort of a queue with UNC notation:<br />
+<br />
+\\SERVER\printer<br />
+<br />
+Now I would replace the old Baan config of Unix with the above and then you print on the server. The printinf files will not be used anymore, so if you did things like specifying a bin in the printinf file, then now you will have to create several virtual windows printers for the same physical printer with different settings.<br />
+<br />
+This will not help you in all cases, like the fonts. But it might be a start.<br />
+<br />
+Regards<br />
+<br />
+Markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dmcnally</div><div class="date">3rd February 2005, 15:38</div></div><div class="posttext">Hello Josef/Markus, <br />
+<br />
+Thankyou for the very helpful information. It is good to hear from the voice of experience. I will put it to use when our new server arrives in a couple of weeks and we begin the testing and piloting phase of the migration. <br />
+<br />
+Markus, I can understand why you might think our migration is a mistake. <br />
+The decision to go to the ms platform is largely to save $ and reduce complexity. We only have 44 Baan licenses and  Unix/Informix is somewhat of an overkill for us and also quite costly. The ms platform offers us a less expensive and very viable alternative.<br />
+<br />
+Best Regards, <br />
+<br />
+Dave :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">3rd February 2005, 16:17</div></div><div class="posttext">Hi Dave,<br />
+<br />
+I agree, that for 44 users Unix/Informix might be experienced like an overkill. I also think, that if your availibility expectations are not two high, then Baan on Windows is ok for this number of users. <br />
+<br />
+Additionally Informix is a dying horse, so you might needed to change something anyway.<br />
+<br />
+But I do not want to start a platform discussion here. It's important to choose the right platform for the right requirements. There are no silver bullets, even if some Microsoft haters or lovers might think so. <br />
+<br />
+Regards<br />
+<br />
+Markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">18th November 2005, 20:20</div></div><div class="posttext">This thread is a bit old, but it seemed the right place to relate some recent experiences with fonts.  Recently, we dealt with a customer need for specific fonts to apply to reports across all Baan users.  Normally, one-off font needs can easily be set for a specific PC using a Windows Printer and BWPrint.  Obviously that becomes cumbersome when many users need the same change.  We found that if a printer is defined as a Windows Server Printer, then the BWPrint registry settings for fonts on the server are used for anyone printing to that device.  You can initially set up a device as a Windows Printer, run BW on the server itself, print reports using Preview, and modify the fonts using the normal BWPrint methods that are well documented elsewhere.  This can work for both global and device-specific font changes.  Then, if you change the device to a Windows Server Printer, all BW clients printing to that device get the changes you made on the server.  It saves a heck of a lot of effort.<br />
+<br />
+I hope that helps some of you out.  I know it saved us a lot of work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dmcnally</div><div class="date">21st November 2005, 22:47</div></div><div class="posttext">Thanks Evesley, <br />
+<br />
+I concur. We discovered the Windows Server Printer benefits as well.<br />
+We have also installed true type barcode fonts on the server to enable us to print barcodes on Baan reports. There are two things we had to do to make it fly however.<br />
+ 1.)  We had to code the start and stop characters in our reports, for example 3 of 9 requires an &quot;*&quot; before and after each string, code 128 requires a special start and stop character and a checksum calculation. The upfront work is well worth the benefit. We no longer need special barcode dims in our hp laserjets and we don't have to install fonts on workstations.<br />
+<br />
+2.) After installing the barcode fonts, Baan would not recognize the new fonts until we rebooted the server (Windows 2003 server).   <br />
+<br />
+Best Regards,<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kingsto88</div><div class="date">29th December 2005, 05:27</div></div><div class="posttext">Hello,<br />
+<br />
+Can someone tell me how do I change it to a Windows Server printer?<br />
+Is it a setting in Baan or in Windows 2003 only?<br />
+<br />
+Thaks and regards,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">29th December 2005, 21:58</div></div><div class="posttext">It's defined in baan, you need one of the latest SP's.<br />
+<br />
+If I am correct it's 'invented' due to webtop although webtop can use a local temporary bwprint as well.<br />
+<br />
+Regards,<br />
+Han</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

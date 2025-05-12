@@ -1,0 +1,131 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Doubts about  insert record in a DAL, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Doubts about  insert record in a DAL Tools Development" />
+	
+	<title>Doubts about  insert record in a DAL [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Doubts about  insert record in a DAL</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">12th September 2019, 10:23</div></div><div class="posttext">Hi,<br />
+<br />
+I have a doubt about insert a record in table with DAL: I see in the programmer's guide that there is a method call db.insert(), but it's not correct for DAL.<br />
+What is the right procedure to insert a record in a table in a DAL?<br />
+<br />
+Regards,<br />
+<br />
+RavCoder</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">12th September 2019, 12:28</div></div><div class="posttext">dal.save.object()<br />
+Syntax:<br />
+<br />
+function long dal.save.object  (string tbl.name [, long error.flag])<br />
+<br />
+Description<br />
+<br />
+Saves a record of the given table. In case a dal.new.object() or a dal.copy.object() was done, the record is inserted in the database. In case a dal.change.object() was done, the record is updated in the database.<br />
+<br />
+In case DAL2 Field dependencies have been defined in the DAL, this function takes care that dependent fields will be triggered in the right order so that they can update themselves.<br />
+<br />
+Note that this is done based on the values of the fields that have been set by calling dal.set.field()<br />
+<br />
+Before the record is saved all (changed) fields will be validated.<br />
+<br />
+The sequence of the actions is as follows:<br />
+<br />
+Table level permission is checked.<br />
+For all fields set, the fieldname.make.valid() is executed, e.g. to perform rounding of data.<br />
+All dependent fields are triggered to update themselves.<br />
+Record level permission is checked.<br />
+The actual save (insert or update) is done.<br />
+<br />
+Arguments<br />
+<br />
+string tbl.name the table name of the DAL.<br />
+ <br />
+[long error.flag ]  <br />
+ <br />
+Return values<br />
+<br />
+0 Record is saved <br />
+DALHOOKERROR One of the hooks blocked the save action <br />
+DALDBERROR A domain or reference error occurred (only in Integration context (e.g. via a BOL)) <br />
+DALNOSETPERM No table level permission <br />
+DALNOOBJPERM No record level permission <br />
+&gt;0 The error code of the db.insert() or db.update() function <br />
+ <br />
+Context<br />
+<br />
+This function can be used in all script types.<br />
+<br />
+Hooks called<br />
+<br />
+before.open.object.set() if this is the first call to the DAL<br />
+after.new.object() in case of a new record<br />
+after.change.object() in case of an existing record<br />
+for all fields set, the fieldname.make.valid() hook is executed<br />
+for each dependent field:<br />
+<br />
+field.update()<br />
+method.is.allowed()<br />
+for each (DAL_NEW) / each changed (DAL_UPDATE) field:<br />
+<br />
+one or more field hooks<br />
+before.save.object()<br />
+after.save.object()<br />
+Error Handling<br />
+<br />
+In case a database error occurs (a return value greater than 0), then this function will set an error message. E.g. in case a record is modified by another user then an error message is set.<br />
+<br />
+Note <br />
+When working with DAL2 DALs, it is advised to use dal.save.object() instead of dal.new() or dal.update(). Only then field dependencies are taken into account.<br />
+<br />
+In case the DAL does not have field dependencies defined, or if you don't want to set defaults based on field dependencies, you can also use dal.new() or dal.update(). These functions are faster than dal.save.object().<br />
+<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">12th September 2019, 12:52</div></div><div class="posttext">Hi,<br />
+Thanks for your help.<br />
+I created a DAL but in  the DAL script I have two functions :  before.open.object.set() and before.save.object (long type). I don't understand what I have to put into.<br />
+<br />
+Regards,<br />
+RavCoder</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">12th September 2019, 13:36</div></div><div class="posttext">I understand I set fields in the function before.open.object.set().<br />
+Now I have to call this DAL in a print session that I have created (tdsls4900m000).<br />
+How can I do?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andreas.toepper</div><div class="date">12th September 2019, 16:11</div></div><div class="posttext">You don't need to &quot;call&quot; a DAL. (It’s like a library, but the functions declared are executed automatically.)<br />
+The functions you see when creating a new DAL script are called “hooks”. Hooks are not called manually in a function. They are called automatically (“in the background”) when you update or create a dataset of a given table.<br />
+So, if you want to update a dataset in a print session (like mark a set as printed), you need to modify the dataset. To invoke DAL hooks, you need to use the correct standard functions:<br />
+<br />
+|An example:<br />
+db.retry.point()<br />
+dal.change.object(&quot;tiipd001&quot;)<br />
+dal.set.field(&quot;tiipd001.oltm&quot;, new.value)<br />
+dal.save.object(&quot;tiipd001&quot;)<br />
+commit.transaction()<br />
+This will call the defined hooks of the table on runtime.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RavCOder</div><div class="date">12th September 2019, 16:46</div></div><div class="posttext">Ok I have already entered those things and I put in the session script program the DAL but if I try to start the session it doesn't start anything (this doesn't show it to me).</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

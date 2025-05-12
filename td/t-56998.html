@@ -1,0 +1,150 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Get form code in script, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Get form code in script Tools Development" />
+	
+	<title>Get form code in script [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Get form code in script</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Pablo79</div><div class="date">14th October 2009, 14:31</div></div><div class="posttext">Dear all, is there a function or a predefined variable that return the current form code?<br />
+<br />
+Thank you in advance,<br />
+   Pablo</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kbartelds</div><div class="date">14th October 2009, 15:07</div></div><div class="posttext">Hello Pablo,<br />
+<br />
+I think form.curr wil do the trick.<br />
+<br />
+Regards,<br />
+Klaas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Pablo79</div><div class="date">14th October 2009, 15:28</div></div><div class="posttext">Hi Klaas, the form.curr returns the current form number in the session (i.e. 1, 2, etc.). I need something that returns &quot;tiitm0101m0001&quot;, &quot;tiitm0101m0002&quot;, etc.). For example for the session code there is prog.name$ that returns &quot;tiitm0101m000&quot;.<br />
+<br />
+Thanks,<br />
+   Pablo</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kbartelds</div><div class="date">14th October 2009, 16:58</div></div><div class="posttext">you can use progname$ to get the session and with that find the form in ttadv tables, using form.curr.<br />
+<br />
+Regards,<br />
+Klaas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Pablo79</div><div class="date">16th October 2009, 16:17</div></div><div class="posttext">Thanks for you reply. I have made it like you suggested me.<br />
+<br />
+Here my code<br />
+<br />
+	domain	tcmcs.str16	l.form.str.code<br />
+<br />
+	domain	tcmcs.str2	l.session.package<br />
+	domain	tcmcs.str3	l.session.module<br />
+	domain	tcmcs.str8	l.session.code<br />
+<br />
+	domain	tcmcs.str3	l.form.module<br />
+	domain	tcmcs.str9	l.form.code<br />
+<br />
+	domain	tcmcs.str4	l.version<br />
+	domain	tcmcs.str2	l.release<br />
+	domain	tcmcs.str4	l.customer<br />
+<br />
+	domain	tcmcs.str8	l.curr.pacc<br />
+	domain	tcmcs.long	l.form.curr<br />
+<br />
+	l.form.code = &quot;&quot;<br />
+<br />
+	l.curr.pacc = curr.pacc$<br />
+	l.form.curr = form.curr<br />
+<br />
+	l.session.package = prog.name$(1;2)<br />
+	l.session.module = prog.name$(3;3)<br />
+	l.session.code = prog.name$(6;8)<br />
+<br />
+	select	ttaad121.vers:l.version,<br />
+		ttaad121.rele:l.release,<br />
+		ttaad121.cust:l.customer<br />
+	from	ttaad121<br />
+	where	ttaad121._index1 = {:l.curr.pacc, :l.session.package}<br />
+	and	ttaad121._compnr = 000<br />
+	endselect<br />
+<br />
+	while isspace(l.form.str.code)<br />
+		<br />
+		select	ttadv211.fmod:l.form.module,<br />
+			ttadv211.cfrm:l.form.code<br />
+		from	ttadv211<br />
+		where	ttadv211._index1 = {	:l.session.package,<br />
+						:l.session.module,<br />
+						:l.session.code,<br />
+						:l.version,<br />
+						:l.release,<br />
+						:l.customer<br />
+					   }<br />
+		and	ttadv211._compnr = 000<br />
+		as set with :l.form.curr rows<br />
+		selectdo<br />
+			l.form.str.code = l.session.package &amp; l.form.module &amp; l.form.code<br />
+		endselect<br />
+<br />
+		if isspace(l.form.str.code) then<br />
+			if not get.father.VRC.ok(l.session.package, l.version, l.release, l.customer, l.version, l.release, l.customer) then<br />
+				return(&quot;&quot;)<br />
+			endif<br />
+		endif<br />
+	endwhile<br />
+<br />
+	return(l.form.str.code)<br />
+<br />
+}<br />
+<br />
+function domain tcbool get.father.VRC.ok(	domain	tcmcs.str2	i.package,<br />
+						domain	tcmcs.str4	i.version,<br />
+						domain	tcmcs.str2	i.release,<br />
+						domain	tcmcs.str4	i.customer,<br />
+					ref	domain	tcmcs.str4	r.father.version,<br />
+					ref	domain	tcmcs.str2	r.father.release,<br />
+					ref	domain	tcmcs.str4	r.father.customer)<br />
+{<br />
+	r.father.version = &quot;&quot;<br />
+	r.father.release = &quot;&quot;<br />
+	r.father.customer = &quot;&quot;<br />
+<br />
+	select	ttadv111.vedf:r.father.version,<br />
+		ttadv111.redf:r.father.release,<br />
+		ttadv111.cudf:r.father.customer<br />
+	from	ttadv111<br />
+	where	ttadv111._index1 = {:i.package, :i.version, :i.release, :i.customer}<br />
+	and	ttadv111._compnr = 000<br />
+	endselect<br />
+<br />
+	if	isspace(r.father.version)<br />
+	and	isspace(r.father.release)<br />
+	and	isspace(r.father.customer)<br />
+	then<br />
+		return(false)<br />
+	endif<br />
+	return(true)<br />
+}<br />
+<br />
+Thank you again,<br />
+   Pablo</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">16th October 2009, 23:05</div></div><div class="posttext">You can query from the tools table ttadv211.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Use AFS to create a patch file., baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Use AFS to create a patch file. AFS/DDC/OLE: Function servers" />
+	
+	<title>Use AFS to create a patch file. [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Use AFS to create a patch file.</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Ruskin</div><div class="date">7th April 2005, 07:13</div></div><div class="posttext">We are having a bit of fun, trying to use AFS to create a patch file. The manual process, is;<br />
+a) We have all software components attached to a customisation project part.<br />
+b) We create a patch (session ttiex4500m000/ttiex4100m000)<br />
+c) We copy the software components to the patch components (ttiex1176m000/ttiex4210m000)<br />
+d) We export the patch (ttiex4500m000/ttiex4110m000/ttiex1280s000)<br />
+<br />
+This works perfectly. But when we try to do this through AFS, the export part does not work. We can do steps a, b and c, but not step d. We can activate ttiex4500m000, find the correct patch, select it and activate ttiex4110m000. But then, when we try to use the export from ttiex4110m000. Nothing happens. The function we are calling, is 'exec.cont.process' (as shown in the ttadv316 table). There is no question to answer (in the case of the patch file already existing, question ttiex41101 is shown, but this is only shown if ttiex400.crea is set to YES, which in our case, will always be NO). Thus, the only issue, could be the report. We can not set the device for the report, as the session is not open yet (the report is attached to ttiex1280s000). We can not open the session then set the report, as the process fires straight away, when the session is open.<br />
+<br />
+To work around this, we have created a library that simply 'zooms.to' ttiex1280s000. However, this session now returns an error of 'Order line not found'. In order to activate ttiex1280s000, we must first create a component list. Which we can do, by calling the function 'create.deliver.file' and passing the patch code. This function then returns the file name created (it is located in the ttdlldeliver tools object). So we have our file list with the components of the patch, and the filename. As per the bic_info6.2, this file is now correctly formatted for session ttiex1280.<br />
+<br />
+How do we call ttiex1280s000. I have set some values, that it appears to need (ie: from.iexpatch, iexpatch, sess.from.file and session). The ttiex410 and ttiex400 tables are current in memory (although, this is irrelevant, as the file now holds the list of all the components to be delivered). Why is the 'Order line not found' error being displayed and what other variables need to be passed to ttiex1280s000?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ruskin</div><div class="date">12th April 2005, 23:39</div></div><div class="posttext">Just to advise, this has been answered in the tools development section. I posted this in AFS, but realised that it's a tools issue (not an AFS issue), so also posted in tools development.<br />
+<br />
+It was how we were calling ttiex1280s000, that was the issue. This works fine;<br />
+<br />
+extern domain ttaad.path path<br />
+extern domain ttaad.path path.components<br />
+<br />
+#pragma used dll &quot;ottdlldeliver&quot;<br />
+#pragma used dll &quot;ottdllfilehand&quot;<br />
+<br />
+path = &quot;/patches&quot;<br />
+path.components = creat.tmp.file$(bse.tmp.dir$())<br />
+<br />
+|* From ttdlldeliver<br />
+create.deliver.file(ttiex400.paco, path.components)<br />
+zoom.to$(&quot;ttiex1280s000&quot;, Z.SESSION, &quot;iexpatch&quot;, &quot;&quot;, 0)<br />
+<br />
+<br />
+NOTE: this has created DD files, so you need to use the pack.patch function, in ttdllfilehand, to pack the DD directory structure into a single patch file.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">14th April 2005, 07:49</div></div><div class="posttext">In the past i had made limited  trials on this without success. This is very useful.<br />
+<br />
+Can u elaborate on this with an example .<br />
+<br />
+<br />
+NOTE: this has created DD files, so you need to use the pack.patch function, in ttdllfilehand, to pack the DD directory structure into a single patch file.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ruskin</div><div class="date">15th April 2005, 00:29</div></div><div class="posttext">When the data dictionary is exported from ttiex1280s000, they are in a directory structure of;<br />
+ppvvvv_rr_cccc<br />
+Where p is package, v is version, r is release and c is customer. Thus, it is possible to call ttiex1280s000 with a dump file that contains multiple packages (but only a single vrc if coming from a patch, as the patch header table ttiex400 specifiies the vrc of the components attached to the patch in the patch line table ttiex410).<br />
+So for example, if you have two components in ttiex410, such as; script tfacr2420 and script tdsls4101, then two directories are created in the path specified by the external variable 'path'. It is important to note, that ttiex1280s000 needs two external variables;<br />
+path - This is the path of where to create the data dictionary files<br />
+path.components - This is the full path and filename of the component list file, which contains the components to be dumped. If you look at my previous script, you will see how to build this file<br />
+<br />
+If your the 'path' variable is set to patches/tmp, then when you export this patch, you will get two directories;<br />
+../patches/tmp/tfVVVV_rr_cccc<br />
+../patches/tmp/tdVVVV_rr_cccc<br />
+In these directories, will exist the data dictionary (DD) dump files, generally;<br />
+components<br />
+dump.l<br />
+dump.e<br />
+dumpf01.Z<br />
+dumpd01.Z<br />
+..etc..<br />
+You can pack these directories into a single patch file, by specifying the path to the dd directory structure. In this case, it is the path to the patches/tmp directory. NOTE: you must use the full path (not a relative path). If we continue my script from my previous post, after you have called ttiex1280s000, you pack the patch by;<br />
+<br />
+long x<br />
+|* This is in ottdllfilehand<br />
+x = pack.patch(&quot;/home/patches/tmp&quot;, &quot;/home/patches&quot;, &quot;my_patch&quot;)<br />
+if x &lt; 0 then<br />
+    message(sprintf$(&quot;Error %d creating patch file&quot;, x))<br />
+    return<br />
+endif<br />
+<br />
+The function expects the first directory, to be the root directory of where the DD directory structure is. In this case, the patches/tmp directory (it will then pack all the sub directories into a single file). The second argument, is where to put the patch file. In this case, the patch file will go into the patches directory. The third argument is the patch filename (should be the same as ttiex400). So you are left with;<br />
+/home/patches/my_patch<br />
+Which is a patch file that contains two data dictionary dumps and there directory structure (one for tf and one for ti, both in the same patch file).<br />
+<br />
+NOTE: when the pack.patch function runs, it deletes the binary (.Z) files, but does not delete the ascii files (components, dump.l or dump.e). You will need to clean these up manually. What we do, is concatenate the dump.l files from all of the ppVVVV_rr_cccc directories into a single dump list, so we can see what all the patches contain, before we delete them. Thus, we know exactly what is stored in each patch, for importing. Before we purge all the sub directories under ../patches/tmp.<br />
+<br />
+Here is some useful code, for cleaning up the ascii files in the DD directory, after you have dumped the patch. NOTE: in this instance, do NOT put the patch file into ../patches/tmp, as this function will remove the tmp directory and all it's contents. Use this function call at your own peril (in other words, don't put your root directory into this function);<br />
+<br />
+|* This is in ottdllfilehand<br />
+rm.dir.and.subdirs(&quot;/home/patches/tmp&quot;)<br />
+mkdir(&quot;/home/patches/tmp&quot;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Amit_Jain</div><div class="date">24th December 2013, 12:22</div></div><div class="posttext">Hi Ruskin<br />
+<br />
+I have been working on writing AFS for session &quot;ttiex1280m000&quot; without success. I would be greatful if you can share the code.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

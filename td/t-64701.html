@@ -1,0 +1,148 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="run session continuously, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] run session continuously Tools Development" />
+	
+	<title>run session continuously [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; run session continuously</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Sandy Blondino</div><div class="date">8th October 2013, 23:10</div></div><div class="posttext">Hello,<br />
+I have specific task I need to accomplish.  I want a custom Baan session to run continuously checking a custom table for unprocessed records inserted from a barcode system. <br />
+I don't want to run it in a job because we've had trouble keeping the jobs running smoothly.<br />
+I want the session to run continuously checking for new records, then go to sleep for a while, then check for records again, etc.<br />
+Can I use the wait.and.activate and suspend functions in the session that I want to control?<br />
+<br />
+Thanks for any ideas on this.<br />
+Sandy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">8th October 2013, 23:24</div></div><div class="posttext">Hi,<br />
+<br />
+You can create a vb script which will call a dll in Baan. Execute this vb script using a scheduler say windows task scheduler.<br />
+<br />
+Inside, your dll you can write whatever you want. There are a lot of ways to do that, you just need to chose the best for you.<br />
+<br />
+Check all these threads:-<br />
+<br />
+Thread 1 (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=8872)<br />
+<br />
+Thread 2 (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=5882&amp;highlight=bshell6.2)<br />
+<br />
+Thread 3 (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=5794&amp;highlight=bshell6.2)<br />
+<br />
+Thread 4 (http://www.baanboard.com/baanboard/showthread.php?t=64202)<br />
+<br />
+Hope they give you some hint.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">9th October 2013, 10:53</div></div><div class="posttext">Hi,<br />
+<br />
+here is what I would do:<br />
+Make a main session (4 GL type 4) that basically only starts a subprocess (a 3GL script) which does the actual checking and processing.<br />
+<br />
+In the main 4 GL session:<br />
+<br />
+declaration:<br />
+	long	sub.process<br />
+<br />
+before.program:<br />
+	sub.process = activate(&quot;otcxxx9999&quot;)<br />
+	<br />
+choice.end.program:<br />
+	if sub.process &gt; 0 then<br />
+		putvar(sub.process, &quot;harakiri&quot;, true)<br />
+	endif<br />
+<br />
+<br />
+Here the 3GL subprocess script:<br />
+<br />
+	extern	domain	tcbool	harakiri<br />
+<br />
+function main()<br />
+{<br />
+	harakiri = false<br />
+<br />
+	while true		<br />
+		check.for.new.records()<br />
+		suspend(10000)	|10000 miliseconds = 10 seconds<br />
+		if harakiri then<br />
+			break<br />
+		endif<br />
+	endwhile<br />
+}<br />
+<br />
+function check.for.new.records()<br />
+{<br />
+	|check for new records an process any found<br />
+	...<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">10th October 2013, 16:33</div></div><div class="posttext">Hi Sandy,<br />
+<br />
+forget may last post! Here my latest try which needs no 3GL script. Create a type 4 Session with a display field &quot;ticks&quot; (domain tcmcs.long) and copy the following to the script.<br />
+<br />
+The session calls the processing function continuously and can be stopped any time.<br />
+<br />
+<br />
+declaration:<br />
+	extern	long	ticks<br />
+	long	g.alarm<br />
+<br />
+|****************************** program section ********************************<br />
+before.program:<br />
+	ticks = 0<br />
+	|create analarm which calls choice.interrupt<br />
+	g.alarm = set.alarm(1000)<br />
+<br />
+|****************************** group section **********************************<br />
+<br />
+group.1:<br />
+init.group:<br />
+	get.screen.defaults()<br />
+<br />
+choice.interrupt:<br />
+on.choice:<br />
+	|alarm rings!<br />
+	ticks = ticks + 1<br />
+	display(&quot;ticks&quot;)<br />
+	do.some.processing()<br />
+	|create new alarm<br />
+	g.alarm = set.alarm(1000)<br />
+	<br />
+functions:<br />
+<br />
+function do.some.processing()<br />
+{<br />
+	|check table records, etc.<br />
+	|...<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Sandy Blondino</div><div class="date">10th October 2013, 17:57</div></div><div class="posttext">Thanks for the ideas and code. <br />
+<br />
+One question about using the set.alarm function.<br />
+How do you end the program gracefully, so that it's not in the middle of a record read or something?  <br />
+<br />
+Sandy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">10th October 2013, 18:22</div></div><div class="posttext">Hi,<br />
+<br />
+this is taken care of by the bshell. If you press the OK button the session first responds when no more code is running. This is also our daily experience. A long running session (print, etc.) can only be forced to stop by killing its process else you have to wait.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

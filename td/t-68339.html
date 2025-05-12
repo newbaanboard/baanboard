@@ -1,0 +1,97 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Purchase order number as filename when selecting notepad as device, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Purchase order number as filename when selecting notepad as device Tools Development" />
+	
+	<title>Purchase order number as filename when selecting notepad as device [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Purchase order number as filename when selecting notepad as device</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">VishalMistry</div><div class="date">9th November 2015, 06:22</div></div><div class="posttext">Hi all,<br />
+<br />
+While running session tdpur4401m000, we are selecting Notepad as Device,<br />
+at that time the default textfile name coming is filename.txt.<br />
+Is it possible to bring the purchase order number being selected for printing ?<br />
+<br />
+In the Notepad device data, in Arguemnt ASCII:NOTEPAD.EXE %s is given while in Path TEXTFILE.TXT is given. is it possible to pass-on purchase order number given in purchase order From field ? or is it possible to set this value manually through calling stpapi calls for session tdpur4401m000.<br />
+<br />
+Please guide.<br />
+<br />
+Vishal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">9th November 2015, 17:52</div></div><div class="posttext">You can try setting spool.fileout before the device is asked for, but I am not sure if the device data would over-write it.  I do it in afs all the time below is just an example.  One thing to note I export the spool.fileout and import it into the print po session.  I have not tried other methods to get the spool.* variables across - like stpapi.put for spool.fileout on the session.  That might work.  In the below case I just print the file to a file on the baan server, but if I wanted I could use server2client to move it the users desktop.<br />
+<br />
+<br />
+	spool.device = &quot;ASCIF&quot;<br />
+	spool.fileout = strip$(file.dir) &amp; strip$(str$(tdexi305.orno))&amp;&quot;-PO&quot;<br />
+	export(&quot;spool.fileout&quot;,spool.fileout)<br />
+	print.po.report()<br />
+	|get.buyer.printer()<br />
+	|if not isspace(spool.device) then<br />
+	|	print.po.report()<br />
+	|endif<br />
+}<br />
+function print.po.report()<br />
+{	<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;tdpur999.send&quot;, str$(tdpur.dist.vendor) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;selection&quot;, str$(tcyesno.no) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;suno.f&quot;, &quot;      &quot; )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;suno.t&quot;, &quot;ZZZZZZ&quot; )	<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;orno.f&quot;,str$(tdexi305.orno))<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;orno.t&quot;,str$(tdexi305.orno))		<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;comp.f&quot;, str$(0) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;comp.t&quot;, str$(999) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;tdpur999.dpas&quot;, str$(tcyesno.yes) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;prnt.pric&quot;, str$(tcyesno.yes) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;printed&quot;, str$(tdsls.kofl.all) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;quan.to.print&quot;, str$(tdsls.koqu.ordered.quan) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;prnt.options&quot;, str$(tcyesno.yes) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;prnt.deladro&quot;, str$(tcyesno.no) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;chgflag&quot;, str$(tcyesno.no) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;chgordnum&quot;, str$(0) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;chgorddte&quot;, str$(0) )<br />
+	stpapi.set.report(&quot;tdpur4401m000&quot;,&quot;rtdpur440101000&quot;,spool.device, msg)<br />
+	stpapi.continue.process( &quot;tdpur4401m000&quot;, msg)<br />
+	if(strip$(msg)&lt;&gt;&quot;&quot;) then<br />
+		message(&quot;Err. Print PO:%s PO:%d&quot;, msg, tdexi305.orno)<br />
+	endif<br />
+	stpapi.end.session( &quot;tdpur4401m000&quot; ) <br />
+	suspend(500)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">VishalMistry</div><div class="date">10th November 2015, 07:15</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Thanks for your guidance. I am setting order number as file name but when the report in notepad is generated, it is still as TEXTFILE.TXT,<br />
+<br />
+export(&quot;spool.fileout&quot;,orno)<br />
+stpapi.print.report(&quot;tdpur4401m000&quot;, error.msg)<br />
+stpapi.end.session( &quot;tdpur4401m000&quot;, error.msg)<br />
+<br />
+Any clue ? Am I missing anything :)<br />
+<br />
+Vishal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">VishalMistry</div><div class="date">10th November 2015, 07:27</div></div><div class="posttext">Hi Mark,<br />
+<br />
+I got it. Actually i had to set spool.fileout global variable.<br />
+<br />
+Thans a lot,<br />
+Vishal</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

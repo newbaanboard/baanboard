@@ -1,0 +1,257 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Page x of y: Kevin Brock's solution., baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Page x of y: Kevin Brock's solution. Code &amp; Utilities" />
+	
+	<title>Page x of y: Kevin Brock's solution. [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Code &amp; Utilities</a> &gt; Page x of y: Kevin Brock's solution.</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">~Vamsi</div><div class="date">15th February 2002, 22:58</div></div><div class="posttext">Lisa of RMCis (http://www.rmcis.com) faxed me Kevin's original post. I typed it up. Couple of  observations. This must have been before Kevin discovered that HTML worked on baanfans. That is why he mentions about code not formatting properly. His later posts were always formatted. I have used VB tags for the code when typing this.<br />
+<br />
+This solution works iff you have source code. And like he mentions in his post, you better have a very good reason to print x of y. This is a lot of coding for that functionality. He did mention in a recent post (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=355) that he found a simpler method that did not require any changes to the session or the report. I believe he posted yet another solution after this one. But I am not sure. If someone has used it or has an electronic copy somewhere, please post it.<br />
+<br />
+~Vamsi<br />
+<br />
+&lt;hr&gt;<br />
+<br />
+NOTE! Though this is long, I've posted it as I thought many folks may be interested in this solution.<br />
+Sorry about the formatting for the code samples, this message board trashes the indents.<br />
+<br />
+I've not tried to do this myself ... that's what I was going to say a couple of days ago, but I was challenged by this question and I had fun solving it. I've run into this before but been able to get out fo doing page-of processing but decided to actually figure it out. Nove I have a general solution (perhaps someone else has something easier, but I don't understand how the second footer/lattr.enddata suggestion is supposed to do this either).<br />
+<br />
+In most environments, page of processing can be quite difficult. The usual requirement is to count the number of pages and then print as, most times, the data output is too complex to compute the number of pages. If you can compute the number of pages up front it's probably a very simple and consistent report.<br />
+<br />
+The other solution is to actually run the full report two times. The first time simply does not physically output anything but is used to get the actual final result. This can be done using the original data as long as the data is not changing during the report. I have implemented this solution more or less generically. You must also be careful with this solution for reports that update as you must not do so during the first pass (ofcourse the results could then be different as your report may process the resultant records differently after the update).<br />
+<br />
+Here's what you can do. First, let's look at the report itself as this is the easiest to change. If you do not have a report script you will have to define one. Declare 2 new variables and add a before.program and after.program section (if there isn't already one):<br />
+<br />
+		domain	tcmcs.long	total.pages<br />
+		domain	tcbool		page.of<br />
+<br />
+before.program:<br />
+	import(&quot;page.of&quot;, page.of)<br />
+	if page.of then<br />
+		total.pages = 0<br />
+	else<br />
+		import(&quot;total.pages&quot;, total.pages)<br />
+	endif<br />
+<br />
+after.program:<br />
+	|Send the current and final page count back to the parent session<br />
+	if page.of then<br />
+		export(&quot;total.pages&quot;, total.pages)<br />
+	endif<br />
+<br />
+<br />
+Then, change the header (or any other layout) of the report to include the variable &quot;total.pages&quot; where you need to show the total page count. That's it for the report. Comile it.<br />
+<br />
+Now, for the tougher stuff; the main session (you must have source to make these changes). Add the following variable declarations:<br />
+<br />
+			long		spl.date<br />
+			long		spl.fontnumber<br />
+			long		spl.left.mrg<br />
+			long		spl.pr.copies<br />
+			long		spl.pg.length<br />
+			long		spl.pg.width<br />
+			long		spl.time<br />
+			long		spl.view.rtl<br />
+			string		spl.device(14)<br />
+			string		spl.fileout(100)<br />
+			string		spl.paper.type(6)<br />
+<br />
+		domain	tcbool		report.has.data<br />
+			long		sp1<br />
+			long		sp2<br />
+			long		rptid<br />
+<br />
+	#define SEND(x) brp.ready(x)<br />
+^		report.has.data = true<br />
+<br />
+|*** Report variable additions<br />
+	extern	domain	tcmcs.long	total.pages<br />
+	extern	domain	tcool		page.of<br />
+<br />
+I've included a define to make life a little easier later on. Most of these variables (the spl.* ones) are used to save off the spooler variables for later use. What we will be doing is opening up 2 separate spool devices. The first one the user has control over and will be where the report will be printed. The second is for internal processing to get the total page count. This will work best on Unix systems as the output device can be directed to /dev/null, though there may be a good solution for NT as well (nul device may work, I've not tried it).<br />
+<br />
+I'll just include my code from my test along with the comments. Hopefully this will explain the rest.<br />
+Some of the exit code (at the choice.again() call) is not the greatest as a lot of statements get repeated, but does work. I've also taken the quick route of using message(), instead of mess() and message codes, when showing error/warning texts.<br />
+<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+	|Initial open to get the user's selections, report defaults to choice<br />
+	|from session<br />
+	sp1 = spool.open(&quot;&quot;, &quot;&quot;, 1)<br />
+	if (sp1 &lt;= 0) then<br />
+		choice.again()<br />
+	endif<br />
+<br />
+	save.spooler.choices()<br />
+<br />
+	|Now open the temporary device to NULL to run the report<br />
+	|for page of processing.<br />
+	|Note: pg.length must be reset in case the two device definitions<br />
+	|are different; we want page of calculated against the real device<br />
+	spool.fileout = &quot;/dev/null&quot;	|Platform specific! (i.e. Unix)<br />
+	sp2 = spool.open(&quot;&quot;, &quot;ASCIF&quot;, 0)<br />
+	spool.pg.length = spl.pg.length<br />
+	if (sp2 &lt;= 0) then<br />
+		message(&quot;Unable to open spooler for page of processing&quot;)<br />
+		spool.id = sp1<br />
+		spool.close()<br />
+		reset.spooler.choices()<br />
+		choice.again()<br />
+	endif<br />
+<br />
+	|Run the report to the temporary device and expect a total page<br />
+	|count back. Note! Report program MUST export to the local<br />
+	|total.pages variable<br />
+	report.has.data = false<br />
+	page.of = true<br />
+	spool.id = sp2<br />
+	rptid = brp.open(spool.report, &quot;&quot;, 0)<br />
+	if (rptid &gt; 0) then<br />
+		read.main.table()	|Process the report<br />
+		brp.close(rptid)<br />
+		spool.id = sp2<br />
+		spool.close()<br />
+		<br />
+		|Determine if hte report will have any data the FIRST time<br />
+		|to save some processing time.<br />
+		if not report.has.data then<br />
+			message(&quot;Nothing found to print&quot;)<br />
+			spool.id = sp1<br />
+			spool.close()<br />
+			reset.spooler.choices()<br />
+			choice.again()<br />
+		endif<br />
+	else<br />
+		message(&quot;Unable to open report!&quot;)<br />
+		spool.id = sp2<br />
+		spool.close()<br />
+		spool.id = sp1<br />
+		spool.close()<br />
+		choice.again()<br />
+	endif<br />
+	<br />
+	reset.spooler.choices()<br />
+	<br />
+	|Run the real report (spooler#2 - to null device should already<br />
+	|be closed by this time)<br />
+	page.of = false<br />
+	spool.id = sp1<br />
+	rptid = brp.open(spool.report, &quot;&quot;, 0)<br />
+	if (rptid &gt; 0) then<br />
+		read.main.table()	|Process the report<br />
+		brp.close(rptid)<br />
+		spool.id = sp1<br />
+		spool.close()<br />
+	else<br />
+		message(&quot;Unable to open report!&quot;)<br />
+		spool.id = sp1<br />
+		spool.close()<br />
+	endif<br />
+<br />
+|*** functions<br />
+**************************************************************<br />
+<br />
+functions:<br />
+<br />
+function save.spooler.choices()<br />
+{<br />
+	|Save contents of spool.* variales changed by the temporary<br />
+	|output report so the user's last selections are not lost.<br />
+	spl.date = spool.date<br />
+	spl.fontnumber = spool.fontnumber<br />
+	spl.left.mrg = spool.left.mrg<br />
+	spl.pr.copies = spool.pr.copies<br />
+	spl.pg.length = spool.pg.length<br />
+	spl.pg.width = spool.pg.width<br />
+	spl.time = spool.time<br />
+	spl.view.rtl = spool.view.rtl<br />
+	spl.fileout = spool.fileout<br />
+	spl.device = spool.device<br />
+	spl.paper.type = spool.paper.type<br />
+}<br />
+<br />
+function reset.spooler.choices()<br />
+{<br />
+	|Reset all the spooler variables for later use by the report or<br />
+	|this session.<br />
+	spool.date = spl.date<br />
+	spool.fontnumber = spl.fontnumber<br />
+	spool.left.mrg = spl.left.mrg<br />
+	spool.pr.copies = spl.pr.copies<br />
+	spool.pg.length = spl.pg.length<br />
+	spool.pg.width = spl.pg.width<br />
+	spool.time = spl.time<br />
+	spool.view.rtl = spl.view.rtl<br />
+	spool.fileout = spl.fileout<br />
+	spool.device = spl.device<br />
+	spool.paper.type = spl.paper.type<br />
+}<br />
+<br />
+function read.main.table()<br />
+{<br />
+	|These routines are not included. However, whenever a record is<br />
+	|ready to send to the report, I used my macro, e.g. SEND(rptid). This<br />
+	|way the report.has.data variable is set whenever something has<br />
+	|actually been sent.<br />
+	... rest of program ...<br />
+}<br />
+<br />
+Caution! Baan will actually build two temporary files. It appears that if the output is directed to /dev/null or perhaps ASCIF this is immediately removed from $BSE/tmp. Be careful you don't fill up the spool directory with the output from these.<br />
+<br />
+It would be best if a full spooler output device would not need to be opened and the physical writes could be skipped. However, setting lattr.print = false in the report during page of processing won't work as the line counter will not be incremented. I've used similar logic in some COBOL report routines but was able to keep the final output from occurring as I had full control of the code. This could be done in Baan as long as you wrote your report from scratch and skipped using the report writer (not a good solution). Any one have any ideas on this?<br />
+<br />
+I hope this wasn't too long and the cost of running the report 2 times doesn't outweigh the result.<br />
+<br />
+Have fun with this! Let me know if you've been able to make use of this solution or if there is a better way/improvement you can think of.<br />
+<br />
+Kevin Brock<br />
+Senior Technical Consultant<br />
+Quality Consultants, Inc.<br />
+...a member of the Process Technology Group of companies<br />
+Atlanta, Georgia<br />
+<br />
+Ask me about QKEY: a new solution for developing additions to Baan standard code when no source is available.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Rita Kotecha</div><div class="date">3rd January 2006, 09:09</div></div><div class="posttext">Thanks Mr Kevin Brock,<br />
+<br />
+I could use this code. But is there any way we do not need to process the report twice and can get the total No. of Pages.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">4th January 2006, 15:28</div></div><div class="posttext">I do not think Kevin has been around this board in a long time.  In this method you do need to process it twice.  I only have one program that does &quot;page x of y&quot; and I do my best to avoid using this anywhere else.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Rita Kotecha</div><div class="date">5th January 2006, 10:48</div></div><div class="posttext">Hi,<br />
+<br />
+Can we generalise this code, so that it can be used for various reports. (like writing it into a dll or a function etc..). If yes, can you please guide me how to go about it ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">george7a</div><div class="date">5th January 2006, 12:08</div></div><div class="posttext">Thanks Mr Kevin Brock,<br />
+<br />
+I could use this code. But is there any way we do not need to process the report twice and can get the total No. of Pages.<br />
+<br />
+I have done once a similar thing but it was more simple. I thought I will share it with you.<br />
+<br />
+I had a sales order report and I had to know how many lines does every customer have ( I needed to put the custoemr total beside the last customer). what I did is I wrote a query and checked how many sequences are there for that customer in the wanted period and I counted them. In this case I guess if we sum all the customers lines &amp; added the header lines &amp; other layouts , we can have the total number of lines which will help us to know the total number of pages.<br />
+<br />
+- George</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

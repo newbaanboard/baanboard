@@ -1,0 +1,178 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="update table with dynamic sql, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] update table with dynamic sql Tools Development" />
+	
+	<title>update table with dynamic sql [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; update table with dynamic sql</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">stenodegio</div><div class="date">17th March 2009, 21:22</div></div><div class="posttext">Hi all,<br />
+<br />
+I have a problem using dynamic sql and updating the index field of the table. <br />
+<br />
+After the updating, the same record is selected again and so on, and always the same record is updated.<br />
+<br />
+Could someone help me?<br />
+Thanks<br />
+<br />
+this is my script:<br />
+<br />
+	tblid = db.bind(&quot;t&quot; &amp; table.name, &quot;&quot;, company.fis)<br />
+	if tblid &gt; 0 then<br />
+		sql = sql.parse(<br />
+	                &quot;select &quot; &amp; table.name &amp; &quot;.*&quot; &amp;<br />
+	                &quot; from &quot; table.name &amp; &quot; for update&quot; &amp;<br />
+	                &quot; where &quot; &amp; table.name &amp; &quot;._compnr = &quot; &amp; str$(company.fis))<br />
+	<br />
+		sql.exec(sql)<br />
+		<br />
+		while ( TRUE )<br />
+	      		on case ( sql.fetch(sql) )<br />
+		                case EENDFILE:<br />
+		                	break<br />
+		                case ENOREC:<br />
+					sql.break(sql)<br />
+					sql.close(sql)<br />
+					sql  = 0<br />
+		                	error.message = &quot;No data&quot;<br />
+		                        rprt_send()<br />
+		                        return(FALSE)<br />
+		                case 0:<br />
+		                        str1 = column.name &amp; &quot;:=&quot; &amp; column.name &amp; &quot;+&quot; &amp; str$(offset.in.seconds)<br />
+			          var1 = expr.compile(str1)<br />
+			          s.expr$(var1)		                                    db.update(tblid, db.retry)<br />
+                                        	commit.transaction()<br />
+		                        continue<br />
+		                default:                                | error<br />
+					sql.break(sql)<br />
+					sql.close(sql)<br />
+					sql  = 0<br />
+		                	error.message = &quot;Error&quot;<br />
+		                        rprt_send()<br />
+		                        return(FALSE)<br />
+	                endcase<br />
+	                <br />
+	                break<br />
+		endwhile<br />
+<br />
+		sql.break(sql)<br />
+		sql.close(sql)<br />
+		sql  = 0<br />
+<br />
+		db.unbind(tblid)<br />
+	endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">18th March 2009, 16:43</div></div><div class="posttext">I think u r missing db.update(tblid, db.retry) statement .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">_Ralph_</div><div class="date">18th March 2009, 18:47</div></div><div class="posttext">Do you try not commit every record?<br />
+<br />
+I think u r missing db.update(tblid, db.retry) statement .<br />
+<br />
+db.update is there..<br />
+<br />
+but not with the correct indentation.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">18th March 2009, 18:49</div></div><div class="posttext">Hi,<br />
+<br />
+I moved the expr.compile() to outside of the while loop and it worked perfect! All record descriptions get an underline as ending<br />
+<br />
+Hier the 3GL-Code I used for testing:<br />
+<br />
+function main()<br />
+{<br />
+	long	tblid, sql, company.fis, var1 <br />
+	<br />
+	string	table.name(10)<br />
+	string	column.name(15)<br />
+	string	str1(100)<br />
+	string	error.message(100)<br />
+	<br />
+	table.name = &quot;tcmcs085&quot;<br />
+	column.name= &quot;tcmcs085.dsca&quot;<br />
+	company.fis = 200<br />
+	<br />
+	tblid = db.bind(&quot;t&quot; &amp; table.name, &quot;&quot;, company.fis)<br />
+	if tblid &gt; 0 then<br />
+		sql = sql.parse(<br />
+	                &quot;select &quot; &amp; table.name &amp; &quot;.*&quot; &amp;<br />
+	                &quot; from &quot; &amp; table.name &amp; &quot; for update&quot; &amp;<br />
+	                &quot; where &quot; &amp; table.name &amp; &quot;._compnr = &quot; &amp; str$(company.fis))<br />
+	<br />
+		sql.exec(sql)<br />
+		<br />
+                str1 = column.name &amp; &quot;:= strip(&quot; &amp; column.name &amp; &quot;) &amp; &quot; &amp; quoted.string(&quot;_&quot;)<br />
+         	var1 = expr.compile(str1)<br />
+<br />
+		while ( TRUE )<br />
+	      		on case ( sql.fetch(sql) )<br />
+		                case EENDFILE:<br />
+		                	break<br />
+		                case ENOREC:<br />
+					sql.break(sql)<br />
+					sql.close(sql)<br />
+					sql  = 0<br />
+		                	error.message = &quot;No data&quot;<br />
+		                        |rprt_send()<br />
+		                        break<br />
+		                case 0:<br />
+			          	s.expr$(var1)<br />
+					db.update(tblid, db.retry)<br />
+					commit.transaction()<br />
+		                        continue<br />
+		                default:                                | error<br />
+					sql.break(sql)<br />
+					sql.close(sql)<br />
+					sql  = 0<br />
+		                	error.message = &quot;Error&quot;<br />
+		                        |rprt_send()<br />
+		                        break<br />
+	                endcase<br />
+	                <br />
+	                break<br />
+		endwhile<br />
+<br />
+		sql.break(sql)<br />
+		sql.close(sql)<br />
+		sql  = 0<br />
+<br />
+		db.unbind(tblid)<br />
+	endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">_Ralph_</div><div class="date">18th March 2009, 22:16</div></div><div class="posttext">That means that is not allowed to execute alternately 2 runtime functions?<br />
+I did not understand why it wasn't working ¬¬&quot;</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">stenodegio</div><div class="date">19th March 2009, 14:05</div></div><div class="posttext">Hi All,<br />
+<br />
+I Have found the solution. Simply I forgot to put an &quot;as prepared set&quot; in the SQl statement. This allow to modify the primary key without looping.<br />
+<br />
+Thanks to all you.<br />
+<br />
+Steno</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">19th March 2009, 17:58</div></div><div class="posttext">That means that is not allowed to execute alternately 2 runtime functions?<br />
+I did not understand why it wasn't working ¬¬&quot;<br />
+<br />
+While it is  good practice to reduce dynamic expression compilation (expr.compile ) overhead by placing it  at right place and reducing its execution in loops,it is perfectly valid to have multiple different dynamic expressions together.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

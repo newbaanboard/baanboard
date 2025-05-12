@@ -1,0 +1,112 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="506 Error and table exists, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] 506 Error and table exists Tools Development" />
+	
+	<title>506 Error and table exists [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; 506 Error and table exists</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th November 2003, 17:05</div></div><div class="posttext">Seems like a select has stopped working and I do not have a clue why.  It seems the following code is generating a 506 error - table does not exist, and I can not figure out why.  It looks like it is looking in company 000.  See the attached image. I can insert by hand, I have re-configed the table, do a couple of CRDD and nothing appears to work.  Any clues would be helpful.  I read some other posts on the 506 error, but nothing solved the problem.  I even tried a switch.to.company in the select and did not help.<br />
+<br />
+Mark<br />
+<br />
+<br />
+	db.retry.point()<br />
+| Find all records for the range.  Both approved and unapproved.<br />
+	select	tpppc980.*, tpppc981.*<br />
+	from	tpppc980, tpppc981 for update<br />
+	where	tpppc980._index1 inrange {:date.f, :gcid.f} and {:date.t, :gcid.t}<br />
+	and	tpppc980.ninv = 0<br />
+	and	tpppc981._index1 = {tpppc980.date, tpppc980.gcid, tpppc980.coty}<br />
+	and	tpppc981.ninv = 0<br />
+	selectdo<br />
+| Copy the row to the 601 table		<br />
+		db.set.to.default(ttpppc601)<br />
+		rcd.ttpppc601 = rcd.ttpppc981<br />
+		db.insert(ttpppc601,db.retry)<br />
+| Delete the row from 981			<br />
+		db.delete(ttpppc981,db.retry)<br />
+		commit.transaction()<br />
+	selectempty<br />
+| No records just return and close report.		<br />
+		return<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">18th November 2003, 17:12</div></div><div class="posttext">Hmm, so you are not trying for company 000 huh.  Try putting <br />
+<br />
+<br />
+db.set.to.default(ttpppc601)<br />
+tpppc601.compnr = your number <br />
+rcd.ttpppc601 = rcd.ttpppc981<br />
+db.insert(ttpppc601,db.retry)<br />
+<br />
+<br />
+?<br />
+Or move the compnr set before the db.set.to.default..?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">18th November 2003, 17:13</div></div><div class="posttext">Try to force the company number, using:<br />
+<br />
+tpppc601._compnr = &lt;company you want&gt;<br />
+<br />
+before the insert.<br />
+<br />
+I remember also that I have found that the switch.to.company function works only on reading data and it's useless to set the company number of tables you want to insert.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanForever</div><div class="date">18th November 2003, 17:37</div></div><div class="posttext">From one's part, i can recomend you to use<br />
+<br />
+commit.counter  = commit.counter + 1<br />
+if commit.counter &gt; 50 then<br />
+   commit.counter  = 0<br />
+   commit.transaction()<br />
+endif<br />
+<br />
+and commit.transaction() after endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th November 2003, 17:39</div></div><div class="posttext">This worked:<br />
+<br />
+<br />
+db.set.to.default(ttpppc601)<br />
+                              rcd.ttpppc601 = rcd.ttpppc981<br />
+                              tpppc601.compnr = compnr <br />
+                              db.insert(ttpppc601,db.retry)<br />
+<br />
+<br />
+Now I get an out of range record.  I did not think about checking the 981 table.  The 601 and 981 are suppose to be identical.  So something in the 981 must be causing the problem. I may have to do a field by field setting.<br />
+<br />
+Thanks<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">18th November 2003, 18:02</div></div><div class="posttext">you can try the table.round function<br />
+<br />
+<br />
+table.round(&quot;tpppc601&quot;)<br />
+<br />
+<br />
+I have not used before, but it looks semi-promising.  Otherwise, yep, see what exact value is causing the problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th November 2003, 18:32</div></div><div class="posttext">I did not try the table.round, but I did go and look at the 981 table.  Since I developed the sessions - between January and March - they are just getting around to doing some testing.  Somewhere around July a patch was applied that modified the tpppc981 table and that is what I think is causing the problem.  The additional fields are screwing up the company number.<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

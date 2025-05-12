@@ -1,0 +1,187 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Oracle Trigger Question, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Oracle Trigger Question Operating Systems &amp; Databases" />
+	
+	<title>Oracle Trigger Question [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Oracle Trigger Question</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">23rd April 2002, 21:43</div></div><div class="posttext">I have created a table that houses four fields:<br />
+<br />
+Project Number<br />
+Date<br />
+Time<br />
+Status<br />
+<br />
+I am trying to write a trigger that will populate the above table when the status of a project changes.  <br />
+<br />
+What is the code to insert in one table when another (different) table is updated?<br />
+<br />
+This is the error I currently receive:<br />
+<br />
+------ Log Fatal SQL Statement -----<br />
+User    : ericdev (pid 23963)<br />
+Date    : 2002-04-23[14:21:52]<br />
+SQL     :<br />
+UPDATE /*+ index(a ttipcs020795$idx1) */ baan.ttipcs020795 a SET t$psts=:1 WHERE t$cprj=:2<br />
+<br />
+<br />
+This is the current code:<br />
+<br />
+CREATE OR REPLACE TRIGGER CPRJSTAT<br />
+BEFORE UPDATE ON ttipcs020795<br />
+FOR EACH ROW<br />
+WHEN (new.t$psts &lt;&gt; old.t$psts)<br />
+DECLARE<br />
+	ws_cprj	char(6);<br />
+	ws_date	date;<br />
+	ws_time	number(5,0);<br />
+	ws_stat	char(1);<br />
+BEGIN<br />
+	ws_date := to_date(sysdate, 'DD-MON-RR');<br />
+	ws_time := ((((to_number(sysdate,'HH') * 60) + to_number(sysdate,'MI')) * 60) + to_number(sysdate,'SS'));<br />
+	ws_cprj := :old.t$cprj;<br />
+	ws_stat := :new.t$psts;<br />
+<br />
+INSERT INTO ttfobg950795 (t$cprj, t$date, t$time, t$stat)<br />
+VALUES (ws_cprj, ws_date, ws_time, ws_stat);<br />
+END;<br />
+<br />
+/<br />
+<br />
+<br />
+<br />
+Thanks in advance for any help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">23rd April 2002, 23:48</div></div><div class="posttext">Looks like t$psts is an Enum (long)? Did you use the same domain for ttipcs020795.psts and  ttfobg950795.stat fields?<br />
+<br />
+If so, try:<br />
+INSERT INTO ttfobg950795 (t$cprj, t$date, t$time, t$stat) <br />
+VALUES (ws_cprj, ws_date, ws_time, :new.t$psts);</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Martin</div><div class="date">24th April 2002, 09:47</div></div><div class="posttext">Hi,<br />
+<br />
+let us know, which error you are received in the alert-file. (Seems, thats an Oracle DB).<br />
+<br />
+btw : why you are using an 'before update' trigger ??<br />
+<br />
+<br />
+Martin</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gguymer</div><div class="date">24th April 2002, 16:24</div></div><div class="posttext">It is also recommended, by Oracle, that all your SQL code be first created in an Oracle procedure. Then have the trigger call the procedure and pass any arguments necessary. The reasoning is that every time you call a trigger that has PL/SQL instructions coded into then requires Oracle to reprocess that code. But, by calling a pre-compiled procedure, you optimize the trigger by not having to make it spend more time processing it. Bottom line, your system has less work to do. Another benefit to putting your code in procedures is that they can be &quot;pinned&quot; into memory.  <br />
+<br />
+I also am wondering why you chose to do a &quot;before&quot; rather than an &quot;after&quot; trigger? In the case of a &quot;before&quot; trigger, it will always insert to the other table whether the triggering table commits (saves), or just does a rollback (undo).<br />
+<br />
+Gilbert Guymer<br />
+Database Administrator<br />
+Lufkin Industries, Inc.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">24th April 2002, 18:56</div></div><div class="posttext">Thank you for all of the quick responses!<br />
+<br />
+To answer gfasbender's question:<br />
+<br />
+Yes, both fields have the same domain tcpsts.<br />
+<br />
+To answer Martin's question:<br />
+<br />
+The BW Message that pops up is:<br />
+<br />
+Error 512 (Corrupted data dictionary) on tipcs020795 in db_update(51)<br />
+Cannot continue in tipcs2102m000 in DLL: ottstpstandard()<br />
+tipcs2102m000: A not terminated transaction is aborted<br />
+<br />
+as far as Martin's btw and ggymer's questions:<br />
+<br />
+This is my first trigger ever, and I don't directly work with Oracle (SQL) very much at all.  I'm a finance guy (born and raised) that had the opportunity to transfer from the dulldrum's of our Finance department into the exciting world of IT (which I love) to support Finance from the IT side.  I've been in IT for approx 6 month's so this is very new to me.  <br />
+<br />
+Please type your posts slowly as it takes me a while to read and understand .:D<br />
+<br />
+If I can get the code working as is I will definately check out converting it to an Oracle procedure.  <br />
+<br />
+Thanks again!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gguymer</div><div class="date">24th April 2002, 19:30</div></div><div class="posttext">One other pitfall in dealing directly with Baan tables through Oracle is dates. Oracle's date structure includes not only the date, but also the time. Baan does not like dates with times other than 12:00:00 AM. So, whenever you insert system dates into a Baan/Oracle table date column, always use TRUNC(SYSDATE) because it formats the time portion of the date correctly for what Baan wants. Basically it defaults it to 12:00:00 AM otherwise you end up with the current time as well as the current date. You don't need to use that TO_DATE and format mask on SYSDATE because SYSDATE is a vaid date value. The TO_DATE is for converting dates to various readable date string values.<br />
+<br />
+Why do I know this? I found out the hard way since I have coded several Oracle triggers on Baan/Oracle tables to populate other Baan/Oracle tables.<br />
+<br />
+Incorrect:<br />
+ws_date := to_date(sysdate, 'DD-MON-RR'); <br />
+<br />
+Correct:<br />
+ws_date := trunc(sysdate); <br />
+<br />
+ or use it directly in the INSERT<br />
+<br />
+INSERT INTO ttfobg950795 (t$cprj, t$date, t$time, t$stat) <br />
+VALUES (ws_cprj, trunc(sysdate), ws_time, ws_stat); <br />
+END; <br />
+<br />
+It also looks like you are trying to get the time in total seconds past midnight.  This will give you the same thing. Try it out.<br />
+<br />
+ws_time := TO_NUMBER(TO_CHAR(SYSDATE,'SSSSS'));<br />
+<br />
+Gilbert Guymer<br />
+Database Administrator<br />
+Lufkin Industries, Inc.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">24th April 2002, 22:13</div></div><div class="posttext">Thanks for the tips, I am much closer!<br />
+<br />
+I was able to get the trigger to work correctly, but now I need to add a record ID.  I have added a new field to my table tfobg950795.idno.<br />
+<br />
+I can write a select statement to count the number of records in my new table, but how do I assign that value to a variable?<br />
+<br />
+I'd like to count the current number of records, assign that value to a variable, add 1 and then use that as my next idno when I update the table.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gguymer</div><div class="date">24th April 2002, 23:12</div></div><div class="posttext">There are two ways you could approach this. You could create an Oracle sequence. A sequence is a number generator that can increment, start at, and go until any range of numeric values you want. The sequence keeps track of the last number used and automatically increments itself when called for the next logical number in the defined sequence. TTFOBG950795_SEQ is the name of the sequence (it can be named whatever you want) and  NEXTVAL is the way that you invoke the next logical value. It can be assigned to a variable or directly used in the insert. I prefer the sequence because it is cleaner.<br />
+<br />
+TTFOBG950795_SEQ.NEXTVAL<br />
+<br />
+The other way is to get the MAX number of rows plus one from the table you are inserting to. <br />
+next_rec NUMBER;<br />
+<br />
+SELECT MAX(*) + 1 <br />
+    INTO next_rec<br />
+   FROM TTFOBG950795;<br />
+<br />
+Gilbert Guymer<br />
+Database Administrator<br />
+Lufkin Industries, Inc.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">25th April 2002, 14:22</div></div><div class="posttext">Thanks for all the help it is greatly appreciated!  Everything works perfectly.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">25th April 2002, 20:44</div></div><div class="posttext">My trigger is operating when tipcs020.psts changes.  If someone modifies the tipcs020 table and then converts to runtime dictionary the trigger needs to be compiled again.  Is there a way to avoid this or is there something that can be done to notify us if the trigger is not active?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gguymer</div><div class="date">26th April 2002, 00:51</div></div><div class="posttext">When you change a table, in Baan, it unloads the table, drops the table and associated index(es) in Oracle, re-creates them back in Oracle, and then reloads them. Because the table got dropped, it hosed the trigger which required you to re-compile it.<br />
+<br />
+Gilbert Guymer<br />
+Database Administrator<br />
+Lufkin Industries, Inc.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">26th April 2002, 14:09</div></div><div class="posttext">I guess I could create a batchjob that runs in the morning to re-compile the trigger.  That could minimize the data loss.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

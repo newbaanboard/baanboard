@@ -1,0 +1,132 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Query takes long time ... any suggestions for improving this query?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Query takes long time ... any suggestions for improving this query? Tools Development" />
+	
+	<title>Query takes long time ... any suggestions for improving this query? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Query takes long time ... any suggestions for improving this query?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">kbabu1</div><div class="date">11th June 2007, 09:48</div></div><div class="posttext">hello,<br />
+<br />
+I am working with session PDSO (tdsls4223m000) in Greig (Baan 5b). The session takes too long to process even if I have only one SO to process.<br />
+<br />
+I did run the scripts in profiler mode and came to know that the function process.sales.orders() is taking long time.<br />
+<br />
+The function has the following SQL in it, which is causing the issue.<br />
+<br />
+Can any body suggest how to improve/modify the query for better performance?<br />
+<br />
+If you need more information please let me know.<br />
+<br />
+SQL Query<br />
+<br />
+	select	tdsls401.*, tdsls402.*, tdsls400.*, tdsls060.wpos,<br />
+		tccom110.*, tdisa001.*, tcibd001.*, tcmcs002.*, tdsls094.*<br />
+	from	tdsls401 for update, tdsls402, tdsls400, tdsls060,		<br />
+		tccom110, tdisa001, tcibd001, tcmcs002, tdsls094<br />
+	where	tdsls401._index5 = {PROC.DEL.SLS}<br />
+	and	tdsls401.ofbp inrange :ofbp.f and :ofbp.t<br />
+	and	tdsls401.orno inrange :orno.f and :orno.t<br />
+	and	tdsls401.pono inrange :wf.pono.f and :wf.pono.t<br />
+	and	tdsls401.sqnb inrange :wf.sqnb.f and :wf.sqnb.t<br />
+	and	tdsls060._index1 = {tdsls400.sotp, PROC.DEL.SLS}<br />
+	and     tdsls401.ofbp refers to tccom110<br />
+	and     tdsls401.item refers to tdisa001<br />
+	and 	tdisa001.item refers to tcibd001<br />
+	and 	tdsls400.ccur refers to tcmcs002<br />
+	and 	tdsls400.sotp refers to tdsls094<br />
+	and	tdsls401.pmsk(tdsls060.acno;1) = &quot;y&quot;<br />
+	and	((tdsls401.ttyp &gt; &quot;&quot; and<br />
+		  tdsls401.invn &gt; 0) or<br />
+		 (tdsls401.dqua = 0 and<br />
+		  tdsls401.bqua = tdsls401.oqua and<br />
+		  tdsls401.oqua &lt;&gt; 0) or<br />
+		 (tdsls094.cnsr = tcyesno.yes and<br />
+		  tdsls401.dldt &lt;&gt; 0) or<br />
+		 (tdsls094.reto = tcyesno.yes and<br />
+		  tdsls401.dldt &lt;&gt; 0 and<br />
+		  tdsls401.oqua &lt;&gt; 0 and<br />
+		  tdsls401.dqua = 0 and<br />
+		  tdsls401.bqua = 0))<br />
+	and	tdsls401.oltp &lt;&gt; tdgen.oltp.total<br />
+	and	tdsls401.cmba refers to tdsls402 unref clear<br />
+	and	tdsls401.orno refers to tdsls400<br />
+	and	tdsls400.sotp inrange :sotp.f and :sotp.t<br />
+	and	tdsls400.cofc inrange :cofc.f and :cofc.t<br />
+	order by tdsls401._index5 with retry<br />
+	selectdo<br />
+             endselect<br />
+<br />
+<br />
+Thank you very much,<br />
+Babu</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">11th June 2007, 12:05</div></div><div class="posttext">When you are selecting one or few orders, this query will indeed take very long, because index5 is by step, BP, order... Rather select by index1 which is by order number. In fact, the query has been optimized already in standard BaaN with solution number 136331 in Jul-2003. This is the optimized version:<br />
+<br />
+<br />
+	select	tdsls401.*, tdsls402.*, tdsls400.*, tdsls060.wpos,<br />
+		tccom110.*, tdisa001.*, tcibd001.*, tcmcs002.*, tdsls094.*<br />
+	from	tdsls401 for update, tdsls402, tdsls400, tdsls060,		<br />
+		tccom110, tdisa001, tcibd001, tcmcs002, tdsls094<br />
+	where	tdsls401._index1 inrange {:orno.f, :wf.pono.f, :wf.sqnb.f}<br />
+	and				 {:orno.t, :wf.pono.t, :wf.sqnb.t}<br />
+	and	tdsls401._index5 inrange {PROC.DEL.SLS, :ofbp.f}<br />
+	and				 {PROC.DEL.SLS, :ofbp.t}<br />
+	and	tdsls060._index1 = {tdsls400.sotp, PROC.DEL.SLS}<br />
+	and     tdsls401.ofbp refers to tccom110<br />
+	and     tdsls401.item refers to tdisa001<br />
+	and 	tdisa001.item refers to tcibd001<br />
+	and 	tdsls400.ccur refers to tcmcs002<br />
+	and 	tdsls400.sotp refers to tdsls094<br />
+	and	tdsls401.pmsk(tdsls060.acno;1) = &quot;y&quot;<br />
+	and	((tdsls401.ttyp &gt; &quot;&quot; and<br />
+		  tdsls401.invn &gt; 0) or<br />
+		 (tdsls401.dqua = 0 and<br />
+		  tdsls401.bqua = tdsls401.oqua and<br />
+		  tdsls401.oqua &lt;&gt; 0) or<br />
+		 (tdsls401.dqua = 0 and				<br />
+		  tdsls401.bqua = 0 and<br />
+		  tdsls401.oqua &lt;&gt; 0 and<br />
+		  tdsls401.dldt &lt;&gt; 0) or			<br />
+		 (tdsls094.cnsr = tcyesno.yes and<br />
+		  tdsls401.dldt &lt;&gt; 0) or<br />
+		 (tdsls094.reto = tcyesno.yes and<br />
+		  tdsls401.dldt &lt;&gt; 0 and<br />
+		  tdsls401.oqua &lt;&gt; 0 and<br />
+		  tdsls401.dqua = 0 and<br />
+		  tdsls401.bqua = 0))<br />
+	and	tdsls401.oltp &lt;&gt; tdgen.oltp.total<br />
+	and	tdsls401.cmba refers to tdsls402 unref clear<br />
+	and	tdsls401.orno refers to tdsls400<br />
+	and	tdsls400.sotp inrange :sotp.f and :sotp.t<br />
+	and	tdsls400.cofc inrange :cofc.f and :cofc.t<br />
+	order by tdsls401._index1 with retry			  <br />
+<br />
+<br />
+This code will run fast. However, since this is already implemented in standard Baan, I advice you to install solution 136331.<br />
+<br />
+<br />
+Regards,<br />
+Eli Nager</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kbabu1</div><div class="date">11th June 2007, 13:39</div></div><div class="posttext">Thank you very much for the information.<br />
+<br />
+Regards, Babu</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

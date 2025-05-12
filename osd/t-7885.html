@@ -1,0 +1,157 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Array interface in Oracle, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Array interface in Oracle Operating Systems &amp; Databases" />
+	
+	<title>Array interface in Oracle [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Array interface in Oracle</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">30th November 2002, 15:02</div></div><div class="posttext">How many of you have enabled Array Interface in db_resource (ora_init)? I have tried several times, but result has baan always bad performance in Baan. Processes are not getting time enough.<br />
+I have tried several ora_max_array_fetch values (5, 50, 500,5000 with bdbpre test) but nothing is better than without Array interface. <br />
+Is this normal?<br />
+<br />
+Problem:<br />
+We have serious problems with database going to coffee break for few minutes from time to time. Even sqlplus login will take very long time. When this happens it seems like processes are not getting processor time.<br />
+statspack report has nothing wrong. Maybe enabling array interface would help...with worse performance, who knows.<br />
+<br />
+HP/UX L3000 and Oracle 8.0.5 3-tier setup in one box at the moment.<br />
+6.1c.06.02 Porting set<br />
+<br />
+db_resource:<br />
+dbsinit:01<br />
+ora_init:0011000<br />
+lock_retry:0<br />
+ora_timeout:{0,60,60,60,0}<br />
+retained_cursors:50<br />
+max_free_cursors:50<br />
+bdb_max_session_schedule:4<br />
+rds_full:5<br />
+#ora_max_array_fetch:50<br />
+<br />
+nls_lang:american_america.we8iso8859p1<br />
+nls_sort:binary<br />
+ora_default_tablespace:datbaan<br />
+ora_temporary_tablespace:temp           <br />
+ora_column_format:7<br />
+oracle_client_home:/u4/oracle/product/8.0.5<br />
+oracle_service_name:baan.world<br />
+two_task:baan.world<br />
+oracle_home:/u4/oracle/product/8.0.5</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JamesV</div><div class="date">2nd December 2002, 00:10</div></div><div class="posttext">I absolutely recommend the use of the max_array_fetch.  If you are running pre-IVc4, not many of the sessions will take advantage of this.  bdbpre and post do however.  <br />
+<br />
+But, when you increase the size of the array fetch, you should also increase the size of the rds_full.  Otherwise, you are returning more rows at a time to the driver process but taking more time to send the rows to the bshell (assuming that level 2 driver is in use, otherwise will operations being single row, the array interface makes no difference).<br />
+<br />
+I have never seen worse performance when turning on the array interface.  At worst, it is nuetral unless is causes some level of Oracle contention or IO bottleneck due to the ability of the driver to move more rows faster to/from Oracle.   If you are experiencing a CPU bottleneck, having all drivers use more CPU could lead to increased contention.  If you can check this when nothing else is running on the system, you can find out if the performance is better when CPU is not constrained.<br />
+<br />
+When you say that the system is going out to lunch and you cannot tell what is happening in STATSPACK, if you query the system wait table when the slowdown occurs you can see what all the running sessions are waiting upon.  A wait_time=0 states that the wait is not complete, in other words what the session is waiting for right now.  This can tell you what Oracle resource is constrained:<br />
+<br />
+SQL&gt; select event, count(*) from v$session_wait<br />
+  2  where wait_time = 0<br />
+  3  group by event order by 2 desc;<br />
+<br />
+If you would like to post the output from this query in this thread, we can help diagnose your problem.<br />
+<br />
+Hope this helps,<br />
+<br />
+<br />
+-- Jim</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Martin</div><div class="date">2nd December 2002, 11:19</div></div><div class="posttext">With an setting for the ora_init to  0011000 your are not able to use the array settings for oracle. Set the ora_init to 0101000.<br />
+<br />
+<br />
+Martin</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JamesV</div><div class="date">2nd December 2002, 12:24</div></div><div class="posttext">My assumption was that orainit was changed to disable the array interface from 0111000 to 0011000, but good point Martin.<br />
+<br />
+Did you only set the size of max_array_fetch without changing orainit?<br />
+<br />
+-- Jim</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">2nd December 2002, 16:26</div></div><div class="posttext">Hi !<br />
+Baan version is BaanIVc4. I was running array interface with value 5 in ora_max_array_fetch and also rds_full. Users reported slowness in for example integration runs. Normally 20 min. and now 1 hour. Also table export by bdbpre was very, very slow during nighttime. Then I tested bdbpre with 50, 500 and 5000, but I forgot to change rds_full!<br />
+<br />
+There is over 250 concurrent users at daytime and I/O is at least one bottleneck, but can this cause Oracle to go to lunch?<br />
+<br />
+SAR:<br />
+7:00:00       5       3      14      77<br />
+07:20:00       9       5      20      66<br />
+07:40:00       8       5      21      66<br />
+08:00:00       8       4      21      67<br />
+08:20:00      14       6      24      56<br />
+08:40:00      12       5      24      60<br />
+09:00:00      13       6      27      54<br />
+09:20:00      18       8      41      33<br />
+09:40:00      26       9      37      29<br />
+10:00:00      16       6      31      47<br />
+10:20:00      16       7      47      30<br />
+10:40:00      20       7      46      27<br />
+11:00:00      27      12      28      32<br />
+11:20:00      32      14      27      26<br />
+11:40:00      26      14      22      38<br />
+12:00:00      27      14      23      36<br />
+12:20:00      26      13      27      34<br />
+12:40:00      19       8      27      45<br />
+13:00:00      27      10      33      30<br />
+13:20:00      19       9      26      46<br />
+13:40:00      19       9      26      46<br />
+14:00:00      33      10      23      34<br />
+14:20:00      28      11      37      24<br />
+14:40:00      40      11      25      25<br />
+15:00:00      22       8      28      42<br />
+15:20:00      23       9      31      38<br />
+15:40:00      26       9      37      28<br />
+16:00:00      19       8      34      39<br />
+<br />
+Average       20       8      24      47<br />
+<br />
+Now I'm thinking of changing 3-tier to 2-tier setup from TCP to BEQ. What do you think how it will be with performance?<br />
+This is clustered setup with two boxes, but I think I can test this...<br />
+<br />
+<br />
+This is taken from a time with not so big load...<br />
+<br />
+SQL&gt; select event, count(*) from v$session_wait<br />
+  2  where wait_time = 0<br />
+  3  group by event order by 2 desc;<br />
+<br />
+SQL*Net message from client                                             158<br />
+rdbms ipc message                                                             7<br />
+db file sequential read                                                        1<br />
+log file parallel write                                                            1<br />
+smon timer                                                                          1<br />
+log file sync                                                                         1<br />
+pmon timer                                                                         1<br />
+<br />
+7 rows selected.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JamesV</div><div class="date">3rd December 2002, 06:06</div></div><div class="posttext">Clearly you are having some IO bottleneck on the system (from the sar report).  I would run an iostat to further refine what type of problem you are having on the system.<br />
+<br />
+The Oracle wait information from that particular sample does not show a IO wait.  We would need a longer sample using a delta from Oracle system statistics (see the V$SYSSTAT table).  <br />
+<br />
+The SQL*NET Message from Client indicates either normal waiting for the Baan application and driver OR communication delays between the Oracle driver and the Oracle database.  This could be improved by switching to the BEQ interface.  <br />
+<br />
+You have idle CPU time which (in combination with the above) clearly points to either a configuration error (including the need for an Oracle patch) or a major IO bottleneck.  I would go after the IO subsystem.  The long delays could be the result of a log sync, RBS constraint or other related IO type delay.<br />
+<br />
+-- Jim</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

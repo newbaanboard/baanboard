@@ -1,0 +1,344 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="problem with getting the date &amp; docn, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] problem with getting the date &amp; docn Tools Development" />
+	
+	<title>problem with getting the date &amp; docn [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; problem with getting the date &amp; docn</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mig28mx</div><div class="date">26th January 2006, 01:12</div></div><div class="posttext">Hello all,<br />
+I´m having problems with a report. It have to get the max date and max document, and the min date and min document from the table tfgld018.<br />
+Also must be able to print the series if the document has a series.<br />
+I´m sending my code in order to see what I´m doing wrong.<br />
+Thank you in advance.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">26th January 2006, 10:57</div></div><div class="posttext">Hi,<br />
+<br />
+I'm not sure I really understand what you intend to do, but according to your description, I suggest a few changes to your code..<br />
+<br />
+function read.main.table()<br />
+{<br />
+	init = true<br />
+	select tfgld018.*, tfgld011.* <br />
+	from	tfgld018, tfgld011 |, tfgld017<br />
+	where   tfgld018._index1 inrange {:ttyp.f, :docn.f}<br />
+	                             and {:ttyp.t, :docn.t}<br />
+	and     tfgld018.dcdt 	inrange :qdat.f and :qdat.t<br />
+	and	tfgld018.ttyp refers to tfgld011<br />
+	and	tfgld011.dsrn	inrange :serie.f and :serie.t<br />
+	selectdo<br />
+		if init then<br />
+			init = false<br />
+			reset.vars()<br />
+		endif<br />
+|why this check??? this means it will check from the second ttyp only... try without it. In the function reset.vars I would just put all the vars to 0 (zero)<br />
+|		if (tfgld018.ttyp &lt;&gt; doctipo) then<br />
+			if (tfgld018.dcdt &gt;=  fechamax) then<br />
+				fechamax = tfgld018.dcdt<br />
+				documax  = tfgld018.docn<br />
+| change this to endif because for first run it must check both<br />
+|			else <br />
+                        endif<br />
+			if (tfgld018.dcdt &lt;= fechamin) then<br />
+				fechamin = tfgld018.dcdt<br />
+				documax = tfgld018.docn	<br />
+			endif<br />
+|			endif<br />
+|		endif<br />
+<br />
+<br />
+|		rprt_send() do this after the endselect<br />
+	endselect<br />
+          rprt_send()<br />
+}<br />
+<br />
+function reset.vars()<br />
+{<br />
+	fechamin = tfgld018.dcdt<br />
+	documin = tfgld018.docn<br />
+	fechamax = tfgld018.dcdt<br />
+	documax = tfgld018.docn<br />
+	doctipo = tfgld018.ttyp<br />
+}<br />
+<br />
+<br />
+Like this you will have a report mentioning the min/max values. I don't know exactly what you meant with printing the series, but then just fetch the series in report script.<br />
+<br />
+Hope this helps you. For any further questions, don't hesitate to post them to the board..<br />
+<br />
+Good luck!!<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">26th January 2006, 12:50</div></div><div class="posttext">Why don't you use MAX() function for your case. Before select , write additonal select and use max function like that:<br />
+select max(tfgld018.docn):documax,<br />
+         max(tfgld018.dcdt):datemax<br />
+from tfgld018<br />
+where |************* write your conditions ***************|<br />
+selectdo<br />
+endselect<br />
+<br />
+Also you can try it with MIN() functions.<br />
+<br />
+Good luck !</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mig28mx</div><div class="date">27th January 2006, 05:49</div></div><div class="posttext">Thanks for your responses En and Mr. Suleyman.<br />
+En, just a little detail. If I change the rprt_send() after the endselect, it only send me the last record. I need the max and min tfgld018.docn and tfgld018.dcdt for each type of document. I mean, each change of tfgld018.ttyp<br />
+<br />
+<br />
+Mr. Suleyman If I use your code, as a result I have only the max document and date.<br />
+<br />
+Any other idea?<br />
+<br />
+Thank you in advance.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">27th January 2006, 08:15</div></div><div class="posttext">Try following code <br />
+declaration:<br />
+ *********** mindocn,maxdocn,mindate,maxdate<br />
+function find.minmax.value()<br />
+{<br />
+	select MIN(tfgld018.docn):mindocn,MAX(tfgld018.docn):maxdocn,<br />
+                      MIN(tfgld018.dcdt):mindate,MAX(tfgld018.dcdt):maxdate<br />
+	from     tfgld018, tfgld011 <br />
+	where   tfgld018._index1 inrange {:ttyp.f, :docn.f}<br />
+	     and {:ttyp.t, :docn.t}<br />
+  	     and   tfgld018.dcdt 	inrange :qdat.f and :qdat.t<br />
+	     and	tfgld018.ttyp refers to tfgld011<br />
+	     and	tfgld011.dsrn	inrange :serie.f and :serie.t<br />
+	selectdo<br />
+}<br />
+<br />
+function read.main.table()<br />
+{<br />
+   *****  temp1 | Define it type of tfgld018.docn <br />
+   *****  temp2 | define it type of tfgld018.dcdt                  <br />
+             doctipo = &quot;Z_Z&quot; | Meanless code to compare change of ttyp<br />
+	select tfgld018.*, tfgld011.* <br />
+	from	tfgld018, tfgld011 |, tfgld017<br />
+	where   tfgld018._index1 inrange {:ttyp.f, :docn.f}<br />
+	                             and {:ttyp.t, :docn.t}<br />
+	and     tfgld018.dcdt 	inrange :qdat.f and :qdat.t<br />
+	and	tfgld018.ttyp refers to tfgld011<br />
+	and	tfgld011.dsrn	inrange :serie.f and :serie.t<br />
+             order by tfgld018.ttyp<br />
+	selectdo<br />
+                   if doctipo &lt;&gt; tfgld0018.ttyp then <br />
+                      temp1 = tfgld018.docn<br />
+                      temp2 = tfgld018.dcdt<br />
+                      find.minmax.value()<br />
+                      tfgld018.docn = temp1<br />
+                      tfgld018.dcdt = temp2<br />
+                      |temp1,temp2 keeps pointer of tfgld018 keys TRUE.<br />
+                  else<br />
+                      doctipi = tfgld018.ttyp<br />
+                  endif<br />
+                  |You got min,max value for each ttyp<br />
+                  |don't forget definitions of mindocn,maxdocn,mindate,maxdate<br />
+	         rprt_send() <br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">27th January 2006, 12:33</div></div><div class="posttext">Mig28, thanks for adding this very important detail, that the min and max values should be printed PER TRANSACTION TYPE, i.e. FOR EACH TTYP. This of course changes the situation. <br />
+<br />
+Suleyman, sorry but with all due respect your code is incorrect and will not deliver the desired result; have a look at it again...<br />
+<br />
+Below is the code I suggest. Start from tfgld011 (transaction types) and for each selected ttyp, you make a selection on tfgld018 and print the min/max values...<br />
+<br />
+function read.main.table()<br />
+{<br />
+	select	tfgld011.*<br />
+	from	tfgld011<br />
+	where	tfgld011._index1 inrange {:ttyp.f} and {:ttyp.t}<br />
+	and	tfgld011.dsrn inrange :serie.f and :serie.t<br />
+	order by tfgld011._index1<br />
+	selectdo<br />
+<br />
+		reset.vars()<br />
+		select tfgld018.*<br />
+		from	tfgld018<br />
+		where   tfgld018._index1 inrange {:tfgld011.ttyp, :docn.f}<br />
+		                             and {:tfgld011.ttyp, :docn.t}<br />
+		and     tfgld018.dcdt inrange :qdat.f and :qdat.t<br />
+		selectdo<br />
+			if (tfgld018.dcdt &gt;=  fechamax) then<br />
+				fechamax = tfgld018.dcdt<br />
+				documax  = tfgld018.docn<br />
+	                         endif<br />
+			if (tfgld018.dcdt &lt;= fechamin) then<br />
+				fechamin = tfgld018.dcdt<br />
+				documax = tfgld018.docn	<br />
+			endif<br />
+		endselect<br />
+		rprt_send()<br />
+	endselect<br />
+}<br />
+<br />
+function reset.vars()<br />
+{<br />
+	fechamin = 0<br />
+	documin = 0<br />
+	fechamax = 0<br />
+	documax = 0<br />
+}<br />
+<br />
+<br />
+Let me know if it works fine...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">27th January 2006, 12:58</div></div><div class="posttext">What is wrong enfrom??? I think it will works well .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">27th January 2006, 13:40</div></div><div class="posttext">I didn't look much into your script; to start with I saw hree problems:<br />
+1) your subquery selects tfgld018 again, which is dangerous<br />
+2) your subquery selects the entire range again of ttyps<br />
+3) based on the requirements it seems that you need min/max date, and the document related to those records. What you do, is you fetch the min/max document also, which means basically the document with the smallest number and the document with the highest number. I don't think that's the idea.<br />
+<br />
+As I said I didn't go through it any more after I saw the above mentioned, so can't point you out more errors...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">27th January 2006, 15:32</div></div><div class="posttext">I would let the report generator do the work you. Here is the way to do this:<br />
+<br />
+Let us assume that you have generated your new session as usual and selected the fields you require on the report layout. The PROGRAM SCRIPT would be the basic select from tfgld018 - merely constrained by the from and to fields you are interested in, but no other computation. Do not add any other logic here.<br />
+<br />
+Then, in the report layout editor, first make the field Document Type as a sort field.<br />
+Then, in the Layouts, create a after.field layout for Document Type and copy all the fields you need: I believe these would be as follows:<br />
+<br />
+Transaction Type<br />
+Document Date 1 (tfgld018.dcdt) (for minimum)<br />
+Document Date 2 (tfgld018.dcdt) (repeat for maximum)<br />
+Document Number 1 (tfgld018.docn) (for minimum)<br />
+Document Number 2 (tfgld018.docn) (repeat the field for maximum)<br />
+<br />
+Then, in the Maintain Report Field details for Document Date 1, change Aggregate Funtion to &quot;minimum&quot; and in the field details for Document Date 2, change Aggregate Funtion to &quot;maximum&quot;. Repeat for Document Number 1 and Document Number 2.<br />
+<br />
+Compile and run!<br />
+<br />
+All of this should not take you more than 10 minute. In fact, it took me more time to think about and write this!  It pays to be very lazy when it comes to programming in BAAN 4GL!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">27th January 2006, 15:41</div></div><div class="posttext">I don't really understand why you would waste 10 mins of your precious time to think of an alternative solution; my suggested code took me approx. 2.5 mins incl. thinking and typing....<br />
+<br />
+Anyway, regarding to your suggestion: is your suggestion to do it without a detail layout? Then I don't think the min and max aggregate functions will deliver much; don't they present the min/max PRINTED values via detail layouts....???</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">27th January 2006, 15:43</div></div><div class="posttext">Yes, indeed. I forgot, I should have mentioned - you do not need the detail layout (unless you want it).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">27th January 2006, 16:18</div></div><div class="posttext">Enfrom my code is correct only he would calculate it for each type of ttyp. I only changed place of rprt_send(). Anyway it works well. There is no need to compare something. Baanboard is open for all suggestions !<br />
+<br />
+Good LUck !!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">27th January 2006, 16:32</div></div><div class="posttext">no comment suleyman... just try out your code...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th January 2006, 19:51</div></div><div class="posttext">I undeleted shah_bs threads just to keep the flow of the thread.  Once posted it usually is better to leave the post than delete it.  And yes mr_suleyman the board is open to all suggestions and we do appreciate any input you provide.  I also think your code would work, but maybe needs a little tweaking.  As en mentioned the subroutine would find all types again - so maybe just passing parameters will help find what the original poster needed.  I am curious as to what the final solution is?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mig28mx</div><div class="date">27th January 2006, 20:26</div></div><div class="posttext">Hello Shah_bs,<br />
+Actually using the layout was my first approach for the problem. The detail is, when the report sends, always put 0(zero) in the fields minimum for date and docn. The other records are ok. But this first record is wrong. So, that´s why I´m try with code to get this.<br />
+<br />
+Thank you anyway.<br />
+<br />
+I will try the code from en and mr_suleyman and I will inform to the board any change.<br />
+<br />
+Regards.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mig28mx</div><div class="date">27th January 2006, 21:07</div></div><div class="posttext">Hello Mr_Suleyman and En, thank you very much for all.<br />
+<br />
+I tried with the code sugested by en and I find that the output allways put zero in docn and dcdt for minumun values. And also It puts every record from the select.<br />
+<br />
+Also test the code from Mr_Suleyman and I´m still getting ony the max docn and doct from tfgld018 not fetch by document. You are saying that you change de possition of rprt_send(). Where do you put it?<br />
+<br />
+Thank you all.<br />
+<br />
+¿any other idea?<br />
+Regards.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th January 2006, 22:30</div></div><div class="posttext">Init fechamin value to something real big(like today+10000).  That way the first document sets the first max and min value.  Otherwise nothing will be less than 0.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Rita Kotecha</div><div class="date">1st February 2006, 09:47</div></div><div class="posttext">Hi<br />
+<br />
+Try this<br />
+<br />
+select max(tfgld018.docn):maxdocn,<br />
+         max(tfgld018.dcdt):maxdcdt,<br />
+         min(tfgld018.docn):mindocn<br />
+         min(tfgld018.dcdt):mindcdt<br />
+from   tfgld018<br />
+where .....<br />
+group by tfgld018.docn,<br />
+             tfgld018.dcdt</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">1st February 2006, 11:42</div></div><div class="posttext">Hi,<br />
+<br />
+Sorry for late response; just noticed this thread is still unresolved. C'mon, it ain't that dificult to accomplish your task..!!<br />
+<br />
+Of course you are right about the minimum values being 0, my mistake in the rush.. The check is tfgld018.dcdt &lt;= fechamin after fechamin is set to 0, so of course the condition will never be reached.. Either set fechamin to fmax (high value), or use an init variable to set all min and max values to first records' values and continue from there. <br />
+<br />
+About your second remark that it &quot;puts all the records from the select&quot;: I don't understand what you mean. If I understood your requirements well, and if you put the rprt_send() in the place I suggested, you shall get a min/max value for each ttyp in the selected range... Is this not happening..?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mig28mx</div><div class="date">1st February 2006, 17:16</div></div><div class="posttext">Hi En,<br />
+I change the value of fechamin to other value and now I´m getting in the first the values that I need. But after this recrod, it comes all the other records with values of reset.vars() function. And yes, I put the rprt_send() in the place were you suggest.<br />
+<br />
+I think I´m missing something...<br />
+<br />
+Thank for your help.<br />
+<br />
+Hi Rita,<br />
+I will try you code and I will notify you about the result.<br />
+Thank you!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">1st February 2006, 18:02</div></div><div class="posttext">Do you have a report script? Hope you don't use things like layout.again() or so? Is there anything else programmes in your program script? Maybe you want to post your entire program script and screenshots of your form and report, plus screenshot of the actual output; like this it will be easier to understand what goes wrong.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Rita Kotecha</div><div class="date">2nd February 2006, 06:10</div></div><div class="posttext">Hi mig28mx,<br />
+<br />
+I have used it in one of my scripts, It should work, but hope its helps you acheiving all that you want out of the code.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">2nd February 2006, 10:54</div></div><div class="posttext">Rita, I don't think this is what mig28mx looks for; your query will give smallest/highest document number, whereas I think mig28mx looks for the document number corresponding to the transaction on the earliest and latest date. See the difference...?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mig28mx</div><div class="date">10th February 2006, 19:03</div></div><div class="posttext">Hello En, Rita.<br />
+Thank you very much for all your help. I´m glad to inform you that the main problem has been solved.<br />
+<br />
+Actually I´m using the code proposed by Rita, and works like charm!<br />
+Obviously, the help provided by En help me a lot also.<br />
+<br />
+Thank you for all your support and to the board for made this space.<br />
+Regards.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lsatenstein</div><div class="date">20th March 2006, 03:40</div></div><div class="posttext">I have not looked in detail at the table definitions. But if you do not want the intervening the field(s) from the sql, then then use the sql with<br />
+order by xxxx desc<br />
+as set with 1 rows.<br />
+<br />
+That will provide the max. value, given xxxx <br />
+<br />
+Using order by together with  &quot;with set with 1 rows&quot; will do what you want,</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

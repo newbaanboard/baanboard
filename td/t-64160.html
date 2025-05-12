@@ -1,0 +1,119 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Query Performance, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Query Performance Tools Development" />
+	
+	<title>Query Performance [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Query Performance</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">7th June 2013, 10:51</div></div><div class="posttext">Hello,<br />
+<br />
+I am trying to get the Total Sell Quantity for each Item against each Business Partner in a particular date range. <br />
+<br />
+<br />
+I have wrote the script, but its taking a huge time, and finally I just end in killing the process. I have tried to use indexes wherever possible but still no significant results. For just 10 days the report takes a lot of time, I am not daring to go for a month data.<br />
+<br />
+<br />
+I have attached the script, if anyone could help me out, I will be glad.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">7th June 2013, 14:46</div></div><div class="posttext">hi Bhushan,<br />
+<br />
+you can use Call Graph Profiler mode , to get the details of queries execution time and can zero down to the query taking the longest time<br />
+<br />
+i also attached a doc that i downloaded on baanboard,i hope that would be helpful although it was for baan iv and v<br />
+<br />
+regards<br />
+vamsi</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">8th June 2013, 00:32</div></div><div class="posttext">Bhushan,<br />
+<br />
+The call graph profiler will give you more detailed information to determine which specific sql code is taking more time or you can look up the DBSLOG or <br />
+<br />
+Alternatively, you can use this option to validate at high level -<br />
+<br />
+<br />
+$ cat lmssq.sql<br />
+select  fmlbd400.load:load,fmlbd350.orno:order,fmlbd350.fono:line<br />
+from    fmlbd400,fmlbd300,fmlbd350<br />
+where   fmlbd400._index2 = {&quot;WORKPLAN&quot;, &quot;640001204&quot;}<br />
+and     fmlbd300.load refers to fmlbd400<br />
+and     fmlbd350.shpm refers to fmlbd300<br />
+hint use index 2 on fmlbd300<br />
+and use index 1 on fmlbd350<br />
+and  use index 2 on fmlbd400<br />
+<br />
+$ cat lmss751.ksh<br />
+export  LMS_ID=lmss<br />
+. /app/lms/common/baanenv lmss #set Baan environment<br />
+export ORAPROF=0<br />
+qptool6.2 -f lmssq.sql -c 751<br />
+<br />
+Check the records count in those 4 tables. The tdsls400, 401 are typically very big tables, make sure the db-stats are up to date for a query to run efficiently. <br />
+Based on the example, I posted, add the tdsls400 with some fixed values and see how it is performing and then the other query for the table tdsls401. Also, change code to use the - &quot;hint use index&quot; clause.<br />
+<br />
+Also Refer to - Application Performance Guide - M2017 B US.pdf - Chapter 6- Profiling and Tracing.<br />
+<br />
+Nested queries<br />
+Problem<br />
+<br />
+Nesting queries can reduce performance dramatically.<br />
+Nested query:<br />
+select  orders.ordernumber, orders.fld1, ...<br />
+from    orders<br />
+where   orders.ordernumber inrange :order.f and :order.t<br />
+and orders.status = released<br />
+selectdo<br />
+    select orderlines.fld1, orderlines.fld2, ...<br />
+    from orderlines<br />
+    where orderlines.ordernumber = :orders.ordernumber<br />
+    selectdo<br />
+<br />
+Solution<br />
+<br />
+Join nested queries into one -more complex- query.<br />
+select  orderlines.fld1, orderlines.fld2, ...,<br />
+        orders.ordernumber, orders.fld1, ...<br />
+from    orderlines, orders <br />
+where   orderlines.ordernumber inrange :order.f and :order.t<br />
+and     orders.ordernumber = orderlines.ordernumber<br />
+and     orders.status = released<br />
+selectdo<br />
+<br />
+Note<br />
+There are some attention points.<br />
+The higher the number of records at a high level in relation to the number of records at lower level, the better is the joined way of implementation. <br />
+The higher the number of selected fields (and its length is related) at a high level in relation to the number at lower level, the better the nested way of implementation. <br />
+Using the above example:<br />
+Number of orders is X, number of fields in orders is A. <br />
+Number of order lines is Y, number of fields in order lines is B.<br />
+If A is much higher than B, it is preferable to implement the nested way. <br />
+If B is much higher than A, it is preferable to implement the joined way.<br />
+If X is much higher than Y, it is preferable to implement the joined way. <br />
+If Y is much higher than X, the joined as well the nested way can be implemented.<br />
+As can be concluded, one cannot always say for sure which construction is the best.<br />
+<br />
+You can also add the time command to the shell script -<br />
+time ORAPROF=0.0 qptool6.2 -f query_to_trace -c 123 2&gt;/dev/null</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">8th June 2013, 07:10</div></div><div class="posttext">Hi Prashant,<br />
+<br />
+Thank you very much. Everything you said is valuable. I will try to modify my script using all your suggestions.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

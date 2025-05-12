@@ -1,0 +1,144 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="need help on report sort, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] need help on report sort Tools Development" />
+	
+	<title>need help on report sort [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; need help on report sort</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">evertsen</div><div class="date">15th October 2002, 07:28</div></div><div class="posttext">I'm working on a report that sorts by item code.  Many of the codes include numbers and sort like &quot;A1,A10,A2,A20&quot;<br />
+What I would like is...&quot;A1,A2,A10,A20&quot;.  Any suggestions?<br />
+<br />
+Thanks,<br />
+Ev</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">15th October 2002, 08:31</div></div><div class="posttext">Dear evertsen,<br />
+   For item A1 use A01 as the search key, for item A2 use A02 as search key and so on. Then you can sort the report by search key. There are many other way, including using other unused field beside search key or even using alternative item code<br />
+<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ulrich.fuchs</div><div class="date">15th October 2002, 08:39</div></div><div class="posttext">Ev,<br />
+<br />
+normally the item code is &quot;aligned&quot; either left or right when setting up Baan to avoid exactly that problem. It seems like your item logic would require a right aligned code (&quot; A1&quot;, &quot; A2&quot;, &quot;A10&quot; ... watch out for the space at the beginning of first two item codes!). However you are using left aligned codes: &quot;A1 &quot;, &quot;A10&quot;, &quot;A2 &quot;. Now the spaces are on the right and the sorting changes.<br />
+<br />
+If you are already in a productive environment please DO NOT CHANGE the code alignment now, since that will corrupt your database. However, if you are still in the implementation phase, you can use the session &quot;modify code alignments&quot; to change the item code domain &quot;tcitem&quot; to right aligned. THat will give you the correct sorting.<br />
+<br />
+In a productive environment you only can do the following: Modify the session script which gives the base data for your report to produce another variable (myitem) from eg. tiitm001.item. Make this variable right aligned by standard string manipulation functions. Then use this new variable to sort your report.<br />
+<br />
+Uli</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evertsen</div><div class="date">15th October 2002, 20:26</div></div><div class="posttext">Thanks for the suggestions but...I would like to avoid having to maintain another field and also keep the left justified sort (most of the items on the report are not like the example codes).  I only wish to change the method in which numbers are sorted, to be precise I am looking to duplicate the sort that exists in Excel (for example).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertB</div><div class="date">16th October 2002, 16:35</div></div><div class="posttext">Hi evertsen,<br />
+<br />
+I've done something similar recently, where I needed to have a report sorted first on the first 3 numbers of the employee-number (representing employee-groups) and secondly on the employee names.<br />
+<br />
+I decided to read in the employee numbers and names from the employees table from within my program script, attach one string to the next (as &quot;nnnnnnAaaaaaaaaaaBbbbbbbbbbbbbbbbbbbbbbb&quot;, where the &quot;nnnnnn&quot; is the number, and the rest is the name) in each case, then add this long string to a dynamically-growing array which can subsequently be sorted on distinct string subsections. This sorted array is then used as the basis for doing selects and other processing for each employee, before sending the data to the report.<br />
+<br />
+Here's an extract from the code:<br />
+	| We need first to get the names and Personal-Nummer (PNRs) for each person between <br />
+	| the first and last names chosen by the user. This list is placed in an array, and <br />
+	| then sorted as follows:<br />
+	|		<br />
+	| 	1) 	firstly on the first three numbers of the PNR (&quot;100&quot;, &quot;200&quot;, &quot;300&quot;, etc., <br />
+	|			 	representing the groups Angestellte, Arbeiter, etc.); <br />
+	|		2)  subsequently on the names in alphabetical order.  <br />
+	|<br />
+	| So, we end up with a listing like this:<br />
+	|<br />
+	|				100222	Anthofer<br />
+	|				100666	Braun        <br />
+	|				100444	Dolmetscher<br />
+	|				100111	Zwilling<br />
+	|				200777	Bertelsmann<br />
+	|				200333	Grafing, etc.<br />
+	|<br />
+	<br />
+                string a.per.details(1, 1) based                 <br />
+<br />
+	| First get the names...................<br />
+           set.mem(a.per.details, 49, &quot; &quot;)<br />
+	per.count = 0<br />
+                <br />
+                	<br />
+	select	llwas017.name, llwas017.persnr, llwas017.stammkst<br />
+	from		llwas017<br />
+	where   llwas017._index4 inrange {:name.f} and {:name.t}  <br />
+	and			llwas017.persnr not like &quot;[A-Z].*&quot; <br />
+	and			llwas017.name not like &quot;[1-9].*&quot;<br />
+	and			llwas017.name not like &quot;Test.*&quot; <br />
+	and			llwas017.edat &lt; :zero.date    |  =&gt; end.date not yet fixed =&gt; this person still active.....<br />
+	order by llwas017._index4<br />
+	selectdo   <br />
+		<br />
+		per.count = per.count + 1<br />
+		per.string = llwas017.persnr &amp; llwas017.name &amp; llwas017.stammkst  <br />
+  	alloc.mem(a.per.details, 49, per.count) <br />
+  	a.per.details(1, per.count) = per.string  <br />
+			  <br />
+	endselect<br />
+      <br />
+      <br />
+	| Next, sort this array as described...............  <br />
+  <br />
+  | First sort field - 6 characters from position 1...............<br />
+	qss.start(a.sort.def, 1, 1)<br />
+	qss.way(a.sort.def, 1, QSS.UP)<br />
+	qss.type(a.sort.def, 1, DB.STRING)  <br />
+	qss.length(a.sort.def, 2, 6)<br />
+	<br />
+	| Second sort field - 43 characters from position 7..............<br />
+	qss.start(a.sort.def, 2, 7)<br />
+	qss.way(a.sort.def, 2, QSS.UP)<br />
+	qss.type(a.sort.def, 2, DB.STRING)<br />
+	qss.length(a.sort.def, 2, 43)<br />
+  <br />
+  | Do the sort..................<br />
+  ignore.val = qss.sort(a.per.details, a.sort.def)<br />
+<br />
+  | Do some processing....................<br />
+  for ii = 1 to per.count<br />
+    select something<br />
+    from sometable<br />
+    where somenumber = a.per.details(1, ii; 6)<br />
+    selectdo<br />
+<br />
+      blah.blah<br />
+      more.blah<br />
+<br />
+      | Finally send the data to the report...... <br />
+      report.send()<br />
+<br />
+    endselect<br />
+  endfor<br />
+<br />
+<br />
+Of course, one could play around with &quot;hidden&quot; report fields and the like, but I wanted to try out the qss functions.<br />
+<br />
+So, in your case, you could set your strings to a &quot;ABnnnnn&quot; format to cover all Excel-table addressing issues, and do your sort accordingly. <br />
+<br />
+I've no doubt somebody will come up with a one-liner that does what you want, and makes you a nice hot cup of tea into the bargain;), but this has been my one cents' worth.....<br />
+<br />
+HTH, <br />
+Robertb</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

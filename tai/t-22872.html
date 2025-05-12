@@ -1,0 +1,166 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Duplicate logins, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Duplicate logins Tools Administration &amp; Installation" />
+	
+	<title>Duplicate logins [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Duplicate logins</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">vincent</div><div class="date">17th January 2005, 13:20</div></div><div class="posttext">We have done a script that checks the user if already logged on, if yes then the second login is stopped.<br />
+The same is working fine.<br />
+When the script stops a user from the second login, BaaN give a message &quot;boot failed of user ....remote user....&quot;<br />
+<br />
+Now can the script give an error message on the BW Message Window saying &quot;You have already logged on once, cannot continue&quot; ???<br />
+<br />
+Can the same be done in custom made scripts ?<br />
+<br />
+I have tried using bshcmd6.1 command but it does not work.<br />
+<br />
+Thanks for any help</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">17th January 2005, 18:15</div></div><div class="posttext">What I did in the past is start a custom session that basically only displays your message and then logs the user out as soon as they click OK.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">PeterM</div><div class="date">3rd February 2005, 20:13</div></div><div class="posttext">We also prevent double login ( and some things more ) on our system. We changed the call to bshell6.1 in the $BSE/lib/ipc_info file to an own script.<br />
+<br />
+In this script we check if the user is logged in ( or for example if the user is allowed to connect during baan system maintenace ).<br />
+<br />
+If the user is allowed to connect we call the origin bshell6.1 with:<br />
+&quot;exec $BSE/bin/bshell6.1 $*&quot;.<br />
+<br />
+If the user is not allowed to connect we call:<br />
+&quot;exec $BSE/bin/bshell6.1 $* [own_baan-session filename]&quot; and afterward an <br />
+&quot;exit 1&quot;<br />
+<br />
+We implemented an own_baan-session which gets as Argument an filename. The session reads up to 20 lines from this file and shows them on the form. The only thing the user can do, is ok. Then the session closes, and because of the exit command the user is logged out.<br />
+<br />
+This solution works fine since 2000.<br />
+<br />
+Cheers Peter</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vincent</div><div class="date">5th February 2005, 08:01</div></div><div class="posttext">foll is my code....<br />
+***************************<br />
+#!/bin/sh<br />
+licmon6.1 -w|cut -c24-35|cut -f1 -d. &gt;/tmp/$USER.lis<br />
+y=0<br />
+user_name=&quot;$USER&quot;<br />
+echo $USER_PID &gt;&gt; /tmp/us.lis<br />
+	y=`grep -w $user_name /tmp/$USER.lis |wc -l`<br />
+if [ $y -eq 0 ]<br />
+then<br />
+	exec ${BSE}/bin/bshell6.1 $*<br />
+else<br />
+	exec ${BSE}/bin/bshell6.1 $* tdsqllogin<br />
+fi<br />
+**************************************<br />
+Note:<br />
+(Please note that this is a SUNOS)<br />
+1) the file is saved in $BSE/bin<br />
+2) the &quot;bshell&quot; in IPC_INFO in $BSE/lib should point to the above file.<br />
+3) Do a custom BaaN session &quot;tdsqllogin&quot;<br />
+4) session &quot;tdsqllogin&quot; will just display the message &quot;Duplicate logins not allowed&quot; and suspend(5000) and automatically log out.<br />
+5) And voila the user cannot do duplicate logins.<br />
+<br />
+Small request :<br />
+If any one changes the script for the better or finds a better way to do the above... pls keep me informed.<br />
+<br />
+Thanks to BaaN Board again.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">5th February 2005, 11:59</div></div><div class="posttext">there are some improvements possible:<br />
+<br />
+a) If you have a single application server, then it is better not to use the licmon for checking the existing login. The licmon or licd is known to miscount users, so sometimes it is showing users, which are not logged in any more. It is more reliable to do something like &quot;ps -ef | grep bshell | grep $USER&quot;.<br />
+<br />
+You have to refine this a bit, if you have similar named users like &quot;bern&quot; and &quot;bernd&quot; though.<br />
+<br />
+b) Sometimes the USER variable is not properly filled. Do not ask me why. But in my experience the only reliable way of getting the user is the &quot;id&quot; command. You have to tweak a bit with cut/awk to get the user name out of it, but it's worthwhile.<br />
+<br />
+It's funny to see, that we all solve the same problems over and over again: avoiding double logins, blocking Baan for all users, password aging etc. You would think SSA would pick this up and implement a simple solution in the next porting set or next big version, like LN. But also funny enough, this is not the case.<br />
+<br />
+Regards<br />
+<br />
+Markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">PeterM</div><div class="date">7th February 2005, 16:47</div></div><div class="posttext">We don't use licmon6.1 becaues sometimnes the licmon -w is not actual. So here is our solution where we use the systemvariable $LOGNAME.<br />
+I think the source is with many comments so it should be self-explained. Our own_session to show an text-file like mentioned above is called tuown9998m000 :<br />
+<br />
+#!/usr/bin/sh<br />
+<br />
+OWN_DIR=`dirname $0`<br />
+<br />
+BSHELL_GRP=bshells                              # users allowed to login more<br />
+                                                # than once<br />
+OLD_BSHELL=bshell                               # Name of original-bshell<br />
+NEW_BSHELL=own_bshell                           # Name of customized bshell<br />
+DOUBLE_LOGIN_SCRIPT=$OWN_DIR/MSG_double_login   # Name of script to execute<br />
+<br />
+MAINT_GRP=baanadmin                             # users allowed to login<br />
+                                                # during system maintenance<br />
+MAINTENANCE_SCRIPT=$OWN_DIR/MSG_maintenance     # Name of script to execute<br />
+MAINTENANCE_LOCKFILE=/baan/bse/etc/MAINTENANCE_LOCK # Name of LockFile<br />
+<br />
+############################################################<br />
+# set environment<br />
+<br />
+. /baan/scripts/.BAAN.rc<br />
+<br />
+############################################################<br />
+# skip special rules if LOGNAME is empty<br />
+if [ -z &quot;$LOGNAME&quot; ]<br />
+then<br />
+        exec $BSE/bin/bshell6.1 $*<br />
+        exit $?<br />
+fi<br />
+<br />
+############################################################<br />
+# check if login is allowed during maintenance                          <br />
+                                                                        <br />
+IN_GROUP_MAINT=`groups $LOGNAME | grep $MAINT_GRP | wc -l`              <br />
+if [ -f $MAINTENANCE_LOCKFILE -a $IN_GROUP_MAINT -eq 0 ]                <br />
+then                                                                    <br />
+        exec $BSE/bin/bshell6.1 $* tuown9998m000 $MAINTENANCE_SCRIPT    <br />
+        exit 1<br />
+fi                                                                      <br />
+<br />
+############################################################<br />
+# prevent double_login                                                        <br />
+                                                                              <br />
+OPEN_BSHELLS=`ps -u $LOGNAME | grep -v $NEW_BSHELL | grep $OLD_BSHELL |wc -l` <br />
+IN_GROUP_BSHELLS=`groups $LOGNAME | grep $BSHELL_GRP | wc -l`                 <br />
+if [ $OPEN_BSHELLS -ge 1 -a $IN_GROUP_BSHELLS -eq 0 ]                         <br />
+then                                                                          <br />
+        exec $BSE/bin/bshell6.1 $* tuown9998m000 $DOUBLE_LOGIN_SCRIPT         <br />
+        exit 1                                                                <br />
+fi                                                                            <br />
+<br />
+############################################################ <br />
+# call original bshell6.1 with all parameters                <br />
+                                                             <br />
+exec $BSE/bin/bshell6.1 $*                                   <br />
+                                                             <br />
+############################################################ <br />
+# END OF FILE</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">batmush</div><div class="date">21st February 2005, 21:44</div></div><div class="posttext">I saw many versions of Unix but no one of Windows.<br />
+Does anyone have one?<br />
+Thanks.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

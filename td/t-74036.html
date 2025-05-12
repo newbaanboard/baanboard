@@ -1,0 +1,192 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Comparing Records in different Table with same structure, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Comparing Records in different Table with same structure Tools Development" />
+	
+	<title>Comparing Records in different Table with same structure [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Comparing Records in different Table with same structure</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Arlina</div><div class="date">22nd September 2021, 13:07</div></div><div class="posttext">Hello,<br />
+<br />
+I want to compare a customized table(let's say txnbi045) with a standard table(let's say tcmcs045) and insert/update the records in the customized table which differ from the standard table.<br />
+I referred to http://www.baanboard.com/baanboard/showthread.php?t=69115 and did the coding as:<br />
+<br />
+function extern read.main.table()<br />
+{<br />
+	long txnbi045_id<br />
+	txnbi045_id = db.bind(&quot;ttxnbi045&quot;)<br />
+	db.columns.to.record(ttxnbi045)<br />
+	db.store.record(ttxnbi045)<br />
+	if records.unequal() then<br />
+		db.retry.point()<br />
+		select	txnbi045.*<br />
+		from	txnbi045<br />
+		where 	txnbi045._index1 = {:tcmcs045.creg}<br />
+		as set with 1 rows<br />
+		selectdo	<br />
+			txnbi045.dsca = tcmcs045.dsca<br />
+			db.update(ttxnbi045, db.retry)<br />
+			commit.transaction()<br />
+		selectempty<br />
+			txnbi045.creg = tcmcs045.creg<br />
+			txnbi045.dsca = tcmcs045.dsca<br />
+			db.insert(ttxnbi045, db.retry)<br />
+			commit.transaction()<br />
+		endselect<br />
+	endif	<br />
+	<br />
+}<br />
+<br />
+function domain tcbool records.unequal()<br />
+{<br />
+<br />
+	rcd.ttxnbi045 = rcd.ttcmcs045<br />
+	db.record.to.columns(ttxnbi045)<br />
+	if db.record.changed(ttxnbi045) then |Not going in this loop<br />
+		return(true)<br />
+	endif<br />
+	return(false)	<br />
+<br />
+}<br />
+ <br />
+But it is not giving the desired output. Rather the control is not going into db.record.changed(ttxnbi045) loop even though there are few additional records in table tcmcs045!<br />
+<br />
+What am I doing wrong?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">22nd September 2021, 16:58</div></div><div class="posttext">Is there more code where you read tcmcs045?  Are the two tables exactly the same or what?  The code I see looks okay compared to the other thread.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Arlina</div><div class="date">23rd September 2021, 06:47</div></div><div class="posttext">Is there more code where you read tcmcs045?  Are the two tables exactly the same or what?  The code I see looks okay compared to the other thread.<br />
+<br />
+Thanks, mark_h!<br />
+<br />
+Yes, this is the only code. Do I need to read tcmcs045 separately?<br />
+The two tables are identical in terms of the number of fields, field names, and index.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th September 2021, 14:12</div></div><div class="posttext">Yes - if you look at the original like first post - he essentially reads thru the table one record at a times and then checks the other table.  So I would expect there to be a read of tcmcs045 with your code inside the selectdo statement.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Arlina</div><div class="date">27th September 2021, 06:52</div></div><div class="posttext">Yes - if you look at the original like first post - he essentially reads thru the table one record at a times and then checks the other table.  So I would expect there to be a read of tcmcs045 with your code inside the selectdo statement.<br />
+<br />
+Thanks, mark_h for the response.<br />
+<br />
+Let me try that.<br />
+Thanks &amp; Regards,<br />
+Arlina</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Arlina</div><div class="date">27th September 2021, 11:20</div></div><div class="posttext">As per the suggestion given by mark_h, I made changes to the code.<br />
+<br />
+function extern read.main.table()<br />
+{<br />
+	long txnbi045_id,tcmcs045_id <br />
+	db.retry.point()<br />
+	tcmcs045_id = db.bind(&quot;ttcmcs045&quot;)<br />
+	select	tcmcs045.*<br />
+	from	tcmcs045<br />
+	selectdo<br />
+		txnbi045_id = db.bind(&quot;ttxnbi045&quot;)<br />
+		db.columns.to.record(ttxnbi045)<br />
+		db.store.record(ttxnbi045)<br />
+		if records.unequal() then<br />
+			select	txnbi045.*<br />
+			from  	txnbi045 for update<br />
+			where 	txnbi045._index1 = {:tcmcs045.creg}<br />
+			as set with 1 rows<br />
+			selectdo	<br />
+				txnbi045.dsca = tcmcs045.dsca<br />
+				db.update(ttxnbi045, db.retry)<br />
+				commit.transaction()<br />
+			selectempty<br />
+				txnbi045.creg = tcmcs045.creg<br />
+				txnbi045.dsca = tcmcs045.dsca<br />
+				db.insert(ttxnbi045, db.retry)<br />
+				commit.transaction()<br />
+			endselect<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+function domain tcbool records.unequal()<br />
+{<br />
+<br />
+	rcd.ttxnbi045 = rcd.ttcmcs045<br />
+	db.record.to.columns(ttxnbi045)<br />
+	if db.record.changed(ttxnbi045) then<br />
+		return(true)<br />
+	endif<br />
+	return(false)	<br />
+<br />
+}<br />
+<br />
+Table txnbi045 is getting updated now. But again, the code doesn't give which all records are actually updated/inserted, rather it just gives the indication that the table is changed, and needs to go through each record of tcmcs045 for the modification of txnbi045, am I right?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th September 2021, 14:14</div></div><div class="posttext">That is the way it looks. I keep thinking you would have a buffer with a tcmcs045 record and a buffer with the ttxnbi045 record in it.  When you run thru the code and hit this line rcd.ttxnbi045 = rcd.ttcmcs045 - it will always be different and possible have a change.  So to me I would get a record in tcmcs045, look for a match in ttxnbi045 - does not find one do an insert.   If it find one, then it would do records.unequal subroutine.  If the records are unequal - then update the description or what ever fields might be different.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Arlina</div><div class="date">29th September 2021, 14:12</div></div><div class="posttext">Thanks, mark_h for all the triggers!<br />
+This is what finally worked for me.<br />
+<br />
+<br />
+function extern read.main.table()<br />
+{<br />
+	long txnbi045_id,tcmcs045_id <br />
+	db.retry.point()<br />
+	tcmcs045_id = db.bind(&quot;ttcmcs045&quot;)<br />
+	select	tcmcs045.*<br />
+	from	tcmcs045<br />
+	selectdo<br />
+		txnbi045_id = db.bind(&quot;ttxnbi045&quot;)<br />
+			select	txnbi045.*<br />
+			from	txnbi045 for update<br />
+			where 	txnbi045._index1 = {:tcmcs045.creg}<br />
+			as set with 1 rows<br />
+			selectdo<br />
+				<br />
+				if records.unequal() then<br />
+					txnbi045.dsca = tcmcs045.dsca<br />
+					db.update(ttxnbi045, db.retry)<br />
+					commit.transaction()<br />
+				endif<br />
+			selectempty<br />
+				txnbi045.creg = tcmcs045.creg<br />
+				txnbi045.dsca = tcmcs045.dsca<br />
+				db.insert(ttxnbi045, db.retry)<br />
+				commit.transaction()<br />
+			endselect<br />
+		<br />
+	endselect<br />
+<br />
+	<br />
+}<br />
+<br />
+function domain tcbool records.unequal()<br />
+{<br />
+	if rcd.ttxnbi045 &lt;&gt; rcd.ttcmcs045 then<br />
+		return(true)<br />
+	endif<br />
+	return(false)	<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">29th September 2021, 14:40</div></div><div class="posttext">Glad you got it working and thanks for posting the solution.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

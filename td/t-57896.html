@@ -1,0 +1,163 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Export variable to subsession, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Export variable to subsession Tools Development" />
+	
+	<title>Export variable to subsession [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Export variable to subsession</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">smi4975</div><div class="date">25th February 2010, 17:22</div></div><div class="posttext">Hi,<br />
+I have 2 sessions (tiitm2100m000) and (tiitm2101s000). I'm trying to pass in the values from the main session to the subsession when i click a button.<br />
+The following is the code for the same:<br />
+Parent session:<br />
+Choice.user.0:<br />
+on.choice:<br />
+if marked then<br />
+	hold.item = tiitm200.item  |**** hold.item is defined as extern<br />
+	zoom.to$(&quot;tiitm2101s000&quot;,z.session,&quot;&quot;,&quot;&quot;,0)<br />
+else<br />
+	message(&quot;Select a Record First&quot;)<br />
+endif<br />
+<br />
+Subsession <br />
+form.1:<br />
+init.form:<br />
+if background then<br />
+             import(hold.item,hold.item) |** hold.item is defined as extern<br />
+	tiitm201.item = hold.item<br />
+endif<br />
+display.all()<br />
+<br />
+When i debug both the sessions, i see the value being initialized to hold.item in the parent session, but when it comes to the subsession, it losses the value.<br />
+I tried to make my subsession as Main session also with start option add.set and even with refresh.. but neither case it does not work.<br />
+<br />
+Can you please help me out what am i doing wrong?<br />
+I read in the other posts that it is not necessary to use export and import in both the sessions.<br />
+a. i tried using export(&quot;tiitm200.item&quot;,hold.item),in the main session but while debugging the variable did not even get the value.<br />
+b. I also tried using zoom.from.&lt;session&gt; option also but still no luck<br />
+<br />
+It is a very simple passing of values and not very complicated logic also. i just need to pass 3 other values apart from the one stated and then in the subsesison insert other values and save that is it.<br />
+<br />
+I need to resolve this urgently please help me out...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manish_patel</div><div class="date">25th February 2010, 17:45</div></div><div class="posttext">Please try this way. It should work.<br />
+<br />
+Parent session:<br />
+hold.item = tiitm200.item<br />
+export(&quot;hold.item&quot;,hold.item)<br />
+zoom.to$(&quot;tiitm2101s000&quot;,z.session,&quot;&quot;,&quot;&quot;,0)<br />
+<br />
+Subsession: <br />
+import(&quot;hold.item&quot;,hold.item) |** hold.item is defined as extern<br />
+tiitm201.item = hold.item</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smi4975</div><div class="date">25th February 2010, 18:23</div></div><div class="posttext">I tried your option too.. but still it is not working. The value is assigned in the parent session to hold.item, but it is not reaching the subsession. I tried doing the import in the before.program also but no luck. Does it require any special pre-compiler or setting or anything?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th February 2010, 18:52</div></div><div class="posttext">Is the hold.item declared as an extern variable?  Post the declarations and the code around the zooms.  This should certainly work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th February 2010, 18:58</div></div><div class="posttext">Code from our production system:<br />
+<br />
+|Parent program<br />
+choice.user.1:<br />
+on.choice:<br />
+	zoom.item = tipgc520.item<br />
+	export(&quot;zoom.item&quot;,zoom.item)<br />
+	dummy = zoom.to$(&quot;tdexi0560m000&quot;,z.session,&quot;tdexi0120s000&quot;,&quot;&quot;,0)<br />
+<br />
+| Child subsession<br />
+zoom.from.tdexi0120s000:<br />
+on.entry:<br />
+	import(&quot;zoom.item&quot;,zoom.item)<br />
+	tipgc001.item = zoom.item<br />
+	execute(find.data)<br />
+<br />
+<br />
+The only difference I see is the event.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smi4975</div><div class="date">25th February 2010, 19:11</div></div><div class="posttext">Here is Code for the Parent Session<br />
+declaration:<br />
+<br />
+	table	ttiitm200	| Baan Items with Catalog codes<br />
+	table	ttiitm001	| Items<br />
+<br />
+	extern	domain	tcitem	hold.item<br />
+<br />
+choice.user.0:<br />
+on.choice:<br />
+if marked then<br />
+	hold.item = tiitm200.item<br />
+	export(hold.item,hold.item)<br />
+	zoom.to$(&quot;tiitm2101s000&quot;,z.session,&quot;tiitm2101s000&quot;,&quot;&quot;,0)<br />
+else<br />
+	message(&quot;Select a Record First&quot;)<br />
+endif<br />
+<br />
+<br />
+And here is the code for the subsession<br />
+declaration:<br />
+<br />
+	table	ttiitm201	| Catalogwise BOM<br />
+	table	ttiitm001	| Items<br />
+	<br />
+	extern	domain	tcitem	hold.item<br />
+<br />
+zoom.from.tiitm2101s000:<br />
+on.entry:<br />
+	import(hold.item,hold.item)<br />
+	tiitm201.item = hold.item<br />
+	execute(find.data)<br />
+	display.all()<br />
+<br />
+Please suggest what is that i'm doing wrong!! Both the forms are type 3..has it got to do anything with that?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th February 2010, 19:18</div></div><div class="posttext">Okay - put quotes around the first hold.item in export and import.  It should be export(&quot;hold.item&quot;,hold.item) and import(&quot;hold.item&quot;, hold.item).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">25th February 2010, 19:27</div></div><div class="posttext">You don't have to do an EXPORT from the caller AND an IMPORT in the called session.  I always perform all interprocess communications in the called (child) sub-session.  Any EXTERN variable (including table fields) in the parent session can be imported in to the sub-session using:<br />
+<br />
+before.program:<br />
+<br />
+  -or-<br />
+<br />
+zoom.from. ---<br />
+on.entry:<br />
+import(&quot;variable.in.parent&quot;, variable.in.child)<br />
+<br />
+The &quot;variable.in.parent&quot; must be EXTERN in the parent session or a table field (extern by default).  The variable.in.child does not have to be extern.<br />
+<br />
+<br />
+Sending updated variables from the child to the parent are done in the child sub-session as well, using:<br />
+<br />
+export(&quot;variable.in.parent&quot;, variable.in.child)<br />
+<br />
+A conversion (if possible) from parent to child or child to parent is done during the interprocess communication (typically between string and numeric).<br />
+<br />
+I always try to limit my interprocess communication to when both parent and child are active, so an 'export' from parent before the child has started can have unpredictable results.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smi4975</div><div class="date">25th February 2010, 19:35</div></div><div class="posttext">It Worked.. I was so dumb to overlook that double quotes.  Thank you so much!!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th February 2010, 19:42</div></div><div class="posttext">Your welcome.  This is one of the reasons we ask for people to post code.  You look at your code so long you miss something like this.  I did it a month ago - mine was a missing : in a query. One of the developers here found it for me.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

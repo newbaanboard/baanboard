@@ -1,0 +1,146 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Process is gone...., baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Process is gone.... AFS/DDC/OLE: Function servers" />
+	
+	<title>Process is gone.... [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Process is gone....</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">22nd June 2004, 20:49</div></div><div class="posttext">:confused: Hello everyone,<br />
+<br />
+I am automating the inbound materials from production using an AFS.<br />
+When in the session Display Receipts (tdilc4515s000) which is under <br />
+tdilc4104s000 which is under tdilc4103m000 and brwose till I find my<br />
+desired receipt and try to mark the occurance i got &quot;process is gone&quot;<br />
+<br />
+            stpapi.handle.subproc(&quot;tdilc4103m000&quot;, &quot;tdilc4104s000&quot;, &quot;add&quot;)<br />
+	stpapi.put.field(&quot;tdilc4103m000&quot;,&quot;runnumber&quot;,runnumber)<br />
+	stpapi.put.field(&quot;tdilc4103m000&quot;,&quot;k.o.order&quot;,str$(k.o.order))<br />
+	stpapi.put.field(&quot;tdilc4103m000&quot;,&quot;ordernr&quot;,str$(ordernr))<br />
+	stpapi.continue.process( &quot;tdilc4103m000&quot;, o.error )<br />
+	if not isspace(o.error) then<br />
+		message(o.error,1)<br />
+		stpapi.end.session(&quot;tdilc4115s000&quot;,o.error)<br />
+		stpapi.end.session(&quot;tdilc4104s000&quot;,o.error)<br />
+		stpapi.handle.subproc(&quot;tdilc4104s000&quot;,&quot;tdilc4115s000&quot;,&quot;kill&quot;)<br />
+		stpapi.handle.subproc(&quot;tdilc4103m000&quot;,&quot;tdilc4104s000&quot;,&quot;kill&quot;)<br />
+		stpapi.end.session(&quot;tdilc4103m000&quot;) <br />
+		return<br />
+	endif<br />
+|	stpapi.handle.subproc(&quot;tdilc4104s000&quot;, &quot;tdilc4512s000&quot;, &quot;add&quot;)<br />
+	stpapi.handle.subproc(&quot;tdilc4104s000&quot;, &quot;tdilc4515s000&quot;, &quot;add&quot;)<br />
+	stpapi.insert(&quot;tdilc4104s000&quot;,false,o.error)<br />
+	stpapi.browse.set(&quot;tdilc4515s000&quot;,&quot;first.set&quot;)<br />
+	stpapi.get.field(&quot;tdilc4515s000&quot;,&quot;tdilc402.serb&quot;,s.value)<br />
+	while true<br />
+		stpapi.get.field(&quot;tdilc4515s000&quot;,&quot;tdilc402.serb&quot;,s.value)<br />
+		if lval(s.value) = t.serb then<br />
+			stpapi.mark(&quot;tdilc4515s000&quot;,o.error)<br />
+			if stpapi.mark(&quot;tdilc4515s000&quot;,o.error) then<br />
+			stpapi.get.field &quot;tdilc4515s000&quot;,&quot;tdilc402.serb&quot;,s.value)<br />
+			stpapi.end.session(&quot;tdilc4115s000&quot;,o.error)<br />
+			stpapi.handle.subproc(&quot;tdilc4104s000&quot;,&quot;tdilc4115s000&quot;,&quot;kill&quot;)<br />
+				break<br />
+			endif<br />
+		endif<br />
+		if not stpapi.browse.set(&quot;tdilc4515s000&quot;,&quot;next.set&quot;) then<br />
+			stpapi.end.session(&quot;tdilc4115s000&quot;,o.error)<br />
+			stpapi.end.session(&quot;tdilc4104s000&quot;,o.error)<br />
+			stpapi.handle.subproc(&quot;tdilc4104s000&quot;,&quot;tdilc4115s000&quot;,&quot;kill&quot;)<br />
+			stpapi.handle.subproc(&quot;tdilc4103m000&quot;,&quot;tdilc4104s000&quot;,&quot;kill&quot;)<br />
+			stpapi.end.session(&quot;tdilc4103m000&quot;) <br />
+			return<br />
+		endif<br />
+<br />
+	endwhileIf I try twice to mark it seems to mark the occurance,<br />
+but seems the values are not carried to the calling session (tdilc4104s000).<br />
+<br />
+Does anyone have an idea what could happend?<br />
+<br />
+Thanks,<br />
+<br />
+Carlos</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">22nd June 2004, 21:59</div></div><div class="posttext">Here is my code for this - I do a change view to the order and kind of order first.  I would expect that you would need to do this first, then call the browse with the first.set option. I am not sure if this will solve your problem, but it works for me. Then I use last.set because in my process I know that I just completed a quantity for the production order.  I am on 4c4, but I do not recall any big differences in the sessions.  Currently I only use this for storing production orders. Also you may need current session or stpapi objects.<br />
+<br />
+Mark<br />
+<br />
+function extern maintain_inbound(	domain	tcmcs.str12	runnumber,<br />
+					domain  tdilc.kooa	order.type,<br />
+					domain	tcorno		order.number,<br />
+					domain	tdilc.loca	order.location,<br />
+					ref     string          msg())<br />
+{<br />
+	long rc<br />
+	string	dummy(32)<br />
+	<br />
+	msg = &quot;&quot;<br />
+	stpapi.handle.subproc(&quot;tdilc4103m000&quot;,&quot;tdilc4104s000&quot;,&quot;add&quot;)<br />
+	stpapi.put.field(&quot;tdilc4103m000&quot;,&quot;runnumber&quot;,runnumber)<br />
+	stpapi.put.field(&quot;tdilc4103m000&quot;,&quot;k.o.order&quot;,str$(order.type))<br />
+	stpapi.put.field(&quot;tdilc4103m000&quot;,&quot;ordernr&quot;,str$(order.number))<br />
+	stpapi.continue.process(&quot;tdilc4103m000&quot;,msg)<br />
+	if not isspace(msg) then<br />
+		stpapi.end.session(&quot;tdilc4103m000&quot;)<br />
+		return<br />
+	endif<br />
+	stpapi.handle.subproc(&quot;tdilc4104s000&quot;,&quot;tdilc4515s000&quot;,&quot;add&quot;)<br />
+	stpapi.insert(&quot;tdilc4104s000&quot;,1,msg)<br />
+	stpapi.put.field(&quot;tdilc4515s000&quot;,&quot;tdilc402.koor&quot;,str$(order.type))<br />
+	stpapi.put.field(&quot;tdilc4515s000&quot;,&quot;tdilc402.orno&quot;,str$(order.number))<br />
+	rc = stpapi.change.view(&quot;tdilc4515s000&quot;,msg)<br />
+	if not isspace(msg) or rc&lt;&gt;1 then<br />
+		msg = &quot;Production order not ready for delivery&quot;<br />
+		stpapi.end.session(&quot;tdilc4515s000&quot;)<br />
+		stpapi.end.session(&quot;tdilc4104s000&quot;)<br />
+		stpapi.end.session(&quot;tdilc4103m000&quot;)<br />
+		return<br />
+	endif<br />
+| Found that the current qty to receive is the last set and not <br />
+| the first set.  Try to put these into stores 05062004<br />
+	rc = stpapi.browse.set(&quot;tdilc4515s000&quot;,&quot;last.set&quot;, msg)<br />
+	rc = stpapi.mark(&quot;tdilc4515s000&quot;,msg)<br />
+	stpapi.continue.process(&quot;tdilc4515s000&quot;,msg)<br />
+	if not isspace(msg) or rc&lt;&gt;1 then<br />
+		stpapi.end.session(&quot;tdilc4515s000&quot;)<br />
+		stpapi.end.session(&quot;tdilc4104s000&quot;)<br />
+		stpapi.end.session(&quot;tdilc4103m000&quot;)<br />
+		return<br />
+	endif<br />
+	stpapi.end.session(&quot;tdilc4515s000&quot;)<br />
+	stpapi.put.field(&quot;tdilc4104s000&quot;,&quot;tdilc402.loca&quot;,order.location)<br />
+	stpapi.update(&quot;tdilc4104s000&quot;,1,msg)<br />
+	stpapi.end.session(&quot;tdilc4104s000&quot;)<br />
+	stpapi.end.session(&quot;tdilc4103m000&quot;)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">30th June 2004, 16:45</div></div><div class="posttext">Mark, <br />
+<br />
+Thanks for your code. It still giving me the same error, but if I ingore the error, it does process the inbound properly.<br />
+<br />
+Thanks,<br />
+<br />
+Carlos.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">30th June 2004, 17:18</div></div><div class="posttext">In several of my function servers I have to ignore that error and some others.  It appears in somecases this type of error is generated, but in reality it really worked.  One of the things that make function servers fun. :)<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Combine two forms in one, choice next.set or next.view didn't work, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Combine two forms in one, choice next.set or next.view didn't work Tools Development" />
+	
+	<title>Combine two forms in one, choice next.set or next.view didn't work [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Combine two forms in one, choice next.set or next.view didn't work</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">assassinator</div><div class="date">29th December 2011, 14:51</div></div><div class="posttext">Combine two forms in one, but when I choice next.set, next.view or others options didn't work. The bottom form which is multi-occ would take effect. But the top form can not sync.<br />
+<br />
+I copied tdsls4102 and tdsls4503's form and made over into what I want tables and fields. Is this cause errors?<br />
+<br />
+I wrote choice.first.set, choice.next.set etc in bottom form like these:<br />
+choice.find.data:<br />
+after.choice:<br />
+	instruction = find.data<br />
+	sync.sub()<br />
+	<br />
+choice.first.set:<br />
+after.choice:<br />
+	instruction = first.set<br />
+	sync.sub()<br />
+......<br />
+<br />
+choice.last.view:<br />
+after.choice:<br />
+	instruction = last.view<br />
+	execute(first.set)<br />
+	sync.sub()And wrote these in the top form:<br />
+before.program:<br />
+	sattr.combined = COMBINED.TOP<br />
+ 	sattr.slave = true<br />
+	fattr.scrollbar = true<br />
+	fattr.toplines = 0<br />
+	wait.for.switch()<br />
+|*********** FORM  SECTION **************<br />
+form.1:<br />
+init.form:<br />
+	<br />
+	while TRUE<br />
+		import(&quot;tivxw099.runn&quot;, tivxw100.runn)<br />
+<br />
+		import(&quot;instruction&quot;, instruction)<br />
+		if instruction &gt; 0 then<br />
+			execute(instruction)<br />
+		endif<br />
+		switch.to.process(parent)<br />
+	endwhile</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">29th December 2011, 17:04</div></div><div class="posttext">In SLS  interactive order line session bottom one is single occ and top one is multi-occ . In your case it's  different .<br />
+<br />
+Such  a case also can/may work but interactive program sessions may need to  be different additional programming keeping in view the functionality u have planned for in the interactive session.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">29th December 2011, 23:52</div></div><div class="posttext">This can be brutal. Not just so easy to switch the way a session like these work.  All kinds of coding you have to do and I do not recommend it.  If possible use a mainsession for the header and a button to call a subsession.  Again, from my experience, I do not recommend this.  Maybe I did something wrong, but it was anything but easy.  The baan method of making the top a multi-occurence session has to be easier.<br />
+<br />
+Again, I have done this once from scratch and it was not easy. I am still not positive I got all the kinks in it out.  In my case the bottom session was multi-occurence, the top session was the single occurence header.  The bottom session was the controlling session and even worse - it had multiple forms.  I also turned off resizing the forms - boy did it get ugly if I left that on.  I also had to maintain header text in this session. So you start tdexi0110m000(lines) and it used tdexi0109m000(header).  You last chance to run away. :)<br />
+<br />
+bottom session code tdexi0110m000:<br />
+<br />
+before.program:<br />
+	sattr.combined = COMBINED.BOTTOM<br />
+	process.exi0109 = 0<br />
+<br />
+form.1:<br />
+init.form:<br />
+	max_window()<br />
+	if process.exi0109 = 0 then<br />
+		hold.rfq = tdexi010.rfqnum<br />
+		instruction = find.data<br />
+		switch.to.child.process()<br />
+	endif<br />
+	display.all()<br />
+before.form:<br />
+	disable.resize()<br />
+<br />
+form.2:<br />
+init.form:<br />
+	hold.rfq = tdexi010.rfqnum<br />
+	export(&quot;hold.rfq&quot;, hold.rfq)<br />
+	instruction = find.data<br />
+	switch.to.process(process.exi0109,SWITCH.SAME.SIZE + SWITCH.WITHOUT.INTERACTION)<br />
+	display.all()<br />
+before.form:<br />
+	disable.resize()<br />
+<br />
+|Just one of the view item functions which would get the next header.  <br />
+|You have to program all the view sections including find etc.<br />
+choice.next.view:<br />
+after.choice:<br />
+	hold.rfq = tdexi010.rfqnum<br />
+	export(&quot;hold.rfq&quot;, hold.rfq)<br />
+	instruction = next.set<br />
+	switch.to.process(process.exi0109,SWITCH.SAME.SIZE + SWITCH.WITHOUT.INTERACTION)<br />
+	import(&quot;hold.rfq&quot;, hold.rfq)<br />
+	tdexi010.rfqnum = hold.rfq<br />
+	get.header.text()<br />
+	execute(find.data)<br />
+	execute(first.set)<br />
+<br />
+function:<br />
+function switch.to.child.process()<br />
+{<br />
+	export(&quot;instruction&quot;,instruction)<br />
+	status.off()<br />
+	process.exi0109 = activate(&quot;tdexi0109m000&quot;)<br />
+	status.on()<br />
+	switch.to.process(process.exi0109,SWITCH.SAME.SIZE + SWITCH.WITHOUT.INTERACTION)<br />
+<br />
+}<br />
+<br />
+<br />
+<br />
+Now for the single occurence session(tdexi0109m000):<br />
+<br />
+efore.program:<br />
+	sattr.combined = COMBINED.TOP<br />
+	wait.for.switch()<br />
+|****************************** ZOOM FROM   SECTION ***************************<br />
+|****************************** FORM	     SECTION **************************<br />
+form.1:<br />
+init.form:<br />
+	|disable.resize()<br />
+	if background then<br />
+	while true<br />
+		|import(&quot;tisfc001.pdno&quot;,tisfc010.pdno)<br />
+		import(&quot;instruction&quot;, instruction)<br />
+		import(&quot;hold.rfq&quot;,hold.rfq)<br />
+		import(&quot;hold.rfqline&quot;,hold.rfqline)<br />
+		tdexi001.rfqnum = hold.rfq<br />
+		on case	instruction<br />
+		case find.data:<br />
+		case last.set:<br />
+		case first.set:<br />
+		case next.set:<br />
+		case prev.set:<br />
+		case mark.delete:<br />
+|			execute(prev.set)<br />
+			execute(find.data)<br />
+			if (instruction = prev.set or instruction = last.set)<br />
+				and tdexi001.status &lt;&gt; tdexi.stat.new then<br />
+				select	tdexi001.rfqnum<br />
+				where	tdexi001.rfqnum&lt;:tdexi001.rfqnum<br />
+				and	tdexi001.status = tdexi.stat.new<br />
+				order by tdexi001.rfqnum desc<br />
+				as set with 1 rows<br />
+				selectdo<br />
+				endselect<br />
+				execute(find.data)<br />
+			endif<br />
+			if instruction = first.set<br />
+				and tdexi001.status &lt;&gt; tdexi.stat.new then<br />
+				select	tdexi001.rfqnum<br />
+				where	tdexi001.rfqnum&gt;:tdexi001.rfqnum<br />
+				and	tdexi001.status = tdexi.stat.new<br />
+				order by tdexi001.rfqnum<br />
+				as set with 1 rows<br />
+				selectdo<br />
+				endselect<br />
+				execute(find.data)<br />
+			endif<br />
+			hold.rfq = tdexi001.rfqnum<br />
+			export(&quot;hold.rfq&quot;,hold.rfq)<br />
+			break<br />
+		case resize.frm:<br />
+			execute(resize.frm)<br />
+			break<br />
+		case start.set:<br />
+			input.error = false<br />
+			get.rfq.number()<br />
+			while appl.set(&quot;tdexi001 &quot; &amp; str$(rfq.num), APPL.EXCL) &gt; 0<br />
+				rfq.num = rfq.num +1<br />
+			endwhile<br />
+			execute(add.set)<br />
+			execute(update.db)<br />
+			|insert.line.zero()<br />
+			hold.rfq = tdexi001.rfqnum<br />
+			export(&quot;hold.rfq&quot;,hold.rfq)<br />
+			export(&quot;input.error&quot;,input.error)<br />
+			appl.delete(&quot;tdexi001 &quot; &amp; str$(rfq.num))			<br />
+			break<br />
+		case modify.set:<br />
+			execute(modify.set)<br />
+			hold.rfq = tdexi001.rfqnum<br />
+			export(&quot;hold.rfq&quot;,hold.rfq)<br />
+			execute(update.db)<br />
+			break<br />
+		case user.1:<br />
+			execute(user.1)<br />
+			break<br />
+		case user.2:<br />
+			execute(user.2)<br />
+			break<br />
+		case user.4:<br />
+			execute(user.4)<br />
+			execute(find.data)<br />
+			break<br />
+		case user.5:<br />
+			execute(user.5)<br />
+			break<br />
+		case recover.set:<br />
+			execute(recover.set)<br />
+			break<br />
+		case 34:<br />
+		|	tisfc951.pdno = tisfc010.pdno<br />
+		|	ticst001.pdno = tisfc010.pdno<br />
+		|	import(&quot;zoom.prog&quot;, zoom.prog)<br />
+		|	zoom.to$(zoom.prog,z.session,&quot;&quot;,&quot;&quot;,0)<br />
+			break<br />
+		default:<br />
+			display.all()<br />
+		endcase<br />
+		switch.to.process(parent, SWITCH.SAME.SIZE)<br />
+	endwhile<br />
+	endif<br />
+<br />
+<br />
+The choice.user sections zoomed to other subsessions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">29th December 2011, 23:55</div></div><div class="posttext">I hope you have better luck that I did.  I did not include all the different pieces of code I had to use to maintain the data for these sessions.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

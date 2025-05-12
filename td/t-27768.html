@@ -1,0 +1,138 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to read an audit-file, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to read an audit-file Tools Development" />
+	
+	<title>How to read an audit-file [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; How to read an audit-file</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Dietrich</div><div class="date">2nd August 2006, 15:19</div></div><div class="posttext">hi there,<br />
+only a short question:<br />
+can i read for example the field tisfc001.pdno from the audit file, or can i only read the first field number in the file for table tisfc001?<br />
+<br />
+regards<br />
+dietrich</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mig28mx</div><div class="date">2nd August 2006, 17:49</div></div><div class="posttext">Hello,<br />
+The tables audit, will keep all the records from a specified table. In that sense you will have all the fields audited in each table.<br />
+<br />
+You can list the audit file using the session ttaad4461m000.<br />
+<br />
+Hope this helps.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bigjack</div><div class="date">3rd August 2006, 09:15</div></div><div class="posttext">Hi,<br />
+<br />
+I just got following code from one of the sample programs in the help file.<br />
+If the standard printing session is not sufficient for your requirement you may probably find the following code useful, though i must confess i've never used it before,<br />
+<br />
+<br />
+#include &lt;bic_audlib&gt;<br />
+<br />
+#include &lt;bic_audhdr.h&gt;<br />
+<br />
+long    seqid<br />
+long    seq_hdr_size<br />
+string  seq_hdr(1)  	  based<br />
+string  colnames(1,1)	  based<br />
+long    colinfo(1,1)  	  based<br />
+string  tran_hdr(AUD_TRAN_HDR_SIZE)<br />
+string  rec_buff(AUD_MAX_REC_SIZE)<br />
+long    no_recs<br />
+long    no_trans<br />
+long    audit_flds<br />
+string  appinfo(4)<br />
+string  values(AUD_MAX_FLD_SIZE,2)<br />
+long    type<br />
+<br />
+| open a seqid to table aabdb000, company 0, sequence file 0<br />
+seqid = aud_open_audit( &quot;&quot;, &quot;aabdb000&quot;, 0, 0 )<br />
+                                              <br />
+<br />
+if ( seqid = -1 ) then                 <br />
+		error                              <br />
+endif<br />
+<br />
+| get the size of the sequence file header<br />
+seq_hdr_size = aud_get_hdr_size( seqid )  <br />
+alloc.mem( seq_hdr, seq_hdr_size ) <br />
+<br />
+| read the sequence file header     <br />
+if ( aud_read_seq_hdr( seqid, seq_hdr ) = -1 ) then                                              <br />
+		error                              <br />
+endif<br />
+<br />
+audit_flds = aud_get_no_audit_flds( seq_hdr )<br />
+no_trans = aud_get_no_trans( seq_hdr )<br />
+<br />
+| write 16 bytes of application-specific information to seqhdr<br />
+appinfo(1) = &quot;aaaa&quot;<br />
+aud_set_app_info1(appinfo, seqhdr) <br />
+appinfo(1) = &quot;aaaa&quot;                     <br />
+aud_set_app_info2(appinfo, seqhdr)      <br />
+appinfo(1) = &quot;aaaa&quot;                     <br />
+aud_set_app_info3(appinfo, seqhdr)<br />
+appinfo(1) = &quot;aaaa&quot;<br />
+aud_set_app_info4(appinfo, seqhdr)<br />
+<br />
+alloc.mem( colnames, AUD_COL_NAME_LEN, audit_flds )<br />
+alloc.mem( colinfo, 3, audit_flds )<br />
+<br />
+aud_get_audit_dd( seq_hdr, colnames, colinfo )<br />
+<br />
+for i = 1 to no_trans<br />
+		if ( aud_read_tran(seqid, i, tran_hdr) = -1 ) then<br />
+				error<br />
+		endif<br />
+<br />
+		| get number of records		<br />
+		no_recs = aud_get_tran_entries(tran_hdr)                                              <br />
+<br />
+		for j = 1 to no_recs<br />
+				| read audit records<br />
+				if (aud_read_audit_rec(seqid,j,rec_buff) = -1) then                                              <br />
+						error<br />
+				endif<br />
+<br />
+				for k = 1 to audit_flds<br />
+						ind = aud_get_fld_values(k, colinfo, rec_buff, values)<br />
+<br />
+if ( ind = 1 ) then<br />
+									| both new and old values exist<br />
+								type = colinfo(1,k)<br />
+								print_value(type, values(1,1)) | print old value<br />
+								print_value(type, values(2,1)) | print new value<br />
+						endif<br />
+						if ( ind = 0 ) then<br />
+									| only one value exists<br />
+								type = colinfo(1,k)                            <br />
+								print_value(type, values(1,1)) | print unchanged value<br />
+<br />
+endif<br />
+				endfor<br />
+		endfor<br />
+endfor<br />
+<br />
+<br />
+Cya</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dietrich</div><div class="date">3rd August 2006, 11:33</div></div><div class="posttext">that it<br />
+thanks to all</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

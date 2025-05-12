@@ -1,0 +1,112 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="107 lock errors, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] 107 lock errors Tools Development" />
+	
+	<title>107 lock errors [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; 107 lock errors</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ramireddy</div><div class="date">7th February 2002, 16:18</div></div><div class="posttext">I would appreciate it if anybody can give any kind of input with 107 lock errors.<br />
+<br />
+We get 107 lock errors very regularly while entering sales orders. Whenever a user gets stuck in sales order entry and has to kill the process, the process holds lock(s) on item master. Bt the time we realize and go into informix and clean this lock out, several other users are stuck due to contention with the same item. <br />
+<br />
+Here is my question: Assuming a user is stuck in sales order entry, why should there be lock? All of baan is designed to work with delayed locking. So, if a user gets stuck, ideally there should be no locks on any tables as the commit has not happened yet and other users should not get affected. Can anybody explain this?<br />
+<br />
+Something to test in Baan: Write a select on any table with &quot;for update&quot;. Then write another select on any other table with &quot;for update&quot;. let this program execute untill the second &quot;for update&quot; statement and dont commit. Do this in debugger mode. Then write another program with &quot;for update&quot; on the same table as the first &quot;forupdate&quot; of the first program. Execute the second program  and try to commit ( while still sitting before commit on the first program) and you will get a 107 error. Why should the second program get a 107 error? Baan has delayed locking, so no physical locks should be placed untill we hit the commit on the first program.<br />
+<br />
+example:<br />
+1) first script<br />
+        db.retry.point()<br />
+	<br />
+	select tcmcs010.*<br />
+	from	tcmcs010 for update<br />
+	where	tcmcs010._index1 = {&quot;ABW&quot;}<br />
+	selectdo<br />
+		tcmcs010.dsca = &quot;ABCD&quot;<br />
+		db.update(ttcmcs010,db.retry)<br />
+	endselect<br />
+	select	tcmcs021.*<br />
+	from	tcmcs021 for update<br />
+	where	tcmcs021._index1 = {&quot;175&quot;}<br />
+	selectdo<br />
+		tcmcs021.dsca = &quot;Trinidad&quot;<br />
+		db.update(ttcmcs021,db.retry)<br />
+	endselect  |stop here<br />
+	commit.transaction()<br />
+<br />
+2) second script:<br />
+        db.retry.point()<br />
+	<br />
+	select tcmcs010.*<br />
+	from	tcmcs010 for update<br />
+	where	tcmcs010._index1 = {&quot;ABW&quot;}<br />
+	selectdo<br />
+		tcmcs010.dsca = &quot;ABCDE&quot;<br />
+		db.update(ttcmcs010,db.retry)<br />
+	endselect<br />
+	commit.transaction() |fails here with 107 error.<br />
+Ramireddy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">francishsu</div><div class="date">8th February 2002, 01:05</div></div><div class="posttext">Gotta love Baan.. I couldn't find any information in the Tools help on why you'd get a 107 error in that situation.  However, I did find some mention in the Baan Application Performance Guide (M2017B).  Apparantly, a nested query can cause a physical lock to be set on the record before the commit.transaction().  Excerpt from Chapter 4 Database transaction handling:<br />
+<br />
+<br />
+4.2 When does a database transaction start?<br />
+<br />
+Problem <br />
+<br />
+As can be seen in the previous chapter, a commit.transaction() will:<br />
+<br />
+ Set a physical lock on the records from the before image<br />
+ Do a comparison of the before image and the locked records<br />
+ Update records<br />
+ Perform a physical commit in the RDBMS<br />
+ <br />
+There are some situations where the first three points are carried out before the commit.transaction() is called, namely:<br />
+<br />
+ If a select is done in the select for update loop (nested queries)<br />
+ if a db.insert() with flag db.return.dupl is implemented<br />
+ If the number of updates reaches a certain maximum (depends on the size of the internal buffer)<br />
+ <br />
+<br />
+Solution<br />
+<br />
+It is not known in an application when a transaction starts.<br />
+A safe point of view is to assume a transaction starts at the statement select for update.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">francishsu</div><div class="date">8th February 2002, 01:07</div></div><div class="posttext">I just noticed that the second select in your first program is not even nested in the selectdo of the first.<br />
+<br />
+Do you get the 107 error if you eliminate the query on tcmcs021?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ramireddy</div><div class="date">8th February 2002, 17:27</div></div><div class="posttext">Nope...If i take out the second select on tcmcs021, i do not get a lock. That is what perplexes me more.<br />
+<br />
+I undestand that the transaction starts as soon the db.retry.point() statement is executed, but that does not mean that the updates with retry's should have actual physical locks on them. <br />
+<br />
+Ideally the phyical locks should be there only for a fraction of a second when the actual commit happens into the database. And if that same second some other program is trying to commit then that select should fail with 107 eror, but i cannot believe that this could happen 10 times and come out with a fatal error, it is simple not possible.  Of course, that is proved with the above piece of code that i wrote.<br />
+<br />
+Ramireddy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rvp1506</div><div class="date">8th February 2002, 21:12</div></div><div class="posttext">We are trying to get rid off 107 error  related problems for months. Even Baan Support had'nt resolved our problems completely, although they have done changes in  our parameter files we didn't know were possible.<br />
+Baan doesn't rely on the database (we use Oracle) for its locking scheme. This is why it uses a &quot;timeout&quot; behavoir: to avoid deadlocks, because it doesn't know how to manage them in the program. This could be a &quot;least worst&quot; option when working with an isam like Triton, but it's almost inadmissible when you are using a true transactional database (such as Informix or Oracle).<br />
+This leads to many problems. We have high concurrency (about 47 users) on order entry, which causes 107 errors over the table who holds the &quot;free numbers&quot; of the order entry series, because the program locks the series record until the full order is done (to avoid &quot;holes&quot; in the serie), which in turn causes timeouts (107 errors) in pending requests over this record.<br />
+About your scripts, we suspect that, because the locking is managed via software, a &quot;select for update&quot;, in Baan, is really a logical full lock table, managed via the application (I cannot imagine the alghoritm involved in accounting  delayed locks on &quot;selects for update&quot; via application, but this is a bussines software trying to act as a database software).<br />
+We asked Baan Support about this. The haven't come with a reply yet.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

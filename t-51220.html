@@ -1,0 +1,320 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Problems automating matching/approving receipts. Code attached., baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Problems automating matching/approving receipts. Code attached. AFS/DDC/OLE: Function servers" />
+	
+	<title>Problems automating matching/approving receipts. Code attached. [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Problems automating matching/approving receipts. Code attached.</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">wmickey</div><div class="date">28th April 2008, 21:27</div></div><div class="posttext">I am trying to automate the matching and approving of receipts using AFS.  After printing the Purchase Invoice, I am using AFS to create the data in session tfacp1110s000, which works fine.  Then I want to continue and match/approve the receipt lines.  When I say Yes to Link Receipts in tfacp1230s000, and the amount to be matched = receipt amount  all works fine.  However, when I say No to Link and go to tfacp1131s000 to find specific lines and change status to completely, it can not fine my specific record.  Then once I get the records matched, I need to approve them.  Attached is my code.  Has anyone done something similar and can help me with this?  <br />
+<br />
+        if curr.company = 100 then<br />
+	  stpapi.put.field(&quot;tfgld1101m000&quot;, &quot;tfgld101.year&quot;, str$(fiscal.yr))<br />
+	  stpapi.put.field(&quot;tfgld1101m000&quot;, &quot;tfgld101.btno&quot;, str$(batch)) <br />
+	  stpapi.put.field(&quot;tfgld1101m000&quot;, &quot;tfgld101.ttyp&quot;, trans.type)<br />
+	  retval1 = stpapi.find(&quot;tfgld1101m000&quot;, error.msg)<br />
+	  if not retval1 then<br />
+		message(&quot;Error %s&quot;, error.msg)<br />
+		     retval2 = stpapi.recover(&quot;tfgld1101m000&quot;, recover.msg)<br />
+          else<br />
+	   stpapi.handle.subproc(&quot;tfgld1101m000&quot;, &quot;tfacp1110s000&quot;, &quot;add&quot;)<br />
+	   stpapi.zoom.option(&quot;tfgld1101m000&quot;, 1, &quot;tfacp1110s000&quot;, error.msg)<br />
+	   if error.msg &gt; &quot;&quot; then<br />
+		message(&quot;Error %s&quot;, error.msg)<br />
+	   endif<br />
+	  stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.ninv&quot;, &quot;0&quot;) <br />
+	  stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.suno&quot;, supplr) <br />
+	  stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;screen.amnt&quot;, str$(amnt)) <br />
+	  stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.isup&quot;, supinv) <br />
+	  stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.refr&quot;, poref) <br />
+	  stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.orno&quot;, str$(purchord)) <br />
+	  stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.loco&quot;,str$(orig.company)) <br />
+	  stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.paym&quot;, &quot;D06&quot;) <br />
+	  stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.bank&quot;, &quot;ACH&quot;) <br />
+	  stpapi.put.field(&quot;tfacp1110s000&quot;, &quot;tfacp200.reas&quot;, &quot;MIS&quot;) <br />
+	   retval1 = stpapi.insert(&quot;tfacp1110s000&quot;, true, error.msg)<br />
+	   if not retval1 then<br />
+		message(&quot;Error %s&quot;, error.msg)<br />
+		     retval2 = stpapi.recover(&quot;tfacp1110s000&quot;, recover.msg)<br />
+           else<br />
+|*	    get.receipt.amount()<br />
+|* Open Receipts match the Purch Invoice amount - match all receipts <br />
+|* Processing both as Yes- works fine.  matches and approves.<br />
+    if open.amount = amnt then  <br />
+	stpapi.put.field(&quot;tfacp1230s000&quot;, &quot;link&quot;, str$(etol(tcyesno.yes)))<br />
+	stpapi.put.field(&quot;tfacp1230s000&quot;, &quot;approve&quot;, str$(etol(tcyesno.yes)))<br />
+	stpapi.continue.process(&quot;tfacp1230s000&quot;, error.msg)<br />
+	if error.msg &gt; &quot;&quot; then<br />
+	  message(&quot;Error %s&quot;, error.msg)<br />
+	endif<br />
+	stpapi.end.session(&quot;tfacp1230s000&quot;)<br />
+    endif <br />
+<br />
+|* This is where everything falls apart - I can not select specific records<br />
+|*  and change them to completed status, then continue to approve them.<br />
+<br />
+|* Open Receipts are &lt;&gt; the Purch Invoice amount - match individual receipts <br />
+|*    Then need to aprove the records after matching<br />
+    if open.amount &lt;&gt; amnt then  <br />
+	stpapi.put.field(&quot;tfacp1230s000&quot;, &quot;link&quot;, str$(etol(tcyesno.no)))<br />
+	stpapi.put.field(&quot;tfacp1230s000&quot;, &quot;approve&quot;, str$(etol(tcyesno.no)))<br />
+	stpapi.handle.subproc(&quot;tfacp1230s000&quot;, &quot;tfacp1131s000&quot;, &quot;add&quot;)<br />
+	stpapi.zoom.option(&quot;tfacp1230s000&quot;, 1, &quot;tfacp1131s000&quot;, error.msg)<br />
+	if error.msg &gt; &quot;&quot; then<br />
+	  message(&quot;Error %s&quot;, error.msg)<br />
+	endif<br />
+<br />
+|* This is where everything falls apart - I can not select specific records<br />
+|*  and change them to completed status, then continue to approve them.<br />
+ <br />
+|* Find the specific Line to mark and update to completed<br />
+	stpapi.put.field(&quot;tfacp1131s000&quot;, &quot;tdpur045.suno&quot;, str$(supplr))<br />
+	stpapi.put.field(&quot;tfacp1131s000&quot;, &quot;tdpur045.orno&quot;, str$(purchord))<br />
+      stpapi.put.field(&quot;tfacp1131s000&quot;, &quot;tdpur045.pono&quot;, str$(10))<br />
+	stpapi.put.field(&quot;tfacp1131s000&quot;, &quot;tdpur045.srnb&quot;, &quot;1&quot;)<br />
+	retval1 = stpapi.change.view(&quot;tfacp1131s000&quot;, error.msg)<br />
+	if not retval1 then<br />
+		message(&quot;Record not found&quot;)<br />
+		retval2 = stpapi.recover(&quot;tfacp1131&quot;, recover.msg)<br />
+      else<br />
+	  retval1 =  stpapi.mark(&quot;tfacp1131s000&quot;,error.msg)<br />
+	  if not retval1 then	<br />
+		message(&quot;Record not found&quot;)<br />
+	  endif<br />
+      endif<br />
+	 stpapi.put.field(&quot;tfacp1131s000&quot;, &quot;tdpur045.matc&quot;, str$(2))<br />
+	 retval1 = stpapi.update(&quot;tfacp1131s000&quot;, true, error.msg)<br />
+	 if not retval1 then<br />
+		message(&quot;Error %s&quot;, error.msg)<br />
+		     retval2 = stpapi.recover(&quot;tfacp1131s000&quot;, recover.msg)<br />
+	 endif<br />
+       stpapi.end.session(&quot;tfacp1131s000&quot;)<br />
+<br />
+|* Now finished matching receipts <br />
+|*  Match/Apprive Purchase Invoice with Orders (Approve Button)<br />
+	if amnt = tfacp200.link then<br />
+	   stpapi.continue.process(&quot;tfacp1230s000&quot;, error.msg)<br />
+	   if error.msg &gt; &quot;&quot; then<br />
+		message(&quot;Error %s&quot;, error.msg)<br />
+	   endif<br />
+	else		<br />
+	   message(&quot;Net= %d&quot;, net.amount)<br />
+	endif		<br />
+	stpapi.end.session(&quot;tfacp1230s000&quot;)<br />
+<br />
+   endif				|* End individual match<br />
+<br />
+   endif				|* Can't write transaction record<br />
+   stpapi.end.session(&quot;tfacp1110s000&quot;)<br />
+   endif				|*  Can't find batch<br />
+   stpapi.end.session(&quot;tfgld1101m000&quot;)<br />
+  endif					|*   Company = 100<br />
+}<br />
+<br />
+function get.receipt.amount()<br />
+{<br />
+        switch.to.company(orig.company) <br />
+	open.amount = 0<br />
+	select *<br />
+	from tdpur045<br />
+	where tdpur045._index8 = {:supplr}<br />
+	and tdpur045.orno = :purchord<br />
+	and tdpur045.srnb &gt; 0<br />
+	and tdpur045.matc &lt;&gt; 2			|*Completely<br />
+	selectdo<br />
+		open.amount = open.amount + (tdpur045.amnt - tdpur045.iamt)<br />
+	endselect<br />
+        switch.to.company(100) <br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">29th April 2008, 16:40</div></div><div class="posttext">Your sequence of sessions is different than anything I do - the section of code I do not understand has the following in it:<br />
+<br />
+    if open.amount &lt;&gt; amnt then  <br />
+	stpapi.put.field(&quot;tfacp1230s000&quot;, &quot;link&quot;, str$(etol(tcyesno.no)))<br />
+	stpapi.put.field(&quot;tfacp1230s000&quot;, &quot;approve&quot;, str$(etol(tcyesno.no)))<br />
+	stpapi.handle.subproc(&quot;tfacp1230s000&quot;, &quot;tfacp1131s000&quot;, &quot;add&quot;)<br />
+	stpapi.zoom.option(&quot;tfacp1230s000&quot;, 1, &quot;tfacp1131s000&quot;, error.msg)<br />
+	if error.msg &gt; &quot;&quot; then<br />
+	  message(&quot;Error %s&quot;, error.msg)<br />
+	endif<br />
+<br />
+Do you need a save or update before calling tfacp1131s000?  Or better yet can you save it here and then launch another session(a main session) to do what you are looking for?  I pretty much only do automatching.  I can not find anything that does exactly what you are doing.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lwentz</div><div class="date">29th April 2008, 19:28</div></div><div class="posttext">I work with wmickey and would like to know how you handle everything using automatch.  How do you get Baan to only match the receipts that apply to the payment amount (in our case the Purchase Invoice amount). If you say 'Yes' to Link and have other outstanding receipts from another shipment, they all get marked as status 'completely', then there is a variance between the matched amount and the payment amount.  Is there another way to match/approve receipts?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">29th April 2008, 19:52</div></div><div class="posttext">One thing I was asking was can you use tfacp1230m000 to do what you are trying to do through tfacp1230s000?  I do not know the difference in all the sessions, but almost everything I have runs through tfacp1133s000.  I know at one point we used tfacp1230m000 instead of going through tfacp1230s000.  I will look around some more to see if we do use tfacp1131s000 in any sessions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">29th April 2008, 22:23</div></div><div class="posttext">Well I looked around and the only piece of code I see that uses tfacp1131s000 kills it if the session even starts. Back to the original post of mine - have you tried an update or save before doing the stpapi.zoom.option?  How do you do this work manually? Do you set the two options and then zoom? Or does it automatically happen?<br />
+<br />
+	stpapi.put.field(&quot;tfacp1230s000&quot;, &quot;link&quot;, str$(etol(tcyesno.no)))<br />
+	stpapi.put.field(&quot;tfacp1230s000&quot;, &quot;approve&quot;, str$(etol(tcyesno.no)))<br />
+<br />
+||| Maybe an update or save before launching the sub-session might work<br />
+<br />
+	stpapi.handle.subproc(&quot;tfacp1230s000&quot;, &quot;tfacp1131s000&quot;, &quot;add&quot;)<br />
+	stpapi.zoom.option(&quot;tfacp1230s000&quot;, 1, &quot;tfacp1131s000&quot;, error.msg)<br />
+	if error.msg &gt; &quot;&quot; then<br />
+	  message(&quot;Error %s&quot;, error.msg)<br />
+	endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ravi99</div><div class="date">26th January 2009, 02:24</div></div><div class="posttext">Hi Wmickey/anybody,<br />
+<br />
+I am trying to do purchase invoice matching and approval process by using AFS. When I  run my session, it hangs at:<br />
+<br />
+retval1 = stpapi.insert(&quot;tfacp1110s000&quot;, true, error.msg)<br />
+<br />
+Can you you help me with this. I am not sure what might be wrong? Basically I have main table and maintain session and user have the oprion to flag 'matched' field to 'yes' then AFS should start and complete the 'Match &amp; approval ' process and update maintain with another flag to 'Yes'. In this case let assume purchase invoice amount always matches with receipt amount.<br />
+<br />
+Thanks in advane<br />
+Ravi</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th January 2009, 14:59</div></div><div class="posttext">Check what is going on in the background.  I had to do some funny stuff to get it to work for me.  I have not used this in years - thankfully.  I doubt your system is like ours, but this should give you an idea of what I had to do to get it to work.  We have not used this since 2005.<br />
+<br />
+<br />
+		stpapi.insert( &quot;tfacp1110s000&quot;, 1,msg)<br />
+		if(strip$(msg)=&quot;Supplier not found&quot;) then<br />
+			write_error_files()<br />
+			stpapi.end.session( &quot;tfacp1110s000&quot; ) |Stop automatching of invoices.<br />
+			continue 	| Get next record<br />
+		endif<br />
+| Try this kill all sessions excep tfacp1110s000<br />
+		stpapi.end.session( &quot;tfacp1230s000&quot; ) |Stop automatching of invoices.<br />
+		stpapi.end.session( &quot;tfacp1131s000&quot; ) |Stop Match Receipts<br />
+		stpapi.end.session( &quot;tfacp1130s000&quot; )<br />
+<br />
+		rc = stpapi.browse.set( &quot;tfacp1110s000&quot;, &quot;last.set&quot; )<br />
+		stpapi.zoom.option( &quot;tfacp1110s000&quot;, 1, &quot;tfacp1230s000&quot;, msg )<br />
+		stpapi.update( &quot;tfacp1230s000&quot;, 1, msg )<br />
+		stpapi.handle.subproc( &quot;tfacp1230s000&quot;, &quot;tfacp1133s000&quot;,&quot;add&quot; )<br />
+		stpapi.handle.subproc( &quot;tfacp1230s000&quot;, &quot;tfacp1140s000&quot;,&quot;add&quot; )<br />
+<br />
+|************************************************************************************************<br />
+| New Step 7. Use session tfacp1230s000 to start tfacp1133s000.<br />
+|************************************************************************************************<br />
+		stpapi.application.option( &quot;tfacp1230s000&quot;, 1, 0, msg)<br />
+		if(strip$(msg)&lt;&gt;&quot;&quot;)then<br />
+			message(&quot;f1230s000.Book_Variances:%s&quot;,msg)<br />
+		endif<br />
+		prefix.po = shiftl$(shiftr$(read.po))<br />
+		prefix.po = prefix.po(1;1)<br />
+		on case prefix.po<br />
+		endcase<br />
+		stpapi.put.field( &quot;tfacp1133s000&quot;, &quot;tfacp101.comp&quot;, str$(fin.compnr))<br />
+		stpapi.put.field( &quot;tfacp1133s000&quot;, &quot;tfacp101.leac&quot;, acct)<br />
+		stpapi.put.field( &quot;tfacp1133s000&quot;, &quot;tfacp101.amnt&quot;, str$(adj.amnt))<br />
+		stpapi.put.field( &quot;tfacp1133s000&quot;, &quot;tfacp101.dbcr&quot;, str$(tfgld.dbcr.credit))<br />
+		stpapi.put.field( &quot;tfacp1133s000&quot;, &quot;tfacp101.refr&quot;, adj.vchr)<br />
+		stpapi.put.field( &quot;tfacp1133s000&quot;, &quot;tfacp101.fyer&quot;, str$(2000))<br />
+		stpapi.put.field( &quot;tfacp1133s000&quot;, &quot;tfacp101.fprd&quot;, str$(12))<br />
+		stpapi.put.field( &quot;tfacp1133s000&quot;, &quot;tfacp101.ryer&quot;, str$(2000))<br />
+		stpapi.put.field( &quot;tfacp1133s000&quot;, &quot;tfacp101.rprd&quot;, str$(12))<br />
+		stpapi.put.field( &quot;tfacp1133s000&quot;, &quot;tfacp101.qty1&quot;, str$(0.0))<br />
+		stpapi.put.field( &quot;tfacp1133s000&quot;, &quot;tfacp101.qty2&quot;, str$(0.0))<br />
+		stpapi.insert( &quot;tfacp1133s000&quot;, 1, msg )<br />
+		if(strip$(msg)&lt;&gt;&quot;&quot;)then<br />
+			message(&quot;f1133s000.save:%s&quot;,msg)<br />
+		endif<br />
+		stpapi.end.session( &quot;tfacp1133s000&quot; )<br />
+<br />
+<br />
+		stpapi.update( &quot;tfacp1230s000&quot;, 1, msg)<br />
+<br />
+|************************************************************************************************<br />
+| New Step 8. Check session tfacp1230s000 to make sure everything is okay.<br />
+|************************************************************************************************<br />
+		stpapi.get.field( &quot;tfacp1230s000&quot;, &quot;net.amnt&quot;, dummy )<br />
+		net.amnt = val(dummy)<br />
+		stpapi.get.field( &quot;tfacp1230s000&quot;, &quot;receipts&quot;, dummy )<br />
+		amount = val(dummy)<br />
+<br />
+| These fields were blank<br />
+		stpapi.get.field( &quot;tfacp1230s000&quot;, &quot;link&quot;, dummy)<br />
+		link.rec = ltoe(lval(dummy))<br />
+		stpapi.get.field( &quot;tfacp1230s000&quot;, &quot;approve&quot;, dummy )<br />
+		approve = ltoe(lval(dummy))<br />
+		if(net.amnt &lt;&gt; amount <br />
+		or link.rec &lt;&gt; tcyesno.yes or<br />
+		approve &lt;&gt; tcyesno.yes) then<br />
+			msg = &quot;tfacp1230s000: Not approved mis-match.&quot;<br />
+			stpapi.end.session( &quot;tfacp1230s000&quot; ) |Stop automatching of invoices.<br />
+			stpapi.end.session( &quot;tfacp1131s000&quot; ) |Stop Match Receipts<br />
+			stpapi.end.session( &quot;tfacp1130s000&quot; ) |Stop Match/Approve Purchase inv.<br />
+			stpapi.end.session( &quot;tfacp1110s000&quot; ) |Stop the tfacp1130s00 session<br />
+	                rprt_send()<br />
+			continue<br />
+		endif<br />
+|************************************************************************************************<br />
+| New Step 9. Everything checked out. Do a continue is tfacp1230s000<br />
+|************************************************************************************************<br />
+		stpapi.continue.process( &quot;tfacp1230s000&quot;, msg )<br />
+| No matter what happens an error is returned. Just end<br />
+| all sessions.<br />
+		msg = &quot;tfacp1110s000 Insert: &quot;&amp;strip$(msg)<br />
+		stpapi.end.session( &quot;tfacp1131s000&quot; ) |Stop Match Receipts<br />
+		stpapi.end.session( &quot;tfacp1130s000&quot; ) |Stop Match/Approve Purchase inv.<br />
+| then kill session tfacp1140s000 which says it was approved.<br />
+		stpapi.end.session( &quot;tfacp1140s000&quot; ) <br />
+		stpapi.end.session( &quot;tfacp1230s000&quot; ) |Stop automatching of invoices.<br />
+		stpapi.end.session( &quot;tfacp1110s000&quot; )<br />
+| Part processed completely or with a Check mauc error.<br />
+                rprt_send()<br />
+	endwhile<br />
+| End tfacp1110s000 - End this one first.<br />
+	stpapi.end.session( &quot;tfacp1110s000&quot; ) <br />
+| End tfgld1101m000<br />
+	stpapi.end.session( &quot;tfgld1101m000&quot; )</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lwentz</div><div class="date">26th January 2009, 15:05</div></div><div class="posttext">Ravi,<br />
+Verify that session tfacp1110s000 is really open at the time of insert.  We use UNIX - So I put the session in Debug mode and once on the insert line -  Open Option Dialog- start shell.  Do a ps command to see the list of sessions running.  Verify that the session is in the list.  <br />
+<br />
+I had that issue and found that session tfgld1101m000 was not correctly finding and marking the Transaction Type record.<br />
+ <br />
+Lisa</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ravi99</div><div class="date">26th January 2009, 15:06</div></div><div class="posttext">Thanks Mark. I will change my code and let you know. Do I need to change : tfacp1110 &amp; tfacp1230 code also? Please let me know. Did you change these codes (tfacp1110 &amp; tfacp1230)?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ravi99</div><div class="date">26th January 2009, 15:09</div></div><div class="posttext">Hi Mark,<br />
+<br />
+There is a zoom.to$ to session: tfacp1230s000 within tfacp1110. I believe I need to change the code: tfacp1110 so that session: tfacp1230s000 is not activated when I run tfacp1110s000 in AFS mode, please let me know.<br />
+<br />
+I really appreciate your prompt reply.<br />
+<br />
+Ravi</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th January 2009, 16:26</div></div><div class="posttext">Hi Mark,<br />
+<br />
+There is a zoom.to$ to session: tfacp1230s000 within tfacp1110. I believe I need to change the code: tfacp1110 so that session: tfacp1230s000 is not activated when I run tfacp1110s000 in AFS mode, please let me know.<br />
+<br />
+I really appreciate your prompt reply.<br />
+<br />
+Ravi<br />
+Sorry, but I can not answer that question.  I really am not that familiar with the sessions and I do not know what happens on your system.  I know the session automatically launches on ours and that is how the users had me process the records.  If you have the source code then yes you can skip that piece of processing - I just do not know if it is the right thing to do.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ravi99</div><div class="date">28th January 2009, 14:10</div></div><div class="posttext">Thanks Mark for your help. Your program script helped me. I really appreciate your help.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

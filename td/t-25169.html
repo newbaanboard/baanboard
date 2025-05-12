@@ -1,0 +1,170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Macro substitution using #define, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Macro substitution using #define Tools Development" />
+	
+	<title>Macro substitution using #define [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Macro substitution using #define</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">dmcnally</div><div class="date">22nd September 2005, 22:06</div></div><div class="posttext">I am trying to create a macro to assign values to string variables . <br />
+For example I have declared 5 string variables as follows: <br />
+<br />
+extern domain tcmcs.str60 v1<br />
+extern domain tcmcs.str60 v2<br />
+extern domain tcmcs.str60 v3<br />
+extern domain tcmcs.str60 v4<br />
+extern domain tcmcs.str60 v5<br />
+<br />
+domain tcmcs.str60 wvalue<br />
+long wcount<br />
+long maxcount<br />
+<br />
+These are going to be displayed on a form.<br />
+<br />
+I want to determine the value to assign each variable and then pass the value to a macro and have it assigned . <br />
+<br />
+The macro looks like this<br />
+<br />
+<br />
+#define put.var(x,y)  |** x = variable #, y = value to assign<br />
+^  v##x = y<br />
+<br />
+<br />
+The code is below<br />
+<br />
+    maxcount = 33<br />
+    wcount = 0<br />
+    select tirou903.*<br />
+    from tirou903 <br />
+    where tirou903._index1 = {:tirou903.cwoc,:tirou903.mcno,:tirou903.mpcd,:tirou903.revn}<br />
+    order by tirou903._index1 <br />
+    selectdo<br />
+      if wcount &lt; maxcount then<br />
+		wcount = wcount + 1<br />
+	endif       <br />
+      get.type()<br />
+    selectempty<br />
+    endselect<br />
+<br />
+<br />
+functions:<br />
+<br />
+ function get.type()<br />
+{ <br />
+  select tirou901.*<br />
+  from tirou901<br />
+  where tirou901._index1 = {:tirou903.psrn}<br />
+  order by tirou901._index1<br />
+  selectdo<br />
+    ON CASE shiftl$(shiftr$(tirou901.dtyp))<br />
+    	CASE &quot;checkbox&quot;:<br />
+            wvalue = enum.descr$(&quot;tgyenox&quot;,tirou903.yeno)<br />
+    	CASE &quot;date&quot;:<br />
+            wvalue = date.to.inputstr$(tirou903.date,&quot;%D006&quot;,8)<br />
+    	CASE &quot;double&quot;:<br />
+      	wvalue = str$(tirou903.dble)<br />
+   	CASE &quot;float&quot;:<br />
+      	wvalue = str$(tirou903.flot)<br />
+    	CASE &quot;long&quot;:<br />
+      	wvalue = str$(tirou903.long)    <br />
+    	CASE &quot;string, long&quot;:<br />
+      	wvalue = tirou903.lstr <br />
+    	CASE &quot;string, short&quot;:<br />
+     		wvalue = shiftl$(shiftr$(tirou903.sstr))  	<br />
+    	DEFAULT:<br />
+      	|** NO OP<br />
+    ENDCASE<br />
+    put.var(wcount,wvalue)<br />
+  endselect<br />
+}<br />
+<br />
+This is not working because the argument x in the macro definition evaluates to wcount  instead of its value (1,2,3,..etc) . So the result  of the expression v##x yields vwcount instead of v1, v2, v3, etc. <br />
+The compiler gives the error vwcount not declared (While expanding macro put.var).<br />
+<br />
+Is there a way to accomplish what I am trying to do ?<br />
+I have done this in dbase4 code using macro substitution with the &amp; <br />
+operator.<br />
+I haven't found a way to do it in Baan tools yet.  <br />
+<br />
+Thanks in advance for your help.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">23rd September 2005, 09:17</div></div><div class="posttext">You can use the Baan3gl put.var function:<br />
+<br />
+put.var(pid, &quot;v&quot; &amp; str$(wcount), wvalue)<br />
+<br />
+I'm not sure if you have to declare the variables v1 - v5 as external.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">23rd September 2005, 09:21</div></div><div class="posttext">Dave,<br />
+<br />
+macro substition is done at compile time which is definitively too early in your case.<br />
+<br />
+Here is a code snipped that will evaluate your expression at runtime:<br />
+<br />
+function put.var(long x, domain tcmcs.str80 y)<br />
+{<br />
+  domain tcmcs.str80 expr<br />
+  domain tcmcs.str80 dummy<br />
+  long id<br />
+<br />
+  expr = sprintf$(&quot;v%d := %s%s%s&quot;, x, chr$(34), y, chr$(34))<br />
+  | eg. expr = &quot;v1 := &quot;something&quot;&quot;<br />
+<br />
+  id = expr.compile(id)<br />
+  | could be tested if okay ...<br />
+<br />
+  dummy = s.expr$(expr)<br />
+  | now dummy contains &quot;something&quot; and v1 (if x was 1)<br />
+<br />
+  expr.free(id)<br />
+  | don't forget this<br />
+}<br />
+<br />
+<br />
+I hope this will help you!<br />
+<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dmcnally</div><div class="date">23rd September 2005, 14:53</div></div><div class="posttext">JaapJD, <br />
+<br />
+The put.var() function worked beautifully ! Thanks<br />
+<br />
+Günther, <br />
+Thanks for the explanation of when things are compiled. I'll have to test out the expr.compile().<br />
+<br />
+I appreciate the help. It's going to save me some coding time.<br />
+<br />
+Best Regards, <br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rberti</div><div class="date">3rd August 2010, 00:44</div></div><div class="posttext">Hi gurus, <br />
+<br />
+I wonder if there is a way to do what Dave had planned before, to set the variable value to the macro... in the case of this macro needs the value of the parameter as a constant, like in &quot;as set with x rows&quot;, for example.<br />
+<br />
+Do you have a clue, or dynamic SQL is the only way?<br />
+<br />
+Regards,<br />
+<br />
+Rafael</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

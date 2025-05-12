@@ -1,0 +1,498 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="chart manager: display daily job runtime, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] chart manager: display daily job runtime Code &amp; Utilities" />
+	
+	<title>chart manager: display daily job runtime [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Code &amp; Utilities</a> &gt; chart manager: display daily job runtime</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">pconde</div><div class="date">5th June 2008, 09:08</div></div><div class="posttext">Hello,<br />
+<br />
+This is an development with the chart manager that displays the runtime of the different jobs that occurred on a selected date.<br />
+<br />
+The chart   type hilo (high low ) displays the different run times as line segments with a start point and a end point.<br />
+<br />
+There are some limits:<br />
+1: on one line you cannot display more than 25 segment  (chart limit) so if  a job runs  more than 25 times in a day a second line needs to be created<br />
+<br />
+2: I tested this on environment with +/- 40 different jobs per days where some jobs are running a large number of times in the day (each 10 minutes) <br />
+<br />
+3:Due to the time scale I needed to adjust the runtime of some jobs so that they are displayed : typically on the screen resolution of 1024 * 768 and a time scale of 20 hours the minimum time to display a dot was +/- 3 to 4 minutes.  <br />
+<br />
+|*****************************************************************************<br />
+|* spaad5400  0  VRC B40O c4 expl<br />
+|* Impression graphique Plage des jobs<br />
+|* Philippe Condé                <br />
+|* 2004-07-22<br />
+|******************************************************************************<br />
+|* Main table ttaad500, Form Type 4<br />
+|******************************************************************************<br />
+|* All Rights Reserved<br />
+|*<br />
+|* Permission to use, copy, modify, and distribute this software and its<br />
+|* documentation for any purpose and without fee is hereby granted,<br />
+|* provided that the above copyright notice appear in all copies and that<br />
+|* both that copyright notice and this permission notice appear in<br />
+|* supporting documentation.<br />
+|*<br />
+|* Philippe Conde DISCLAIM ALL WARRANTIES WITH REGARD TO THIS<br />
+|* SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY<br />
+|* AND FITNESS, IN NO EVENT SHALL Philippe Conde BE LIABLE FOR ANY<br />
+|* SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES<br />
+|* WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,<br />
+|* WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER<br />
+|* TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE<br />
+|* OR PERFORMANCE OF THIS SOFTWARE.<br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+#ident &quot;@(#) PCE, Philippe Conde, 2004-07-28, B40O_c4_expl&quot;<br />
+<br />
+	table	tttaad500	|* Données job<br />
+	table	tttaad510	|* Historique job<br />
+	table	tttaad100	|* Companies<br />
+<br />
+|forms data<br />
+	extern	domain	tcmcs.str6    	cjob.f	fixed<br />
+	extern	domain	tcmcs.str6    	cjob.t	fixed<br />
+	extern	domain	tcdate		date.f<br />
+	extern	domain	tcmcs.str15	day.f<br />
+<br />
+		string	title1(50)<br />
+		long	chm.ret<br />
+		long	rc<br />
+		long    serie<br />
+		long 	categ <br />
+		double  myval 		| value sequence 1<br />
+		double  myval2 		| value sequence 2<br />
+<br />
+		long	day_week, day_year, week_no,yearno  | date calculation<br />
+		long	mycomp<br />
+		domain	tcmcs.str6 	rep_job<br />
+		domain	tcmcs.long	note_nb<br />
+		long 	flg_debug, flag_tsub<br />
+		string  tsub(27)<br />
+		long  	myday, mymonth, myyear<br />
+<br />
+	#define		MIN_TIME  	400		| start at 4:00 <br />
+	#define		MAX_TIME  	2400		| end at 24:00 <br />
+	#define		MAX_HOUR  	20		| number of hour for data axis<br />
+	#define		MAX_JOB   	30		| Maximum job/page for display<br />
+	#define		TOT_JOB   	4.00 * MAX_JOB	| Maximum job for display<br />
+<br />
+	#define		REFRESH_DATA    (100)<br />
+	#define		PRECE_DAY    	(101)<br />
+	#define		NEXT_DAy        (102)<br />
+<br />
+	#include &lt;bic_chartman&gt;<br />
+	#include &quot;itcmcs0000&quot; 	|* Chart Manager Interface Functions<br />
+|****************************** form section **********************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+	mycomp = get.compnr()<br />
+	tsub = &quot; abcdefghijklmnopqrstuvwxyz&quot;<br />
+	rep_job(1;6) = &quot;JP    &quot;	|for repet. job set with a termination date ==&gt;<br />
+				| these job are automatically removed from the <br />
+				|job definition ==&gt; only present in job history<br />
+	flg_debug = 0		| force to 1 for debug<br />
+<br />
+|****************************** choice section ********************************<br />
+choice.chm:<br />
+on.choice:<br />
+	execute(cont.process)<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	read.main.table()<br />
+<br />
+choice.user.0:<br />
+on.choice:<br />
+	if date.f &gt; 0 then<br />
+		date.f = date.f + 1<br />
+	endif<br />
+	display(&quot;date.f&quot;)<br />
+	display(&quot;day.f&quot;)<br />
+	choice.again()<br />
+|****************************** field section *********************************<br />
+<br />
+field.cjob.f:<br />
+when.field.changes:<br />
+	cjob.t = cjob.f<br />
+<br />
+field.day.f:<br />
+before.display:<br />
+	<br />
+|get day name for the date inserted<br />
+	if date.f = 0 then<br />
+		day.f = &quot;&quot;		|date = 0 ==&gt; last run for each job<br />
+	else<br />
+		rc = num.to.week(date.f, day_week, day_year, week_no, yearno)<br />
+		select ttaad100.* from ttaad100<br />
+		where ttaad100._index1 = {:mycomp} and<br />
+		ttaad100._compnr = &quot;000&quot; <br />
+		as set with 1 rows<br />
+		selectdo<br />
+			day_week = day_week - 1 + etol(ttaad100.wday)<br />
+			if day_week &gt; 7 then<br />
+				day_week = day_week - 7<br />
+			endif<br />
+			day.f = enum.descr$(&quot;tcdynm&quot;,ltoe(day_week))<br />
+		endselect<br />
+	endif <br />
+<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{<br />
+double mydbl, mydbl2	<br />
+<br />
+<br />
+	if CHART_OPEN(&quot;spaad5700&quot;, &quot;hilo&quot;) = chm_error then<br />
+		mess(&quot;spaad5400.1&quot;,1)<br />
+		|* Mode graphique uniquement<br />
+		return<br />
+	endif<br />
+	define_mychart()<br />
+	get_mydata()<br />
+	rc = CHART_DRAW()<br />
+ 	if flg_debug then<br />
+		get_dbg_info(2)<br />
+	endif<br />
+	repeat <br />
+		rc = chart_get_request(mydbl,mydbl2)<br />
+		on case rc <br />
+		case PRECE_DAY:    <br />
+			date.f = date.f - 1<br />
+			disp_mychart()<br />
+			break<br />
+		case NEXT_DAY:    <br />
+			date.f = date.f + 1<br />
+			disp_mychart()<br />
+			break<br />
+		case REFRESH_DATA:<br />
+			disp_mychart()<br />
+			break<br />
+		endcase<br />
+	until  rc = chm_abort<br />
+<br />
+	chm.ret = CHART_DISCONNECT()<br />
+}<br />
+	<br />
+|********************************************************************<br />
+| reset (delete) the chart, define new chart, get data and display chart<br />
+|********************************************************************<br />
+function disp_mychart()<br />
+{<br />
+	CHART_RESET(CHART_ALL)<br />
+	define_mychart()<br />
+	get_mydata()<br />
+	rc = CHART_DRAW()<br />
+ 	if flg_debug then<br />
+		get_dbg_info(2)<br />
+	endif<br />
+}<br />
+|*************************************************************<br />
+| define domain, axis and title<br />
+|************************************************************<br />
+function define_mychart()<br />
+{<br />
+	if date.f = 0 then<br />
+		num.to.date(date.num(), myyear, mymonth, myday)<br />
+	else<br />
+		num.to.date(date.f, myyear, mymonth, myday)<br />
+	endif<br />
+<br />
+	CHART_MIN = MIN_TIME * 1.00<br />
+	CHART_MAX = MAX_TIME * 1.00 <br />
+<br />
+|# define  domains  and axis for series and categories, set for series<br />
+	define.set.series()<br />
+	chm.ret =chm.domain.in(CHM_SERIES_DOMAIN,CHM_SET, SERIES, &quot;&quot;,<br />
+		      &quot;&quot;, 1.00, 25.00, 1.00, &quot;&quot;)<br />
+	chm.ret =chm.axis.in (CHM_SERIES_AXIS, 0, 0, 25, 1.0, 000.00,&quot;&quot;)<br />
+<br />
+	chm.ret =chm.domain.in(CHM_CATEGORY_DOMAIN, CHM_SET, CATEGORIES, &quot;nom &quot;,<br />
+		      &quot;&quot;, 1.00, TOT_JOB, 1.00, &quot;&quot;)<br />
+	chm.ret =chm.axis.in (CHM_CATEGORY_AXIS, 0, 0, MAX_JOB, 1.0, 0.0, &quot;&quot;)<br />
+|	chm.ret =chm.axis.in (CHM_CATEGORY_AXIS, 0, 0, 5, 1.0, 0.0, &quot;&quot;)<br />
+<br />
+<br />
+| define title<br />
+	title1 = form.text$(&quot;spaad5700.all&quot;)<br />
+	|* Plage des jobs<br />
+	if date.f &lt;&gt; 0 then<br />
+		title1 = form.text$(&quot;spaad5700.date&quot;) &amp;&quot; &quot; &amp; num.to.date$(date.f,3)<br />
+		|* Plage des jobs au<br />
+	endif<br />
+	chm.ret = chm.title.in(title1, &quot;&quot;)<br />
+<br />
+ 	if flg_debug then<br />
+		get_dbg_info(1)<br />
+	endif<br />
+<br />
+	categ =0<br />
+	serie = 0<br />
+	CHART_MIN = MIN_TIME * 1.00	| value defined in itcmcs0000<br />
+<br />
+|define domain and axis data<br />
+	chm.ret = chm.domain.in( CHM_DATA_DOMAIN, CHM_INTEGER, &quot;data&quot;,<br />
+			 &quot;HH:mm&quot;, &quot;100eme H&quot;,<br />
+			MIN_TIME * 1.00, MAX_TIME * 1.00, 100.0, &quot;99:99&quot;)<br />
+	chm.ret = chm.axis.in(CHM_DATA_AXIS, 0, 0, MAX_HOUR,<br />
+				 100.00, 400.00,&quot;&quot;)<br />
+}<br />
+<br />
+|********************************************************************<br />
+| Define set for SERIES<br />
+|*******************************************************************<br />
+function define.set.series()<br />
+{<br />
+	for rc = 1 to 25<br />
+		chm.ret = chm.set.in(SERIES, rc, edit$(rc,&quot;99&quot;))<br />
+	endfor<br />
+}<br />
+<br />
+|********************************************************************<br />
+| Retrieve data from ttaad500 + specific search deleted job<br />
+|********************************************************************<br />
+function get_mydata()<br />
+{<br />
+	note_nb = 0 <br />
+<br />
+|read jobs<br />
+	select	ttaad500.*<br />
+	from	ttaad500<br />
+	where   ttaad500._index1 inrange {:cjob.f}<br />
+	                             and {:cjob.t}<br />
+	order by ttaad500.stim  <br />
+	selectdo<br />
+		if date.f &lt;&gt; 0 then<br />
+			select.one.date()<br />
+		else<br />
+			select.last.date()<br />
+		endif<br />
+	endselect<br />
+	<br />
+|specifically read jobs present only in history,  name = &quot;JPddmm&quot;<br />
+	| Periodical job that has a End date :<br />
+	| for job format &quot;JPddmm&quot; where dd = run day mm= month<br />
+	rep_job(3;2) = edit$(myday,&quot;99&quot;)<br />
+	rep_job(5;2) = edit$(mymonth, &quot;99&quot;)<br />
+	ttaad500.cjob(1;6) = rep_job(1;6)<br />
+<br />
+	select ttaad500.* from ttaad500<br />
+	where ttaad500._index1 = {:ttaad500.cjob}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	selectempty<br />
+		if date.f &lt;&gt; 0 then<br />
+			select.one.date()<br />
+		else<br />
+			select.last.date()<br />
+		endif<br />
+	endselect<br />
+	<br />
+}<br />
+<br />
+|**************************************************************************<br />
+| this function retrieves the data inserted in chart (needed for debugging)<br />
+|**************************************************************************<br />
+function get_dbg_info( long flg)<br />
+{<br />
+	long reftype, rlval, mylval<br />
+	domain tcmcs.str100	str1, str2, str3, str4<br />
+	string refsetname(16), reftitle(16), refunit(16) , refdsp(80)<br />
+	double refdt, refdf, refint, dcatf, dcatt, dserie<br />
+<br />
+	if flg = 1 then<br />
+		chm.ret =chm.domain.out( CHM_SERIES_DOMAIN,<br />
+					reftype, refsetname, reftitle,<br />
+					refunit, refdf, refdt, refint, refdsp)<br />
+		chm.ret =chm.domain.out( CHM_CATEGORY_DOMAIN,<br />
+					 reftype, refsetname, reftitle,<br />
+					refunit, refdf, refdt, refint, refdsp)<br />
+	else<br />
+		rc= CHM.DOMAIN.out (CHM_SERIES_DOMAIN, <br />
+			rlval, str1, str2, str3, dcatf, dcatt, dserie, str4 )<br />
+		rc= CHM.DOMAIN.out (CHM_CATEGORY_DOMAIN,<br />
+			 rlval, str1, str2, str3, dcatf, dcatt, dserie, str4 )<br />
+		rc= CHM.DOMAIN.out (CHM_DATA_DOMAIN,<br />
+			 rlval, str1, str2, str3, dcatf, dcatt, dserie, str4 )<br />
+		rc= CHM.DOMAIN.out (CHM_DATA2_DOMAIN,<br />
+			 rlval, str1, str2, str3, dcatf, dcatt, dserie, str4 )<br />
+                              <br />
+		rc = chm.first.data.out(CHM_ALL_DATA,<br />
+			 dserie, dcatf, rlval, myval, mylval)<br />
+		while rc = CHM_OK <br />
+			rc = chm.next.data.out( CHM_ALL_DATA,<br />
+			 dserie, dcatf, rlval, myval, mylval)<br />
+		endwhile<br />
+	endif<br />
+}<br />
+<br />
+<br />
+|**************************************************************************<br />
+|this function read history job for a selected day<br />
+|*************************************************************************<br />
+function select.one.date()<br />
+{<br />
+	long rcnt 	| record count <br />
+<br />
+	rcnt= 0<br />
+	flag_tsub= 0		| maximum 25 series /categories<br />
+<br />
+	select ttaad510.* from ttaad510<br />
+	where ttaad510._index1 = {:ttaad500.cjob, :date.f}<br />
+	and ttaad510.stim &gt;= MIN_TIME<br />
+	order by ttaad510._index1 <br />
+	selectdo<br />
+		rcnt = rcnt + 1<br />
+		if rcnt = 1  or serie &gt; 24 then<br />
+			flag_tsub = flag_tsub + 1 |get next char for job name<br />
+			categ  = categ + 1 	| next job <br />
+			serie = 0 		| reset serie<br />
+		endif<br />
+		if  send.data.to.chm() then	| if error in job set new categ<br />
+			serie = 25<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+|**************************************************************************<br />
+| Retrieve the last run of a job . date is not meaningfull<br />
+|**************************************************************************<br />
+function select.last.date()<br />
+{<br />
+	select ttaad510.* from ttaad510<br />
+	where ttaad510._index1 = {:ttaad500.cjob}<br />
+	and ttaad510.stim &gt;= MIN_TIME<br />
+	order by ttaad510._index1 DESC<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		flag_tsub = 1<br />
+		categ  = categ + 1	| each job  is a new category<br />
+		serie  =0		|reset serie (serie must be &lt; 25)<br />
+		rc = send.data.to.chm()<br />
+	endselect<br />
+}<br />
+<br />
+|************************************************************************<br />
+| return 0 = ok, &lt;&gt; 0 set new categorie ==&gt; error/or job running<br />
+|************************************************************************<br />
+function long send.data.to.chm()<br />
+{<br />
+<br />
+	long	note<br />
+<br />
+	note 	= 0<br />
+	serie	= serie + 1		| Each job run must be another serie<br />
+<br />
+|*** for set  never two same def. ==&gt; error. Therefor I add a subfix<br />
+|    to jobname that changes each time serie  &gt; 25  or when job is running<br />
+	<br />
+	rc = chm.set.in(CATEGORIES, categ, ttaad500.cjob&amp;tsub(flag_tsub;1))<br />
+<br />
+	myval = minute.to.hundred(ttaad510.stim)<br />
+	chm.ret = chm.data.in(serie * 1.0, categ * 1.0 ,1, myval, 0,<br />
+				CHM_OVERWRITEDUPL  )<br />
+<br />
+	myval2 = minute.to.hundred(ttaad510.ttim)<br />
+	if myval2 = 0 then 		| job not terminated (run or error)<br />
+		myval2 = 2300     <br />
+		note_nb = note_nb + 1	|add a footnote<br />
+		note = note_nb<br />
+		chm.ret = chm.footnote.in(note_nb, ttaad510.cjob&amp;&quot; Still Running&quot;)<br />
+	endif<br />
+	if myval2 &lt; myval + 3 then	| min. display is 3mn (tested)<br />
+		myval2 = myval + 4<br />
+	endif<br />
+	<br />
+	chm.ret = chm.data.in(serie * 1.0, categ * 1.0 ,2, myval2, note  ,<br />
+				CHM_OVERWRITEDUPL  )<br />
+<br />
+	return(note)<br />
+}<br />
+<br />
+|******************************************************************<br />
+|transform hhmm to hhzz where zz is defined in (hh/100)<br />
+|******************************************************************<br />
+function long minute.to.hundred(long mytime)<br />
+{<br />
+<br />
+	long  mhour, h100, rmin<br />
+	<br />
+	mhour = mytime/100<br />
+	rmin  = mytime\100<br />
+	h100  = (rmin * 10) /6   | ex. 30min =0,5h<br />
+	h100  = h100 + (mhour * 100)<br />
+<br />
+	return(h100)<br />
+}<br />
+<br />
+<br />
+This was developed on BaanIV c4 with sp8 and worked correctly on sp14 with bw: I think that this should not work with Worktop or Webtop. <br />
+Maximize the chart to have a correct display<br />
+<br />
+In the attached word document I give some screen shots and also explanations how to define the chart.<br />
+<br />
+Hope that this can be useful.<br />
+Philippe<br />
+<br />
+<br />
+The chart definition is the most complex parts. :D</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kozure Ohashi</div><div class="date">9th June 2008, 17:34</div></div><div class="posttext">Dear pconde,<br />
+<br />
+thanks for sharing.<br />
+<br />
+Regards,<br />
+<br />
+Kozure</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">EdHubbard</div><div class="date">6th November 2008, 16:33</div></div><div class="posttext">Hi Philippe<br />
+<br />
+thanks for posting this.<br />
+<br />
+Not sure I am setting something correctly.<br />
+Is it possible you can post screenshots of some more of the Chart settings<br />
+example - ttchm2130m000 Maintain Axes for Category, Data, DataII (if relevant).<br />
+<br />
+Also form 2 of ttchm2120m000 Maintain Graphs<br />
+<br />
+<br />
+Thanks<br />
+<br />
+Ed Hubbard</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pconde</div><div class="date">7th November 2008, 12:48</div></div><div class="posttext">Hi Ed,<br />
+<br />
+I attach a word document with the different screenshots. I marked some screenshots with red circles for data that are important. <br />
+The key for this code is the correct definition of the chart.<br />
+If you have still problem, please reply in this thread.<br />
+<br />
+Regards<br />
+Philippe</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

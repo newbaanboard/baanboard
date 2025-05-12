@@ -1,0 +1,153 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="question of rprt_send(), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] question of rprt_send() Tools Development" />
+	
+	<title>question of rprt_send() [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; question of rprt_send()</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">luckaku</div><div class="date">27th June 2006, 18:43</div></div><div class="posttext">Dear all,<br />
+I want to get the report form tdinv700.This report describe below,<br />
+Field1,item<br />
+Field2,current inventory<br />
+Field3,backdated inventory (6month ago)<br />
+Field4,outbound inventory transaction(since 6month)<br />
+Field5,outbound inventory transaction(since 12month)<br />
+I can get the four variables in separate select as,<br />
+stoc.1,<br />
+       select	tdinv700.*<br />
+	from	tdinv700<br />
+	where tdinv700.item between :item.f and :item.t<br />
+       and tdinv700.trdt &lt;= :date.1<br />
+       order by tdinv700._index1<br />
+	selectdo       <br />
+       stoc.1 = tdinv700.quan<br />
+    <br />
+stoc.2,<br />
+        select	tdinv700.*<br />
+	from	tdinv700<br />
+	where tdinv700.item between :item.f and :item.t<br />
+       and tdinv700.trdt &lt;= :date.2<br />
+       order by tdinv700._index1<br />
+	selectdo       <br />
+       stoc.2 = tdinv700.quan<br />
+<br />
+curr.1<br />
+        select	tdinv700.*<br />
+	from	tdinv700<br />
+	where tdinv700.item between :item.f and :item.t<br />
+       and tdinv700.trdt &gt;= :date.2<br />
+       and tdinv700.trdt &lt;= :date.1<br />
+       and tdinv700.quan &lt; 0<br />
+       order by tdinv700._index1<br />
+	selectdo       <br />
+       curr.1 = tdinv700.quan<br />
+       <br />
+Curr.2<br />
+       select	tdinv700.*<br />
+	from	tdinv700<br />
+	where tdinv700.item between :item.f and :item.t<br />
+       and tdinv700.trdt &gt;= :date.3<br />
+       and tdinv700.trdt &lt;= :date.2<br />
+       and tdinv700.quan &lt; 0<br />
+       order by tdinv700._index1<br />
+	selectdo       <br />
+       curr.2 = tdinv700.quan<br />
+      <br />
+I want to input the four variables to the report with the rprt_send(),how do it in program script ?<br />
+<br />
+Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th June 2006, 19:43</div></div><div class="posttext">Maybe I missed something, but right after you calculate the variables BUT not using a range.  I would expect it to look something like this:<br />
+<br />
+select tiitm001.item<br />
+from tiitm001<br />
+where tiitm001._index1 inrange {:item.f} and {:item.t}<br />
+selectdo<br />
+          select sum(tdinv700.quan):curr.1<br />
+          from tdinv700<br />
+          where tdinv700.item = :tiitm001.item<br />
+          and  put date stuff here<br />
+          selectdo<br />
+          endselect<br />
+<br />
+          select sum(tdinv700.quan):curr.2<br />
+          from tdinv700<br />
+          where tdinv700.item = :tiitm001.item<br />
+          and  put date stuff here<br />
+          selectdo<br />
+          endselect<br />
+          ........................................<br />
+          ...........calculate 3 and 4 also<br />
+          rprt_send()<br />
+endselect<br />
+<br />
+At least this is one way of doing it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bigjack</div><div class="date">27th June 2006, 20:12</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Instead of using four different select statements i propose following 2 solutions,<br />
+<br />
+1: Get the max input date and min input date depending on four input dates. Use a single select statement as follows,<br />
+<br />
+          select tdinv700.quan<br />
+          from tdinv700<br />
+          where tdinv700.item = :tiitm001.item<br />
+          and  tdinv700.date inrange :min_input_date and :max_input_date<br />
+          selectdo<br />
+                 |   put the four conditions depending on date here and sum the   <br />
+                 |   tdinv700.quan in four different variables<br />
+          endselect<br />
+<br />
+2:       I avoid using unnecessary variables and let baan do the work :) <br />
+<br />
+          select tdinv700.quan<br />
+          from tdinv700<br />
+          where tdinv700.item = :tiitm001.item<br />
+          and  tdinv700.date inrange :min_input_date and :max_input_date<br />
+          selectdo<br />
+                      rprt_send()<br />
+           endaselect<br />
+           In the report declare a layout on after.field of tdinv700.item and introduce four columns with &quot;aggregate function&quot; as total and use the date filter in &quot;aggregate expression&quot; .<br />
+<br />
+I hope the solution is unambigious<br />
+Can any one comment whether using a single select has any edge over using four different selects. I personally feel there is no difference except perhaps fewer lines of code.<br />
+<br />
+Bye</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">28th June 2006, 01:57</div></div><div class="posttext">Well to me you have to evaluate it in each situation.  To me selecting the sum for each case and sending one record to the report is one solution.  It keeps it simple for newbies and easy to see the flow.<br />
+<br />
+Your solution is perfectly acceptable - but you really do not have a min input date.  I say this because of query 1 - it has &lt;= date1.  So then you would really only need &lt;=:maxdate. Which could be a lot of processing and a lot of checks for each record.  In this case I prefer queries and I think if you have the indexes the sum would be quicker than letting the report do it.<br />
+<br />
+HOW about some others sound off on the question by bigjack?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bigjack</div><div class="date">28th June 2006, 06:59</div></div><div class="posttext">mark,<br />
+<br />
+Your solution is straightforward and efficient also.<br />
+Thanx for replying with your comments.<br />
+<br />
+Bye</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">luckaku</div><div class="date">28th June 2006, 15:07</div></div><div class="posttext">mark,<br />
+Thank you very much.Your method is very good , and resolve my problem.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

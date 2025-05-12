@@ -1,0 +1,74 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Joins, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Joins Tools Development" />
+	
+	<title>Joins [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Joins</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">apurv_iitr</div><div class="date">1st July 2008, 00:34</div></div><div class="posttext">Is it correct to assume that below query will only select records - which meet form inputs and have a corresponding record in tipcs021. Is this the most efficient way of doing this? <br />
+<br />
+<br />
+<br />
+select	tipcs510.*, tipcs021.cpvr<br />
+from	tipcs510, tipcs021<br />
+where	tipcs510.psdt = :f.psdt (form variable)<br />
+and   	tipcs510.cplb = :f.cplb (form variable)<br />
+and	tipcs510._index2 = {tipcs021.cprj, tipcs021.item}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">1st July 2008, 11:03</div></div><div class="posttext">short:<br />
+1. yes<br />
+2. no<br />
+<br />
+a bit longer:<br />
+You are using the index just for join purposes, but the selection of the records is without index. I would suggest to use index 2 of tipcs510 to reduce the selected records. So you could try:<br />
+<br />
+where tipcs510._index2 inrange {&quot;&quot;, :f.psdt} and {&quot;ZZZZZZ&quot;, :f.psdt}<br />
+instead<br />
+where tipcs510.psdt = {:f.pdst}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">1st July 2008, 14:53</div></div><div class="posttext">Günther,<br />
+<br />
+I have no idea who learned you this, but this is absolutely not truth. First of all when you read via an index you read the index sequentially, but read the data scattered. When you read let us say less than 10% of your data, an index can benefit if the first field(s) of an index are matching the fields of the WHERE clause. <br />
+<br />
+In your suggestion you want to read a full range via an index. This will do a read of all index blocks and will read the data blocks multiple times (once per row that is in the block). So a full index scan can be more than twice as slow as a full table scan.<br />
+<br />
+Back to the original query: I believe that the proposal will perform the best.<br />
+<br />
+Best regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">1st July 2008, 15:11</div></div><div class="posttext">Dik,<br />
+your hints sound logical, thanks for the clarification. Can you tell us if that is always true, or is there a usally / it depends on / level 1 or 2 / oracle or informix or sql server?<br />
+<br />
+Back to the original:<br />
+And once again, I'm not quite sure it that's really the most efficient way. Normally, I wouldn't have used the join. I think its quite natural to read the table tipcs510 first, and for those records found to read the customized item.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">1st July 2008, 15:29</div></div><div class="posttext">Günther,<br />
+<br />
+Actually it is valid for all versions and databases, but Level 1 will always read via an index and thus perform poorly for this kind of queries. BTW as no index field has been given, (dependent on the number of records of course) this query will alway perform poorly regardless L1 or L2.<br />
+<br />
+Regarding the join: In both situations the table will first go to the main table and then go to the inner table for the result set of the main table. Doing it all in onequery saves to execute a second query in the bshell and thus a lot of roundtrips from bshell to database. So again, this option is faster compared to your proposal.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

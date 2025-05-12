@@ -1,0 +1,170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Hours Accounting (4c4), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Hours Accounting (4c4) AFS/DDC/OLE: Function servers" />
+	
+	<title>Hours Accounting (4c4) [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Hours Accounting (4c4)</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">25th June 2003, 18:46</div></div><div class="posttext">I'm having troubles with entering hours via AFS in an exchange script.  To start off, here is the relevant source:<br />
+<br />
+<br />
+    stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.year&quot;, str$(year))<br />
+    stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.week&quot;, str$(wknm))<br />
+    stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.emno&quot;, str$(tssma301.emno))<br />
+    if stpapi.change.view(&quot;tihra1101m000&quot;, errs) then<br />
+      if check_ckow(lval(str$(params_treis)), ckow) &lt; 0 then<br />
+        stpapi.end.session(&quot;tihra1101m000&quot;)<br />
+        return(false)<br />
+      endif<br />
+      stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.koht&quot;, str$(etol(tckoht.service)))<br />
+      stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.pdno&quot;, str$(tssma301.orno))<br />
+      stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.tano&quot;, str$(params_treis))<br />
+      stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.cwtt&quot;, &quot;   &quot;)<br />
+      stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.stdy&quot;, str$(wday))<br />
+      stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.hrea&quot;, str$(rtim))<br />
+      stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.ckow&quot;, ckow)<br />
+*1    if not stpapi.insert(&quot;tihra1101m000&quot;, 1, errs) then<br />
+        while true<br />
+          errc = stpapi.get.mess.code(&quot;tihra1101m000&quot;, errs)<br />
+          if isspace(errs) then<br />
+            break<br />
+          endif<br />
+        endwhile<br />
+        stpapi.recover(&quot;tihra1101m000&quot;, errs)<br />
+        stpapi.end.session(&quot;tihra1101m000&quot;)<br />
+        return(false)<br />
+      endif<br />
+    endif<br />
+    return(true)<br />
+<br />
+The problem is at the *1.  The insert fails, with error code ttstps0108: Day not allowed.  The values of the variables are the following:<br />
+<br />
+<br />
+params_treis = 100<br />
+year = 2003<br />
+wknm = 26<br />
+wday = 2 (monday)<br />
+rtim = 1.25<br />
+ckow = &quot;  1&quot;<br />
+<br />
+I scanned the object otihra1101 (using strings) but it does not contain a reference to the message code.<br />
+<br />
+Any help will be greatly appreciated!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kbartelds</div><div class="date">25th June 2003, 20:04</div></div><div class="posttext">Hi,<br />
+<br />
+The mesage is a tools message for giving a message on e.g. set.input.error. Day seems to me is related to the label of the end day or the date in viewfield or tihra100.dayn.<br />
+<br />
+You might check parameter of hra, this can influence the view fields. Second in your script you do not check the return value of the change view command, the value can be 0 1 or 2.<br />
+<br />
+You could even try to give the end day the same value as start day and give tihra100.dayn the same value.<br />
+<br />
+Regards,<br />
+Klaas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">25th June 2003, 20:50</div></div><div class="posttext">You could even try to give the end day the same value as start day and give tihra100.dayn the same value.<br />
+Have tried that :(  Doesn't work!<br />
+<br />
+What parameter?  If I enter the hours manually, it doesn't complain at all, and everything goes according to the needs.  Only not when using AFS!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">26th June 2003, 14:39</div></div><div class="posttext">Hi all!  After quite some puzzling, and a good look at the source code (don't ask where I got it :D) I managed to fix the problem, so both this thread and the initial problem of this (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=5800) thread are solved.<br />
+<br />
+The changed code:<br />
+<br />
+|* Convert the date to weekday, weeknumber and year<br />
+if num.to.week(tssma301.ddt6, wday, yday, wknm, year) = -1 then<br />
+  return(false)<br />
+else<br />
+  |* Find the record<br />
+  stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.year&quot;, str$(year))<br />
+  stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.week&quot;, str$(wknm))<br />
+  stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.emno&quot;, str$(tssma301.emno))<br />
+  rslt = stpapi.change.view(&quot;tihra1101m000&quot;, errs)<br />
+  if rslt then<br />
+    |* Check whether this is the correct header, and fix if not<br />
+    |* Thanks to Klaas for pointing this out!<br />
+    if rslt = 2 then<br />
+      stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.year&quot;, str$(year))<br />
+      stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.week&quot;, str$(wknm))<br />
+      stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.emno&quot;, str$(tssma301.emno))<br />
+    endif<br />
+    |* Find the kind of workhours<br />
+    if check_ckow(lval(str$(params_travel)), ckow) &lt; 0 then<br />
+      stpapi.end.session(&quot;tihra1101m000&quot;)<br />
+      return(false)<br />
+    endif<br />
+    |* Fill the fields<br />
+    stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.koht&quot;,<br />
+                                                     str$(etol(tckoht.service)))<br />
+    stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.pdno&quot;, str$(tssma301.orno))<br />
+    stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.tano&quot;, str$(params_travel))<br />
+    stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.cwtt&quot;, &quot;   &quot;)<br />
+    stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.stdy&quot;, str$(wday))<br />
+    stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.hrea&quot;, str$(rtim))<br />
+    stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.ckow&quot;, ckow)<br />
+    |* This field has a format of input.yr.wk.dy<br />
+    stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.hrdt&quot;,<br />
+                                           str$(wday) &amp; str$(wknm) &amp; str$(year))<br />
+    stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.dayn&quot;, str$(wday))<br />
+    |* Process without save<br />
+    |* Thanks to the second suggestion by Mark in the other thread<br />
+    if not stpapi.insert(&quot;tihra1101m000&quot;, 0, errs) then<br />
+      while true<br />
+        errc = stpapi.get.mess.code(&quot;tihra1101m000&quot;, errs)<br />
+        if isspace(errs) then<br />
+          break<br />
+        endif<br />
+      endwhile<br />
+      stpapi.recover(&quot;tihra1101m000&quot;, errs)<br />
+      stpapi.end.session(&quot;tihra1101m000&quot;)<br />
+      return(false)<br />
+    endif<br />
+*1  |* Reinstate the fields tihra100.hrdt and tihra100.dayn<br />
+    stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.hrdt&quot;,<br />
+                                           str$(wday) &amp; str$(wknm) &amp; str$(year))<br />
+    stpapi.put.field(&quot;tihra1101m000&quot;, &quot;tihra100.dayn&quot;, str$(wday))<br />
+    |* Now save it!<br />
+    if not stpapi.save(&quot;tihra1101m000&quot;, errs) then<br />
+      stpapi.recover(&quot;tihra1101m000&quot;, errs)<br />
+      stpapi.end.session(&quot;tihra1101m000&quot;)<br />
+      return(false)<br />
+    endif<br />
+  else<br />
+    return(false)<br />
+  endif<br />
+endif<br />
+return(true)The reinstating at *1 did the trick.  Although this is not as it is supposed to be (updating fields between insert and save), it is the only way it works.  The original error (ttstps0108) was due to the value of tihra100.dayn being zeroed during the field checking.  Strange :p, since I found this in the header of the source:<br />
+<br />
+|* ID 33835, ..., 1994-08-26<br />
+|* Field tihra100.dayn not used anymore(test tools)<br />
+And, after stating this, tihra100.dayn is used approx. 50 times in the code!  Oh well, fixed it anyway. :D</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">EdHubbard</div><div class="date">27th June 2003, 01:08</div></div><div class="posttext">I'll throw my 2 pence worth in here but not being a tools person (more of a meddler really!) and just starting to look at AFS I could well be wrong. I just wondered if this may be relevant.<br />
+<br />
+We use HRA to book hours by machine &amp; this uses a mythical employee 0 to log hours by. We found that the session locked at employee level so if one person was recording hours for one department, nobody else could. Also, to make matters worse the session seemed to put all the machine hours in a &quot;temporary array&quot; and not actually save them (and release the lock) until the user explicitly pressed save. The session looked like it had saved and processed the record even though it had not.<br />
+<br />
+Feel free to shoot me down!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">27th June 2003, 01:24</div></div><div class="posttext">Shoot you down?  Why?  You're absolutely right!  As soon as you enter update or insert mode, it places an application lock with the session name and employee number.  If this last is 0 when entering machine hours, all other entries are blocked until the update or insert is completed.  And for storing it in memory, right again!  It works with dynamic arrays, getting bigger with each line of data, and only getting saved at the end, and only then releasing the application lock.  But it is better than it was!  Previously, it would place the lock as soon as the header fields were completed, and only release it when you did a new search.  Imagine how bad that was!</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

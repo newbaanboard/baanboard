@@ -1,0 +1,101 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="editing text, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] editing text Tools Development" />
+	
+	<title>editing text [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; editing text</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">cracked egg</div><div class="date">14th October 2003, 20:49</div></div><div class="posttext">Hello<br />
+Our engineering staff has been entering all kinds of Item data in the standard baan text editor, some of it well over 150 chars, without any carriage returns as they assume the wrapping will be the same on reports. On the reports the text only prints the first 72 chars understanding the rest to be part of the one and only line.  Had they entered a carriage return Baan would have though this to be more than one line and printed it accordingly.<br />
+I have been trying to add chr$(10) line feed, or chr$(13) carriage return or chr$(23) ETB to the text but can't seem to get the editor to treat the text as more than one line. <br />
+via this:<br />
+               str1 = len(strip$(tttxt010.text))<br />
+               hold.text1 = strip$(tttxt010.text(1;71))<br />
+               hold.text2 = strip$(tttxt010.text(72; str1))<br />
+	<br />
+	if len(strip$(tttxt010.text)) &gt; 71 then<br />
+	     new.str = hold.text1 &amp; chr$(13) &amp; hold.text2<br />
+	     new.str = new.str &amp; chr$(23)<br />
+I can see the characters being added but still the report prints just the first 72 chars.  I have tried &quot;/n&quot; or &quot;/r&quot; but no change<br />
+Thankyou</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pconde</div><div class="date">15th October 2003, 16:14</div></div><div class="posttext">Hello,<br />
+<br />
+Separator is LF (0x0a)..<br />
+But there is also table tttxt002 where you find the number of lines. I think that you should also update this table.<br />
+Also the string length in tttxt010 is 240 character maximum<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">20th October 2003, 13:27</div></div><div class="posttext">If you want to know what is happening...<br />
+add a DBSLOG=410 to your command line...<br />
+then edit one text manually to have a logging in which you split your long line<br />
+Then see what has been logged in the dbs.log file.<br />
+<br />
+Editing texts using update queries and adding characters on position 71 will:<br />
+1) create a longer text field (have to add to the length of the text field, note that per tttxt010 record the length of the text is limited, you will have to flush the characters to the next sequence number etc...)<br />
+2) will split text in the middle of words, you may have to split smart: splitting must be done at chr$(32) (space), using lpos function.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cracked egg</div><div class="date">27th October 2003, 22:30</div></div><div class="posttext">Yes OmeLuuk - it is best to insert the control chars at space locations.  This script here worked - it was chr$(10) I should have used!<br />
+Thanks for the help to both of you.<br />
+<br />
+function update.item.text()<br />
+{<br />
+	lim = 71<br />
+	j = 1<br />
+	p = 1	<br />
+	long	count<br />
+	db.retry.point()<br />
+	domain	tttxt.buf	hold.text1, new.str<br />
+	domain	tcmcs.str215	hold.text2<br />
+		long		str1, str2, lines.stored<br />
+		<br />
+	select tttxt010.text<br />
+	from	tttxt010 for update<br />
+	where	tttxt010._index1 = {:tiitm001.txta, &quot;2&quot;}<br />
+	selectdo<br />
+		length = len(strip$(tttxt010.text))<br />
+		instr = tttxt010.text<br />
+		for i = 1 to (length + 1)<br />
+			if asc(instr(i;1)) = 0 then	|null<br />
+				BREAK<br />
+			endif<br />
+			if asc(instr(i;1)) = 32 then	|space<br />
+				p = i<br />
+			endif<br />
+			if asc(instr(i;1)) = 13 then	|CR<br />
+				j = 1<br />
+			endif<br />
+			if asc(instr(i;1)) = 10 then	|Line Feed<br />
+				j = 1<br />
+			endif<br />
+			if j = lim then<br />
+				instr(p;1) = chr$(10)	|line feed<br />
+				j = i - p<br />
+			endif<br />
+			j = j + 1<br />
+		endfor<br />
+        	tttxt010.text = instr<br />
+		db.update(ttttxt010, db.retry)<br />
+		commit.transaction()<br />
+	endselect</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

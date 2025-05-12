@@ -1,0 +1,189 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="checking the buffered records not yet updated on the fly, while inserting, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] checking the buffered records not yet updated on the fly, while inserting Tools Development" />
+	
+	<title>checking the buffered records not yet updated on the fly, while inserting [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; checking the buffered records not yet updated on the fly, while inserting</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">2nd July 2009, 15:06</div></div><div class="posttext">I have a multi occ maintain session with main table. In the check.input section of one of the fields, I check if the value is not yet inputted for that view field (group). Problem is that the user might add several records at once without saving them one by one. The standard program will save all the records in buffer only when hitting the save button (or a different command is activated which triggers a db.insert/dal.new). When I query the (main) table, it will obviously not give me the newly entered records, since they are not yet updated to the table. I do however need to check against their value as well. <br />
+<br />
+Is it possible to &quot;approach&quot; the buffered records before they are being saved? <br />
+<br />
+And if not, is there any way to force Baan to save each record on the fly; I.e. upon hitting the 'tab' key on the last input field, just before moving to the next new record, forcing the system to save the record.<br />
+<br />
+I know I could force the latter in the field section of the last or first input field of the record, but I am looking for a more elegant and neat solution.<br />
+<br />
+<br />
+Thanks in advance!<br />
+<br />
+<br />
+Regards,<br />
+Eli Nager</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd July 2009, 15:22</div></div><div class="posttext">In Baan 5 doesn't it run the check input for each field as it is entered(saved or not saved)?  On my 4c4 sessions I use the check input for this all the time.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">2nd July 2009, 15:29</div></div><div class="posttext">Hi Mark,<br />
+<br />
+I think you didn't understand my issue. I will try to explain better.<br />
+<br />
+While inserting records, let's say I am inserting 3 new records without saving in between. These three records are then meanwhile stored in the buffer for update (or abort). Now, upon inserting the 3rd record, I want to check my input value against all the previously entered values; both the ones already saved and the ones waiting in the buffer to be saved. How can I approach those records.<br />
+<br />
+For instance, let's say that I am inputting a series by machine, yet I am not allowed to insert any previously inserted series. It is basically the functionality of an index field for which standard Baan then checks agains all records - both the ones saved already and the ones buffered - if the unique key has been entered already. Only in my case it does not concern an index key (and no, I can not add the key to the index...).<br />
+<br />
+Thanks,<br />
+Eli</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd July 2009, 15:33</div></div><div class="posttext">Gotcha - I understand now.  Let me go look for some code that might help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">2nd July 2009, 15:37</div></div><div class="posttext">Thanks, you're the best!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">george7a</div><div class="date">2nd July 2009, 15:44</div></div><div class="posttext">So you want the field to be unique but not a key, right? In other systems it is easier to do so, it is just a check-box next to the field. I am still searching for it in Baan ;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd July 2009, 15:45</div></div><div class="posttext">Not sure if this helps, but the code below is one way of determining the next line number using the table and the fields on the form.  Yes - if you have one record on the form you would end up searching it twice(once from the table and the second time from the filled occurance search).  Maybe you can adapt this to do what you are looking.  In your case you would take the current occurance and bounce it against the table and then against the other records on the current display.<br />
+<br />
+<br />
+field.tdudi010.line:<br />
+before.input:<br />
+	if update.status = add.set or update.status = modify.set then<br />
+		tdudi010.line = get.line()<br />
+		attr.input = false<br />
+	endif<br />
+	<br />
+	<br />
+function long get.line()<br />
+{<br />
+	line = 0<br />
+	select	max(tdudi010.line):line<br />
+	from	tdudi010<br />
+	where	tdudi010._index1 = {:tdudi010.orno}<br />
+	selectdo<br />
+	selectempty<br />
+	endselect<br />
+	search.last.used.seqn.on.screen()<br />
+	line = line + 1<br />
+	return(line)<br />
+}<br />
+function search.last.used.seqn.on.screen()<br />
+{<br />
+| This will allow you to search the screen fields not <br />
+| yet saved<br />
+	long	i<br />
+	for i = 1 to (filled.occ -	1)<br />
+		do.occ(i ,check.last.used.sern)<br />
+	endfor<br />
+}<br />
+function check.last.used.sern()<br />
+{<br />
+	if tdudi010.line &gt; line then<br />
+		line =	tdudi010.line<br />
+	endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">2nd July 2009, 15:47</div></div><div class="posttext">So you want the field to be unique but not a key, right? In other systems it is easier to do so, it is just a check-box next to the field. I am still searching for it in Baan ;)<br />
+<br />
+Something like that. It actually concerns a date field. Each record contains a start date and an end date (similar to BP's, BOM lines, etc). When the user enters a start date, I want to check if the entered start date falls within a previously entered start-end date range. If yes, an error appears.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">2nd July 2009, 15:50</div></div><div class="posttext">Not sure if this helps, but the code below is one way of determining the next line number using the table and the fields on the form.  Yes - if you have one record on the form you would end up searching it twice(once from the table and the second time from the filled occurance search).  Maybe you can adapt this to do what you are looking.  In your case you would take the current occurance and bounce it against the table and then against the other records on the current display.<br />
+<br />
+<br />
+field.tdudi010.line:<br />
+before.input:<br />
+	if update.status = add.set or update.status = modify.set then<br />
+		tdudi010.line = get.line()<br />
+		attr.input = false<br />
+	endif<br />
+	<br />
+	<br />
+function long get.line()<br />
+{<br />
+	line = 0<br />
+	select	max(tdudi010.line):line<br />
+	from	tdudi010<br />
+	where	tdudi010._index1 = {:tdudi010.orno}<br />
+	selectdo<br />
+	selectempty<br />
+	endselect<br />
+	search.last.used.seqn.on.screen()<br />
+	line = line + 1<br />
+	return(line)<br />
+}<br />
+function search.last.used.seqn.on.screen()<br />
+{<br />
+| This will allow you to search the screen fields not <br />
+| yet saved<br />
+	long	i<br />
+	for i = 1 to (filled.occ -	1)<br />
+		do.occ(i ,check.last.used.sern)<br />
+	endfor<br />
+}<br />
+function check.last.used.sern()<br />
+{<br />
+	if tdudi010.line &gt; line then<br />
+		line =	tdudi010.line<br />
+	endif<br />
+}<br />
+<br />
+<br />
+Mark, thanks for digging this code up for me. I have thought of that workaround, but I don't like it so much. I wondered if there was not a standard Baan way to trigger it. After all, like I said, standard Baan does perform this functionality when it concerns fields which are part of an index...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd July 2009, 15:59</div></div><div class="posttext">Yeah - there probably is a better way, but I have not found it.  Hopefully George can figure it out. I have another session with a start and end date where I just make sure they do not overlap.  For the dates I only check the saved record in the table.  Then when they hit the say I do some other checking which generates an error if they overlap.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">george7a</div><div class="date">2nd July 2009, 16:04</div></div><div class="posttext">I think the proper place to do this is in the fieldname.check() (http://www.baanboard.com/programmers_manual_baanerp_help_functions_dal_fieldname_check) DAL function. As it is written in the documentation: &quot;Use this hook to program logical integrity rules for a specified field&quot;.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">2nd July 2009, 18:34</div></div><div class="posttext">In Baan IV we do this using do.all.occ / do.occ / on.old.occ , on.main.table functions .  Are these or similar functions not available ur version .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">amitmmokashi</div><div class="date">3rd July 2009, 07:39</div></div><div class="posttext">Hi Eli,<br />
+       I think you can build some logic using the standard function activate.search(). This has to be done in the on.input section of the field.<br />
+<br />
+Regards,<br />
+Amit</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sajjadnb</div><div class="date">7th July 2009, 09:46</div></div><div class="posttext">Hi Eli,<br />
+try using the function enable.save.on.occ.change() in the after.form.read: section of ur program script, this will save an occurrence at the time the u selects or moves to another occurrence. <br />
+Further u can use fieldname.check() DAL function to check the value from the table.<br />
+<br />
+hope this helps.<br />
+<br />
+Regards<br />
+Sajjad Baig</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">7th July 2009, 10:26</div></div><div class="posttext">Hi Sajjad,<br />
+<br />
+Thanks for your suggestion. The function enable.save.on.occ.change() would be exactly what I looked for, except that it does not seem to exist? (at least for Baan V) I get compilation errors when using the function...<br />
+<br />
+Regards,<br />
+Eli</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">7th July 2009, 19:19</div></div><div class="posttext">save.rcd.main and restore.rcd.main (http://www.baanboard.com/baanboard/showpost.php?p=101896&amp;postcount=4) available in Baan IV and possibly in ur version also may help.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

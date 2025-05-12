@@ -1,0 +1,193 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Uploading file into table using session script, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Uploading file into table using session script Tools Development" />
+	
+	<title>Uploading file into table using session script [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Uploading file into table using session script</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">21st September 2005, 17:22</div></div><div class="posttext">I am trying to upload a file into a BaaN table using a session script.<br />
+I am using the following code, but when the data loads, it is not correct. It loads one line correct, but the remaining lines do not load in the proper format.<br />
+This is my file<br />
+210200514W5500014008<br />
+210200514W5510014008<br />
+210200514E0000016001<br />
+<br />
+<br />
+<br />
+function get.data()<br />
+<br />
+{<br />
+	afile = &quot;/apps/baan/bse/exchange/seq/wtgld300&quot;<br />
+	fp = seq.open(afile,&quot;r&quot;)<br />
+	if fp &lt; 1 then message (&quot;Error Opening the file&quot;)<br />
+	endif<br />
+	db.retry.point()			<br />
+		if fp &gt;= 1 then <br />
+		while seq.eof(fp) = 0 <br />
+		<br />
+		seq.read(comp,3,fp)<br />
+		seq.read(year,4,fp)<br />
+		seq.read(prdn,2,fp)<br />
+		seq.read(proj,6,fp)<br />
+		seq.read(leac,5,fp)<br />
+			<br />
+		wtgld300.comp = lval(comp)<br />
+		wtgld300.year = lval(year)<br />
+		wtgld300.prod = lval(prdn)<br />
+		wtgld300.proj = proj<br />
+		wtgld300.leac = leac	 <br />
+	<br />
+		db.insert(twtgld300, db.retry)<br />
+	endwhile<br />
+	endif<br />
+	seq.close(fp)<br />
+	message(&quot;Data Uploaded&quot;)<br />
+	commit.transaction()<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">21st September 2005, 17:58</div></div><div class="posttext">I think that there is a problem of end of line. When it gets end of line character , it finish reading your text. If you change your data diagram and program according to  following diagram I think that it 'll work. <br />
+210200514W5500014008;210200514E0000016001;...  <br />
+<br />
+Good luck!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">21st September 2005, 20:21</div></div><div class="posttext">just noticed the error handling and transaction management has not been properly<br />
+implemented.<br />
+<br />
+Here is the code with corrections and you can adjust to suit your requirement.<br />
+<br />
+function long get.data()<br />
+{<br />
+|* Return value: 0 - success, &lt; 0 - failure, &gt; 0 - duplicate records<br />
+long	fp, flag.dupl<br />
+string	fname(256), buffer(1024)<br />
+<br />
+flag.dupl = 0<br />
+fname = &quot;/apps/baan/bse/exchange/seq/wtgld300&quot;<br />
+fp = seq.open(fname, &quot;r&quot;)<br />
+if fp &lt; 1 then <br />
+	mess(&quot;zmadms0036&quot;, 1, fname)		|* File Opening Error: %1$s<br />
+	return(-1)<br />
+endif<br />
+if fp &gt;= 1 then<br />
+	while  not seq.gets(buffer, 1024, fp)<br />
+		db.retry.point()<br />
+		wtgld300.comp = lval(buffer(1; 3))<br />
+		wtgld300.year = lval(buffer(4; 4))<br />
+		wtgld300.prod = lval(buffer(8; 3))<br />
+		proj = buffer(11; 3)<br />
+		leac = buffer(14; 3)<br />
+		if db.insert(twtgld300, db.retry, db.return.dupl) &lt;&gt; EDUPL then<br />
+			commit.transaction()<br />
+		else<br />
+			abort.transaction()<br />
+			flag.dupl  = flag.dupl  + 1<br />
+		endif<br />
+	endwhile<br />
+endif<br />
+e = seq.close(fp)<br />
+return(flag.dupl)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">21st September 2005, 22:55</div></div><div class="posttext">Anoter question, how can I remove the blank lines at the end of my exported file. The file is created by a baan report?<br />
+I am trying to count the number of lines imported, and this is messing up my count.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">21st September 2005, 23:11</div></div><div class="posttext">how can I remove the blank lines at the end of my exported file. I am trying to count the number of lines imported, and this is messing up my count.<br />
+<br />
+buffer	= shiftl$(strip$(buffer))<br />
+|* Alternatively, I am not sure if the following function is available <br />
+|* in your BaaN Version.<br />
+buffer = trim$(buffer)<br />
+if not isspace(buffer) then<br />
+	num.lines = num.lines + 1<br />
+endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">26th September 2005, 17:18</div></div><div class="posttext">Thanks, that code worked great.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lorry.lu</div><div class="date">27th September 2005, 05:40</div></div><div class="posttext">Anybody:<br />
+    If the records in my file is like that:<br />
+    210,2005,14,W55000,14008<br />
+    210,2005,14,W55100,14008<br />
+    210,2005,14,E00000,16001<br />
+and if the baan table include field &lt;date&gt;, how to write the date in my file?<br />
+<br />
+Thanks in advance!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">27th September 2005, 09:56</div></div><div class="posttext">depends if it is a utc format -&gt; nr. seconds, or a num-date format -&gt; nr. of days... Baan has standard functions to convert dates to utc and num, for instance date.to.utc() or week.to.utc() or inputstr.to.utc() and others...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th September 2005, 15:34</div></div><div class="posttext">Not sure that Baan 4 has the utc type functions.  Without knowing more about what each field represents in the I am not sure which answer is best.  Also what table field are you trying to load - that may also make a difference.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">27th September 2005, 15:37</div></div><div class="posttext">Sorry, didn't notice user uses Baan IV, indeed Baan IV doesn't use utc formats. I just meant to say that there are standard Baan functions available for all the possible date formatting options, so it is just a matter of chosing the relevant one...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th September 2005, 17:04</div></div><div class="posttext">Actually I wasn't sure if Baan iv had those functions - I tried looking for them, but I could have missed.  I think in some cases they would be better than the method I use.<br />
+<br />
+| Convert given date may have to use date.to.num()<br />
+		num.day   = val(read.date(4;2))<br />
+		num.month = val(read.date(1;2))<br />
+		num.year  = val(read.date(7;4))<br />
+		adj.date  = date.to.num(num.year, num.month, num.day)<br />
+<br />
+But the above does work with my API function servers.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lorry.lu</div><div class="date">28th September 2005, 05:20</div></div><div class="posttext">Another problem: how to define $HOME directory in my script, I wirte in the script:  fname = $HOME &amp; &quot;/&quot; &amp; filename, it gives error! Could Somebody help me? Thanks!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">28th September 2005, 09:46</div></div><div class="posttext">Heya!<br />
+<br />
+This should do:<br />
+fname = getenv$(&quot;HOME&quot;) &amp; &quot;/&quot; &amp; filename<br />
+<br />
+Good luck!<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">28th September 2005, 09:55</div></div><div class="posttext">Hi there,<br />
+<br />
+tried fname=&quot;/home/&quot; &amp; strip$(logname$) &amp; &quot;/&quot; &amp; filename ?<br />
+Should work if your homedirectory resides at the usual place.<br />
+<br />
+hth<br />
+<br />
+Norbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lorry.lu</div><div class="date">29th September 2005, 03:19</div></div><div class="posttext">I found how to access to home directory: I write in my script:  fname = ${HOME} &amp; &quot;/&quot; &amp; filename,    it works!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">29th September 2005, 06:54</div></div><div class="posttext">Just a note. If you have batch/ftp accounts or any other user accounts which do not have telnet/shell access as part of SOX, then you might have some invalid directory pointer in /etc/passwd and the program might fail.<br />
+If you use the Tools function - getcwd() (http://www.baanboard.com/baanboard/showthread.php?t=25161) then it takes care of giving your $HOME if you are normal user with telnet/shell access else it automatically gives you the path to $BSE/tmp</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">KaasKarthik</div><div class="date">10th December 2020, 15:30</div></div><div class="posttext">Hello all,<br />
+is there any DLL for importing excel data to table (for any table it should work) is there any dll .<br />
+please guide me.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">11th December 2020, 09:30</div></div><div class="posttext">You can use Exchange schemes to import the data. Just convert the excel to CSV. Not sure if there is any utility to directly import an excel file. Last time I checked there wasn't. You can built your own too.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

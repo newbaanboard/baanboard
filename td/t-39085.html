@@ -1,0 +1,232 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="shell - command, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] shell - command Tools Development" />
+	
+	<title>shell - command [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; shell - command</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">13th July 2007, 16:02</div></div><div class="posttext">Hi all,<br />
+<br />
+I'm using the shell-command to send emails from Baan. The programm runs through a table in which it reads the users email adresses.<br />
+For every user there is a shell-command (BACKGROUND) which starts the &quot;mailx&quot;-client. Now it looks as though, that sometimes not all the users get this mail, altough I check the return-value of the shell command, which is always OK.<br />
+<br />
+For test, I put a suspend(1000) into this loop and... it seems to work.<br />
+<br />
+It looks as so, that Unix isn't fast enough to handle the data. To check this I wrote a shell-Script, which sends mail to 10 different addresses directly one after another. In that case all the recipients received their mail.<br />
+<br />
+AT the moment I have no glue, from where the problem with the lost mails can come from? Does anybody have an idea?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th July 2007, 17:07</div></div><div class="posttext">Have you tried run.prog versus shell command?  Something like return.code = run.prog(&quot;sh&quot;,sh.cmd,RP_WAIT).  Where sh.cmd is the mailx command.  We use this in some of our programs rather than the shell command.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">13th July 2007, 20:57</div></div><div class="posttext">Spartacus,<br />
+<br />
+Since you are on Baan-5c you can explore to use - eMessage Connector  (http://www.baanboard.com/programmers_manual_baanerp_help_emessage_connector_overview)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Nandan</div><div class="date">15th July 2007, 22:03</div></div><div class="posttext">Hi Spartacus,<br />
+<br />
+I am working on similar project of sending email from Baan. I have taken approach of using socket programming to use SMTP protocol to send email. Sockets supported on Baan5 and above. <br />
+<br />
+Please see the code below. This is not complete program, however it may help you.<br />
+<br />
+check the following pages for more information on SMTP protocol<br />
+<br />
+http://www.faqs.org/rfcs/rfc821.html<br />
+http://www2.rad.com/networks/2006/smtp/intro.htm<br />
+<br />
+<br />
+|******************************************************************************<br />
+|* etcomsock.mail  0  VRC B61C a  dev <br />
+|* SMTP client testing<br />
+|* nbarad<br />
+|* 06/23/07 [19:33]<br />
+|******************************************************************************<br />
+|* Script Type: 0<br />
+|******************************************************************************<br />
+#define 	SMTP	&quot;25&quot;<br />
+#define 	SERVER	&lt;SMTP email server name&gt;<br />
+#define	TO	&lt;To enail sepeated by comma&gt;<br />
+#define	FROM	&lt;From email&gt;<br />
+#define 	CC	&lt;CC list sepeated by comma&gt;<br />
+<br />
+#define	_debug	1<br />
+#define	_ERLOG	&quot;/tmp/smtplog&quot;<br />
+<br />
+	|Global varibales<br />
+	long	ret.socket<br />
+<br />
+function main()<br />
+{<br />
+	long	error<br />
+	string	stream(4096)<br />
+        string  erp.host.name(20)<br />
+	<br />
+        erp.host.name = hostname$() <br />
+	ret.socket = sock.connect(SERVER, SMTP, 10)<br />
+	<br />
+	receive(stream)<br />
+	if stream(1;3) &lt;&gt; &quot;220&quot; then<br />
+		|Did not receive the valid response<br />
+		message(&quot;Email server not responded correctly&quot;)<br />
+	endif<br />
+	send.error(&quot;HELO &quot; &amp; erp.host.name)<br />
+	receive(stream)<br />
+	if err(&quot;HELO&quot;, stream) then<br />
+		exit(1)<br />
+	endif<br />
+		<br />
+	send.error(&quot;MAIL FROM:&lt;&quot; &amp; FROM &amp; &quot;&gt;&quot;)<br />
+	receive(stream)<br />
+	if err(&quot;MAIL FROM&quot;, stream) then<br />
+		exit(1)<br />
+	endif<br />
+<br />
+	send.error(&quot;RCPT TO:&lt;&quot; &amp; TO &amp; &quot;&gt;&quot;)<br />
+	receive(stream)<br />
+	if err(&quot;RCPT TO&quot;, stream) then<br />
+		exit(1)<br />
+	endif<br />
+<br />
+	send.error(&quot;DATA&quot;)<br />
+	receive(stream)<br />
+	if err(&quot;DATA&quot;, stream) then<br />
+		exit(1)<br />
+	endif<br />
+<br />
+	send.error(&quot;To:&quot; &amp; TO)<br />
+	send.error(&quot;Cc:&quot; &amp; CC)<br />
+	send.error(&quot;Subject:&quot; &amp; &quot;Test email &quot; &amp; dte$())<br />
+	send.error(&quot;&quot;)<br />
+	send.error(&quot;Test email&quot;)<br />
+	send.error(&quot;Please ignore&quot;)<br />
+	send.error(&quot;.&quot;)<br />
+	receive(stream)	<br />
+	<br />
+	if err(&quot;BODY&quot;, stream) then<br />
+		exit(1)<br />
+	endif<br />
+<br />
+	err(&quot;STOP&quot;,&quot;&quot;)<br />
+	|Now close socket <br />
+	error = sock.close(ret.socket)<br />
+		<br />
+	message(&quot;Socket&quot;)<br />
+	<br />
+}<br />
+<br />
+function boolean send.error(const string i.stream)<br />
+{<br />
+	long	ret<br />
+	long	stream.len<br />
+	string	str.to.send(1) based<br />
+	<br />
+	alloc.mem(str.to.send, len(i.stream) + 2)<br />
+	<br />
+	str.to.send = i.stream &amp; chr$(13) &amp; chr$(10)<br />
+	stream.len = len(str.to.send)<br />
+	ret = sock.send(ret.socket, str.to.send , stream.len)<br />
+	<br />
+	free.mem(str.to.send)<br />
+<br />
+	if ret &lt;&gt; stream.len then<br />
+	|Server did not receive the data stream correctly<br />
+		return(true)<br />
+	endif<br />
+	ret = sock.flush(ret.socket)<br />
+	return(ret)<br />
+}<br />
+<br />
+function receive(ref string o.stream())<br />
+{<br />
+	long	ret<br />
+	string	recv.str(1)<br />
+<br />
+	o.stream = &quot;&quot;<br />
+	repeat<br />
+		ret = sock.recv(ret.socket, recv.str, 1)<br />
+		o.stream = o.stream &amp; recv.str<br />
+	until	asc(recv.str) = 10	|end of stream = end of line<br />
+}<br />
+<br />
+function boolean err(const string i.type,<br />
+			const string i.reply)<br />
+{<br />
+	static	long	errfp<br />
+		long	o.error<br />
+<br />
+	if _debug and not errfp then<br />
+		errfp = seq.open(_ERLOG, &quot;at&quot;)<br />
+	endif<br />
+<br />
+	if errfp then<br />
+		seq.puts(i.reply, errfp)<br />
+		seq.flush(errfp)<br />
+	endif<br />
+	<br />
+	o.error = false<br />
+	on case	i.type<br />
+	case	&quot;HELO&quot;:<br />
+	case	&quot;MAIL FROM&quot;:<br />
+	case	&quot;RCPT TO&quot;:<br />
+	case	&quot;BODY&quot;:<br />
+		if i.reply(1;3) &lt;&gt; &quot;250&quot; then<br />
+			o.error = true<br />
+		endif<br />
+		break<br />
+	<br />
+	case	&quot;DATA&quot;:<br />
+		if i.reply(1;3) &lt;&gt; &quot;354&quot; then<br />
+			o.error = true<br />
+		endif<br />
+		break<br />
+	case	&quot;STOP&quot;:<br />
+		if errfp then<br />
+			seq.close(errfp)<br />
+		endif<br />
+		break<br />
+	endcase<br />
+	<br />
+	if o.error and errfp then <br />
+		seq.close(errfp)<br />
+	endif<br />
+	<br />
+	return(o.error)	<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">16th July 2007, 06:19</div></div><div class="posttext">Nandan,<br />
+<br />
+In LN Tools, there are interfaces provided in CMF for SMTP, Outlook, Pager, Fenestra Connector.<br />
+<br />
+I am not sure on the other Baan-5 releases, you would have to check with Baan support or the related documentation.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">16th July 2007, 12:05</div></div><div class="posttext">Hi all,<br />
+<br />
+thanks for your support. This are a lot of good ideas, also new techniques for me. To keep time and effort low, I will first try easy, quick things. So at the moment I think Marc advice will be the next thing I try. But first I will change my shell-call, I change the mode from SHELL_BACKGROUND to SHELL_NO_OUTPUT and hope the parent process will wait until child finishes.<br />
+If that doesn't work, I think I will try &quot;run.prog()&quot;. Yes I know, &quot;shell()&quot; is outdated, but I stuck on things, from which I know they work :-)<br />
+<br />
+I'm pretty sure I can solve the prob with the either the shell-mode, or run.prog(). If not... here are proposals enaugh :-)<br />
+<br />
+Btw.: The try with suspend() doesn't work really. <br />
+<br />
+Thanx</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="updating a table using PCF Constraints, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] updating a table using PCF Constraints Manufacturing &amp; Supply Chain" />
+	
+	<title>updating a table using PCF Constraints [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Manufacturing &amp; Supply Chain</a> &gt; updating a table using PCF Constraints</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">SandraP</div><div class="date">3rd November 2008, 17:35</div></div><div class="posttext">Hi,<br />
+<br />
+I'm hoping somebody can help me.<br />
+<br />
+I have a generic item that has a inventory unit of each and a selling unit of metres.  I need to create a conversion factor in the table tcibd003 <br />
+<br />
+To do this I have been told by support to write a constraint.  This is it below but it only seems to be partially working.  I have attached the constraint to  Generic BOM's, so it will update/insert a record at this point (after the item code has been generated).<br />
+<br />
+<br />
+!table ttcibd003 <br />
+!domain tcitem l.item<br />
+!db.retry.point() <br />
+!l.item = item_data <br />
+!select tcibd003.* <br />
+!from tcibd003 for update<br />
+!where tcibd003._index1 = {:l.item,&quot;&quot;,&quot;ech&quot;,&quot;m&quot;}<br />
+!as set with 1 rows  <br />
+!selectdo<br />
+!tcibd003.item = l.item<br />
+!tcibd003.citg = &quot;&quot;<br />
+!tcibd003.basu = &quot;ech&quot;<br />
+!tcibd003.unit = &quot;m&quot;<br />
+tcibd003.conv = 50<br />
+tcibd003.rpow = 0<br />
+!db.insert(ttcibd003, db.retry)  <br />
+!endselect<br />
+!commit.transaction()<br />
+<br />
+But this updates the table with a blank item and doesn't actually select the product variant item that has been created.<br />
+<br />
+Had anybody else done this before? or is there somebody out there who can help with Baan scripting?<br />
+<br />
+Thanks,<br />
+<br />
+SandraP</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">garias</div><div class="date">4th November 2008, 23:39</div></div><div class="posttext">Hello:<br />
+<br />
+First you have to import the variables (from tables to local variables) to get<br />
+the actual item code. <br />
+<br />
+Example:<br />
+<br />
+!domain tcitem  item_data <br />
+!import(&quot;tipcf500.item&quot;,item_data)<br />
+<br />
+Really I don´t know if item field is in the tipcf500 or tipfc510. (I am not connected to baan this moment).<br />
+<br />
+But I don´t know if it could work fine, because when you are using PCF you have the generic item code, and the numbe of variant, but you don´t have the the final item code for the configurated item. <br />
+<br />
+However, you must to try <br />
+<br />
+Gerard</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Andreas</div><div class="date">5th November 2008, 10:16</div></div><div class="posttext">Hi SandraP,<br />
+as i understand your requirement you want to create a conv. factor for the newly created item.<br />
+If this is the case, then you can not solve this in a constraint imho , because the item is not present in tcibd001 at this time, so although you probably know the new item code (because of configuration) you get a ref error while inserting in tcibd003.<br />
+We had a similar requirement and solved it in the following way. We used the reports tdsls424401000 resp. tdsls120101100. Here in report script we coded the requirement, because at that time the newly created item is present in all tables.<br />
+<br />
+Hope it's clear and helps,<br />
+Andreas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">SandraP</div><div class="date">5th November 2008, 14:48</div></div><div class="posttext">Thanks all for your replies.<br />
+<br />
+You are right in saying the item code is not generated when trying to use it withing a constraint so I have managed to solve it in a slightly different way.  <br />
+<br />
+The generic item has a generic conversion factor and when your  generate the item it copies over this generic conversion.<br />
+ <br />
+All I did was update the generic item conversion factor before the item is configured item is generated and then re-generate the price/discount for the order.<br />
+<br />
+Here is the constraint script I have used:<br />
+<br />
+!table ttcibd003<br />
+!table ttipcf520<br />
+!domain	tcqiv1	l.conv<br />
+<br />
+!db.retry.point() <br />
+<br />
+l.conv = [conv]<br />
+<br />
+!select tcibd003.* <br />
+!from tcibd003 for update<br />
+!where tcibd003._index1 = {&quot;         INSULG2&quot;,&quot;&quot;,&quot;ech&quot;,&quot;m&quot;}<br />
+!as set with 1 rows  <br />
+!selectdo<br />
+<br />
+!tcibd003.conv = l.conv<br />
+<br />
+!db.update(ttcibd003, db.retry)  <br />
+!endselect<br />
+!commit.transaction()<br />
+<br />
+Thanks for looking</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

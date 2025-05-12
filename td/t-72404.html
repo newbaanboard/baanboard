@@ -1,0 +1,80 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Picture update, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Picture update Tools Development" />
+	
+	<title>Picture update [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Picture update</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">13th November 2019, 18:04</div></div><div class="posttext">So, with the LN UI (Mingle) my session again shows the picture field (which worked in the past in BW but was removed somewhere later).<br />
+<br />
+I do not use it in the intended way though. The intended way is to link the field with data in the table by means of a GUID and the possibility to update the image in sets using ttaad710 / ttaad7100m000 etc.<br />
+<br />
+This is what I have:<br />
+<br />
+  an alternative item code system (tcibd004) refering to a file share with all the item pictures.  And a field on the form (show.me) of type ttdyf.picture.<br />
+<br />
+<br />
+And code:  function update.picture.field()<br />
+{<br />
+	domain	tcmcs.long	file.size<br />
+<br />
+	if not isspace(tcibd004.aitm) and<br />
+	   tcibd001.active = tcyesno.yes then<br />
+		g.path.gif = path.dir &amp; trim$(tcibd004.aitm) &amp; path.ext<br />
+		<br />
+		if file.stat(g.path.gif, file.size) = 0 and <br />
+		   change.picture(&quot;show.me&quot;, &quot;warning.gif&quot;, g.path.gif) &lt; 0 then<br />
+			g.ret = change.picture(&quot;show.me&quot;, &quot;warning.gif&quot;)<br />
+		endif<br />
+	else<br />
+		if tcibd001.active = tcyesno.no then<br />
+			g.path.gif = trim$(tcibd004.aitm) &amp; &quot; inactive&quot;<br />
+		else<br />
+			g.path.gif = &quot;&quot;<br />
+		endif<br />
+		g.ret = change.picture(&quot;show.me&quot;, &quot;warning.gif&quot;)<br />
+	endif<br />
+} When browsing the records, when a picture is found this code switches to the needed image, but when the item is not active or the picture cannot be found it does not revert to the default warning.gif but shows the previous image.<br />
+<br />
+What did I do wrong?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">19th November 2019, 16:15</div></div><div class="posttext">What did I do wrong?Probably this is worth an incident</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th November 2019, 15:47</div></div><div class="posttext">So I never used this functionality - so pure speculation on my part about what you posted.  So you said if the picture is preset(and item is active) then the picture gets displayed using this (my assumption)  change.picture(&quot;show.me&quot;, &quot;warning.gif&quot;, g.path.gif).  So then I assume the g.path.gif points to the gif you want to show for the item.  So why not put the warning.gif in the same directory - then set g.path.gif to the gif path + warning.gif.  Then the same command could then be used change.picture(&quot;show.me&quot;, &quot;warning.gif&quot;, g.path.gif) - in one case it points to an item picture.  In the other case it points to warning.gif.  <br />
+<br />
+Keep in mind I am not even sure of the change.picture command.  I found another thread on it, saying it was deprecated - but not really sure.  Just me speculating if the above might be a work around.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">30th November 2019, 21:43</div></div><div class="posttext">... So then I assume the g.path.gif points to the gif you want to show for the item.  So why not put the warning.gif in the same directory - then set g.path.gif to the gif path + warning.gif.  Then the same command could then be used change.picture(&quot;show.me&quot;, &quot;warning.gif&quot;, g.path.gif) - in one case it points to an item picture.  In the other case it points to warning.gif.Would be a perfect work around, but it would work around a standard error. One of the things we would never do in our company. Standard errors should be resolved in the standard.Keep in mind I am not even sure of the change.picture command.  I found another thread on it, saying it was deprecated - but not really sure. ...Well to be honest, I wrote this session and found that function back in I think it was back 2013 or so, just when they found out problems with showing pictures in BW, when they decided the function should be implemented differently and thus got deprecated.<br />
+<br />
+The implementation now is that you can link pictures to records in a main table using a GUID link to the image file on disk (so no need to store the blob in the database, just a link), You can do this also dynamically, so you can easily link new images (currently only one at the time, but that may change over time, as indicated in the programmers manual), Drag and drop is supported.<br />
+<br />
+Well I did not want to use the entire link thing with GUID and drag and drop, but only to blank the image. Infor Support taught me how to debug webUI sessions and then I saw (the image field is a pointer that shows information like an XML tree in the debugger) that after the &quot;reset&quot; call still the &quot;last used image&quot; link was the previous image which I did not want to see for all inactive items. This also indicates that your work around might work.<br />
+<br />
+So it seems the function did not clear it's internal variables which results in showing the wrong image: the third argument has priority over the two argument call... They are investigating and probably raising a defect to have it solved in the standard.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">18th February 2020, 17:22</div></div><div class="posttext">... So it seems the function did not clear it's internal variables which results in showing the wrong image: the third argument has priority over the two argument call... So the solution offered included something with replacing the icon file refered to by the icon settings with an external icon file which gets copied from a fixed location... well no thanks, won't work in a multi user environment and would require a lot of unneeded file-IO.<br />
+<br />
+Another option would be to call with three arguments in all cases, and in case no matching image is on disk, just refer to a dummy image file.<br />
+<br />
+They are investigating and probably raising a defect to have it solved in the standard.Still work in progress there...</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Create text from txt file on server, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Create text from txt file on server Tools Development" />
+	
+	<title>Create text from txt file on server [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Create text from txt file on server</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mitchell</div><div class="date">21st June 2013, 22:28</div></div><div class="posttext">I have a customized session which reads a few tables and creates a “txt” file.  I now want the contents of this “txt” file to be added as my text for an ECO.<br />
+<br />
+I use the text.write command to create the text field within tiedm310.  This part works ... the text within tiedm310 looks good.  <br />
+<br />
+The issue is the original txt file.  The format for this txt file has been changed.  It starts off with a nice format and ends up all on one line.  Any ideas why?<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{<br />
+<br />
+	name = getenv$(&quot;LOGNAME&quot;)<br />
+	name = strip$(name)<br />
+<br />
+	|* Open Export Files<br />
+	|* Create file with ECO data<br />
+<br />
+	exportfile = &quot;\baan\tmp\public\ECO Data\ECO-&quot; &amp; str$(eco.orno) &amp; name &amp; &quot;.txt&quot;<br />
+	exportfile = strip$(exportfile)<br />
+	fp2 = seq.open(exportfile, &quot;w&quot;)<br />
+<br />
+	if fp2 &lt; 1 then<br />
+	   message(&quot;File &quot; &amp; exportfile &amp; &quot; does not exist&quot;)<br />
+	else<br />
+		select	tiedm310.*<br />
+		from	tiedm310 <br />
+		where	tiedm310._index1 = {:eco.orno}<br />
+		selectdo<br />
+			write.header.record()<br />
+			get.Eitems.by.eco()<br />
+		endselect<br />
+<br />
+		seq.close(fp2)<br />
+<br />
+		create.text.from.file.created()<br />
+<br />
+	endif<br />
+<br />
+<br />
+}<br />
+<br />
+function create.text.from.file.created()<br />
+{<br />
+<br />
+	db.retry.point()<br />
+<br />
+	select	tiedm310.txta<br />
+	from	tiedm310 for update<br />
+	where	tiedm310._index1 = {:eco.orno}<br />
+	selectdo<br />
+	<br />
+		if tiedm310.txta = 0 then<br />
+		   kw1 = &quot;tiedm310.txta&quot;<br />
+		   kw2 = &quot;&quot;<br />
+		   kw3 = &quot;&quot;<br />
+		   kw4 = &quot;&quot;<br />
+		   tgroup = &quot;eng&quot;<br />
+		   edit_opt = &quot;eng&quot;<br />
+		endif<br />
+<br />
+		ret = text.write(&quot;tiedm310.txta&quot;,&quot;2&quot;, kw1, kw2, kw3, kw4, tgroup, edit_opt, exportfile)<br />
+		<br />
+		message(&quot;Number of lines written to text - %s&quot;, ret)<br />
+<br />
+		db.update(ttiedm310, db.retry)	<br />
+<br />
+	endselect<br />
+<br />
+	commit.transaction()<br />
+<br />
+}<br />
+<br />
+<br />
+function get.Eitems.by.eco()<br />
+{<br />
+	select	tiedm322.*, tiedm010.dsca<br />
+	from	tiedm322, tiedm010<br />
+	where	tiedm322._index1 = {:tiedm310.orno}<br />
+	and	tiedm322.eitm refers to tiedm010<br />
+	selectdo<br />
+		select 	tiedm100.dsca<br />
+		from	tiedm100<br />
+		where	tiedm100._index1 = {:tiedm322.eitm,:tiedm322.revi}<br />
+		selectdo<br />
+			rev.desc = tiedm100.dsca<br />
+		selectempty<br />
+			rev.desc = &quot;&quot;<br />
+		endselect<br />
+		<br />
+		write.detail.record()<br />
+	endselect<br />
+<br />
+}<br />
+<br />
+<br />
+<br />
+function write.header.record()<br />
+{<br />
+	write.rec.string = 	&quot;&quot;<br />
+	write.rec.string = 	&quot;ECO#&quot; &amp; str$(tiedm310.orno) &amp; &quot;  &quot; &amp;<br />
+				sprintf$(&quot;%D(Date: %d/%h/%04Y)&quot;,tiedm310.ecdt) &amp; &quot;  &quot; &amp;<br />
+				&quot;NAME: &quot; &amp; name &amp;  <br />
+				chr$(13) &amp; chr$(10)<br />
+<br />
+	rec = seq.write(write.rec.string, len(write.rec.string), fp2)<br />
+<br />
+<br />
+<br />
+<br />
+}<br />
+<br />
+function write.detail.record()<br />
+{<br />
+	write.rec.string = 	&quot;&quot;<br />
+	write.rec.string = 	str$(tiedm322.pono) &amp; &quot;  &quot; &amp;<br />
+				tiedm322.eitm &amp; &quot; &quot; &amp;<br />
+				tiedm010.dsca &amp; &quot; &quot; &amp;<br />
+				tiedm322.orev &amp; &quot; &quot; &amp;<br />
+				tiedm322.revi &amp; &quot; &quot; &amp;<br />
+				rev.desc &amp;<br />
+				chr$(13) &amp; chr$(10)<br />
+	write.rec.string = 	strip$(shiftl$(write.rec.string))<br />
+<br />
+	rec = seq.write(write.rec.string, len(write.rec.string), fp2)<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st June 2013, 23:47</div></div><div class="posttext">If I understand correctly the write header and write detail are all going on one line correct?  The first thing I thought was increase the number of bytes being written to the files in seq.write - then I saw a function len.in.bytes.  Maybe try using that instead of the len function.  I was just wondering if the CR and LF was getting counted incorrectly.  Not sure this is it, but something to try.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

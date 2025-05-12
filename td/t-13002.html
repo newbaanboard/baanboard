@@ -1,0 +1,111 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="db.retry a MUST?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] db.retry a MUST? Tools Development" />
+	
+	<title>db.retry a MUST? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; db.retry a MUST?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">16th September 2003, 14:12</div></div><div class="posttext">Hi all,<br />
+<br />
+normaly I always use somehow, &quot;db.retry&quot; and &quot;db.retry.pint()&quot; in my code. Now we found (on ERP) that it seems to be a MUST, if you would like to use &quot;db.update()&quot;<br />
+<br />
+We tried to update a table without retry point, and get &quot;no current record&quot; error. With &quot;db.retry&quot; in db.update() everything works fine. <br />
+<br />
+So ist seems to be a must, to use db.retry ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">16th September 2003, 14:53</div></div><div class="posttext">For database updates (and not only in ERP), you have to use the db.retry.point() and either commit.transaction() or abort.transaction().  The reason is simply transactions (http://www.baanboard.com/programmers_manual_baanerp_help_functions_database_handling_transaction_handling).  Baan needs to know which updates/inserts belong together, to make it possible to undo the actions if something goes wrong during the process.<br />
+<br />
+Consider the problem of e.g. order numbers.  These need to be consecutive, and preferably/necessarily have no gaps in the sequence.  If there was no transaction handling, the &quot;first free numbers&quot; table would be updated, and after that the order created.  However, if the order could not be created due to an unforseen error, the number would be &quot;used&quot; already.  The next order would get a new number, and a gap in the sequence appears.  With transactions, these two actions, getting the new number and inserting the order, are treated as a single entity.  If the actual creation of the order fails, the updating of the number is also reversed, and the next order will not leave a gap in the number sequence.<br />
+<br />
+Hope this makes it clear.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">16th September 2003, 15:11</div></div><div class="posttext">I don't know in BaaN ERP, but in BaaN IV you can have db.update with the db.retry option without having the db.retry.point(). <br />
+In this case, the error is set and the script doesn't find any point to jump to undo the transaction.<br />
+It's useful, in some cases, to comment the db.retry.point() to see in the debugger the exact point in the script where a lock happens.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">16th September 2003, 15:57</div></div><div class="posttext">we found some old fashioned programmed code (in ERP) with:<br />
+- setting the keys<br />
+- db.eq(&lt;tableY,db.lock)<br />
+- db.update(&lt;table&gt;) <br />
+<br />
+this seems to work without db.retry</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">16th September 2003, 16:00</div></div><div class="posttext">Shucks!! db.eq() calls in ERP?  I thought Baan got rid of those a long time ago!  Oh well... :p</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">11th February 2005, 01:01</div></div><div class="posttext">I noticed that the SQL updates in an archaic bit of code (IVc2) did not have a retry point specified.<br />
+Because I wanted to prevent unpredictable jumps in the program, I removed the (optional) db.retry option in the db.update command.<br />
+<br />
+Code compiles fine, program blows up on the first db.update. I put the db.retry options back in the statement, and program runs fine again.<br />
+<br />
+This leads me to believe that there is some kind of auto-retry point that gets set whenever programmers don't use db.retrypoint().<br />
+<br />
+The bigger question is....where does it go?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">11th February 2005, 08:03</div></div><div class="posttext">When you take the db.retry out, what is the error that is displayed/logged?<br />
+<br />
+Interesting material!  So you say there's people out there still using IVc2!  Makes you wonder...  :rolleyes: As far as I know, Baan at some time said all their old customers had successfully migrated to IVc4  :confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">11th February 2005, 17:00</div></div><div class="posttext">I have not tried in a while, but I did always think the rule was, if you used a db.retry.point(), then the updates needed db.retry.  If you did not use the retry point, you could avoid the db.retry in the updates.<br />
+<br />
+Is it perhaps section related?  If you are trying to do the updates in a 4GL section where you rely on the standard program to commit for you (before write/rewrite etc.), then probably the standard program has set a db.retry.point() already.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">11th February 2005, 17:58</div></div><div class="posttext">The code in question does an update on two (custom) tables (header and line) and results in a record not locked error (207?).<br />
+I since noticed that the line doesn't get updated, but with db.retry in the db.update it still processes smoothly.<br />
+<br />
+Lisa, I'm with you. That's how I always thought it worked. Until yesterday.<br />
+The code is 3GL, as a matter of fact it is in a library.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RAMSBaan</div><div class="date">11th February 2005, 20:41</div></div><div class="posttext">Hi <br />
+<br />
+ I feel that when we use the conventional  SELECT... FOR UPDATE it uses the delayed lock mechanism and hence forth it needs a DB.RETRY to retry if a failure of update happens.<br />
+<br />
+In db.eq() in we use db.lock then it locks the table up front and so it doesn't need db.retry. I feel if you use db.delay.lock in it you need db.retry.<br />
+<br />
+Any comment on this?<br />
+<br />
+Regards,<br />
+Ramesh</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">11th February 2005, 20:53</div></div><div class="posttext">A delayed lock does not constitute a retry.<br />
+<br />
+Although recommended, there is no mandate to retry database transactions with delayed locking. It is recommended because delayed locking increases the chance of an update failing but if you feel lucky or you are fairly positive that nobody else is reading your precious data....knock it, don't lock it.<br />
+<br />
+Havng said that, the example above that triggered my question does use a delayed lock and it appears to have an unspecified retry point in it, so you might be right in saying that a retry point is mandatory with delayed locking. If you do not voluntarily assign one of your own free will, one will be assigned for you.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">13th February 2005, 09:48</div></div><div class="posttext">While  in subsection of main.table.io , retry point need not be set because standard program itself places the lock and also commits the same. So adding a retry point in those transactions cause transaction on error and putting  a commit  in these section casues the main table lock to get lost causing error 206 (record not locked ) subsequently.<br />
+<br />
+Other than these if u have transaction without retry.point , it  will try to retry only the db.update/delete/insert statement till max retries is reached. <br />
+U may try to debug these by locking a record in GTM and then debug a program to update the same record (Of course if u have time)<br />
+<br />
+If there is no db.retry in update statement it will throw an error in the first instance itself.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">14th February 2005, 18:39</div></div><div class="posttext">Thanks for clarifying that Hitesh.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

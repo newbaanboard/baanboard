@@ -1,0 +1,207 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="SQL Triggers with Baan DB, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] SQL Triggers with Baan DB Tools Development" />
+	
+	<title>SQL Triggers with Baan DB [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; SQL Triggers with Baan DB</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">joenellary</div><div class="date">22nd May 2003, 09:10</div></div><div class="posttext">Hi all,<br />
+<br />
+I have a simple SQL Trigger on item master (tiitm001) which fires on every update to the item master table. The pupose of this trigger is to capture the old and new value of the average purchase price. These values I'm writing into a table in another database. <br />
+<br />
+Sys. configuration is BaaN IVc4 using MSSQL 7 database on NT4<br />
+<br />
+<br />
+====================================<br />
+<br />
+CREATE TRIGGER ItemMasterTrig<br />
+ON ttiitm001300<br />
+FOR UPDATE<br />
+AS<br />
+BEGIN<br />
+<br />
+	UPDATE Shopfloor.dbo.Test<br />
+		Set Counter = (Select Counter From Shopfloor.dbo.Test where Name ='A')+1, <br />
+		OldData = (select t_avpr From deleted),<br />
+		NewData = (select t_avpr From inserted)<br />
+	WHERE Name = 'A'<br />
+END<br />
+<br />
+========================================<br />
+<br />
+This trigger works well, but the problem is that the baan session (tiitm0101m000 - Maintain Item Data) blows up with error 1000 (anybody know what this error means?). <br />
+<br />
+Is it not possible to use triggers in baan database without killing off your baan sessions?<br />
+<br />
+The interesting bit is that the trigger works well without harming the item master session if one has changed only fields such as search key etc, but a change in purchase price would crash the session.<br />
+<br />
+Thanks<br />
+joe</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">EdHubbard</div><div class="date">22nd May 2003, 15:08</div></div><div class="posttext">I am pretty sure we were advised not to put triggers on Baan tables. Although we do use stored procedures. I will check with somebody here to see exactly what we do &amp; let you know if I think it would be useful to you.<br />
+<br />
+I would suspect that the reason it falls over if you change the purchase price (&amp; not the search key) is because in Baan changing the purchase price may initiate other fields &amp; tables to be changed - example &quot;average purchase price&quot; would get changed.  Changing the search key won't change any other field or table.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Brendan Shine</div><div class="date">23rd May 2003, 01:09</div></div><div class="posttext">MS SQL Server error: Restricted data type attribute violation <br />
+Author B Rombouts Creation Date: 01 Jun 2001 Alternate ID:  <br />
+Solution No: 115214 Last Modified: 06 Jun 2001 Status: Published <br />
+Product: ttB50b Sub Product:  Session: msql7_srv.exe <br />
+Package: tt Version: B50 Release: b <br />
+Solution Type:  <br />
+ <br />
+Symptom information<br />
+Error 850 <br />
+no access to the table tiitm001 possible <br />
+ <br />
+Solution description <br />
+VERSION(S):<br />
+All<br />
+ <br />
+SITUATION IDENTIFIED IN:<br />
+SQL Server driver (msql7_srv.exe)<br />
+ <br />
+SITUATION DESCRIPTION:<br />
+After installing some solutions, we receive the next error when executing a session:<br />
+Read Row Error 1000 on tfgld004100<br />
+Cannot continue tdsls4122m000<br />
+ <br />
+In the NT event viewer the next error messages are logged:<br />
+ <br />
+dbs_errno = 1000 Error 1000 occurred: <br />
+Error sqlcode 0 (sqlstate: 07006, Return code: -1, diagRecNum: 1) during SQLFetch.<br />
+[Microsoft][ODBC SQL Server Driver]Restricted data type attribute violation <br />
+Flushed at \db\servers\MSQL\msql_error.c : #574.<br />
+ <br />
+dbs_errno = 1000 Error 1000 occurred: <br />
+Error during fetch read (dbo.ttfgld004100, QRY_EQUAL). <br />
+Flushed at \db\servers\MSQL\msql_row.c : #261.<br />
+ <br />
+Error 1000 (bdb_errno 1000) on SELECT<br />
+ <br />
+<br />
+SOLUTION DESCRIPTION:<br />
+The problem is caused by the installation of new table definitions.<br />
+ <br />
+By default, SQL server uses Stored Procedures to execute specific queries.<br />
+Because some table fields have changed in Baan, the SQL Server tables have changed also, but the Stored <br />
+ <br />
+Procedures are not updated with the new definition.<br />
+ <br />
+There are three ways to solve this problem:<br />
+ <br />
+* Disable the usage of using Stored Procedures:<br />
+This can be done by adding the next variable to the file %BSE%\lib\defaults\db_resource:<br />
+msql_use_sp:0<br />
+Advantage: It is a quick solution and the problem will never occur again.<br />
+Disadvantage: The performance of some specific queries will slightly decrease.<br />
+ <br />
+* Remove all Stored Procedures from SQL Server that are used by Baan:<br />
+This can be done through SQL Server Enterprise Manager:<br />
+- In the menu tree select &quot;databases\&lt;database_name&gt;\stored procedures&quot;<br />
+- Select all Stored Procedures that are generated by Baan. They all have a name like <br />
+ <br />
+P&lt;tablename&gt;&lt;companynumber&gt;_&lt;index_number&gt;. For example: &quot;Ptccom000550_1&quot;<br />
+- Delete the selected Stored Procedures<br />
+Advantage: It is a quick solution to the problem and solves all possible problems due to the new Baan table <br />
+ <br />
+definitions.<br />
+Disadvantage: All Stored Procedures will automatically be regenerated when the table will be queried again for <br />
+ <br />
+the first time. When new solutions are installed, the problem could reoccur.<br />
+ <br />
+* Remove the Stored Procedure from SQL Server that caused the error:<br />
+This can be done through SQL Server Enterprise Manager:<br />
+- In the event viewer, look for the table name that caused the problem. If it cannot be found here, you need to <br />
+ <br />
+trace the application with DBSLOG=470. In the resulting trace file the wrong stored procedure will be mentioned.<br />
+- In the menu tree select &quot;databases\&lt;database_name&gt;\stored procedures&quot;<br />
+- Select Stored Procedures that belong to the mentioned table. They have a name like <br />
+ <br />
+P&lt;tablename&gt;&lt;companynumber&gt;_&lt;index_number&gt;. For example: &quot;Ptccom000550_1&quot;<br />
+- Delete the selected Stored Procedures<br />
+Advantage: Performance will not decrease, because only one Stored Procedure is deleted.<br />
+Disadvantage: Other tables can still suffer from this problem. The problem can reoccur.<br />
+ <br />
+EXAMPLE(S):<br />
+Not Applicable.<br />
+ <br />
+WORK-AROUND:<br />
+Not Applicable.. <br />
+<br />
+----------<br />
+<br />
+<br />
+Fatal Error 1000 on select cannot continue in tccom130 <br />
+Author F Eijgelaar Creation Date: 10 Jan 2000 Alternate ID:  <br />
+Solution No: 79296 Last Modified: 15 Jan 2001 Status: Published <br />
+Product: whB50b Sub Product:  Session: tccom4530m000 <br />
+Package: wh Version: B50 Release: b <br />
+Solution Type: KR:Question <br />
+ <br />
+Solution description <br />
+VERSION(S):<br />
+B50b<br />
+ <br />
+SITUATION IDENTIFIED IN:<br />
+Addresses (tccom4530m000)<br />
+ <br />
+SITUATION DESCRIPTION:<br />
+Fatal error 1000(bdb_error 1000) read row error on select cannot continue in tccom130001 (error 0.get.company)<br />
+Error in MSSQLl7_SRV &quot;Restricted data type attribute violation&quot;<br />
+ <br />
+SOLUTION DESCRIPTION:<br />
+The problem is related to a corrupt Stored_Procedure for the SQL-query.<br />
+To find the correct procedure that is causing the &quot;Restricted data type attribute violation&quot;, it is neccessary to <br />
+ <br />
+create a DBSlog. Based on this log the corrupted procedure with<br />
+code Pttccom130001_1 can be identified which is used by the query for the Baandb.<br />
+After this corrupted procedure has been removed it is possible again to use the change option again in the Table <br />
+ <br />
+Maintenance.<br />
+Once using an index on the table the new procedure is automatically created again.<br />
+ <br />
+The Stored_procedures can be found by taking the following steps:<br />
+- Go to the SQL Server Enterprise Manager, select the specific servername. <br />
+- Select Databases,<br />
+- Select the default database (often baandb). <br />
+- Select the Stored Procedures.<br />
+ <br />
+EXAMPLE(S):<br />
+Not Applicable.<br />
+ <br />
+WORK-AROUND:<br />
+Not Applicable.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">EdHubbard</div><div class="date">23rd May 2003, 01:44</div></div><div class="posttext">We tried your trigger on tiitm001 on our Win 2000/SQL 2000 system and as soon as we tried to save a purchase price changed record we got a db error.<br />
+The error on our system was dbs_errno 1916 event 1000,  but I think the 1916 refers to the fact that our db user may not have permissions to copy the purchase price into the other database.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">joenellary</div><div class="date">24th May 2003, 08:38</div></div><div class="posttext">Hi Brendan Shine &amp; EdHubbard,<br />
+<br />
+Thanks Brendan Shine for the informative articles on error 1000. And EdHubbard thanks for trying out the trigger at your end, once you give yourself the permission for the database you are writtting into, then the only error that will pop up is error 1000. <br />
+<br />
+I plan to test by removing the temp stored procedure. I'll keep you posted. Please let me know if there is anything more I need to know about Baan and triggers, or about error 1000.<br />
+<br />
+<br />
+Thanks,<br />
+joe</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

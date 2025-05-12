@@ -1,0 +1,141 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Optimizing join, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Optimizing join Tools Development" />
+	
+	<title>Optimizing join [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Optimizing join</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jcasanov</div><div class="date">27th July 2006, 23:00</div></div><div class="posttext">This is very easy in Baan-SQL, using:<br />
+Performance-wise however, it is often recommended to break the query into two this case, more like Bigjack's example..<br />
+<br />
+<br />
+Hi... i was reading the 'Is there &quot;Join&quot; concept in BaaN Query' thread and now i'm asking myself why is better to execute 2 selects statements rather than one with a join (or a &quot;refers to&quot; clause in BAAN SQL)<br />
+<br />
+i am using Baan IV B40c.66<br />
+<br />
+best regards,<br />
+Jaime Casanova</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">27th July 2006, 23:05</div></div><div class="posttext">Refer to the Latest Design Principles document:<br />
+<br />
+BaanERP Application Software Engineering Guides<br />
+<br />
+Number of joins<br />
+--------------------------------------------------------------------------------<br />
+Problem<br />
+Joining a large number of tables in a query will create many overheads.<br />
+<br />
+Solution<br />
+Reduce the number of joins as far as possible.<br />
+<br />
+If the chance is high, the joined data for each record is the same, or is almost constant; it is advisable to separately read this data, in which the previous values are taken into account.<br />
+<br />
+Note: <br />
+Take care of select * on joined tables. See help page 'select *'.<br />
+<br />
+Example<br />
+To view all books in a dictionary (sorted by author), the next query was made:<br />
+Bad situation<br />
+<br />
+select	books.*, publisher.* <br />
+from	books, publisher<br />
+where	publisher.publisher = books.publisher<br />
+order by books.author<br />
+selectdo<br />
+Improved situation<br />
+<br />
+select	books.booknumber, books.author, books.publisher,<br />
+	books.isbn<br />
+from	books<br />
+order by books.author<br />
+selectdo<br />
+	if books.publisher &lt;&gt; publisher.publisher then<br />
+		select	publisher.publisher, publisher.name<br />
+		from	publisher<br />
+		where	publisher.publisher = books.publisher<br />
+		as set with 1 rows<br />
+		selectdo<br />
+		endselect<br />
+	endif<br />
+Because an author usually selects the same publisher, the publisher will be the same for blocks of consecutively records.<br />
+<br />
+One cannot always foresee whether joined data will repeat in a main loop. The improvement in the above example must be implemented only where the chance is high.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">27th July 2006, 23:07</div></div><div class="posttext">And also:-<br />
+<br />
+BaanERP Application Software Engineering Guides<br />
+<br />
+Nested queries<br />
+--------------------------------------------------------------------------------<br />
+Problem<br />
+Nesting queries can reduce performance dramatically.<br />
+<br />
+Example<br />
+Nested query:<br />
+<br />
+select	orders.ordernumber, orders.fld1, ...<br />
+from	orders<br />
+where	orders.ordernumber inrange :order.f and :order.t<br />
+and	orders.status = released<br />
+selectdo<br />
+	select orderlines.fld1, orderlines.fld2, ...<br />
+	from orderlines<br />
+	where orderlines.ordernumber = :orders.ordernumber<br />
+	selectdo<br />
+<br />
+Solution: Join nested queries into one -more complex- query.<br />
+<br />
+select	orderlines.fld1, orderlines.fld2, ...,<br />
+	orders.ordernumber, orders.fld1, ...<br />
+from	orderlines, orders <br />
+where	orderlines.ordernumber inrange :order.f and :order.t<br />
+and	orders.ordernumber = orderlines.ordernumber<br />
+and	orders.status = released<br />
+selectdo<br />
+Note: <br />
+There are some attention points. <br />
+<br />
+The higher the number of records at a high level in relation to the number of records at lower level, the better is the joined way of implementation. <br />
+The higher the number of selected fields (and its length is related) at a high level in relation to the number at lower level, the better the nested way of implementation. <br />
+Using the above example:<br />
+<br />
+Number of orders is X, number of fields in orders is A.<br />
+Number of order lines is Y, number of fields in order lines is B.<br />
+<br />
+If A is much higher than B, it is preferable to implement the nested way.<br />
+If B is much higher than A, it is preferable to implement the joined way.<br />
+<br />
+If X is much higher than Y, it is preferable to implement the joined way.<br />
+If Y is much higher than X, the joined as well the nested way can be implemented.<br />
+<br />
+As can be concluded, one cannot always say for sure which construction is the best.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">28th July 2006, 15:13</div></div><div class="posttext">You should ask SSA for m2017bus - performance optimization guide.pdf.  This is a old guide and they might having something more current.  It covers more than NPR mentioned and should be helpful.  It is posted on the board somewhere I just can't find it right now.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jcasanov</div><div class="date">28th July 2006, 20:09</div></div><div class="posttext">You should ask SSA for m2017bus - performance optimization guide.pdf.  This is a old guide and they might having something more current.  It covers more than NPR mentioned and should be helpful.  It is posted on the board somewhere I just can't find it right now.<br />
+<br />
+Thanks a lot, i found the document at:<br />
+http://www.baanboard.com/baanboard/showthread.php?t=1956&amp;highlight=performance+optimization+guide<br />
+<br />
+i will start reading it now</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

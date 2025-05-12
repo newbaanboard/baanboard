@@ -1,0 +1,122 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="stty reset during init, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] stty reset during init Operating Systems &amp; Databases" />
+	
+	<title>stty reset during init [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; stty reset during init</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">13th June 2007, 17:11</div></div><div class="posttext">Hi There<br />
+<br />
+Running Baan in ASCII mode, trying to set the stty values.  If I set them in HPUX as follows, everything works as expected:<br />
+<br />
+$ stty<br />
+speed 38400 baud; -parity hupcl<br />
+min = 1; time = 1; intr = ^C; erase = ^H; kill = ^U;<br />
+swtch &lt;undef&gt;;<br />
+werase = DEL;<br />
+brkint -inpck icrnl ixoff onlcr<br />
+-iexten echo echoe echok<br />
+-echoctl -echoke<br />
+<br />
+It appears as if these values are being overridden when ba6.1 is called, as the keys do not function as expected (and tested at the unix level):<br />
+<br />
+When I shell out and issue an stty, I see totally different values:<br />
+<br />
+bshell6.1&gt; stty<br />
+speed 9600 baud; -parity hupcl clocal<br />
+intr = ^C; erase = ^H; kill = ^@;<br />
+swtch &lt;undef&gt;;<br />
+-inpck -istrip icrnl onlcr<br />
+-iexten echo echoe echok<br />
+-echoctl -echoke<br />
+<br />
+Does anyone know where these values are being (re)set so I can make the corrections needed?<br />
+<br />
+Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">15th June 2007, 10:58</div></div><div class="posttext">I just used stty -a and checked the differences before and during ba6.1 so I think that ba6.1 sets the following entries: kill character &quot;off&quot; (control-@), suspend character &quot;off&quot; (control-@), cread, clocal, -brkint, -ignpar, ixon, ixany.<br />
+<br />
+But: Function keys in the ascii environment have alway been a problem. I guess that you do not have a real terminal; you're probably using a terminal emulator.<br />
+<br />
+So you should do some checks:<br />
+1. What is your $TERM (vt100? =&gt; PF1 to PF4 only! vt220? =&gt; PF1 to PF4, F6 to F10 but no F5 because that was the Break key on those terminals ...)<br />
+2. What settings does your terminal emulator allow for the function keys?<br />
+3. Check what your keys send on each key stroke; I normally use 'od -c', then press the function key and an enter and control-d to stop the od.<br />
+Eg. <br />
+0000000 033   O   P  \n<br />
+0000004<br />
+means: Function key FT1 gives &quot;ESC O P&quot;.<br />
+4. There used to be two different ways on UNIX systems to define that: termcap and terminfo. <br />
+* termcap uses a flat file (e.g. /etc/termcap);<br />
+* terminfo uses pre-compiled files; run 'infocmp' to get the readable version for your current $TERM.<br />
+Eg.<br />
+        ...<br />
+        is2=\E[1;24r\E[24;1H, kbs=\b, kcub1=\EOD, kcud1=\EOB,<br />
+        kcuf1=\EOC, kcuu1=\EOA, kdch1=\E[3~, kf1=\EOP,<br />
+        ...<br />
+Here you see kf1=ESC O P.<br />
+<br />
+Hope that gives you some ideas!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">15th June 2007, 14:42</div></div><div class="posttext">Hi There<br />
+<br />
+I'm testing out PuTTY, in vt100 mode (going ssh from telnet).<br />
+<br />
+Everything, including the function keys work as desired, when compared to our existing telnet client.<br />
+<br />
+The only thing that DOESN't work correct (rather, as desired) is the delete key.<br />
+<br />
+This is what I'm trying to manipulate.  Right now it forces a carriage return, that's it.<br />
+<br />
+If I set the &quot;Backspace Key&quot; setting to Control-H, the backspace key works as desired.  If I set the &quot;Backspace Key&quot; to Control-?, the backspace key works as I'd like the delete key to work.<br />
+<br />
+Ideally, I'd like to set the Backspace Key to Control-H and the Delete Key to Control-?.  <br />
+<br />
+As I mentioned in my previous post, I can set this using stty, but these values are &quot;overwritten&quot; at some point during the bshell init.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">15th June 2007, 16:31</div></div><div class="posttext">Ah, I see. So could you first check what happens if you change the settings by stty from within ba6.1 (run shell, change stty settings, continue working with ba6.1).<br />
+<br />
+If that works, you could think about &quot;tricks&quot; such as making a shell script ba61.new like (untested!):<br />
+<br />
+#!/bin/sh<br />
+(sleep 5; ssty ...) &amp;<br />
+exec ba6.1 $*<br />
+<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">15th June 2007, 16:34</div></div><div class="posttext">I guess I should have indicated, I've tried executing stty via an IPC_INFO wrapper script, but it doesn't work either.<br />
+<br />
+Because of this I'm willing to bet doing it via a ba6.1 shell script probably won't work either.<br />
+<br />
+-Rob</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">15th June 2007, 17:01</div></div><div class="posttext">Yup.  Tried it, but it didn't seem to work:<br />
+<br />
+bshell6.1&gt; cat $BSE/bin/ba6.1<br />
+#!/sbin/sh                   <br />
+stty werase &quot;^?&quot;             <br />
+stty erase &quot;^H&quot;              <br />
+exec ba6.1.exec              <br />
+bshell6.1&gt;</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

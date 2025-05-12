@@ -1,0 +1,349 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="CVS like revision control in Baan?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] CVS like revision control in Baan? Tools Administration &amp; Installation" />
+	
+	<title>CVS like revision control in Baan? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; CVS like revision control in Baan?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">spatters</div><div class="date">19th January 2006, 21:02</div></div><div class="posttext">I noticed in our Baan environment that the way code is maintained seems inefficient. I come from a UNIX background where revision control tools can be used to maintain code changes (ex: CVS, Subversion, etc).<br />
+<br />
+Now, I contrast this with the Baan environment were the changelog is integrated into the source code as well as the old code that is now commented out due to some type of change. So, the source code ends up with a bunch of commented code after a few changes. Furthermore, backing out changes is tedious as it is a rather manual process.<br />
+<br />
+Please tell me there is a better solution. Any documentation would help. Perhaps I just need to understand the Baan VRC better?<br />
+<br />
+I've included an example below:<br />
+<br />
+|******************************************************************************<br />
+|* tdssto151  0  VRC B40C c4 prod<br />
+|* Maintain Sales Plan Entry<br />
+|* 2000-08-08<br />
+|******************************************************************************<br />
+|* Main table tdsst950 Sales Plan Entry, Form Type 3<br />
+|******************************************************************************<br />
+|*<br />
+|* RDW 05/31/01 - Ticket DWAE-4WMN6P. All references of tccom953 were replaced<br />
+|*                with tccom010. All fields in the tccom953 table were moved<br />
+|*                to the tccom010 table.<br />
+|* dmw 07/05/02 - DWAE-4XEP93 - Update plan summary tables<br />
+|* mdm 10/27/05 - DWAE-6HHS33 - Plan numbers not in sysc<br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+<br />
+	table	ttdsst950	| Sales Plan Entry<br />
+	table	ttiitm001	| Items<br />
+	table	ttdinv956	| Ship Points<br />
+	table	ttcmcs950	| Andersons parameters<br />
+|*	table	ttccom953	| Customer                    |RDW 05/31/01<br />
+	table	ttccom010	| Customer<br />
+	table	ttccom958	| Territory<br />
+	table	ttdsst954	| Plan Summary			|dmw 070502<br />
+<br />
+		long			company<br />
+		long			whse.comp<br />
+		long			exch.comp<br />
+		long			ddv.comp<br />
+	extern	domain	tca.terr	terr			|dmw 071301<br />
+		long			test			|dmw 070502<br />
+		long			add.flag		|dmw 070502<br />
+		long			plan.changed		|dmw 070502<br />
+		domain	tcqiv1		qua5.diff		|dmw 070502<br />
+		domain	tcqiv1		qua6.diff		|dmw 070502<br />
+		domain	tcqiv1		old.tdsst950.qua5	|dmw 070502<br />
+		domain	tcqiv1		old.tdsst950.qua6	|dmw 070502<br />
+<br />
+	#include &quot;itccom0003&quot;	| check.search.argument<br />
+<br />
+|****************************** PROGRAM     SECTION ***************************<br />
+before.program:<br />
+	 import(&quot;terr&quot;,terr)<br />
+	 if terr &lt;&gt; 0 then<br />
+	    query.extension = &quot;exists ( select tccom010.* from tccom010 &quot;&amp;<br />
+		    	      &quot;where tccom010._index8 = {:terr,tdsst950.cuno})&quot;<br />
+	 endif<br />
+<br />
+         company = get.compnr()<br />
+         select tcmcs950.* <br />
+	 from   tcmcs950<br />
+	 where  tcmcs950._compnr = :company<br />
+	 selectdo<br />
+	        whse.comp = tcmcs950.a.whse<br />
+	        exch.comp = tcmcs950.a.exch<br />
+		ddv.comp  = tcmcs950.a.ddv<br />
+         endselect<br />
+|****************************** form section **********************************<br />
+form.1:<br />
+init.form:<br />
+	execute(find.data)<br />
+|***************************** field section **********************************<br />
+field.tccom958.a.name:<br />
+before.display:<br />
+	select tccom958.*<br />
+	from   tccom958<br />
+	where  tccom958._index1 = {:tccom010.a.terr}<br />
+	selectdo<br />
+	selectempty<br />
+		tccom958.a.name = &quot;Unknown Terr Mgr&quot;<br />
+	endselect<br />
+<br />
+field.tdsst950.cuno:<br />
+before.checks:							<br />
+	itccom0003.check.search.argument(tdsst950.cuno, &quot;tccom010&quot;) <br />
+check.input:<br />
+	select tccom010.*                                    |RDW 05/31/01<br />
+	from   tccom010                                      |RDW 05/31/01<br />
+	where  tccom010._index1 = {:tdsst950.cuno}           |RDW 05/31/01<br />
+	selectdo                                             |RDW 05/31/01<br />
+		display(&quot;tccom010.nama&quot;)                     |RDW 05/31/01<br />
+	selectempty                                          |RDW 05/31/01<br />
+		set.input.error(&quot;tca.com0031&quot;)               |RDW 05/31/01<br />
+	endselect                                            |RDW 05/31/01<br />
+<br />
+|*	select tccom953.*,tccom010.*                         |RDW 05/31/01<br />
+|*	from   tccom953, tccom010                            |RDW 05/31/01<br />
+|*	where  (tccom953._index1 = {:tdsst950.cuno}          |RDW 05/31/01<br />
+|*	and    tccom953.a.terr = :tdsst950.terr)             |RDW 05/31/01<br />
+|*	and    tccom010._index1 = {:tdsst950.cuno}           |RDW 05/31/01<br />
+|*	selectdo                                             |RDW 05/31/01<br />
+|*		display(&quot;tccom010.nama&quot;)                     |RDW 05/31/01<br />
+|*	selectempty                                          |RDW 05/31/01<br />
+|*		set.input.error(&quot;tca.com0031&quot;)               |RDW 05/31/01<br />
+|*	endselect                                            |RDW 05/31/01<br />
+<br />
+field.tccom010.nama:<br />
+before.display:<br />
+	select tccom010.*<br />
+	from   tccom010<br />
+	where  tccom010._index1 = {:tdsst950.cuno}<br />
+	selectdo<br />
+	endselect<br />
+<br />
+field.tdsst950.citg:<br />
+check.input:<br />
+|     if update.status = add.set then<br />
+	select tcmcs023.*<br />
+	from   tcmcs023<br />
+	where  tcmcs023._index1 = {:tdsst950.citg}<br />
+	selectdo<br />
+	selectempty<br />
+		set.input.error(&quot;tda.ilc0002&quot;)<br />
+	endselect<br />
+|     endif<br />
+<br />
+field.tdsst950.comp:<br />
+check.input:<br />
+|     if update.status = add.set then<br />
+	select tccom000.*<br />
+	from   tccom000<br />
+	where  tccom000._index1 = {:tdsst950.comp}<br />
+	selectdo<br />
+	selectempty<br />
+		set.input.error(&quot;tda.ilc0001&quot;)<br />
+	endselect<br />
+|     endif<br />
+<br />
+field.tdsst950.shpt:<br />
+check.input:<br />
+     if update.status = add.set then<br />
+	select tdinv956.*<br />
+	from   tdinv956<br />
+	where  tdinv956._index1 = {:tdsst950.shpt}<br />
+	selectdo<br />
+		if tdsst950.comp &lt;&gt; ddv.comp<br />
+		and tdsst950.comp &lt;&gt; exch.comp then<br />
+		   if tdsst950.shpt &gt; 999 then<br />
+		      set.input.error(&quot;tda.inv0035&quot;)<br />
+		   else<br />
+		      if tdsst950.shpt &lt;&gt; tdsst950.comp then<br />
+			 set.input.error(&quot;tda.inv0010&quot;)<br />
+		      else<br />
+		         display(&quot;tdinv956.a.city&quot;)<br />
+		      endif<br />
+		   endif<br />
+		else<br />
+		   display(&quot;tdinv956.a.city&quot;)<br />
+		endif<br />
+	selectempty<br />
+		set.input.error(&quot;tda.inv0010&quot;)<br />
+	endselect<br />
+     endif<br />
+<br />
+field.tdinv956.a.city:<br />
+before.display:<br />
+	select tdinv956.a.city<br />
+	from   tdinv956<br />
+	where  tdinv956._index1 = {:tdsst950.shpt}<br />
+	selectdo<br />
+	selectempty<br />
+		tdinv956.a.city = &quot;Not found&quot;<br />
+	endselect<br />
+<br />
+field.tdsst950.item:<br />
+check.input:<br />
+     if update.status = add.set then<br />
+	select tiitm001.*<br />
+	from   tiitm001<br />
+	where  tiitm001._index1 = {:tdsst950.item}<br />
+	and    tiitm001._compnr = :tdsst950.comp<br />
+	selectdo<br />
+		if tiitm001.cuni &lt;&gt; &quot;ton&quot; then<br />
+		   set.input.error(&quot;tia.itm0005&quot;)<br />
+	        else<br />
+		   if tiitm001.citg &lt;&gt; tdsst950.citg then<br />
+		      set.input.error(&quot;tda.ilc0005&quot;)<br />
+		   else<br />
+		      display(&quot;tiitm001.dsca&quot;)<br />
+		      tdsst950.ctyp = tiitm001.ctyp<br />
+		      tdsst950.cuni = tiitm001.cuni<br />
+		   endif<br />
+		endif<br />
+	selectempty<br />
+		set.input.error(&quot;tia.itm0006&quot;)<br />
+	endselect<br />
+     endif<br />
+<br />
+field.tiitm001.dsca:<br />
+before.display:<br />
+	select tiitm001.dsca<br />
+	from   tiitm001<br />
+	where  tiitm001._index1 = {:tdsst950.item}<br />
+	and    tiitm001._compnr = :tdsst950.comp<br />
+	selectdo<br />
+	selectempty<br />
+		tiitm001.dsca = &quot;Not found&quot;<br />
+	endselect<br />
+<br />
+field.tdsst950.qua5:<br />
+before.input:<br />
+	old.tdsst950.qua5 = tdsst950.qua5<br />
+when.field.changes:<br />
+	plan.changed = 1<br />
+after.input:<br />
+	if plan.changed then<br />
+	   qua5.diff = tdsst950.qua5 - old.tdsst950.qua5<br />
+	   execute(update.db)<br />
+	   execute(find.data)<br />
+	   choice.again()<br />
+	endif<br />
+<br />
+field.tdsst950.qua6:<br />
+before.input:<br />
+	old.tdsst950.qua6 = tdsst950.qua6<br />
+when.field.changes:<br />
+	plan.changed = 1<br />
+after.input:<br />
+	if plan.changed then<br />
+	   qua6.diff = tdsst950.qua6 - old.tdsst950.qua6<br />
+	   execute(update.db)<br />
+	   execute(find.data)<br />
+	   choice.again()<br />
+	endif<br />
+<br />
+|****************************** choice section ********************************<br />
+choice.add.set:<br />
+before.choice:		<br />
+	add.flag = 1					|dmw 070502<br />
+<br />
+|************************* main table io section ******************************<br />
+main.table.io:<br />
+after.rewrite:	<br />
+	commit.transaction()				|dmw 070502<br />
+	update.summary()				|dmw 070502<br />
+	plan.changed = 0				|dmw 070502<br />
+	qua5.diff = 0					|dmw 070502<br />
+	qua6.diff = 0					|dmw 070502<br />
+<br />
+before.delete:<br />
+	delete.from.summary()				|dmw 070502<br />
+<br />
+|after.update.db.commit:				|mdm 102705<br />
+ after.write:						|mdm 102705<br />
+	if add.flag then				|dmw 070502<br />
+	   commit.transaction()				|mdm 102705<br />
+	   update.summary()				|dmw 070502<br />
+	   add.flag = 0					|dmw 070502<br />
+	   qua5.diff = 0				|dmw 070502<br />
+	   qua6.diff = 0				|dmw 070502<br />
+	endif<br />
+<br />
+|**************************** function section ********************************<br />
+functions:<br />
+<br />
+function delete.from.summary()				|dmw 070502<br />
+{<br />
+	select tdsst954.*<br />
+	from   tdsst954 for update<br />
+	where  tdsst954._index1 = {:tccom010.a.terr, :tdsst950.cuno,<br />
+				   :tdsst950.ctyp, :tdsst950.shpt}<br />
+	selectdo<br />
+	   tdsst954.qua5 = tdsst954.qua5 - tdsst950.qua5 <br />
+	   tdsst954.qua6 = tdsst954.qua6 - tdsst950.qua6 <br />
+	   db.update(ttdsst954, db.retry)<br />
+	endselect<br />
+}<br />
+<br />
+function update.summary()				|dmw 070502<br />
+{<br />
+	db.retry.point()<br />
+	select tdsst954.*<br />
+	from   tdsst954 for update<br />
+	where  tdsst954._index1 = {:tccom010.a.terr, :tdsst950.cuno,<br />
+				   :tdsst950.ctyp, :tdsst950.shpt}<br />
+	selectdo<br />
+	   tdsst954.qua5 = tdsst954.qua5 + qua5.diff <br />
+	   tdsst954.qua6 = tdsst954.qua6 + qua6.diff <br />
+	   db.update(ttdsst954, db.retry)<br />
+	   commit.transaction()<br />
+	selectempty<br />
+	   db.set.to.default(ttdsst954)<br />
+	   tdsst954.terr = tccom010.a.terr<br />
+	   tdsst954.cuno = tdsst950.cuno<br />
+	   tdsst954.ctyp = tdsst950.ctyp<br />
+	   tdsst954.shpt = tdsst950.shpt<br />
+	   tdsst954.qua5 = tdsst954.qua5 + tdsst950.qua5<br />
+	   tdsst954.qua6 = tdsst954.qua6 + tdsst950.qua6<br />
+	   db.insert(ttdsst954, db.retry)<br />
+	   commit.transaction()<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">19th January 2006, 23:36</div></div><div class="posttext">In Baan IV you can use Variants.  When you copy a script it asks you if you want to make a variant, and if so you put the changes in to the new variant.  If you want to 'back them out', you need only go to the previous variant. <br />
+<br />
+In Baan V and LN, they have introduced Software Configuration Management, a slightly better version of the same, where you can check in and out components, and multiple users are controlled.<br />
+<br />
+I don't think there is a way for viewing without the idents or script marking (Commented out code, etc), unless you choose to clean the code yourself.  Since you can compare variants, this may be managable, to not mark your changes, but I can't see that as being desirable, whenever there's  a problem I know I want to see what was original and what was changed in the last version or 2... it would be nice to have a VIEW without it all, but I don't think that's available.<br />
+<br />
+That said, the less obtruce way of marking multiple lines of changed code is to put..<br />
+<br />
+<br />
+                                               |*my_id.sn<br />
+New Code...<br />
+  Line 2<br />
+  Line 3<br />
+  Line 4<br />
+                                               |*my_id.en<br />
+<br />
+The sn = start new, en = end new, and the same for so = start old, eo = end old, so there is not as many markings...<br />
+<br />
+Edited:  Also, if you get a code editor, as found on this site you can use SCite, GVIM, others..then you can set the colors so that commented out code is much lighter than the rest, making the files easier to read.  Really, maybe one of the editors has the ability to supress commented lines...?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">20th January 2006, 00:14</div></div><div class="posttext">I don't think there is a way for viewing without the idents or script marking (Commented out code, etc), unless you choose to clean the code yourself.<br />
+I think there is one somewhere an internal BaaN Tools, I was involved in initial discussions, when I was in BaaN R &amp; D. It wouldn't be that difficult to built one to view script code, where the #idents and comments are removed, option to view DLLUSAGE/FunctionUsage etc.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

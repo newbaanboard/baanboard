@@ -1,0 +1,261 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="update session, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] update session Tools Development" />
+	
+	<title>update session [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; update session</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">3rd March 2009, 12:49</div></div><div class="posttext">Dear,<br />
+<br />
+With this script I’m able to update the item master for any date. I am also able to insert the new date(ticpr300.indt)and new amount(ticpr300.amnt)<br />
+<br />
+Problem:<br />
+                I’m unable to update the new amount in ticpr300.amnt for same date but able to update tiitm001 table smoothly.<br />
+For ex:<br />
+ If I update tiitm001.copr = 36  tiitm001.ltcp = 03/03/09 the record get updated in tiitm001 and inserted in ticpr300 respective tables.<br />
+                If I update again tiitm001.copr = 40 tiitm001.ltcp = 03/03/09 the records get updated in tiitm001 table but the record is not updated in ticpr300 table.<br />
+My script:<br />
+form.1:<br />
+init.form:<br />
+            get.screen.defaults()<br />
+|****************************** choice section ********************************<br />
+choice.cont.process:<br />
+<br />
+on.choice:<br />
+            <br />
+                        read.main.table1()<br />
+                        <br />
+                        <br />
+|****************************** field section *********************************<br />
+<br />
+|****************************** function section ******************************<br />
+functions:<br />
+<br />
+<br />
+function read.main.table1()<br />
+{                       <br />
+                        <br />
+                        item = &quot;&quot;<br />
+                        itemc = &quot;&quot;<br />
+                        db.retry.point()<br />
+                        select ticpr300.*<br />
+                        from ticpr300 for update<br />
+                        where ticpr300.item = :item.f <br />
+                        |and ticpr300.amnt &lt;&gt; 0.0<br />
+                        order by ticpr300.item, ticpr300.indt desc<br />
+                        as set with  1 rows<br />
+                        selectdo<br />
+                                    <br />
+<br />
+                                    if item = ticpr300.item then<br />
+                                    else<br />
+                                                itemf = &quot;&quot;<br />
+                                                itemnf = &quot;&quot;<br />
+                                    endif<br />
+                        <br />
+                                    <br />
+                                    if ticpr300.indt = date.num()  then<br />
+                                    itemf = ticpr300.item<br />
+                                    <br />
+                                    db.retry.point()<br />
+                                    select tiitm001.*<br />
+                                    from tiitm001 for update<br />
+                                    where tiitm001.item  = :itemf<br />
+                                    <br />
+                                    selectdo<br />
+                        <br />
+                                                |tiitm001.copr = ticpr300.amnt<br />
+                                    |tiitm001.ltcp = ticpr300.indt       <br />
+                                                |tiitm001.matc = ticpr300.amnt<br />
+                                                tiitm001.kitm =tckitm.purchase<br />
+                                                tiitm001.copr = copr.f<br />
+                                                tiitm001.matc = copr.f<br />
+                                                tiitm001.ltcp = date.num()<br />
+                                                                  <br />
+                                                db.update(ttiitm001,db.retry)      <br />
+                                                commit.transaction()<br />
+                                                <br />
+                                    endselect          <br />
+                                    endif<br />
+<br />
+                                    if ticpr300.indt &lt;&gt; date.num()  and  isspace(itemf)  then<br />
+                                                itemnf = ticpr300.item<br />
+                                    <br />
+                                    db.retry.point()<br />
+                                    select tiitm001.*<br />
+                                    from tiitm001 for update<br />
+                                    where tiitm001.item = :itemnf<br />
+                                    and tiitm001.stoc = 0.0<br />
+                                    selectdo<br />
+                                                <br />
+                                                tiitm001.kitm =tckitm.purchase<br />
+                                                tiitm001.copr = copr.f<br />
+                                                tiitm001.matc = copr.f<br />
+                                                tiitm001.ltcp = date.num()          <br />
+                                                <br />
+                                                db.update(ttiitm001,db.retry)              <br />
+                                                commit.transaction()<br />
+                                                <br />
+                                                ticpr300.item = item.f<br />
+                                                ticpr300.cntr = tiitm001.cntr<br />
+                                                ticpr300.indt = tiitm001.ltcp<br />
+                                                ticpr300.cpcp = &quot;001&quot;<br />
+                                                ticpr300.nuni = 1.00<br />
+                                                ticpr300.actf = 1.00<br />
+                                                ticpr300.amnt = tiitm001.copr<br />
+                                                if ticpr300.indt=date.num() then<br />
+                                                            <br />
+                                                            db.update(tticpr300,db.retry)<br />
+                                                else<br />
+                                                            db.insert(tticpr300,db.retry)<br />
+                                                endif<br />
+                                                commit.transaction()<br />
+<br />
+                                    endselect<br />
+                                    endif<br />
+                                    <br />
+                                    <br />
+<br />
+                                    <br />
+                        item = ticpr300.item<br />
+                        <br />
+                        endselect<br />
+                        |message (&quot;Item is updated now&quot;)<br />
+            }</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">george7a</div><div class="date">3rd March 2009, 14:26</div></div><div class="posttext">Hi,<br />
+<br />
+Did you try to debug the code and see if it gets into the selectdo or not (in both SQL)?<br />
+<br />
+- George</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">4th March 2009, 08:03</div></div><div class="posttext">Dear,<br />
+I have tried to debug the above script and have changed the script.<br />
+Now,Just help me in updating Ticpr300  table when the tiitm001.copr changes in same date.<br />
+I get the above error(attached file) when I execute the items for same date and works smoothly for different dates<br />
+My form inputs are item.f (item)and copr.f(cost price)<br />
+<br />
+ <br />
+|******************************* form section *********************************<br />
+form.1:<br />
+init.form:<br />
+            get.screen.defaults()<br />
+|****************************** choice section ********************************<br />
+choice.cont.process:<br />
+<br />
+on.choice:<br />
+            <br />
+                        read.main.table1()<br />
+                        <br />
+                        <br />
+|****************************** field section *********************************<br />
+<br />
+|****************************** function section ******************************<br />
+functions:<br />
+function read.main.table1()<br />
+{                       <br />
+                        <br />
+  	item = &quot;&quot;<br />
+  	itemc = &quot;&quot;<br />
+  	db.retry.point()<br />
+        select ticpr300.*<br />
+        from ticpr300 for update<br />
+        where ticpr300.item = :item.f <br />
+       	order by ticpr300.item, ticpr300.indt desc<br />
+       	as set with  1 rows<br />
+        selectdo<br />
+           	<br />
+		<br />
+         	if ticpr300.indt = date.num()  then<br />
+         		itemf = ticpr300.item<br />
+         		db.retry.point()<br />
+         		select tiitm001.*<br />
+         		from tiitm001 for update<br />
+        		where tiitm001.item  = :item.f<br />
+         	selectdo<br />
+                	tiitm001.kitm =tckitm.purchase<br />
+                	tiitm001.copr = copr.f<br />
+              		tiitm001.matc = copr.f<br />
+        		tiitm001.ltcp = date.num()<br />
+       			db.update(ttiitm001,db.retry)      <br />
+    			commit.transaction()<br />
+		|selectempty<br />
+			ticpr300.item = item.f<br />
+              		ticpr300.cntr = tiitm001.cntr<br />
+             		ticpr300.indt = tiitm001.ltcp<br />
+             		ticpr300.cpcp = &quot;001&quot;<br />
+              		ticpr300.nuni = 1.00<br />
+             		ticpr300.actf = 1.00<br />
+              		ticpr300.amnt = tiitm001.copr<br />
+              		db.update(tticpr300,db.retry)<br />
+			commit.transaction()<br />
+           	endselect<br />
+                	           <br />
+        	endif<br />
+		<br />
+		if ticpr300.indt &lt;&gt; date.num()   then<br />
+        		itemnf = ticpr300.item<br />
+      			db.retry.point()<br />
+       			select tiitm001.*<br />
+       			from tiitm001 for update<br />
+       			where tiitm001.item = :item.f<br />
+      			and tiitm001.stoc = 0.0<br />
+       		selectdo<br />
+               		tiitm001.kitm =tckitm.purchase<br />
+               		tiitm001.copr = copr.f<br />
+               		tiitm001.matc = copr.f<br />
+               		tiitm001.ltcp = date.num()          <br />
+               		db.update(ttiitm001,db.retry)              <br />
+             		commit.transaction()<br />
+             <br />
+			ticpr300.item = item.f<br />
+              		ticpr300.cntr = tiitm001.cntr<br />
+             		ticpr300.indt = tiitm001.ltcp<br />
+             		ticpr300.cpcp = &quot;001&quot;<br />
+              		ticpr300.nuni = 1.00<br />
+             		ticpr300.actf = 1.00<br />
+              		ticpr300.amnt = tiitm001.copr<br />
+              		db.insert(tticpr300,db.retry)<br />
+			commit.transaction()<br />
+		<br />
+           	endselect<br />
+          	endif<br />
+               			item = ticpr300.item<br />
+      		endselect<br />
+                       <br />
+            }</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">blanchap</div><div class="date">5th March 2009, 22:37</div></div><div class="posttext">Hi,<br />
+<br />
+i do not understand your script.  you're doing 2 db.update and 2 commit.transaction() in the same selectdo.<br />
+<br />
+Also, you have 1 db.update and 1 db.insert in the same selectdo.<br />
+<br />
+If you fix your script, it's going to work.<br />
+<br />
+PB.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">7th March 2009, 07:17</div></div><div class="posttext">Dear,<br />
+<br />
+Thank You for your help. The script worked succesfully.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

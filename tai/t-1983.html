@@ -1,0 +1,354 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Max Login, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Max Login Tools Administration &amp; Installation" />
+	
+	<title>Max Login [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Max Login</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ancyrae077</div><div class="date">10th May 2002, 10:48</div></div><div class="posttext">Hi,<br />
+Do you know any way to limit for a user logging to Baan. i.e. One user can use only one user licence concurrently.<br />
+Regards.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">victor_cleto</div><div class="date">10th May 2002, 11:59</div></div><div class="posttext">Any implementation of restrictions will depend on what OS you are using.<br />
+<br />
+In UNIX you can create a script that it is called from ipc_info (your BW configuration must point to this one instead of the standard bshell) and this script will check if the user already has a connection made. If it has, then do not allow to connect. If it has no connection, then call the &quot;real&quot; bshell.<br />
+<br />
+In NT, this can be feasible but you must do the same using a programming language and compile it (generate a .exe file) that it is called from the ipc_info and does the above.<br />
+<br />
+By the way, I have posted already an example script for UNIX in this thread: http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=516&amp;perpage=5&amp;display=&amp;pagenumber=1</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">telgar</div><div class="date">30th May 2002, 21:08</div></div><div class="posttext">There is a 3rd party software that works very well, it is called CloseIdle.  You just set how many times that a user can log in and it will not allow them to start another instance.<br />
+<br />
+This also will shutdown a users bw if they don't do anything within Baan within the time limit that you set.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nizamudeen</div><div class="date">8th June 2002, 16:33</div></div><div class="posttext">Hi victor,<br />
+<br />
+I followed yr instyructions and created a shell script in UNIX and modified the ipc_info file .But it allows the same user to login more than once<br />
+<br />
+What i have done is<br />
+<br />
+1. Created a shell scirpt by name &quot;baanusr&quot; as below:<br />
+<br />
+umask 007<br />
+LOGIN_FILE=/baan/bse/home/bsp/allow_login<br />
+ <br />
+# The next is needed to send parameters to the &quot;normal&quot; bshell<br />
+LOGIN_PARAMS=$*<br />
+ <br />
+# Other<br />
+baanusr=$(basename $0)<br />
+USER=`whoami`<br />
+typeset -i CURRENT_BWS ALLOWED_LOGINS USER_PID<br />
+echo &quot;baanusr - &quot;$baanusr $0 $USER<br />
+ <br />
+# Check how many times user is logged in, in ASCII and GUI !<br />
+CURRENT_BWS=`ps -ef | grep ${baanusr} | grep -i ${USER} | grep -v &quot;grep ${baanusr}&quot; | wc -l`<br />
+ <br />
+# Compare the current number of Logins with the allowed number<br />
+# If current number &lt; allowed number : start Bshell<br />
+# If current number &gt;= allowed number : whatever you want - here we send a message to him<br />
+ <br />
+ALLOWED_LOGINS=`grep -i ${USER} ${LOGIN_FILE} | cut -f 2 -d &quot;:&quot;`<br />
+ <br />
+# No logins<br />
+if [ -z ${ALLOWED_LOGINS} ]<br />
+then<br />
+ALLOWED_LOGINS=1<br />
+fi<br />
+ <br />
+echo &quot;USER PID &quot; $USER_PID<br />
+echo &quot;LOGIN_PARAMS &quot; $*<br />
+echo &quot;CURRENT_BWS &quot; $CURRENT_BWS<br />
+echo &quot;ALLOWED_LOGINS &quot; $ALLOWED_LOGINS<br />
+# One or more already loggins<br />
+if [ ${CURRENT_BWS} -le ${ALLOWED_LOGINS} ]<br />
+then<br />
+${BSE}/bin/bshell6.1 ${LOGIN_PARAMS}<br />
+else<br />
+# NOTICE: on HP-UX a ps gives an output like &quot;xxxxxxxx xxxxx ...&quot; = username[8]<br />
+pid[5] ...<br />
+# Sends a message to all open bshells for the user (ASCII and GUI)<br />
+ps -ef | grep bshell6.1 | grep -i ${USER} | grep -v &quot;grep bshell6.1&quot; | cut -c 10-14 | while read USER_PID<br />
+do<br />
+/baan/bse/bin/bshcmd6.1 -w1 -u1 -M &quot;Warning: you are only allowed to login ${ALLOWED_LOGINS} time(s)! Please close this window&quot; ${USER_PID}<br />
+done<br />
+sleep 5<br />
+fi<br />
+<br />
+2.created a file &quot;allow_login&quot; mentioning the number of logins each user is allowed for<br />
+<br />
+3. Modified the ipc_info and called this &quot;baanusr&quot; script in the begining<br />
+<br />
+But when i login twice using the same user name,  i am not getting the desired result  (it allows me to login &quot;n&quot; number of times<br />
+<br />
+If i run the script from #ksh, i get the below message<br />
+<br />
+Please start the user interface or enter any valid options (use -? for options) <br />
+<br />
+Can any one help and tell me where i am going wrong ?<br />
+<br />
+<br />
+:confused: <br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">8th June 2002, 21:38</div></div><div class="posttext">Hi,<br />
+<br />
+Guess you have to do a little debugging.<br />
+<br />
+Try putting statements in the scripts that write e.g. the variables in a file which you can check. By this it must be possible to find out what's going wrong.<br />
+<br />
+Regards,<br />
+Han</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nizamudeen</div><div class="date">9th June 2002, 17:54</div></div><div class="posttext">Hello,<br />
+<br />
+I did debugging and almost got through. If i run the shell script from the OS, it is working fine.<br />
+<br />
+Now i am struck up here :-<br />
+<br />
+during logging in,  when the ipc_info file is called, i get Error no :8<br />
+(which is related to magic number)<br />
+<br />
+The error log of ipc_boot6.1 is below:<br />
+<br />
+<br />
+2002-06-09[17:36:59]:E:bsp: ******* S T A R T of Error message *******<br />
+2002-06-09[17:36:59]:E:bsp: Log message called from /port.6.1c.05.01/vobs/tt/nw/<br />
+ipc_boot.c: #385 keyword: user<br />
+2002-06-09[17:36:59]:E:bsp: Pid 15944 Uid 125 Euid 125 Gid 125 Egid 125<br />
+2002-06-09[17:36:59]:E:bsp: user_type S language 2 user_name bsp tty  locale ISO<br />
+88591/NULL<br />
+2002-06-09[17:36:59]:E:bsp: Errno 8 (Exec format error) bdb_errno 0<br />
+2002-06-09[17:36:59]:E:bsp: Log_mesg: Can't execv /baan/bse/bin/baanusr (errno =<br />
+ 8)<br />
+2002-06-09[17:36:59]:E:bsp: ******* E N D of Error message *******<br />
+ <br />
+<br />
+And in the script (provided by victor), there is a parameter as<br />
+LOGIN_PARAMS=$* <br />
+<br />
+What login parameters are needed for bshell ?<br />
+Can any one help me ?<br />
+<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">victor_cleto</div><div class="date">9th June 2002, 21:08</div></div><div class="posttext">Has the script the executable flag on? (I never saw an error type  8 before...), it must have the same permissions as bshell.<br />
+<br />
+Regarding the LOGIN_PARAMS, this is needed to store any additional parameters that you may pass into the bshell from the  BW (like &quot;-- -set BSE_LANG=2&quot;, etc.).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nizamudeen</div><div class="date">10th June 2002, 09:15</div></div><div class="posttext">Hi victor,<br />
+<br />
+Yes, the script does has the executable flag<br />
+<br />
+In the ipc_info file, i am calling this script (baanusr) first. If it satisifies the conditions in the script, i am calling the &quot;bshell6.1&quot; <br />
+<br />
+My ipc_info file is like this<br />
+<br />
+<br />
+# more ipc_info<br />
+baanusr          s    0    0  p  ${BSE}/bin/baanusr<br />
+bshell.inst     s    0    0  p  ${BSE}/bin/bshell_inst6.1<br />
+sh_server       s    0    0  s  ${BSE}/bin/sh_server6.1<br />
+audit           s  501  510  p  ${BSE}/bin/audit_srv6.1<br />
+fs6.1           s  303  335  m  ${BSE}/bin/fs6.1<br />
+nserver         s    0    0  s  ${BSE}/bin/nserver6.1<br />
+bisam           s  307  370  p  ${BSE}/bin/bisam_srv6.1<br />
+btam            s  307  370  p  ${BSE}/bin/btam_srv6.1<br />
+informix        s  305  350  p  ${BSE}/bin/inf_srv6.1<br />
+oracle7         s  302  320  p  ${BSE}/bin/ora7_srv6.1<br />
+oracle8         s  302  320  p  ${BSE}/bin/ora8_srv6.1<br />
+sybase          s  309  390  p  ${BSE}/bin/syb_srv6.1<br />
+db2              s  310  301  p  ${BSE}/bin/db2_srv6.1<br />
+<br />
+<br />
+Is this ok ?<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">victor_cleto</div><div class="date">10th June 2002, 13:15</div></div><div class="posttext">The ipc_info looks ok, add<br />
+<br />
+#!/usr/bin/ksh<br />
+<br />
+in the first line of your baanusr script, maybe exec does not know what to use to run it?<br />
+And to tackle all possible problems of executable flags, do a chmod 777 baanusr</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">10th June 2002, 13:56</div></div><div class="posttext">It looks to me that your script is not executable.<br />
+<br />
+Han</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nizamudeen</div><div class="date">10th June 2002, 17:32</div></div><div class="posttext">Hi,<br />
+<br />
+<br />
+I tried all ways, but it is not working when i call this script through ipc_info.<br />
+<br />
+The script was working fine when it is called from the Unix and this gave me a idea<br />
+<br />
+Now i am running this shell script every 30 minutes as a cronjob in UNIX  so that it will check for multiple / duplicate logins and sends message to those users asking to logout.<br />
+<br />
+My requirement is partially fulfilled !<br />
+<br />
+Thanks to all those who gave their inputs...<br />
+<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">11th June 2002, 09:37</div></div><div class="posttext">I have implemented these scripts before as Victor has.<br />
+<br />
+I noticed that you changed the bshell line to baanusr, however this means that you have to change your bwc as well!<br />
+<br />
+I would recommend to keep the same name however not calling ${BSE}/bin/bshell6.1 but your own script.<br />
+<br />
+Regards,<br />
+Han</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">chjagge</div><div class="date">24th July 2002, 17:51</div></div><div class="posttext">This applies to UNIX only.  We have this currently running in our environment.  We've tested two methods. Directly in UNIX via the .profile and a script  called from the ipc_info.  Using the script only you can count the # of bshell and limit the user if they exceeded the predefined available concurrent bshells per user.  What I've used is  a combination of a UNIX shell script as well as a Baan dll called via the Baan C-Interface. This gives us far more flexibility. You can create departments, Company limits and run the logic within Baan and then fire out a flag back to the shell script to allow the user to login or not.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">artjuh</div><div class="date">4th November 2002, 16:55</div></div><div class="posttext">i have almost the same problem.<br />
+<br />
+When i start my script from unix it say's<br />
+&quot;Please start the user interface or enter any valid options (use -? for options)&quot;<br />
+<br />
+and when i start it from BWC it say's in an BW messages window<br />
+<br />
+1 : Received from ipc_boot: 'Can't get server info for test `<br />
+2 : Error : bw failed to connect to 10.31.10.107!test<br />
+<br />
+(10.31.10.107 is server IP)<br />
+<br />
+my ipc_info script looks like this<br />
+bshell          s    0    0  p  ${BSE}/bin/bshell6.1<br />
+bshell.inst     s    0    0  p  ${BSE}/bin/bshell_inst6.1<br />
+sh_server       s    0    0  s  ${BSE}/bin/sh_server6.1<br />
+audit           s  501  510  p  ${BSE}/bin/audit_srv6.1<br />
+fs6.1           s  303  335  m  ${BSE}/bin/fs6.1<br />
+nserver         s    0    0  s  ${BSE}/bin/nserver6.1<br />
+bisam           s  307  370  p  ${BSE}/bin/bisam_srv6.1<br />
+btam            s  307  370  p  ${BSE}/bin/btam_srv6.1<br />
+informix        s  305  350  p  ${BSE}/bin/inf_srv6.1<br />
+oracle7         s  302  320  p  ${BSE}/bin/ora7_srv6.1<br />
+oracle8         s  302  320  p  ${BSE}/bin/ora8_srv6.1<br />
+sybase          s  309  390  p  ${BSE}/bin/syb_srv6.1<br />
+db2             s  310  301  p  ${BSE}/bin/db2_srv6.1<br />
+test            s    0    0  p  ${BSE}/bin/login.ksh<br />
+<br />
+and login.ksh like this<br />
+<br />
+#!/usr/bin/ksh<br />
+${BSE}/bin/bshell6.1 $*<br />
+<br />
+my log.ipc_boot6.1 say's<br />
+<br />
+2002-11-04[15:43:08]:E:bsp: ******* S T A R T of Error message *******<br />
+2002-11-04[15:43:08]:E:bsp: Log message called from /port.6.1c.06.02/vobs/tt/nw/<br />
+ipc_boot.c: #339 keyword: user<br />
+2002-11-04[15:43:08]:E:bsp: Pid 18835 Uid 125 Euid 125 Gid 125 Egid 125<br />
+2002-11-04[15:43:08]:E:bsp: user_type S language 2 user_name bsp tty  locale ISO<br />
+88591/NULL<br />
+2002-11-04[15:43:08]:E:bsp: Errno 0 bdb_errno 0<br />
+2002-11-04[15:43:08]:E:bsp: Log_mesg: Can't get server info for test<br />
+2002-11-04[15:43:08]:E:bsp: ******* E N D of Error message *******<br />
+<br />
+<br />
+<br />
+<br />
+Does somebody knows what could be wrong</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jaapzwaan</div><div class="date">4th November 2002, 17:46</div></div><div class="posttext">In your BWC file, you probably have the word &quot;test&quot; for bshell. BW will look in the ipc_info file what executable is linked to &quot;test&quot; and none exists.<br />
+<br />
+Regards,<br />
+Jaap Zwaan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">artjuh</div><div class="date">4th November 2002, 18:31</div></div><div class="posttext">ive changed something's now it's starts the batch file.<br />
+but not all in it :)<br />
+it's very stupid like a little child that only takes the cranberry's out of an salad.<br />
+it does open the bshell6.1 but it doesn't echo a line to a file :)<br />
+what's in the samebatch file<br />
+my batch file looks a little like this.<br />
+#!/usr/bin/sh<br />
+#-------------<br />
+user=`\usr\ucb\whoami`<br />
+echo $user &gt;&gt; testfile.txt<br />
+bshell6.1 $*<br />
+#-------------<br />
+<br />
+then it start's the bshell6.1 but doesn't echo the current user<br />
+<br />
+Does somebody got an clue ?<br />
+When i start the process in Unix it says the following.<br />
+&quot;Please start the user interface or enter any valid options (use -? for options)&quot;<br />
+No more lines and then it does echo the user to that file.<br />
+<br />
+I thought about maybe he started an other bshell6.1 but to make sure of that i renamed other bshell's</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jaapzwaan</div><div class="date">5th November 2002, 11:43</div></div><div class="posttext">Artjuh,<br />
+<br />
+Your testfile.txt is created in the current directory of the bshell process.<br />
+To avoid a search on you system where this might be, change the line in:<br />
+     echo $user &gt;&gt; /tmp/testfile.txt<br />
+or some other absolute path.<br />
+<br />
+To find out where the original lines have gone, add the following line too:<br />
+     pwd &gt;&gt; /tmp/testfile.txt<br />
+<br />
+regards,<br />
+Jaap Zwaan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">artjuh</div><div class="date">5th November 2002, 12:02</div></div><div class="posttext">Thnx everybody who helped me .<br />
+finaly it works.<br />
+<br />
+rgarts,<br />
+Artjuh</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">artjuh</div><div class="date">5th November 2002, 17:11</div></div><div class="posttext">Only thing that doesn't work jet is to send a message to users who are logged in.<br />
+bshcmd6.1 -w1 -u1 -M &quot;Waarschuwing. U mag maar $allow x inloggen in BAAN!! Sluit AUB dit scherm en probeer het opnieuw&quot; $USER_PID<br />
+That doesn't wrk<br />
+$USER_PID contains the PID's of the bshells who are logged in<br />
+with a simple while script.<br />
+<br />
+It is not that importend for this to work because main goal is already accomplished but this would be nice to. for &quot;User friendly stuff blablabla ;)&quot; tnx<br />
+<br />
+Artjuh</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ilansu</div><div class="date">6th November 2002, 16:44</div></div><div class="posttext">Dear Sir,<br />
+We have developed new software named Baan User Manager, I attached the user guide, i think this software answer all you demands<br />
+you can reach me at this address: yuvalf@applicom.co.il<br />
+regards,<br />
+               Youval</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

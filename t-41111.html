@@ -1,0 +1,197 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="field tfgld102.leac not filled, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] field tfgld102.leac not filled AFS/DDC/OLE: Function servers" />
+	
+	<title>field tfgld102.leac not filled [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; field tfgld102.leac not filled</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">RedBatz</div><div class="date">29th August 2007, 18:32</div></div><div class="posttext">Hi all,<br />
+<br />
+I'm trying to fill tfgld102 using AFS of session tfacp1120s000.<br />
+<br />
+So, I have several lines do record in the table, the first one is successfully recorded, but the second one gives the error &quot;Ledger account not allowed&quot;<br />
+<br />
+Well, it seems that tfgld102.leac is not filled, but when I get the value of this field before the insert action it seems to be ok.<br />
+<br />
+Here is the example:<br />
+<br />
+dll1120.put.Conta_contabil.(sedmt015.leac)<br />
+|* fill other fields<br />
+leac = dll1120.get.Conta_contabil.()<br />
+message(leac)                             |* this works well<br />
+dll1120.insert(dummy, error_str)      |* Gives error<br />
+<br />
+Can someone help, please?<br />
+Am I missing something?<br />
+<br />
+Regards,<br />
+<br />
+Agostinho.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">29th August 2007, 19:13</div></div><div class="posttext">Just from reading this I do not think you are missing anything, but then again maybe if you post the rest of the code someone will see something.  It could very well be that the session is not doing what you want in the back ground.  Do you have source code?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RedBatz</div><div class="date">30th August 2007, 10:52</div></div><div class="posttext">Hi!<br />
+<br />
+Here is the code:<br />
+<br />
+<br />
+        |* tfgld1101m000<br />
+	dll1101.put.Data_introdu_o_lan_amento(btno.date)<br />
+	dll1101.put.Refer._lan_amento(&quot;Transportes&quot; &amp; str$(prod) &amp; &quot; / &quot; &amp; str$(year))<br />
+	dll1101.set.view()<br />
+	dll1101.put.Transaction_Type_Code(sedmt000.ttyp)<br />
+	dll1101.insert(dummy, error_str)<br />
+	if not isspace(error_str) then<br />
+		message(&quot;Erro a registar o tipo de lançamento &quot; &amp; sedmt000.ttyp)<br />
+	else<br />
+		dll1101.save(error_str)<br />
+		if not isspace(error_str) then<br />
+			message(&quot;Erro a gravar o tipo de lançamento &quot; &amp; sedmt000.ttyp)<br />
+		else<br />
+			dll1101.handle.sub.process(&quot;tfacp1110s000&quot;, &quot;add&quot;)<br />
+			dll1101.continue(error_str)<br />
+			if not isspace(error_str) then<br />
+				message(&quot;Erro na tentativa de lançamento do cabeçalho da factura.&quot;)<br />
+			else<br />
+                                |* tfacp1110s000 <br />
+				dll1110.put.tfacp200.suno(sedmt000.suno)<br />
+				dll1110.put.tfacp200.docd(btno.date)<br />
+<br />
+				valor.factura = 0.00<br />
+				<br />
+				select	sum(sedmt015.amnt):valor.factura<br />
+				from	sedmt015<br />
+				where	sedmt015._index1 = { :year, :prod }<br />
+				and	sedmt015.proc = tcyesno.no<br />
+				selectdo<br />
+				endselect<br />
+<br />
+				dll1110.put.Valor(valor.factura)<br />
+				dll1110.put.tfacp200.refr(&quot;Transportes&quot; &amp; str$(prod) &amp; &quot; / &quot; &amp; str$(year))<br />
+				dll1110.put.tfacp200.lvat(hold.lvat)<br />
+				dll1110.handle.sub.process(&quot;tfacp1120s000&quot;, &quot;kill&quot;)<br />
+				dll1110.insert(dummy, error_str)<br />
+				if not isspace(error_str) then<br />
+					message(&quot;Erro a registar cabeçalho da factura&quot;)<br />
+				else<br />
+					dll1110.save(error_str)<br />
+					if not isspace(error_str) then<br />
+						message(&quot;Erro a gravar o cabeçalho da factura.&quot;)<br />
+					else<br />
+						dll1110.handle.sub.process(&quot;tfacp1120s000&quot;, &quot;add&quot;)<br />
+						dll1110.continue(error_str)<br />
+						first = TRUE<br />
+<br />
+						db.retry.point()<br />
+					<br />
+						select	sedmt015.*<br />
+						from	sedmt015 for update<br />
+						where	sedmt015._index1 = { :year, :prod }<br />
+						and	sedmt015.proc = tcyesno.no<br />
+						order by sedmt015._index1<br />
+						selectdo<br />
+							dll1120.put.N_mero_companhia(hold.ncmp)<br />
+							dll1120.put.Companhia_dest.(hold.ncmp)<br />
+							dll1120.put.Conta_contabil.(sedmt015.leac)<br />
+							dll1120.put.C_digo_dimens_o_1(sedmt015.dim1)<br />
+							dll1120.put.C_digo_dimens_o_2(sedmt015.dim2)<br />
+							dll1120.put.C_digo_dimens_o_3(sedmt015.dim3)<br />
+							dll1120.put.C_digo_dimens_o_4(sedmt015.dim4)<br />
+							dll1120.put.C_digo_dimens_o_5(sedmt015.dim5)<br />
+							dll1120.put.C_digo_IVA(sedmt015.cvat)<br />
+							dll1120.put.Valor(sedmt015.amnt)<br />
+							dll1120.put.Data_documento(hold.dbcr)		|* Não é a data mas sim débito/ crédito<br />
+							leac = dll1120.get.Conta_contabil.()<br />
+							message(leac)<br />
+							dll1120.insert(dummy, error_str)<br />
+<br />
+							if not isspace(error_str) then<br />
+								message(error_str)			|&quot;Erro a registar linha de factura&quot;<br />
+							else<br />
+								dll1120.save(error_str)<br />
+									if not isspace(error_str) then<br />
+									message(&quot;Erro a gravar a linha de factura&quot;)<br />
+								else<br />
+<br />
+									sedmt015.proc = tcyesno.yes<br />
+<br />
+									db.update(tsedmt015, db.retry)<br />
+<br />
+									count = count + 1<br />
+									if count &gt; 50 then<br />
+										commit.transaction()<br />
+										count = 0<br />
+									endif<br />
+								endif<br />
+							endif<br />
+						endselect<br />
+<br />
+					endif<br />
+				endif<br />
+			endif<br />
+		endif<br />
+	endif<br />
+<br />
+	dll1120.end()<br />
+	dll1110.end()<br />
+	dll1101.end()<br />
+<br />
+	commit.transaction()<br />
+<br />
+<br />
+I had to &quot;kill&quot; tfacp1120s000 before the insert action in tfacp1110s000, otherwise it hangs. The first record in tfacp1120s000 is working well, the second gives the error &quot;Ledger account not allowed&quot;.<br />
+<br />
+I have the source code of tfacp1110s000 and tfacp1120s000, didn't find anything that could affect the background process.<br />
+<br />
+Thanks in advance!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">30th August 2007, 13:28</div></div><div class="posttext">Is it possible that the account you are trying to use is one which cannot have entries placed against it?  For example if you go to Maintain Financial Supplier Groups (tfacp0110m000) and then using the Special Menu go to the Maintain Ledger Accounts by Supplier Group (tfacp0111s000) you will see on of the entries is Control Account.  This account is the master account that AP documents are booked against (through the system).  Users cannot use this account number.  <br />
+<br />
+Just trying to take a different perspective, perhaps your code is fine, but the account is not a valid account for that action.  Can you (or someone from Finance) take the raw data you are trying to enter through AFS and enter it through that session manually?<br />
+<br />
+Also check to be sure that the account you are using is a 'zero' level account.  Transactions cannot be posted to higher level accounts.<br />
+<br />
+Just some off the wall thoughts.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">30th August 2007, 14:40</div></div><div class="posttext">Hi!<br />
+I had to &quot;kill&quot; tfacp1120s000 before the insert action in tfacp1110s000, otherwise it hangs. The first record in tfacp1120s000 is working well, the second gives the error &quot;Ledger account not allowed&quot;.<br />
+<br />
+I have the source code of tfacp1110s000 and tfacp1120s000, didn't find anything that could affect the background process.<br />
+<br />
+Thanks in advance!<br />
+First read the previous post from Eddie_monster - Eric is right in that I usually assume the data you are trying to load will work manually.<br />
+<br />
+If the data is valid I would suggest that you put tfacp1120s000 into debug mode and run your code.  I am wondering if for each record you need to close and re-open tfacp1120s000.  I am thinking that with the code in debug mode you will see some where that the leac field is being reset for the second record.  I have had problems where I left a sub-session open and then had problems with follow on records.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RedBatz</div><div class="date">30th August 2007, 16:50</div></div><div class="posttext">Hi!<br />
+<br />
+Mark, you were right!<br />
+<br />
+I had to close and re-open tfacp1120s000 for each record.<br />
+<br />
+Thanks!<br />
+<br />
+<br />
+Agostinho.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

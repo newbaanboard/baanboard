@@ -1,0 +1,173 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS DLL of tdilc1122s000 is not working (Saving), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS DLL of tdilc1122s000 is not working (Saving) AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS DLL of tdilc1122s000 is not working (Saving) [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS DLL of tdilc1122s000 is not working (Saving)</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rairai</div><div class="date">17th June 2003, 10:01</div></div><div class="posttext">I have a typical case here.<br />
+<br />
+Environment : BaanIV c4 on Informix<br />
+Porting Set : 6.1c.06.02<br />
+<br />
+As per the requirement, for Transfer Order, I have generated a AFS DLL for session tdilc1120m000 and its subsession tdilc1122s000. <br />
+<br />
+Through my Program I am calling the AFS DLL of tdilc1120m00  and after insert and save of tdilc1120m000 I am calling tdilc1122s000. <br />
+(Please see the script below).<br />
+For some reason, the records of session tdilc1120m000 gets saved, But the records of tdilc1122s000 Never gets saved. and I don't get  Error Messages while saving records of tdilc1122s000.<br />
+<br />
+I think I am missing something (probably  stpapi command) in the called SubSession.<br />
+<br />
+Please let me know the changes I need to do........<br />
+<br />
+Regards<br />
+Rai<br />
+<br />
+<br />
+<br />
+function Transfer.Order()<br />
+{<br />
+    ......................<br />
+    ......................<br />
+    ......................<br />
+        <br />
+   znilcdll1120fs.put.Order_Date(tdinv100.odat)<br />
+   znilcdll1120fs.put.Planned_Date(tdinv100.pdat)<br />
+   znilcdll1120fs.put.Planned_Quantity(tdinv100.pqan)<br />
+   znilcdll1120fs.put.tdinv100.dwar(tdinv100.dwar)<br />
+   err.mesg = &quot;&quot;<br />
+   znilcdll1120fs.insert(false, err.mesg)<br />
+   if (not isspace(err.mesg)) then<br />
+      message(err.mesg)	|Display the Error Message<br />
+      err.mesg = &quot;&quot;<br />
+     |Recover the Record to Original <br />
+      znilcdll1120fs.recover(err.mesg)  	<br />
+     <br />
+     if (not isspace(err.mesg)) then<br />
+        message(err.mesg)<br />
+        err.mesg = &quot;&quot;<br />
+     endif<br />
+   else<br />
+      znilcdll1120fs.save(err.mesg)	| Data Commit<br />
+<br />
+      | Subsession tdilc1122s000<br />
+<br />
+       start.location.session.tdilc1122s000()<br />
+       znilcdll1120fs.end(err.mesg)<br />
+   endif<br />
+<br />
+}<br />
+<br />
+function start.location.session.tdilc1122s000()<br />
+{<br />
+   err.mesg = &quot;&quot;<br />
+   <br />
+   | Start Choice.Continue of Session tdilc1120m000<br />
+   stpapi.application.option(&quot;tdilc1120m000&quot;, 1, 38, err.mesg)<br />
+   <br />
+   | Handle Sub-Process<br />
+   znilcdll1120fs.handle.sub.process(&quot;tdilc1122s000&quot;, &quot;add&quot;)<br />
+<br />
+   | Start Sub-Process<br />
+   stpapi.zoom.option(&quot;tdilc1120m000&quot;, 1, <br />
+                                   &quot;tdilc1122s000&quot;, err.mesg)<br />
+<br />
+   znilcdll1122fs.put.From_Location(tdilc103.lcfr)<br />
+   znilcdll1122fs.put.Storage_Unit(tdilc103.sufr)<br />
+   znilcdll1122fs.put.From_Quantity(tdilc103.qstr)<br />
+<br />
+   znilcdll1122fs.put.To_Location(tdilc103.lcto)<br />
+   znilcdll1122fs.put.To_Storage_Unit(tdilc103.suto)<br />
+   | znilcdll1122fs.put.To_Storage_Quantity(tdilc103.strt)<br />
+	<br />
+   err.mesg = &quot;&quot;<br />
+   <br />
+   znilcdll1122fs.insert(false, err.mesg)<br />
+   <br />
+   if (not isspace(err.mesg)) then<br />
+      message(err.mesg)	| Display the Error Message<br />
+   else<br />
+      znilcdll1122fs.save(err.mesg)	| Commit<br />
+   endif<br />
+	<br />
+   err.mesg = &quot;&quot;<br />
+   | Kill SubProcess<br />
+   znilcdll1122fs.handle.sub.process(&quot;tdilc1122s000&quot;, &quot;kill&quot;)<br />
+   znilcdll1122fs.end(err.mesg)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th June 2003, 16:59</div></div><div class="posttext">Below is a copy of my code. Notice the first step is setting the 1122s000 sub-process.  Then I do a insert and continue on 1120.  Then I just start putting 1122 fields.<br />
+<br />
+Mark<br />
+<br />
+<br />
+| Handle sub session<br />
+		dll1120.handle.sub.process(&quot;tdilc1122s000&quot;,&quot;add&quot;)<br />
+| Put Data<br />
+		dll1120.put.item(xfer.item)<br />
+		dll1120.put.Input_Date(date.num())<br />
+<br />
+| Attempt to put default<br />
+		dll1120.put.warehouse(xfer.fwh)<br />
+		dll1120.put.tdinv100.kowt(tckowt.wrh.transfer)<br />
+		dll1120.put.reason_code(&quot;   &quot;)<br />
+		dll1120.put.Order_date(date.num())<br />
+		dll1120.put.Planned_Quantity(pqty)<br />
+		dll1120.put.tdinv100.dwar(xfer.twh)<br />
+<br />
+| Now add record.<br />
+		dll1120.insert(1,err)<br />
+		if(strip$(err)&lt;&gt;&quot;&quot;) then<br />
+			sess_error(&quot;Insert: &quot;&amp; strip$(err),&quot;tdilc1120m000&quot;)<br />
+			continue<br />
+		endif<br />
+<br />
+| Continue and init sub-session.<br />
+		dll1120.continue(err)<br />
+		if(strip$(err)&lt;&gt;&quot;&quot;) then<br />
+			sess_error(&quot;Continue: &quot;&amp; strip$(err),&quot;tdilc1120m000&quot;)<br />
+			continue<br />
+		endif<br />
+<br />
+| Put info on subsession.<br />
+		dll1122s.put.From_Location(xfer.floc)<br />
+		dll1122s.put.To_Location(xfer.tloc)<br />
+| Put Lot if needed.<br />
+		if(tiitm001.kltc = tckltc.batch) then<br />
+			dll1122s.put.From_lot(xfer.lots)<br />
+		endif<br />
+		dll1122s.insert(1,err)<br />
+		if(strip$(err)&lt;&gt;&quot;&quot;) then<br />
+			sess_error(&quot;Insert Sub: &quot;&amp; strip$(err),&quot;tdilc1122s000&quot;)<br />
+			continue<br />
+		endif<br />
+<br />
+| Save subsesssion data to proc it.<br />
+		dll1122s.save(err)<br />
+		if(strip$(err)&lt;&gt;&quot;&quot;) then<br />
+			sess_error(&quot;Save: &quot;&amp; strip$(err),&quot;tdilc1122s000&quot;)<br />
+			continue<br />
+		endif<br />
+<br />
+| Stop and kill subsessions before next record.<br />
+		dll1122s.end()	<br />
+		dll1120.handle.sub.process(&quot;tdilc1122s000&quot;,&quot;kill&quot;)<br />
+		dll1120.end()</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

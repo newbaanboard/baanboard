@@ -1,0 +1,186 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Customer Defined Field can't hold his liquor, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Customer Defined Field can't hold his liquor Tools Development" />
+	
+	<title>Customer Defined Field can't hold his liquor [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Customer Defined Field can't hold his liquor</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Bender</div><div class="date">4th December 2019, 12:34</div></div><div class="posttext">Hi there fellow Baanies :)<br />
+<br />
+can i ask you a question about Extensions and Customer defined fields?<br />
+<br />
+My Problem is as follows:<br />
+- created a table extension on table tisfc001<br />
+- created a customer defined field tisfc001.cdf_sord <br />
+that field has to be filled with the order number from tdsls402<br />
+<br />
+My problem is, i just cannot set the value in the CDF. I can update other standard fields with my extension but i cannot fill the Customer defined Field<br />
+<br />
+What i already did:<br />
+- defined the CDF in Declarations<br />
+    extern  domain  ticdf___str030  tisfc001.cdf_sord<br />
+<br />
+- set the fill of the CDF in Before.Save<br />
+        | SLS Number<br />
+        select * from tdsls402<br />
+        where tdsls402.apdo = :tisfc001.pdno<br />
+        as set with 1 rows<br />
+        selectdo<br />
+                tisfc001.cdf_sord = tdsls402.orno<br />
+        endselect<br />
+<br />
+- set the fill of the CDF in the CDF Field Logic Section in Update<br />
+| SLS Number<br />
+        select * from tdsls402<br />
+        where tdsls402.apdo = :tisfc001.pdno<br />
+        as set with 1 rows<br />
+        selectdo<br />
+                tisfc001.cdf_sord = tdsls402.orno<br />
+        endselect<br />
+<br />
+ I also tried to set the code in every other section possible, it just wont do the trick. <br />
+<br />
+<br />
+<br />
+ Can you please help a bro out here?  :confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">4th December 2019, 20:39</div></div><div class="posttext">Try to use 'export' or 'put.var' for loading the CDF field.  Direct assignments don't seem to work when using db.update instead of DAL.<br />
+<br />
+Use a local variable and explicitly export each CDF in the ‘select’ clause if needed:<br />
+<br />
+<br />
+domain  tcdate  from.date, to.date<br />
+<br />
+to.date =  ……    | set to.date to something that must be added to the CDF.<br />
+select tsacm101.*, tsacm101.cdf_rvdt:from.date<br />
+from   tsacm101 for update<br />
+where  tsacm101. ………..<br />
+selectdo<br />
+       if (from.date &lt;&gt; to.date) then   | update CDF when date is different<br />
+           ret = export(“tsacm101.cdf_rvdt”, to.date)    | put the contents of to.date into the tsacm101.cdf_rvdt field<br />
+           db.update(ttsacm101, db.retry)<br />
+           commit.transaction()<br />
+       endif<br />
+endselect<br />
+ <br />
+<br />
+You can replace the ‘export’ function with ‘put.var’, which is the longer version of export where you can specify the process id, which is always the current process ID (‘pid’ predefined variable).<br />
+<br />
+<br />
+       ret = put.var(pid, “tsacm101.cdf_rvdt”, local.date)    | ‘pid’ is a predefined variable containing the current session process ID.<br />
+ <br />
+<br />
+<br />
+Using DAL to replace the &quot;db.update&quot; functions is a bit easier when CDFs are involved since an export/put.var isn't needed.  A single &quot;dal.set.field&quot; is used when importing fields.<br />
+<br />
+<br />
+domain  tcdate  from.date, to.date<br />
+<br />
+to.date =  ……    | set to.date to something that must be added to the CDF.<br />
+select tsacm101.*, tsacm101.cdf_rvdt:from.date<br />
+from   tsacm101 for update<br />
+where  tsacm101. ………..<br />
+selectdo<br />
+       if (from.date &lt;&gt; to.date) then   | update CDF when date is different<br />
+           ret = dal.change.object(&quot;tsacm101&quot;)<br />
+           if (ret = 0) then<br />
+               dal.set.field(“tsacm101.cdf_rvdt”, to.date)    | put the contents of to.date into the tsacm101.cdf_rvdt field<br />
+               ret = dal.save.object(“tsacm101”)<br />
+           endif<br />
+           if (ret = 0) then<br />
+               commit.transaction()<br />
+           else<br />
+               | report error<br />
+           endif<br />
+       endif<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">5th December 2019, 10:20</div></div><div class="posttext">Giving the CDF the value if the Sales Order number in the Before Save hook is the best solution. The reason that it doesn't work maybe the fact that you declared the CDF yourself. <br />
+<br />
+- defined the CDF in Declarations<br />
+extern domain ticdf___str030 tisfc001.cdf_sord<br />
+<br />
+Remove this and try again.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Bender</div><div class="date">5th December 2019, 11:53</div></div><div class="posttext">thx BaanInOhio but unfortunatly the set.var, export did not help.<br />
+<br />
+<br />
+Plus, in an extension on table extension level, you cannot use commit.transaction as you are already in a transaction. <br />
+<br />
+<br />
+<br />
+Try to use 'export' or 'put.var' for loading the CDF field.  Direct assignments don't seem to work when using db.update instead of DAL.<br />
+ <br />
+Use a local variable and explicitly export each CDF in the ‘select’ clause if needed:<br />
+<br />
+<br />
+domain  tcdate  from.date, to.date<br />
+<br />
+to.date =  ……    | set to.date to something that must be added to the CDF.<br />
+select tsacm101.*, tsacm101.cdf_rvdt:from.date<br />
+from   tsacm101 for update<br />
+where  tsacm101. ………..<br />
+selectdo<br />
+       if (from.date &lt;&gt; to.date) then   | update CDF when date is different<br />
+           ret = export(“tsacm101.cdf_rvdt”, to.date)    | put the contents of to.date into the tsacm101.cdf_rvdt field<br />
+           db.update(ttsacm101, db.retry)<br />
+           commit.transaction()<br />
+       endif<br />
+endselect<br />
+ You can replace the ‘export’ function with ‘put.var’, which is the longer version of export where you can specify the process id, which is always the current process ID (‘pid’ predefined variable).<br />
+<br />
+<br />
+       ret = put.var(pid, “tsacm101.cdf_rvdt”, local.date)    | ‘pid’ is a predefined variable containing the current session process ID.<br />
+ Using DAL to replace the &quot;db.update&quot; functions is a bit easier when CDFs are involved since an export/put.var isn't needed.  A single &quot;dal.set.field&quot; is used when importing fields.<br />
+<br />
+<br />
+domain  tcdate  from.date, to.date<br />
+<br />
+to.date =  ……    | set to.date to something that must be added to the CDF.<br />
+select tsacm101.*, tsacm101.cdf_rvdt:from.date<br />
+from   tsacm101 for update<br />
+where  tsacm101. ………..<br />
+selectdo<br />
+       if (from.date &lt;&gt; to.date) then   | update CDF when date is different<br />
+           ret = dal.change.object(&quot;tsacm101&quot;)<br />
+           if (ret = 0) then<br />
+               dal.set.field(“tsacm101.cdf_rvdt”, to.date)    | put the contents of to.date into the tsacm101.cdf_rvdt field<br />
+               ret = dal.save.object(“tsacm101”)<br />
+           endif<br />
+           if (ret = 0) then<br />
+               commit.transaction()<br />
+           else<br />
+               | report error<br />
+           endif<br />
+       endif<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Bender</div><div class="date">5th December 2019, 11:54</div></div><div class="posttext">Hi there JaapJD and thx too.<br />
+I removed the declaration but still no luck :(<br />
+<br />
+<br />
+<br />
+Giving the CDF the value if the Sales Order number in the Before Save hook is the best solution. The reason that it doesn't work maybe the fact that you declared the CDF yourself. <br />
+ <br />
+Remove this and try again.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

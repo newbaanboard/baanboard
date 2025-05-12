@@ -1,0 +1,206 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Upgrading Porting Set, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Upgrading Porting Set Tools Administration &amp; Installation" />
+	
+	<title>Upgrading Porting Set [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Upgrading Porting Set</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">baancust</div><div class="date">16th October 2008, 07:43</div></div><div class="posttext">Hi All,<br />
+We have following setup :<br />
+baan IVc4 sp 18 with lot of customisation.<br />
+Porting set 6.1c.07.08<br />
+Operating system HP UX11.11<br />
+Informix 7.31.FC6X5<br />
+<br />
+We are planning to upgrade our porting set from 7.08 to 7.20. <br />
+I want to know is there any issue with my existing setup with database and operating system. What points are to be considered while doing the same. Will upgrading the porting set affect the printers.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">16th October 2008, 09:12</div></div><div class="posttext">Hi,<br />
+ <br />
+we recently made a major step (hardware, o/s, db and porting set on one day). But we encountered only one problem: barcode printing. There has been a change in porting set 7.15, so I had to tweak the $BSE/lib/barcode/type... script.<br />
+ <br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">22nd October 2008, 18:58</div></div><div class="posttext">How did you have to modify the type script?  We did SP a few weeks ago and I just found out today there is an issue with barcodes.  Just curious what you fixed to see if it would help me.<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd October 2008, 00:58</div></div><div class="posttext">Never mind - figured it out.  Baan was appending a space the value that was sent into the script I added a line like code=`echo $code | tr -d &quot; &quot;` to strip that space out.  Well at least one more problem from this SP upgrade has been solved.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mig28mx</div><div class="date">23rd October 2008, 02:15</div></div><div class="posttext">Hello,<br />
+When you upgrade, be sure you have the last version of I-connect.<br />
+If no, the PS upgrade will not work.<br />
+<br />
+Regards.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Chris Kiehl</div><div class="date">24th October 2008, 16:57</div></div><div class="posttext">I added a line like code=`echo $code | tr -d &quot; &quot;` to strip that space out. <br />
+<br />
+Hello,<br />
+Where, specifically, do we place this expression in the file?<br />
+We recently changed our porting set as well and are having the same problem with our type39 file:<br />
+<br />
+#!/bin/sh<br />
+#<br />
+#       Barcode driver for HP LJ4 printers supporting Code 39.<br />
+#<br />
+#       The Triton path and filename is $BSE/lib/barcode/hp_barcode/type21<br />
+#<br />
+#       The orientation of the barcode horizontal.<br />
+#       <br />
+#       All this is based on the sample driver of Baan International B.V.,<br />
+#       Mr. Lehmann, BaaN International, Hannover<br />
+#<br />
+        # barcode-characters, completed by Code39 start and stop characters<br />
+	# space turn to _<br />
+#code=&quot;*$1*&quot;<br />
+<br />
+#echo &quot;`date`: $*&quot; &gt;&gt; /tmp/type39.log<br />
+<br />
+strlen=`echo &quot;*$1*&quot; |awk '{ printf &quot;%d&quot;, length }'`<br />
+i=1<br />
+code=&quot;&quot;<br />
+while [ $i -le ${strlen} ]<br />
+do<br />
+	teilstr=`echo &quot;*$1*&quot; | cut -c $i-$i`<br />
+		if [ &quot;${teilstr}&quot; = &quot; &quot; ]; then<br />
+			teilstr=&quot;_&quot;<br />
+		fi<br />
+		code=&quot;${code}${teilstr}&quot;<br />
+		i=`expr $i + 1`<br />
+done<br />
+<br />
+        # height eq. '2' for a single execution of the 'while'-loop<br />
+        # 'height' is usually set by the calling programm<br />
+height='4'<br />
+Push()<br />
+{<br />
+        # push cursor position (max 20x)<br />
+echo &quot;\033&amp;f0S\c&quot;<br />
+}<br />
+Pop()<br />
+{<br />
+        # pop cursor position<br />
+echo &quot;\033&amp;f1S\c&quot;<br />
+}<br />
+NextRow()<br />
+{<br />
+        # move to next row, relative<br />
+echo &quot;\033&amp;a+1R\c&quot;<br />
+}<br />
+        # - save cursor position - filter assumes same pos. after barcode print<br />
+Push<br />
+        # - select Code 39 font<br />
+# echo &quot;\033(0Y\033(s0p8.1h12v0s0b0T&quot;<br />
+ echo &quot;\033(9Y\033(s1p32v0s0b24670T&quot;<br />
+<br />
+        # print barcode for height - 1 times<br />
+while [ $height -gt 1 ]<br />
+do<br />
+        Push<br />
+        echo &quot;$code\c&quot;<br />
+        Pop<br />
+        NextRow<br />
+        height=`expr $height - 1`<br />
+done<br />
+        # - select Courier 12cpi.<br />
+echo &quot;\033(10U\033(s0p12.00h10.0v0s0b3T\c&quot;<br />
+        # - restore cursor position for filter<br />
+Pop<br />
+exit 0<br />
+<br />
+<br />
+Thanks in advance,<br />
+-Chris-</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">freebie82</div><div class="date">20th May 2009, 18:24</div></div><div class="posttext">#!/bin/sh<br />
+#<br />
+#       Barcode driver for HP LJ4 printers supporting Code 39.<br />
+#<br />
+#       The Triton path and filename is $BSE/lib/barcode/hp_barcode/type21<br />
+#<br />
+#       The orientation of the barcode horizontal.<br />
+#       <br />
+#       All this is based on the sample driver of Baan International B.V.,<br />
+#       Mr. Lehmann, BaaN International, Hannover<br />
+#<br />
+        # barcode-characters, completed by Code39 start and stop characters<br />
+	# space turn to _<br />
+#code=&quot;*$1*&quot;<br />
+<br />
+#echo &quot;`date`: $*&quot; &gt;&gt; /tmp/type39.log<br />
+<br />
+strlen=`echo &quot;*$1*&quot; |awk '{ printf &quot;%d&quot;, length }'`<br />
+i=1<br />
+code=&quot;&quot;<br />
+while [ $i -le ${strlen} ]<br />
+do<br />
+	teilstr=`echo &quot;*$1*&quot; | cut -c $i-$i`<br />
+		if [ &quot;${teilstr}&quot; = &quot; &quot; ]; then<br />
+			teilstr=&quot;_&quot;<br />
+		fi<br />
+		code=&quot;${code}${teilstr}&quot;<br />
+		i=`expr $i + 1`<br />
+done<br />
+<br />
+        # height eq. '2' for a single execution of the 'while'-loop<br />
+        # 'height' is usually set by the calling programm<br />
+height='4'<br />
+Push()<br />
+{<br />
+        # push cursor position (max 20x)<br />
+echo &quot;\033&amp;f0S\c&quot;<br />
+}<br />
+Pop()<br />
+{<br />
+        # pop cursor position<br />
+echo &quot;\033&amp;f1S\c&quot;<br />
+}<br />
+NextRow()<br />
+{<br />
+        # move to next row, relative<br />
+echo &quot;\033&amp;a+1R\c&quot;<br />
+}<br />
+        # - save cursor position - filter assumes same pos. after barcode print<br />
+Push<br />
+        # - select Code 39 font<br />
+# echo &quot;\033(0Y\033(s0p8.1h12v0s0b0T&quot;<br />
+ echo &quot;\033(9Y\033(s1p32v0s0b24670T&quot;<br />
+<br />
+        # print barcode for height - 1 times<br />
+while [ $height -gt 1 ]<br />
+do<br />
+        Push<br />
+        #echo &quot;$code\c&quot; (commented out)<br />
+       echo &quot;$code\c&quot; | tr -d &quot; &quot; (new piece)<br />
+        Pop<br />
+        NextRow<br />
+        height=`expr $height - 1`<br />
+done<br />
+        # - select Courier 12cpi.<br />
+echo &quot;\033(10U\033(s0p12.00h10.0v0s0b3T\c&quot;<br />
+        # - restore cursor position for filter<br />
+Pop<br />
+exit 0</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

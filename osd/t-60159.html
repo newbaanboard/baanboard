@@ -1,0 +1,151 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Status of company wise used space in SQL FILE, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Status of company wise used space in SQL FILE Operating Systems &amp; Databases" />
+	
+	<title>Status of company wise used space in SQL FILE [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Status of company wise used space in SQL FILE</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jpradips</div><div class="date">3rd March 2011, 07:26</div></div><div class="posttext">Dear Sir,<br />
+<br />
+We have multiple companies and one SQL Data base.<br />
+I need to found, company wise how many space used in SQL Data Base.<br />
+<br />
+Kindly guide me.<br />
+<br />
+Thanks &amp; Regards,<br />
+jpradips.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">3rd March 2011, 07:28</div></div><div class="posttext">That's not easily accomplished.<br />
+<br />
+The only thing you might be able to do would be to export each company and load them individually into a separate database and measure the size of the database after that.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vinceco252</div><div class="date">3rd March 2011, 08:12</div></div><div class="posttext">This stored procedure works for me on MSSQL systems<br />
+<br />
+CREATE PROC compsize @comp CHAR(3)<br />
+<br />
+--Execute Statement: EXEC compsize @comp = '???'<br />
+--Where '???' is the company number<br />
+<br />
+AS<br />
+<br />
+/************************************************************************************************/<br />
+<br />
+SET ARITHIGNORE ON<br />
+SET NOCOUNT ON<br />
+<br />
+/************************************************************************************************/<br />
+<br />
+CREATE TABLE #tables<br />
+(<br />
+	tblname		VARCHAR(128)<br />
+)<br />
+<br />
+/************************************************************************************************/<br />
+<br />
+CREATE TABLE #compsize<br />
+(<br />
+	tblname		VARCHAR(128),<br />
+	tblrows		INT,<br />
+	reserved	VARCHAR(128),<br />
+	data		VARCHAR(128),<br />
+	indexp		VARCHAR(128),<br />
+	unused		VARCHAR(128)<br />
+)<br />
+/************************************************************************************************/<br />
+<br />
+INSERT INTO #tables<br />
+<br />
+SELECT	LTRIM(RTRIM(sysobjects.name))<br />
+<br />
+FROM	sysobjects<br />
+<br />
+WHERE	sysobjects.name LIKE ('%' + @comp) AND sysobjects.xtype = 'U'<br />
+<br />
+/************************************************************************************************/<br />
+<br />
+DECLARE	@@tblname VARCHAR(128)<br />
+<br />
+DECLARE compsize CURSOR FOR<br />
+<br />
+	SELECT 	#tables.tblname<br />
+<br />
+	FROM 	#tables<br />
+	<br />
+OPEN 	compsize<br />
+<br />
+	FETCH FROM compsize INTO  @@tblname<br />
+<br />
+		WHILE @@FETCH_STATUS = 0<br />
+<br />
+			BEGIN<br />
+<br />
+<br />
+				INSERT INTO #compsize<br />
+				<br />
+				EXEC sp_spaceused @@tblname<br />
+				<br />
+				FETCH NEXT FROM compsize INTO @@tblname<br />
+<br />
+			END<br />
+	<br />
+<br />
+CLOSE 	compsize<br />
+<br />
+DEALLOCATE compsize<br />
+<br />
+/************************************************************************************************/<br />
+<br />
+UPDATE	#compsize<br />
+<br />
+SET	#compsize.data = LTRIM(RTRIM(#compsize.data)),<br />
+	#compsize.reserved = LTRIM(RTRIM(#compsize.reserved)),<br />
+	#compsize.indexp = LTRIM(RTRIM(#compsize.indexp)),<br />
+	#compsize.unused = LTRIM(RTRIM(#compsize.unused))<br />
+<br />
+FROM	#compsize<br />
+<br />
+/************************************************************************************************/<br />
+<br />
+UPDATE	#compsize<br />
+<br />
+SET	#compsize.data = LEFT(#compsize.data,LEN(#compsize.data)-3),<br />
+	#compsize.reserved = LEFT(#compsize.reserved,LEN(#compsize.reserved)-3),<br />
+	#compsize.indexp = LEFT(#compsize.indexp,LEN(#compsize.indexp)-3),<br />
+	#compsize.unused = LEFT(#compsize.unused,LEN(#compsize.unused)-3)<br />
+<br />
+FROM	#compsize<br />
+<br />
+/************************************************************************************************/<br />
+/*<br />
+SELECT	SUM(CAST(#compsize.data AS INTEGER)) AS DataKB, SUM(CAST(#compsize.reserved AS INTEGER)) AS ReservedKB, <br />
+	SUM(CAST(#compsize.indexp AS INTEGER)) AS IndexKB, SUM(CAST(#compsize.unused AS INTEGER)) AS UnusedKB<br />
+*/<br />
+SELECT	*<br />
+FROM	#compsize<br />
+ORDER BY data DESC<br />
+/************************************************************************************************/<br />
+<br />
+RETURN<br />
+<br />
+GO</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

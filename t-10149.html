@@ -1,0 +1,201 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="session tdrpl0122 was very slow, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] session tdrpl0122 was very slow Performance &amp; Tuning" />
+	
+	<title>session tdrpl0122 was very slow [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Performance &amp; Tuning</a> &gt; session tdrpl0122 was very slow</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">julia0726</div><div class="date">27th May 2003, 08:51</div></div><div class="posttext">hi all,<br />
+<br />
+My users are complaining about this session tdrpl0122m000 that performs very slow and sometimes assumed to be hanging already by the users.<br />
+<br />
+What are the things I need to check first.<br />
+<br />
+We are using BaanIvc4 on IBM platform and Oracle as our database.<br />
+<br />
+Your comments and suggestions will be greatly appreciated.<br />
+<br />
+thank you very much.<br />
+<br />
+julia</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">28th May 2003, 14:47</div></div><div class="posttext">When a session runs slow I have the following suggestions:<br />
+- Check when the session  runs slow (always/ with some users on the system/ between 9 and 10 AM/ on Thuesdays etc)<br />
+- If it is not always, try to identify what is causing the problem (Locking/ system usage/ application locks etc)<br />
+- If it is always, analyze the session by profiled objects/ BLAT or Database tools. In your situation I advise to start with database tracing when no sources are available. When sources are avaliable, start with profiled objects. You can more about how to do this in the document on top of this group (Link to performance and tuning doc (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=7665))<br />
+<br />
+If I am not clear (or my document) please let me know and we can try to help you further.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">28th May 2003, 15:41</div></div><div class="posttext">IMHO the problem with this session is in the default query on the main table.  The query (shown when tracing) shows that there is some kind of extention whereby the mask is checked for certain step numbers.  These text comparisons take a long time, and, if you have a lot of records in the tdrpl100 (Relenishment Order Lines) table, the session becomes extremely sluggish when trying to switch to the previous/next record.  Also, startup of the session is affected by this.  Why the query is not rewritten to check the status field, I do not know.  Another method to better the performance would be to add an index where the mask field is the first keyfield, and then the program could construct the needed mask string before querying the database.  Something to report to Baan Support?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">28th May 2003, 15:52</div></div><div class="posttext">Nico,<br />
+<br />
+Thanks for the additions. As I expect you have done the traces ealier I hope ou can also send me the traces so we can give some hints to support. if you can't, hopefully Julia an make a database trace on it. and send/post these.<br />
+<br />
+Together we can see if we can find a solution herefore.<br />
+<br />
+BTW: wich version do we talk about?<br />
+<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">28th May 2003, 15:56</div></div><div class="posttext">We are using BaanIvc4 on IBM platform and Oracle as our database.<br />
+<br />
+<br />
+And that's the version I tested it on.  Did it some time in the past, and do not have the traces anymore, but can recreate if necessary.<br />
+<br />
+Regards,<br />
+Nico</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">28th May 2003, 16:04</div></div><div class="posttext">Nico,<br />
+<br />
+Sorry that I missed that part. Yes, if possible, recreate the traces.<br />
+<br />
+<br />
+Julia,<br />
+<br />
+Are you using Level 1 or Level 2? If this sounds weird to you, please ask your Baan admin as he/ she should know ;) .<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">28th May 2003, 17:19</div></div><div class="posttext">Here are the two queries executed when starting up the session (done with TT_SQL_TRACE=0200):<br />
+<br />
+<br />
+SELECT tdrpl100.*, tiitm001.*<br />
+FROM tdrpl100,  tiitm001 <br />
+WHERE tdrpl100._index1 BETWEEN  {:tdrpl100.orno, :tdrpl100.pono, :tdrpl100.srnb} AND {:tdrpl100.orno} <br />
+AND (<br />
+   (:currkey &lt;&gt; 3 or tdrpl100.pino &lt;&gt; 0) and  <br />
+   (:currkey &lt;&gt; 4 or tdrpl100.dino &lt;&gt; 0) and  <br />
+   (:currkey &lt;&gt; 5 or tdrpl100.fono &lt;&gt; 0) and  <br />
+   tdrpl100.pmsk(:stno.rpl2126;1) &lt;&gt; &quot;e&quot; and  <br />
+   tdrpl100.pmsk(:stno.rpl0122;1) &lt;&gt; &quot;n&quot; and  <br />
+   tdrpl100.pmsk(:stno.rpl0114;1) &lt;&gt; &quot;n&quot;)<br />
+AND  tdrpl100.item REFERS TO tiitm001 <br />
+ORDER BY tdrpl100._index1<br />
+<br />
+<br />
+<br />
+SELECT tdrpl100.*, tiitm001.*<br />
+FROM tdrpl100,  tiitm001 <br />
+WHERE tdrpl100._index1 = {:tdrpl100.orno} <br />
+AND (<br />
+   (:currkey &lt;&gt; 3 or tdrpl100.pino &lt;&gt; 0) and  <br />
+   (:currkey &lt;&gt; 4 or tdrpl100.dino &lt;&gt; 0) and  <br />
+   (:currkey &lt;&gt; 5 or tdrpl100.fono &lt;&gt; 0) and  <br />
+   tdrpl100.pmsk(:stno.rpl2126;1) &lt;&gt; &quot;e&quot; and  <br />
+   tdrpl100.pmsk(:stno.rpl0122;1) &lt;&gt; &quot;n&quot; and  <br />
+   tdrpl100.pmsk(:stno.rpl0114;1) &lt;&gt; &quot;n&quot;)<br />
+AND  tdrpl100.item REFERS TO tiitm001 <br />
+ORDER BY tdrpl100._index1<br />
+<br />
+<br />
+Thus, the second performance killer is the tdrpl100.* and tiitm001.*<br />
+<br />
+Hope this helps!<br />
+<br />
+Nico</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">julia0726</div><div class="date">29th May 2003, 04:54</div></div><div class="posttext">hello,<br />
+<br />
+thank you very much to all your response. by the way, we are using the level 2 database driver.<br />
+<br />
+additional info:I suggested to set the following variables in thier db_resource file.<br />
+<br />
+<br />
+dbsinit:021<br />
+ora_init:0111000<br />
+ora_max_array_fetch:2<br />
+ora_max_array_insert:1<br />
+baan_oracle_prefetch:2<br />
+oracle_client_home:/baan/usr/bse/lib/ora/oracle_home<br />
+nls_lang:american_america.us7ascii<br />
+nls_sort:binary<br />
+ora_column_format:8<br />
+<br />
+lock_retry:0<br />
+ora_timeout:{0,60,60,60,0}<br />
+<br />
+Would this help?<br />
+<br />
+thanks,<br />
+<br />
+julia</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Avasarala</div><div class="date">29th May 2003, 05:12</div></div><div class="posttext">Hi,<br />
+<br />
+Can you post init${ORACLE_SID}.ora file. This file has some more parameters which might be of some interest.<br />
+<br />
+By the way what's the version of your Oracle.<br />
+<br />
+regards,<br />
+Dev</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">julia0726</div><div class="date">29th May 2003, 05:25</div></div><div class="posttext">Hi guys,<br />
+<br />
+<br />
+<br />
+forgot to mention that this slow session performance was only observed in ASCII. There were no similar problem encountered <br />
+using the GUI or BW. <br />
+<br />
+hi Avasarala,<br />
+<br />
+Oracle version 8.1.7<br />
+<br />
+thanks,<br />
+<br />
+julia</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Avasarala</div><div class="date">29th May 2003, 05:39</div></div><div class="posttext">Hi Julia,<br />
+<br />
+Are you using Rule-Based-Optimizer or Cost-Based-Optimizer? <br />
+You can find these details from init${ORACLE_SID}.ora file.<br />
+<br />
+Regards,<br />
+Dev</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">30th May 2003, 11:11</div></div><div class="posttext">As the difference only occurs in ASCII I assume there are done some settings on OS level that are not used when using the GUI. So please login on UNIX and type env:<br />
+<br />
+$env<br />
+<br />
+Let us know these results. Also let us know the content of the following files:<br />
+- $BSE/lib/tabledef6.1<br />
+- $BSE/lib/defaults/db_resource<br />
+<br />
+Maybe we need more files, but this is a good starting point. <br />
+<br />
+As this is ASCII only, it has nothing to do with Oracle settings like RBO or CBO nor any init.ora parameter.<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Report Layout Issue, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Report Layout Issue Tools Development" />
+	
+	<title>Report Layout Issue [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Report Layout Issue</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">tracylee</div><div class="date">27th September 2018, 06:36</div></div><div class="posttext">Dear all,<br />
+<br />
+I have issue on display report data. Please refer attached file for more details. First attached file (Report Layout Issue 1) is now current layout display. How can I show the report layout as second attached file (Report Layout(request like this)). My code as below. Please advise. Thanks.<br />
+<br />
+<br />
+|****************************** declaration section ***************************<br />
+<br />
+declaration:<br />
+<br />
+	table	ttccus025	| Cut List Calculation<br />
+	table	ttccom001	| Employee-General<br />
+	table	ttccus024	| Short Bar List<br />
+	table	ttcmcs052	| Projects<br />
+<br />
+<br />
+	extern	domain	tcmcs.str60	title1,  sect.olen.clle<br />
+	extern	domain	tclbal		bal<br />
+	extern	domain	tcclle		count.clle, max.clle, run.no<br />
+	extern	domain	tccsle		total.qty, totalqty<br />
+	extern	domain	tcoqty		gross.qty, short.qty, minus.qty, a.short.qty, test.qty<br />
+<br />
+	extern	domain	tcitem		item.var(1) based<br />
+	extern	domain	tcitem		qty.var(1) based<br />
+	extern	domain	tcitem		bal.qty.var(1) based<br />
+	extern	domain	tcitem		finish.item, f.item, f.qty, f.bal.qty<br />
+	long i, t, tot.num<br />
+<br />
+before.program:<br />
+	free.mem(item.var)<br />
+	free.mem(qty.var)<br />
+	free.mem(bal.qty.var)<br />
+<br />
+	i = 0<br />
+	t = 1<br />
+<br />
+header.1:<br />
+before.layout:<br />
+	title1 = &quot;TEST&quot;<br />
+<br />
+before.tccus025.sect.1:<br />
+before.layout:<br />
+	totalqty = 0<br />
+<br />
+detail.1:<br />
+before.layout:<br />
+<br />
+	select count(tccus025.clle):count.clle<br />
+	from tccus025<br />
+	where tccus025.sect = :tccus025.sect and tccus025.olen = :tccus025.olen and tccus025.clle = :tccus025.clle<br />
+	selectdo<br />
+		run.no = run.no + 1<br />
+	endselect<br />
+<br />
+	|**** Max Long Bar ***********<br />
+	select max(tccus025.clle):max.clle<br />
+	from tccus025<br />
+	where tccus025.sect = :tccus025.sect and tccus025.olen = :tccus025.olen and tccus025.ocut = tcyesno.no<br />
+	|group by tccus025.clle<br />
+	selectdo<br />
+	selectempty<br />
+		max.clle = 0<br />
+	endselect<br />
+		<br />
+	if count.clle = run.no then<br />
+		bal = tccus025.lbal<br />
+	else<br />
+		bal = 0<br />
+	endif<br />
+<br />
+<br />
+	|**** Show Finish Goods ***********	<br />
+	short.qty = tccus025.csle<br />
+<br />
+	select tccus024.*<br />
+	from tccus024<br />
+	where tccus024.sect = :tccus025.sect and tccus024.lgth = :tccus025.slen<br />
+	selectdo<br />
+		gross.qty = tccus024.oqty<br />
+		finish.item = tccus024.item<br />
+			<br />
+			short.qty = short.qty - gross.qty<br />
+	<br />
+<br />
+			i = i + 1<br />
+			alloc.mem(item.var, 47, i)<br />
+			alloc.mem(qty.var, 47, i)<br />
+			alloc.mem(bal.qty.var, 47, i)<br />
+<br />
+			item.var(1,i) = finish.item	<br />
+			qty.var(1,i) = str$(gross.qty)<br />
+			bal.qty.var(1,i) = str$(short.qty)<br />
+			<br />
+	endselect<br />
+<br />
+after.layout:	<br />
+	calculate.total.quantity(tccus025.csle)		<br />
+<br />
+<br />
+detail.2:<br />
+before.layout:<br />
+	for tot.num = t to i<br />
+<br />
+		f.item = trim$(item.var(1,tot.num))<br />
+		f.qty = qty.var(1,tot.num)<br />
+		f.bal.qty = bal.qty.var(1,tot.num)<br />
+<br />
+		break<br />
+	endfor<br />
+	<br />
+	if (i = 0) or (i = t) then<br />
+		i = 0<br />
+		t = 1<br />
+		free.mem(item.var)<br />
+		free.mem(qty.var)<br />
+		free.mem(bal.qty.var)<br />
+	endif<br />
+<br />
+after.layout:<br />
+	if i &lt;&gt; 0 then<br />
+<br />
+		if i &lt;&gt; t then<br />
+			t = t + 1<br />
+			layout.again()			<br />
+		endif<br />
+		<br />
+	endif<br />
+<br />
+after.program:<br />
+	free.mem(item.var)<br />
+	free.mem(qty.var)<br />
+	free.mem(bal.qty.var)<br />
+<br />
+after.tccus025.clle.1:<br />
+after.layout:<br />
+	run.no = 0<br />
+<br />
+after.tccus025.sect.1:<br />
+before.layout:<br />
+<br />
+	total.qty = totalqty<br />
+<br />
+<br />
+Functions:<br />
+<br />
+function calculate.total.quantity(domain tccsle t.qty)<br />
+{<br />
+	totalqty =  totalqty + t.qty<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">27th September 2018, 17:29</div></div><div class="posttext">Do you want to get After Used Qty on the report? Simply use a field with quantity domain and assign the value f.qty - tccus025.csle</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tracylee</div><div class="date">28th September 2018, 04:09</div></div><div class="posttext">Do you want to get After Used Qty on the report? Simply use a field with quantity domain and assign the value f.qty - tccus025.csle<br />
+<br />
+Thanks for your reply. Yes, but the figure get wrongly. I also want to display the item code. <br />
+<br />
+Eg:<br />
+finish good A need use 3 pcs short bar A and <br />
+finish good B need use 4 pcs short bar A.<br />
+1 pcs Long Bar only can cut 2pcs shor bar A.<br />
+<br />
+I want display as below.<br />
+Material     Mat.qty  Qty short bar A      finish good               After used qty<br />
+Long Bar     1 pcs          2 pcs               finish good A               1 pcs<br />
+Long Bar     1 pcs          2 pcs               finish good A               0 pcs<br />
+                                                             finish good B               3 pcs<br />
+Long Bar     1 pcs          2 pcs               finish good B               1 pcs<br />
+Long Bar     1 pcs          2 pcs               finish good B               0 pcs<br />
+<br />
+Please advise. Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">28th September 2018, 14:40</div></div><div class="posttext">Whatever value is being shown in Total Qty to be used - Short Bar Process Qty, You can display it in before.layout of the Report or use it directly in the Report Field<br />
+<br />
+Also You want the Trimmed Item Code to be displayed? Its achievable if you use trim$</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

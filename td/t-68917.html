@@ -1,0 +1,253 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Report not printing 2nd time, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Report not printing 2nd time Tools Development" />
+	
+	<title>Report not printing 2nd time [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Report not printing 2nd time</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">IndoTech</div><div class="date">26th May 2016, 16:46</div></div><div class="posttext">Hi, <br />
+<br />
+Following query for a report works and if keep the session open and run again does not give any o/p in fact do not enter the selectdo<br />
+<br />
+	where	tdsls401._index1 inrange {:orno3.f} and {:orno3.t}<br />
+ 	and	tdsls401.ofbp between :cuno3.f and :cuno3.t<br />
+	and	tdsls401.invd between :ud.f and :ud.t<br />
+ 	and	tdsls400.crep between :crep3.f and :crep3.t<br />
+ 	and	tdsls401.ttyp between :ttyp3.f and :ttyp3.t<br />
+ 	and	tdsls401.invn between :invn3.f and :invn3.t<br />
+ 	and	tdsls401.orno = tdsls400.orno<br />
+	and	tdsls400.crep = tccom001.emno<br />
+	and	tdsls400.sotp &lt;&gt; &quot;IPS&quot;<br />
+	and	tdsls401.ofbp = tccom100.bpid<br />
+ 	and	tdsls401.invd &gt; 0<br />
+	order by tdsls401._index7<br />
+	selectdo<br />
+<br />
+                brp.ready(brp_id)<br />
+        endselect<br />
+<br />
+<br />
+Regards<br />
+Kedar</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">26th May 2016, 17:11</div></div><div class="posttext">If you post the rest of your code as well, we may be able to help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">26th May 2016, 17:22</div></div><div class="posttext">Any of the variable that you use for selection is getting reset.<br />
+<br />
+i.e, Any of orno3.f,orno3.t,:cuno3.f,:cuno3.t,:ud.f,:ud.t,:crep3.f, :crep3.t,:ttyp3.f, :ttyp3.t,:invn3.f,:invn3.t, tdsls400.orno,tccom100.bpid<br />
+<br />
+Put the script into debug and breakpoint just before entering of the query and just at that point check which of the above variable is blank.<br />
+<br />
+Mostly, somewhere in the script itself it is getting reset.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th May 2016, 20:04</div></div><div class="posttext">Also make sure there is a brp.close also before second run.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">IndoTech</div><div class="date">27th May 2016, 08:42</div></div><div class="posttext">Hi All<br />
+<br />
+Mark the report is closed before 2nd run.<br />
+<br />
+and Ajesh checked the variables - those are also not set to some wrong data<br />
+<br />
+here is code<br />
+<br />
+choice.cont.process:<br />
+before.choice:<br />
+<br />
+	determine.report.grp()<br />
+ 	execute(print.data)<br />
+	<br />
+choice.print.data:	<br />
+on.choice:<br />
+	print.form.3.selection()<br />
+<br />
+<br />
+|**************************************<br />
+<br />
+functions:<br />
+<br />
+function print.form.3.selection()<br />
+{<br />
+	long	cnt<br />
+	if report.open() then<br />
+		comp.nr = get.compnr()<br />
+		print.fully.paid.commissions()<br />
+		close.report()<br />
+	endif<br />
+}<br />
+<br />
+<br />
+<br />
+function long report.open()<br />
+{<br />
+	brp_id = brp.open(spool.report, &quot;&quot;, 1)<br />
+	if brp_id &gt; 1 then<br />
+		return(true)<br />
+	endif<br />
+<br />
+	return(false)<br />
+}<br />
+<br />
+<br />
+function close.report()<br />
+{	<br />
+	long nb<br />
+	<br />
+	brp.close(brp_id)<br />
+	if (spool.report = &quot;D&quot;) then<br />
+		file.stat(g.tmp.file, nb)<br />
+		if not nb then<br />
+			mess(&quot;ttstps0014&quot;,1)	<br />
+		endif<br />
+	endif<br />
+}<br />
+<br />
+function print.fully.paid.commissions()<br />
+{<br />
+	long	 rt, cnt<br />
+	domain tfgld.date ud.f, ud.t<br />
+	long d, m, y<br />
+	cnt =0<br />
+	rt = num.to.date(invd3.f , y , m, d)<br />
+	<br />
+	ud.f = date.to.utc(y, m, d, 0, 0, 0)<br />
+	rt = num.to.date(invd3.t , y , m, d)<br />
+	ud.t = date.to.utc(y, m, d, 23, 59, 59)<br />
+	<br />
+<br />
+<br />
+	select	tdsls401.*, tccom100.seak, tccom001.nama,tdsls400.*<br />
+	from	tdsls400, <br />
+		tdsls401,<br />
+		tccom001,<br />
+		tccom100 <br />
+		 <br />
+	where	tdsls401._index1 inrange {:orno3.f} and {:orno3.t}<br />
+ 	and	tdsls401.ofbp between :cuno3.f and :cuno3.t<br />
+	and	tdsls401.invd between :ud.f and :ud.t<br />
+ 	and	tdsls400.crep between :crep3.f and :crep3.t<br />
+ 	and	tdsls401.ttyp between :ttyp3.f and :ttyp3.t<br />
+ 	and	tdsls401.invn between :invn3.f and :invn3.t<br />
+ 	and	tdsls401.orno = tdsls400.orno<br />
+	and	tdsls400.crep = tccom001.emno<br />
+	and	tdsls400.sotp &lt;&gt; &quot;IPS&quot;<br />
+	and	tdsls401.ofbp = tccom100.bpid<br />
+ 	and	tdsls401.invd &gt; 0<br />
+	order by tdsls401._index7<br />
+	selectdo<br />
+<br />
+		brp.ready(brp_id)<br />
+		cnt = cnt + 1<br />
+	endselect<br />
+<br />
+	if  cnt = 0 then<br />
+		message(&quot;No Data Found, Report not Printed&quot;)<br />
+	endif	<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">27th May 2016, 08:58</div></div><div class="posttext">Hi,<br />
+<br />
+You might try using db.set.to.default() for all the used tables - <br />
+<br />
+<br />
+        db.set.to.default(ttdsls401)<br />
+        db.set.to.default(ttdsls400)<br />
+        db.set.to.default(ttccom100)<br />
+        db.set.to.default(ttccom001)<br />
+        select	tdsls401.*, tccom100.seak, tccom001.nama,tdsls400.*<br />
+	from	tdsls400, <br />
+		tdsls401,<br />
+		tccom001,<br />
+		tccom100 <br />
+		 <br />
+	where	tdsls401._index1 inrange {:orno3.f} and {:orno3.t}<br />
+ 	and	tdsls401.ofbp between :cuno3.f and :cuno3.t<br />
+	and	tdsls401.invd between :ud.f and :ud.t<br />
+ 	and	tdsls400.crep between :crep3.f and :crep3.t<br />
+ 	and	tdsls401.ttyp between :ttyp3.f and :ttyp3.t<br />
+ 	and	tdsls401.invn between :invn3.f and :invn3.t<br />
+ 	and	tdsls401.orno refers to tdsls400.orno<br />
+	and	tdsls400.crep refers to tccom001.emno<br />
+	and	tdsls400.sotp &lt;&gt; &quot;IPS&quot;<br />
+	and	tdsls401.ofbp refers to tccom100.bpid<br />
+ 	and	tdsls401.invd &gt; 0<br />
+	order by tdsls401._index7<br />
+	selectdo<br />
+<br />
+		brp.ready(brp_id)<br />
+		cnt = cnt + 1<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">IndoTech</div><div class="date">27th May 2016, 09:49</div></div><div class="posttext">Hi Bhushan<br />
+<br />
+Thanks.<br />
+<br />
+That I already tried, doesn't work.<br />
+<br />
+Regards<br />
+Kedar</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">27th May 2016, 10:06</div></div><div class="posttext">Just to get my understanding right:<br />
+- The 2nd time all variables preceded by : have the same value<br />
+- The 2nd time the select statement is reached<br />
+- The 2nd time the statements is the selectdo are not executed, so no record is found<br />
+Correct?<br />
+I would recommend to run bshell trace with SQL option set and/or dbslog. Then compare the data from the first and second execution.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">IndoTech</div><div class="date">27th May 2016, 10:51</div></div><div class="posttext">Hi All<br />
+<br />
+The issue with the invoice date input field invd3.f,<br />
+at first time if the full range then invd3.f = 0 and  UTC conversion ud.f = -1<br />
+but 2nd or next run<br />
+ invd3.f = 0 and  UTC conversion ud.f = some value &gt; 0 <br />
+<br />
+so please help to get every time the correct UTC conversion i.e. in full range 0 to till date<br />
+or with some date. i.e 29/04/2015 to 19/10/2015 <br />
+<br />
+Thanks<br />
+Kedar</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">27th May 2016, 11:15</div></div><div class="posttext">The variables y, m, d keep the value from the successful conversion of invd3.t during the first run. 2 solutions:<br />
+<br />
+1. Initialize y, m, d to 0 every time<br />
+2. Code something like:<br />
+<br />
+        if invd3.f = 0 then<br />
+               ud.f = 0<br />
+        else<br />
+        	rt = num.to.date(invd3.f , y , m, d)<br />
+	        ud.f = date.to.utc(y, m, d, 0, 0, 0)<br />
+        endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">IndoTech</div><div class="date">27th May 2016, 12:45</div></div><div class="posttext">Thanks All<br />
+<br />
+it's working now...<br />
+<br />
+Regards<br />
+Kedar</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

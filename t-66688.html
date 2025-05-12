@@ -1,0 +1,104 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Standard Error Message In AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Standard Error Message In AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>Standard Error Message In AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Standard Error Message In AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">sachinbaan</div><div class="date">31st July 2014, 12:08</div></div><div class="posttext">Hi,<br />
+<br />
+I am writing AFS on tcmcs0536m000 - Tax Codes By Country, to approve range of tax together<br />
+<br />
+During approve operation if any of the tax throws any message(error, info) I want it in error report, but in AFS I am not getting that message in my &quot;error.message&quot; variable.<br />
+<br />
+please help.<br />
+<br />
+<br />
+function extern	approve.tax.code()<br />
+{<br />
+	brp = brp.open(&quot;rltmcs0536m0001&quot;, &quot;D&quot;, 0)<br />
+	<br />
+	select	tcmcs036.ccty, tcmcs036.cvat<br />
+	from	tcmcs036<br />
+	where	tcmcs036._index1 inrange {:tax.country, :tax.code.from} and {:tax.country, :tax.code.to}<br />
+	and	tcmcs036.stpv.l = :tax.state<br />
+	and	tcmcs036.appr = tcyesno.no<br />
+	selectdo<br />
+		stpapi.put.field(&quot;tcmcs0536m000&quot;, &quot;tcmcs036.ccty&quot;, tcmcs036.ccty)<br />
+		ret = stpapi.change.view(&quot;tcmcs0536m000&quot;, error.message)<br />
+		if ret = 1 then<br />
+			stpapi.put.field(&quot;tcmcs0536m000&quot;, &quot;tcmcs036.ccty&quot;, tcmcs036.ccty)<br />
+			stpapi.put.field(&quot;tcmcs0536m000&quot;, &quot;tcmcs036.cvat&quot;, tcmcs036.cvat)<br />
+			<br />
+			ret = stpapi.find(&quot;tcmcs0536m000&quot;, error.message)<br />
+			if ret = 1 then<br />
+				ret = stpapi.mark(&quot;tcmcs0536m000&quot;, error.message)<br />
+				if ret = 1 then<br />
+					stpapi.form.command(&quot;tcmcs0536m000&quot;, 5, &quot;approve.tax.code&quot;, error.message)<br />
+					stpapi.enum.answer(&quot;tcmcs0536m000&quot;, &quot;tcmcs00003&quot;, tcyesno.yes)<br />
+					<br />
+					select	tcmcs036.ccty<br />
+					from	tcmcs036<br />
+					where	tcmcs036._index1 = {:tcmcs036.ccty, :tcmcs036.cvat}<br />
+					and	tcmcs036.stpv.l = :tax.state<br />
+					and	tcmcs036.appr = tcyesno.yes<br />
+					as set with 1 rows<br />
+					selectempty<br />
+						error.message = &quot;Tax Code not approved.&quot;<br />
+						brp.ready(brp)		<br />
+						stpapi.end.session(&quot;tcmcs0536m000&quot;)<br />
+					endselect	<br />
+				endif	<br />
+			else<br />
+				stpapi.end.session(&quot;tcmcs0536m000&quot;)<br />
+			endif	<br />
+		else<br />
+			stpapi.end.session(&quot;tcmcs0536m000&quot;)<br />
+		endif<br />
+	selectempty<br />
+		message(&quot;No Data Within Selection.&quot;)<br />
+	endselect<br />
+	brp.close(brp)	<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">31st July 2014, 15:00</div></div><div class="posttext">Moved it to the correct forum.<br />
+<br />
+You can try stpapi.get.mess.code on the session - assuming these are warnings, because a true error should be returned in error.message.  I would try it right after the form command.  It should get the last message from the session.  It does not always work depending on how the session is coded.<br />
+<br />
+I would also make this change in your code - just from glancing at it.:<br />
+<br />
+stpapi.enum.answer(&quot;tcmcs0536m000&quot;, &quot;tcmcs00003&quot;, tcyesno.yes)<br />
+stpapi.form.command(&quot;tcmcs0536m000&quot;, 5, &quot;approve.tax.code&quot;, error.message)<br />
+<br />
+You always want to have the question answered before it is asked. I assume the question would be asked once the form.command is executed.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">benito</div><div class="date">31st July 2014, 16:08</div></div><div class="posttext">another option is to use this DLL,<br />
+<br />
+long tcmcs.dll0036.approve.tax.code.with.commit( domain tcccty i.tax.country, domain tccvat i.tax.code )<br />
+<br />
+Return: 0		The tax code is approved.<br />
+	DALHOOKERROR	Approving is not allowed, error is set.<br />
+<br />
+then you can set any error reporting that you want.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sachinbaan</div><div class="date">1st August 2014, 06:11</div></div><div class="posttext">Thanx benito, mark_h</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

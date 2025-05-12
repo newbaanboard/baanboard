@@ -1,0 +1,391 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Multi reports per session, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Multi reports per session Tools Development" />
+	
+	<title>Multi reports per session [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Multi reports per session</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Ash Gajjar</div><div class="date">28th June 2005, 18:21</div></div><div class="posttext">Hi guys, <br />
+<br />
+Have a session where I am hoping to output three reports. I know that I am to use the Baan V dll - tccomdll0010, but not having much success.<br />
+<br />
+I have a single Function &quot;read.main.table&quot; which should output three reports.<br />
+I have a Single report no but three report groups<br />
+<br />
+I can send my script if anyone out there has a minute to help me out<br />
+<br />
+PS: Script attached<br />
+<br />
+Many thanks <br />
+Ash<br />
+<br />
+|******************************************************************************<br />
+|* tssoc9420o  0  VRC B52O a  expt<br />
+|* Service Warranty report - Materials<br />
+|* Gajjar, Ashvin                <br />
+|* 2005-05-18<br />
+|******************************************************************************<br />
+|* Main table tssoc210 Service Order Activities, Form Type 4<br />
+|******************************************************************************<br />
+|*	Rev.No. 2  tsB52Oaexpt  07 Jun 05 avg01<br />
+|* prototype 2<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+#ident &quot;@(#)tssoc9420o  tsB52Oaexpt  truman  Rev.No. 3  07 Jun 05  avg01&quot;<br />
+#ident &quot;@(#) 1, SL20050222.1, Gajjar, Ashvin, 2005-06-07&quot;<br />
+<br />
+	table	ttssoc200   | Service orders<br />
+	table	ttssoc210   | Service order activities<br />
+	table	ttsmdm200   | Service items<br />
+	table	ttccom100   | Business Partners <br />
+	table	ttsbsc100   | Vessels<br />
+	table   ttscfg010   | Serialised item group 	<br />
+        table   ttsmdm015   | Tasks<br />
+	table	ttssoc220   | Service order Materials	<br />
+	table	ttssoc230   | Service order Labour<br />
+	table	ttssoc240   | Service order Other<br />
+	table   ttcmcs002   | Currencies<br />
+<br />
+ | * Form variables <br />
+<br />
+   extern  domain  tscfg.sigr	    sigr.f<br />
+   extern  domain  tscfg.sigr	    sigr.t			 <br />
+   extern  domain  tsmdm.pldt       date.f<br />
+   extern  domain  tsmdm.pldt       date.t<br />
+   extern  domain  tcyesno	    print.detail<br />
+   extern  domain  tcyesno	    print.excel<br />
+   extern  domain  tcccur           ccur.f      <br />
+   <br />
+| * Program variables<br />
+<br />
+           domain  tcdate           date.utc       | Date of currency conversion<br />
+	   domain  tcmcs.long       ref.pos        | Position of reference currency in Home currency array<br />
+	                                           | Variables to get ref.currency    <br />
+           domain  tcccur           o.hcur(3)<br />
+	   domain  tcemm.depe       o.curr.system<br />
+	   domain  tcmcs.long       o.no.hcur<br />
+	   domain  tcccur           o.ref.ccur<br />
+   extern  domain  tccrnd  	    crnd.f         | Currency round<br />
+   extern  domain  tcamnt           o.amta(3)      | Amount<br />
+   extern  domain  tcratc           dummy.rats(3)<br />
+   extern  domain  tcratf           dummy.ratf(3)<br />
+   extern  domain  tccrnd           dummy.crnd(3)<br />
+   extern  domain  tcccur           home.ccur<br />
+<br />
+| * Report Variables<br />
+<br />
+   extern  domain tcamnt            h.amt          | Amount - hold<br />
+   <br />
+   #include  &quot;itccom0000&quot;                          | multicurrency variable and handling <br />
+   #include  &quot;itsmdm0002&quot;                          | Multicurrency handling <br />
+<br />
+|****************************** program section ********************************<br />
+<br />
+<br />
+|****************************** group section **********************************<br />
+<br />
+group.1:<br />
+init.group:<br />
+			<br />
+|	itccom0000.get.multi.currency.data(get.compnr())<br />
+|	tcemm.dll5000.get.home.currency.system(get.compnr(), o.hcur, o.no.hcur, <br />
+|			o.curr.system, o.ref.ccur)<br />
+|	tcemm.dll5000.position.of.hcur(get.compnr(), o.ref.ccur, ref.pos)<br />
+<br />
+|   disable.fields(&quot;print.excel&quot;)	<br />
+   get.screen.defaults()<br />
+<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+   execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+    if   rprt_open() then<br />
+	read.main.table()<br />
+	rprt_close()<br />
+    else<br />
+        choice.again()<br />
+    endif<br />
+<br />
+<br />
+|****************************** field section *********************************<br />
+<br />
+field.sigr.f:	<br />
+when.field.changes:<br />
+	sigr.t = sigr.f<br />
+<br />
+	<br />
+field.ccur.f:<br />
+before.display:<br />
+	ccur.f = itccom0000.rcur<br />
+check.input:<br />
+	if not valid.currency() then<br />
+		set.input.error(&quot;tdpcg00157&quot;)   | Currency not found<br />
+	endif<br />
+	<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+| function read.print.materials()      | REPORT 1<br />
+  function read.main.table()<br />
+{<br />
+	<br />
+|	if tccom.dll0010.open.report(1, &quot;&quot;, 1, 2, 1) then	<br />
+<br />
+	select	 tssoc210.*<br />
+	from	 tssoc210<br />
+	where	 tssoc210.pstm inrange {:date.f}	<br />
+				and    {:date.t}<br />
+	order by tssoc210.pstm	<br />
+	selectdo		<br />
+		select	tsmdm200.item, tsmdm200.sigr<br />
+			from	tsmdm200<br />
+			where	tsmdm200._index3 inrange {:sigr.f,  :tssoc210.item}<br />
+						    and  {:sigr.t,  :tssoc210.item}			<br />
+		selectdo<br />
+			get.Vessel.data()<br />
+			get.BP.data()<br />
+			get.order.header.data()<br />
+			get.Serialised.item.group.data()<br />
+			material.data()     | get data for each material detail line<br />
+<br />
+		endselect	<br />
+	endselect<br />
+|	tccom.dll0010.close.reports()<br />
+|	endif<br />
+}<br />
+<br />
+ function read.print.labour()           | REPORT 2<br />
+{<br />
+	if tccom.dll0010.open.report(1,&quot;&quot;,0,2,2) then<br />
+<br />
+	select	 tssoc210.*<br />
+	from	 tssoc210<br />
+	where	 tssoc210.pstm inrange {:date.f}	<br />
+				and    {:date.t}<br />
+	order by tssoc210.pstm	<br />
+	selectdo		<br />
+		select	tsmdm200.item, tsmdm200.sigr<br />
+			from	tsmdm200<br />
+			where	tsmdm200._index3 inrange {:sigr.f,  :tssoc210.item}<br />
+						    and  {:sigr.t,  :tssoc210.item}			<br />
+		selectdo<br />
+			get.Vessel.data()<br />
+			get.BP.data()<br />
+			get.order.header.data()<br />
+			get.Serialised.item.group.data()<br />
+			labour.data()     | get data for each labour detail line<br />
+<br />
+		endselect	<br />
+	endselect<br />
+	tccom.dll0010.close.reports()	<br />
+	endif<br />
+}	<br />
+<br />
+function read.print.other()        | REPORT 3<br />
+{<br />
+	if tccom.dll0010.open.report(1,&quot;&quot;,0,2,3) then<br />
+<br />
+<br />
+	select	 tssoc210.*<br />
+	from	 tssoc210<br />
+	where	 tssoc210.pstm inrange {:date.f}	<br />
+				and    {:date.t}<br />
+	order by tssoc210.pstm	<br />
+	selectdo		<br />
+		select	tsmdm200.item, tsmdm200.sigr<br />
+			from	tsmdm200<br />
+			where	tsmdm200._index3 inrange {:sigr.f,  :tssoc210.item}<br />
+						    and  {:sigr.t,  :tssoc210.item}			<br />
+		selectdo<br />
+			get.Vessel.data()<br />
+			get.BP.data()<br />
+			get.order.header.data()<br />
+			get.Serialised.item.group.data()<br />
+			other.data()     | get data for each other detail line<br />
+<br />
+		endselect	<br />
+	endselect<br />
+	tccom.dll0010.close.reports()	<br />
+	endif<br />
+}	<br />
+<br />
+function get.Vessel.data()<br />
+{<br />
+	select	tsbsc100.*<br />
+	from	tsbsc100<br />
+	where	tsbsc100._index1 = {:tssoc210.clst}<br />
+	selectdo<br />
+	endselect<br />
+}<br />
+<br />
+function get.order.header.data()<br />
+{<br />
+	select	tssoc200.cwoc, tssoc200.ccur<br />
+	from	tssoc200<br />
+	where	tssoc200._index1 = {:tssoc210.orno}<br />
+	selectdo<br />
+	endselect<br />
+}<br />
+<br />
+function get.BP.data()<br />
+{<br />
+	select	tssoc200.ofbp<br />
+	from	tssoc200<br />
+	where	tssoc200.orno = (:tssoc210.orno)<br />
+		as set with 1 rows<br />
+	selectdo<br />
+		select	tccom100.nama<br />
+		from	tccom100		<br />
+		where	tccom100._index1 = {:tssoc200.ofbp}<br />
+		selectdo<br />
+		endselect<br />
+	endselect<br />
+}<br />
+<br />
+function get.serialised.item.group.data()<br />
+{<br />
+	select	tscfg010.desc<br />
+	from	tscfg010<br />
+	where	tscfg010._index1 = {:tsmdm200.sigr}<br />
+	selectdo<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+function Material.data()<br />
+{<br />
+	select	tssoc220.*<br />
+	from	tssoc220<br />
+	where	tssoc220._index1  = {:tssoc210.orno, :tssoc210.acln}<br />
+	and	tssoc220.wtyn =  tcyesno.yes		  | only if warranty <br />
+	and	tssoc220.dltp = 4<br />
+<br />
+	selectdo                               | Get Item description<br />
+		select	tcibd001.dsca<br />
+		from	tcibd001 <br />
+		where	tcibd001._index1 = {:tssoc220.item}<br />
+		selectdo<br />
+		rprt_send()<br />
+ 		endselect	<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+function labour.data()<br />
+{<br />
+	select	tssoc230.*<br />
+	from	tssoc230<br />
+	where	tssoc230._index1  = {:tssoc210.orno, :tssoc210.acln}<br />
+	and	tssoc230.wtyn =  tcyesno.yes   | only if warranty <br />
+	selectdo <br />
+		select  tsmdm015.desc          | get Task description     <br />
+		from    tsmdm015<br />
+		where   tsmdm015._index1 = {:tssoc230.ctsk}<br />
+		selectdo<br />
+		rprt_send()<br />
+		endselect<br />
+ 	endselect		<br />
+}<br />
+<br />
+<br />
+function other.data()<br />
+{<br />
+	select	tssoc240.*<br />
+	from	tssoc240<br />
+	where	tssoc240._index1  = {:tssoc210.orno, :tssoc210.acln}<br />
+	and	tssoc240.wtyn =  tcyesno.yes   | only if warranty <br />
+	selectdo 		<br />
+		rprt_send()	<br />
+ 	endselect		<br />
+}<br />
+<br />
+function domain tcbool valid.currency()<br />
+{<br />
+	select	tcmcs002.crnd:crnd.f<br />
+	from	tcmcs002<br />
+	where	tcmcs002._index1 = {:ccur.f}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		return(true)<br />
+	endselect<br />
+	return(false)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">28th June 2005, 19:25</div></div><div class="posttext">Well I did not look at the script, but depending on what you want you can do this several ways without using the DLL.  I usually just use brp.open, brp.ready and brp.close for multiple reports.  You do not have to let them pick a report, just prompt for a device on the first brp.open.  Then just send the other two reports to it.  <br />
+<br />
+Below is a blurb on a zoom to one of my print sessions:<br />
+<br />
+zoom.from.tppro64032:<br />
+on.entry:<br />
+	import(&quot;cprj.f&quot;,cprj.f)<br />
+	import(&quot;cprj.t&quot;,cprj.t)<br />
+	import(&quot;cspa.f&quot;,cspa.f)<br />
+	import(&quot;cspa.t&quot;,cspa.t)<br />
+	import(&quot;date.f&quot;,date.f)<br />
+	import(&quot;date.t&quot;,date.t)<br />
+	display.all()<br />
+	| Print Prorate Exception Report<br />
+<br />
+	rprt.id = spool.open(&quot;rtppro640302000&quot;,spool.device,1)         | Open spooler in script<br />
+        if not rprt.id then<br />
+		spool.close()<br />
+		execute(end.program)<br />
+        endif<br />
+	| TCL Direct Costs Report<br />
+	spool.report = &quot;rtppro640302000&quot;<br />
+	rprt_open()<br />
+	print.prorate.exception.records()<br />
+	rprt_close()<br />
+	<br />
+	| Print Prorate Parent Project/CCN zero Record<br />
+	spool.report = &quot;rtppro640303000&quot;<br />
+	rprt_open()<br />
+	print.prorate.parent.records() <br />
+	rprt_close()<br />
+	<br />
+	| Pirnt Prorate reports<br />
+| 	spool.report = &quot;rtppro620404000&quot;<br />
+| 	rprt_open()<br />
+| 	print.prorate.records()<br />
+| 	rprt_close()<br />
+|<br />
+	spool.close()<br />
+	execute(end.program)<br />
+<br />
+The above example when I zoomed from another session I ran 3 different reports - now it is 2, but originally 3.  In this case I selected to use rprt_open just so I did not have to mess with changing all rprt_send commands.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ash Gajjar</div><div class="date">1st July 2005, 16:25</div></div><div class="posttext">Hi Mark<br />
+<br />
+I believe I understand how to solve my problem after your seeing your example. <br />
+<br />
+Thank you very much. I may come back to you if I do encounter any further problems with utilising your suggestion<br />
+<br />
+Thanks !<br />
+Ash</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="licence allocation, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] licence allocation Tools Administration &amp; Installation" />
+	
+	<title>licence allocation [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; licence allocation</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">vaishali</div><div class="date">12th July 2004, 10:13</div></div><div class="posttext">Hi,<br />
+<br />
+ We have baan centralized set up.Is it possible to assign location wise licences(hence restricting the usage)? for egs.We have totally 100 licences out of that 5 to be allocated to pune 10 to sahas. By this we would like to restrict location wise usage of licenses. As mentioned above, pune users should not able to use more than 10 logins<br />
+<br />
+Regards,<br />
+<br />
+Vaishali</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Steve Johnson</div><div class="date">12th July 2004, 20:34</div></div><div class="posttext">Licensing cannot be partitioned among servers as you want. If your Baan installation is licensed for 100 licenses then any number of servers can point to the license serve and effectively use all 100 licenses. However, if you have Unix you can certainly write simple shell scripts to restrict licensing usage as you want. $BSE/lib/ipc_info contains a pointer to a file in $BSE/bin that will invoke the bshell. Usually that file is $BSE/bin/bshell6.2. Change the file to a new script such as $BSE/bin/bshell6.2.pune and in the shell script count the number of current users and if greater that a value abort and call bshell6.2 if less than or equal to that number. This  :) type of scripting to do environment setting, limiting users, etc. is very common.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vaishali</div><div class="date">21st July 2004, 07:05</div></div><div class="posttext">:confused: Hi Steve,<br />
+<br />
+We are using baan4c4,informix7.3,solaris6.2,I have checked in $BSE/bin but there is no file bshell6.2.Bshell6.1 is available but its content not visible.Please guide me how to write the script in this case<br />
+<br />
+Thanks,<br />
+Vaishali</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Steve Johnson</div><div class="date">21st July 2004, 20:41</div></div><div class="posttext">1. On both pune and sahas servers modify $BSE/lib/ipc_info by adding an entry:<br />
+bshell.test  s   0   0   p  ${BSE}/bin/bshell6.1.sh  <br />
+<br />
+2. Create a file in $BSE/bin called bshell6.1.sh with the following lines of script using (say) the &quot;vi&quot; command:<br />
+<br />
+#!/bin/sh<br />
+host=`hostname`<br />
+num=`ps -ef|grep &quot;bshell6.1&quot;|wc -l`<br />
+if [ $host = 'pune' -a $num -lt 5 ]<br />
+        then ./${BSE}/bin/bshell6.1  $* <br />
+fi<br />
+if [ $host = 'sahas' -a $num -lt 10 ]<br />
+        then ./${BSE}/bin/bshell6.1  $* <br />
+fi<br />
+exit 0<br />
+<br />
+<br />
+3. Change the permissions of file bshell6.1.sh by executing &quot;chmod&quot; command:<br />
+chmod 754 bshell6.1.sh<br />
+<br />
+4. Change the BW login configuration &quot;Bshell&quot; to &quot;bshell.test&quot; and try to log into Baan. You will only be able to log onto pune if there are no more than 4 users, sahas: no more that 9 users. Unfortunately this does not give any response back to the user is the limit is exceeded. <br />
+<br />
+We went a bit further by creating a 4GL session that simply issues a  message &quot;Too many users on ...&quot;. The bshell script invokes that session in Baan if limits are exceeded. The user clicks OK on the message and immediately exits form Baan. If the session were called &quot;tccomtoomany&quot; it would be invoked in the script as follows (notice logic change also). <br />
+<br />
+#!/bin/sh<br />
+host=`hostname`<br />
+num=`ps -ef|grep &quot;bshell6.1&quot;|wc -l`<br />
+if [ $host = 'pune' -a $num -ge 5 ]<br />
+        then ./${BSE}/bin/bshell6.1  $* tccomtoomany <br />
+        exit 0<br />
+fi<br />
+if [ $host = 'sahas' -a $num -ge 10 ]<br />
+        then ./${BSE}/bin/bshell6.1  $* tccomtoomany<br />
+        exit 0<br />
+fi<br />
+./bshell6.1  $*            #OK to invoke normal Baan<br />
+exit 0</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

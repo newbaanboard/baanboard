@@ -1,0 +1,510 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="balance script, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] balance script Tools Development" />
+	
+	<title>balance script [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; balance script</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">30th May 2010, 08:31</div></div><div class="posttext">Dear,<br />
+<br />
+I have a script for customer balance report which is in detail. Now i want to modify this script into customer group balance reportas a summary.My modified script is not working as expected. Below is my script.<br />
+<br />
+function read.main.table2()<br />
+{<br />
+	long yr, mn, dy<br />
+	domain	tfacr.trec	trec<br />
+	extern 	domain		tcamnt 	retail,franchise,whole,distrib,cash,van,expo,auction,misc <br />
+	trec = empty<br />
+	|bal = 0.0<br />
+	credit1 = 0.0<br />
+	credit2 = 0.0<br />
+	credit3 = 0.0<br />
+	debit3 = 0.0<br />
+	debit1 = 0.0<br />
+	balance = 0.0 <br />
+	debit.amt = 0.0<br />
+	credit.amt = 0.0<br />
+	<br />
+	retail = 0.0<br />
+	franchise = 0.0<br />
+	whole = 0.0<br />
+	distrib = 0.0<br />
+	cash = 0.0<br />
+	van = 0.0<br />
+	expo = 0.0<br />
+	auction = 0.0<br />
+	misc  = 0.0<br />
+	<br />
+	num.to.date(ddat.f, yr, mn, dy)<br />
+	dt.f = ddat.f - 1<br />
+	day.beg.of.year = date.to.num(yr, 1, 1)<br />
+	<br />
+<br />
+	select tccom010.*<br />
+	from	tccom010<br />
+	where	tccom010.cfcg  between :cotp.f and :cotp.t<br />
+	selectdo<br />
+		<br />
+	check.acr200()<br />
+	|op.bal()<br />
+	clbal = 0.0<br />
+	op.bal = 0.0<br />
+	op.bal = opbal(tccom010.cuno)<br />
+	balance = 0<br />
+	debit = 0<br />
+	credit = 0<br />
+	clbal = op.bal<br />
+		select tfacr200.*<br />
+  	 	from tfacr200<br />
+   		where tfacr200.docd between :day.beg.of.year  and :dt.f<br />
+   		and	tfacr200._index2 = {:tccom010.cuno}<br />
+		|where	tfacr200.trec in(1,4,2,9,10)<br />
+		order by tfacr200.cuno,tfacr200.docd<br />
+<br />
+  		 selectdo<br />
+			acr200 = 0	<br />
+			<br />
+				if tfacr200.trec = ltoe(4) then<br />
+			acr200 = tfacr200.amth<br />
+		else<br />
+			select	sum(tfacr200.amth):acr200<br />
+			from	tfacr200<br />
+			where 	tfacr200._index2 = {:tccom010.cuno, tfacr200.ttyp, :tfacr200.ninv, :tfacr200.line}<br />
+			and	tfacr200.tdoc &lt;&gt; &quot;&quot;<br />
+			and 	tfacr200.docd =  :dt.f<br />
+			selectdo<br />
+			endselect<br />
+			if abs(acr200) &gt; abs(tfacr200.amth) then<br />
+				acr200 = acr200<br />
+			endif<br />
+		endif<br />
+<br />
+		if tfacr200.trec = ltoe(2) then<br />
+			tfacr200.ttyp = tfacr200.tdoc<br />
+			tfacr200.ninv = tfacr200.docn<br />
+		endif<br />
+		tfacr200.amth = tfacr200.amth |+ tfacr200.cdam<br />
+		balance = 0		|db.s<br />
+	debit1 = 0			<br />
+	credit1 = 0			|db.e<br />
+		if tfacr200.trec = tfacr.trec.invoice then<br />
+			debit = tfacr200.amth	<br />
+			credit = 0<br />
+			balance = debit - credit<br />
+			clbal = clbal+balance<br />
+		endif<br />
+		if (tfacr200.trec = tfacr.trec.credit) then | and tfacr200.docn = 0) then<br />
+			|if tfacr200.amth &gt; 0 then	<br />
+				|debit = tfacr200.amth commented by Rabnawaz	<br />
+				|credit = 0		commented by Rabnawaz<br />
+				|Added by Rabnawaz <br />
+				credit = tfacr200.amth*-1	<br />
+				debit = 0<br />
+<br />
+				balance = debit - credit<br />
+				clbal = clbal+balance<br />
+			|else<br />
+				|credit = tfacr200.amth * -1	<br />
+				|debit = 0<br />
+				|balance = debit - credit<br />
+				|clbal = clbal+balance<br />
+			|endif<br />
+		endif<br />
+		if (tfacr200.trec = tfacr.trec.normal <br />
+		       or tfacr200.trec = tfacr.trec.advance<br />
+			<br />
+		       or tfacr200.trec = tfacr.trec.unallocated) then<br />
+			credit3 = tfacr200.amth*-1	<br />
+			debit3 = 0<br />
+			balance = debit - credit<br />
+			clbal = clbal+balance<br />
+		endif<br />
+		<br />
+	if (tfacr200.trec = tfacr.trec.correction) then<br />
+	|message(&quot;ttyp %s&quot;,tfacr200.ttyp)<br />
+	|message(&quot;docn %d&quot;,tfacr200.ninv)<br />
+	|message(&quot;amth %f&quot;,tfacr200.amth)<br />
+	endif <br />
+		select tdsls045.*<br />
+		from tdsls045<br />
+		where tdsls045.ttyp = :tfacr200.ttyp<br />
+		and  tdsls045.invn = :tfacr200.ninv<br />
+		selectdo<br />
+		endselect<br />
+				<br />
+		if tfacr200.trec = ltoe(4) and tfacr200.docn &lt;&gt; 0 then<br />
+			tfacr200.ttyp = tfacr200.tdoc<br />
+			tfacr200.ninv = tfacr200.docn<br />
+		endif<br />
+			<br />
+			endcase<br />
+			endselect<br />
+<br />
+			if balance = 0.0 then<br />
+				trec = tfacr200.trec<br />
+				if trec = ltoe(4) then<br />
+					tfacr200.ttyp = tfacr200.ttyp<br />
+					tfacr200.ninv = tfacr200.ninv<br />
+				endif<br />
+			else<br />
+                               on case tccom010.cfcg<br />
+  |**************************                             <br />
+                                 case &quot;230&quot;:     <br />
+				distrib =  op.bal<br />
+				countd = countd + 1<br />
+				break<br />
+                            case &quot;201&quot;:<br />
+                           case &quot;202&quot;:<br />
+                              retail = op.bal<br />
+                           countr = countr + 1<br />
+                               break<br />
+                             endcase<br />
+                               endselect<br />
+			rprt_send()<br />
+			endif<br />
+			<br />
+	|endselect<br />
+endselect<br />
+}<br />
+function double opbal(domain tccuno cuop)<br />
+{<br />
+	<br />
+	extern	domain	tfgld.prod prod.f1,prod.t1,prod1,prod.f<br />
+	extern	domain	tcamnt	debit.amt,credit.amt,balance.amt,op.bal,cl.bal,<br />
+					debit,credit,balance,clbal, acr200	<br />
+	<br />
+	prod1 = prod.f - 1<br />
+	if prod1 = 0 then<br />
+		prod.f1 = 1<br />
+		prod.t1 = 12<br />
+	else<br />
+		prod.f1 = 1<br />
+		prod.t1 = prod1<br />
+	endif<br />
+	fyer = year - 1<br />
+	dt.f = ddat.f - 1<br />
+	bal = 0.0<br />
+	select tfacr200.*<br />
+	from	tfacr200<br />
+	where 	tfacr200._index2 = {:tccom010.cuno}<br />
+	|and tfacr200.year &lt;= :fyer<br />
+	|and tfacr200.prod between :prod.f1 and :prod.t1<br />
+	and tfacr200.docd &lt;= :dt.f <br />
+	order by tfacr200.cuno,tfacr200.docd<br />
+	selectdo<br />
+		bal =  bal + tfacr200.amth + tfacr200.baca<br />
+		continue<br />
+<br />
+	  if tfacr200.trec = tfacr.trec.invoice then<br />
+			debit.amt = tfacr200.amth	<br />
+			credit.amt = 0<br />
+			bal =  bal + debit.amt - credit.amt<br />
+			|cl.bal = cl.bal+balance.amt<br />
+		endif<br />
+		if (tfacr200.trec = tfacr.trec.credit and tfacr200.docn = 0) then<br />
+			if tfacr200.amth &gt; 0 then	<br />
+				debit.amt = tfacr200.amth	<br />
+				credit.amt = 0<br />
+				bal =  bal + debit.amt - credit.amt<br />
+				|cl.bal = cl.bal+balance.amt<br />
+			else<br />
+				credit.amt = tfacr200.amth * -1	<br />
+				debit.amt = 0<br />
+				bal =  bal + debit.amt - credit.amt<br />
+				|cl.bal = cl.bal+balance.amt<br />
+			endif<br />
+		endif<br />
+		if (tfacr200.trec = tfacr.trec.normal <br />
+		       or tfacr200.trec = tfacr.trec.advance<br />
+	<br />
+		       or tfacr200.trec = tfacr.trec.unallocated) then<br />
+			credit.amt = tfacr200.amth*-1	<br />
+			debit.amt = 0<br />
+			bal =  bal + debit.amt - credit.amt<br />
+			|cl.bal = cl.bal+balance.amt<br />
+		endif<br />
+		<br />
+	endselect<br />
+	return(bal)<br />
+}<br />
+<br />
+function check.acr200()<br />
+{<br />
+	double	amth, tot<br />
+	long	fd<br />
+<br />
+	return<br />
+<br />
+	fd = seq.open(&quot;e:\acr200.txt&quot;, &quot;w&quot;)<br />
+	select	tfacr200.tdoc, tfacr200.docn, tfacr200.lino, sum(tfacr200.amth):tfacr200.amth<br />
+	from	tfacr200<br />
+	where 	tfacr200._index2 = {:tccom010.cuno}<br />
+	and	tfacr200.trec = 13<br />
+	and	tfacr200.docn = 20003488|*Commented by suhaib<br />
+	group by tfacr200.tdoc, tfacr200.docn, tfacr200.lino|*Commented by suhaib<br />
+	|order by tfacr200._index2|*Added by suhaib<br />
+	selectdo<br />
+		amth = tfacr200.amth<br />
+		tot = 0<br />
+		select	tfacr200.*|sum(tfacr200.amth):tot<br />
+		from	tfacr200<br />
+		where 	tfacr200._index2 = {:tccom010.cuno} |, :tfacr200.ttyp, :tfacr200.ninv, :tfacr200.line}<br />
+		and	tfacr200.tdoc = :tfacr200.tdoc<br />
+		and	tfacr200.docn = :tfacr200.docn<br />
+		and	tfacr200.lino = :tfacr200.lino<br />
+		selectdo<br />
+			seq.puts(sprintf$(&quot;%s,%d,%d,%g,%g&quot;, tfacr200.ttyp, tfacr200.ninv, tfacr200.line, tfacr200.amth, amth) &amp; chr$(13), fd)<br />
+		endselect<br />
+<br />
+		if amth + tot &lt;&gt; 0 then<br />
+|			seq.puts(sprintf$(&quot;%s,%d,%d,%g,%g&quot;, tfacr200.ttyp, tfacr200.ninv, tfacr200.lino, amth, tot) &amp; chr$(13), fd)<br />
+		endif<br />
+	endselect<br />
+	seq.close(fd)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">30th May 2010, 12:24</div></div><div class="posttext">[QUOTE=smusba;163689]Dear,<br />
+<br />
+I have a script for customer balance report which is in detail. Now i want to modify this script into customer group balance reportas a summary.My modified script is not working as expected. Below is my script.<br />
+<br />
+Hello,<br />
+<br />
+think you must be more specific and provide more details about &quot;what do you expect ?&quot;<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">30th May 2010, 14:05</div></div><div class="posttext">this script gives me balance for only single customer. I want to modify this script so that it can give me the balance of different customer groups like<br />
+on case tccom010.cfcg - case&quot;200&quot;etc</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">31st May 2010, 09:27</div></div><div class="posttext">this script gives me balance for only single customer. I want to modify this script so that it can give me the balance of different customer groups like<br />
+on case tccom010.cfcg - case&quot;200&quot;etc<br />
+<br />
+Hello,<br />
+there's a standard report in BIV for customer balances by debitorgroup in finance.<br />
+<br />
+Session: tfacr2424m000<br />
+Report : tfacr242412000<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">1st June 2010, 10:04</div></div><div class="posttext">I will be pleased if you can help on this script<br />
+<br />
+<br />
+	<br />
+function read.main.table2()<br />
+{<br />
+	long yr, mn, dy<br />
+	domain	tfacr.trec	trec<br />
+	extern 	domain		tcamnt 	retail,franchise,whole,distrib,cash,van,expo,auction,misc <br />
+	trec = empty<br />
+	|bal = 0.0<br />
+	credit = 0.0<br />
+	credit = 0.0<br />
+	credit = 0.0<br />
+	debit = 0.0<br />
+	debit = 0.0<br />
+	balance = 0.0 <br />
+	debit.amt = 0.0<br />
+	credit.amt = 0.0<br />
+	<br />
+	retail = 0.0<br />
+	franchise = 0.0<br />
+	whole = 0.0<br />
+	distrib = 0.0<br />
+	cash = 0.0<br />
+	van = 0.0<br />
+	expo = 0.0<br />
+	auction = 0.0<br />
+	misc  = 0.0<br />
+<br />
+	countd = 0.0<br />
+	clbal = 0.0<br />
+	balance = 0.0<br />
+	bal4 = 0<br />
+	bal = 0.0<br />
+	bal1 = 0<br />
+	bal2 = 0<br />
+	bal3 = 0<br />
+	debit = 0<br />
+	credit = 0<br />
+	clbal = op.bal<br />
+	<br />
+	num.to.date(ddat.f, yr, mn, dy)<br />
+	dt.f = ddat.f - 1<br />
+	day.beg.of.year = date.to.num(yr, 1, 1)<br />
+	<br />
+<br />
+	select tccom010.*<br />
+	from	tccom010<br />
+	where	tccom010.cfcg  between :cotp.f and :cotp.t<br />
+	selectdo<br />
+		<br />
+	<br />
+		|select sum(tfacr200.amth):bal<br />
+		select	tfacr200.*<br />
+  	 	from tfacr200<br />
+   		where tfacr200.docd between :day.beg.of.year  and :dt.f<br />
+   		and	tfacr200._index2 = {:tccom010.cuno}<br />
+		|group by tfacr200.cuno,tfacr200.docd,tfacr200.trec<br />
+		order by tfacr200.cuno,tfacr200.docd<br />
+  		 selectdo<br />
+			|bal =  bal + tfacr200.amth + tfacr200.baca<br />
+			|continue<br />
+<br />
+	 		 if tfacr200.trec = tfacr.trec.invoice then<br />
+				debit.amt = tfacr200.amth	<br />
+				credit.amt = 0<br />
+				|bal =  bal + debit.amt - credit.amt<br />
+				bal =   debit.amt - credit.amt<br />
+<br />
+			endif<br />
+			if (tfacr200.trec = tfacr.trec.credit and tfacr200.docn = 0) then<br />
+			if tfacr200.amth &gt; 0 then	<br />
+				debit.amt = tfacr200.amth	<br />
+				credit.amt = 0<br />
+				|bal =  bal + debit.amt - credit.amt<br />
+				bal =   debit.amt - credit.amt<br />
+				<br />
+			else<br />
+				credit.amt = tfacr200.amth * -1	<br />
+				debit.amt = 0<br />
+				|bal =  bal + debit.amt - credit.amt<br />
+				bal =   debit.amt - credit.amt<br />
+				<br />
+			endif<br />
+			endif<br />
+		if (tfacr200.trec = tfacr.trec.normal <br />
+		       or tfacr200.trec = tfacr.trec.advance<br />
+	<br />
+		       or tfacr200.trec = tfacr.trec.unallocated) then<br />
+			credit.amt = tfacr200.amth*-1	<br />
+			debit.amt = 0<br />
+			|bal =  bal + debit.amt - credit.amt<br />
+			bal =   debit.amt - credit.amt<br />
+			<br />
+<br />
+		endif<br />
+			<br />
+		<br />
+		on case tccom010.cfcg<br />
+<br />
+|*******************************RETAIL**************************			<br />
+			case &quot;201&quot;:<br />
+			case &quot;301&quot;:<br />
+			case &quot;401&quot;:<br />
+			case &quot;501&quot;:<br />
+				retail = retail + bal<br />
+				countr = countr + 1<br />
+				break<br />
+			<br />
+|*****************************WHOLESALE**************************<br />
+			case &quot;220&quot;:<br />
+			case &quot;320&quot;:<br />
+			case &quot;420&quot;:<br />
+			case &quot;520&quot;:<br />
+				whole = whole + bal<br />
+				countw = countw + 1<br />
+				break<br />
+|********************************CASH****************************<br />
+			case &quot;221&quot;:<br />
+			case &quot;222&quot;:<br />
+			case &quot;321&quot;:<br />
+			case &quot;322&quot;:<br />
+			case &quot;421&quot;:<br />
+			case &quot;422&quot;:<br />
+			case &quot;521&quot;:<br />
+			case &quot;522&quot;:<br />
+				cash = cash + bal<br />
+				countc = countc + 1<br />
+				break<br />
+|****************************VANSALE*********************************<br />
+			case &quot;210&quot;:<br />
+			case &quot;211&quot;:<br />
+			case &quot;310&quot;:<br />
+			case &quot;410&quot;:<br />
+			case &quot;510&quot;:<br />
+				van = van + bal<br />
+				countv = countv + 1<br />
+				break<br />
+|**************************FRANCHISE***********************<br />
+			case &quot;202&quot;:<br />
+			case &quot;302&quot;:<br />
+			case &quot;402&quot;:<br />
+				franchise = franchise + bal<br />
+				countf = countf + 1 <br />
+				break<br />
+|****************************DISTRIBUTION*******************<br />
+			case &quot;230&quot;:<br />
+			case &quot;330&quot;:<br />
+			case &quot;430&quot;:<br />
+			case &quot;530&quot;:<br />
+				|distrib = distrib+bal<br />
+				distrib = bal<br />
+				countd = countd + 1<br />
+				break<br />
+|******************************AUCTION********************			<br />
+			case &quot;260&quot;:<br />
+			case &quot;360&quot;:<br />
+			case &quot;460&quot;:<br />
+			case &quot;560&quot;:<br />
+				auction = auction + bal<br />
+				counta = counta + 1<br />
+				break<br />
+|******************************EXPORTS***************************	<br />
+			case &quot;270&quot;:<br />
+			case &quot;370&quot;:<br />
+			case &quot;470&quot;:<br />
+			case &quot;570&quot;:<br />
+				expo = expo + bal<br />
+				counte = counte + 1<br />
+				break	<br />
+|*********************CONTRACTORS,SERVICES, SHRIMP FARM BRANCH,MADINA RETAIL BULK,DRYS STORE ITEM ISSUE,FISH/SHRIMP FREEZING**************************************<br />
+			case &quot;280&quot;:<br />
+			case &quot;281&quot;:<br />
+			case &quot;299&quot;:<br />
+			case &quot;380&quot;:<br />
+			case &quot;399&quot;:<br />
+			case &quot;480&quot;:<br />
+			case &quot;490&quot;:<br />
+			case &quot;499&quot;:<br />
+			case &quot;590&quot;:<br />
+			case &quot;591&quot;:<br />
+			case &quot;599&quot;:<br />
+				misc = misc + bal<br />
+				countm = countm + 1<br />
+				break						<br />
+			endcase	<br />
+		endselect<br />
+	<br />
+		rprt_send()<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">10th June 2010, 18:06</div></div><div class="posttext">U have to have some variable to indicate type of customer in program script and report script input field , sort on the same ,keep it as after field  layout and u'll get balances total for type of customers.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">19th June 2010, 23:15</div></div><div class="posttext">Please do not delete threads that others have posted to.  Once you get a response we like to keep them open.<br />
+<br />
+Thanks</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

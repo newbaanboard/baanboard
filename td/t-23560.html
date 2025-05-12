@@ -1,0 +1,286 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Read external database, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Read external database Tools Development" />
+	
+	<title>Read external database [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Read external database</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">berthe</div><div class="date">29th March 2005, 10:23</div></div><div class="posttext">Hi to all,<br />
+<br />
+I want to read a table in an external database. How should I do this?<br />
+Should I create a view in the external database or should I create a view in the Baan database? And how can I read the data in a view in baan?<br />
+<br />
+Thanks in advance,<br />
+Berthe</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">29th March 2005, 11:45</div></div><div class="posttext">You can't create a view within Baan, so only creating a view within the database is an option.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">grajenda</div><div class="date">29th March 2005, 13:53</div></div><div class="posttext">Even if he creates a table/view in Database,Can he access the same from baan scripts?  If it is possible pls let me know ?<br />
+B'coz the table names in DB and in baan are different.<br />
+<br />
+regards<br />
+Rajendar G</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">29th March 2005, 14:24</div></div><div class="posttext">- Create View with colums as Ban expects them (like t$orno for Oracle)<br />
+- Create Baan Table acording view<br />
+- Reconfig<br />
+<br />
+I think this should work,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">29th March 2005, 16:43</div></div><div class="posttext">The one time we created a view(in Baan) to a table outside Baan we ran into problems.  We could read the data fine, but when we needed to convert to runtime for other table changes we could not do it.  This table or view prevented the CRDD from running.  I think what we did was create a table in Baan and then the Oracle DBA went into the table and pointed(a view) to the real Oracle table.  Like I said we could read, but we could not make changes to other tables.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tjbyfield</div><div class="date">30th March 2005, 09:33</div></div><div class="posttext">We have a number of tables that are accessed both within baan and by external programs. Depending on the access mode and type of data, we use two different approches. Both these work well for us but we would probably use just the first approach if we had out time over. <br />
+<br />
+(1) Define table within baan using d/dict domains etc and access it both from within baan programs and by external programs.<br />
+<br />
+(2) Use job daemon to execute unix script that calls stored procedure to populate data-warehouse tables. Stored procedure resides in external database and references baan db via dblink<br />
+<br />
+Terry</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertB</div><div class="date">30th March 2005, 16:07</div></div><div class="posttext">Personally, I would use the external database to dump the data to a delimited file and read the contents of that file from within a Baan script. I regularly do this with files of up to 100,000 records with no problems. <br />
+<br />
+Open the file, read each line and split as in this example:| Read each line and analyse it's contents....  <br />
+lines.count = 0 <br />
+<br />
+repeat<br />
+  <br />
+  gets.ret = seq.gets(pl.line, max.bytes, pl.file.ptr, GETS_NORMAL, there.was.more) <br />
+  if ((gets.ret = 0) and not seq.eof(pl.file.ptr)) then <br />
+    lines.count = lines.count + 1    <br />
+    write.line.to.table(pl.line, lines.count)   <br />
+  else <br />
+    if not seq.eof(pl.file.ptr) then  <br />
+      message(&quot;Error in reading dump-file!&quot;)<br />
+      break   <br />
+    endif   <br />
+  endif           <br />
+<br />
+until seq.eof(pl.file.ptr)    |or lines.count = 1000<br />
+<br />
+<br />
+function write.line.to.table(string i.line(200), long i.tlno)<br />
+{  <br />
+  domain  tcmcs.str2    pl.stat, pl.dsrc, pl.scrt<br />
+  domain  tcmcs.str5    pl.dwpg, pl.dwrv, pl.docr, pl.dsgn, pl.manf<br />
+  domain  tcmcs.str6    pl.dtyp<br />
+  domain  tcmcs.str8    pl.doct, pl.fscm<br />
+  domain  tcmcs.str20   pl.dwnr<br />
+  domain  tcmcs.str25   pl.docn<br />
+  domain  tcmcs.str35   pl.dsca, pl.rmks  <br />
+          string        pl.rdat(10)  <br />
+          long          ret.val, day.num, month.num, year.num, r.date<br />
+<br />
+            <br />
+            <br />
+  ret.val = string.scan(i.line, &quot;%s¦%s¦%s¦%s¦%s¦%s¦%s¦%s¦%s¦%s¦%s¦%s¦%s¦%s¦%s¦%s¦&quot;,<br />
+                        pl.dwnr, pl.dwpg, pl.dwrv, pl.docr, pl.dtyp, pl.doct, pl.docn, pl.fscm,<br />
+                        pl.stat, pl.dsrc, pl.dsca, pl.rmks, pl.rdat, pl.scrt, pl.dsgn, pl.manf)<br />
+                  <br />
+  .... Do something with the values (like writing to a Baan table ;-) )...........           <br />
+<br />
+} HTH,<br />
+Rob</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tjbyfield</div><div class="date">31st March 2005, 01:17</div></div><div class="posttext">[QUOTE=RobertB]...use the external database to dump the data to a delimited file and read the contents of that file from within a Baan script. I regularly do this with files of up to 100,000 records with no problems.../QUOTE]<br />
+<br />
+I think Robert's advice is good. As an alternative to writting program to process the asci/delimited file you could use the Baan Exchange facilities to process the file.  Exchange is very powerful and provides domain checking etc.<br />
+<br />
+Terry</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertB</div><div class="date">31st March 2005, 08:33</div></div><div class="posttext">As an alternative to writting program to process the asci/delimited file you could use the Baan Exchange facilities to process the file. Exchange is very powerful and provides domain checking etc.I should hasten to add that my particular example was being used to fill Baan tables which I had created myself.<br />
+<br />
+I would agree with Terry that Exchange is the safest way to go with such imports, although one does have the dal.xxxxx functions in Baan ERP which can be used in a script to safeguard inserts into the native Baan tables.<br />
+<br />
+Rob</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">f.martel</div><div class="date">1st June 2010, 15:57</div></div><div class="posttext">Hello,<br />
+<br />
+I tried to make link between BaaN oracle database and an other oracle database.<br />
+<br />
+Create view tlritm200600 -&gt; Ok :)<br />
+Oracle query between view and tiitm001 -&gt; OK :)<br />
+Create BaaN table lritm200:<br />
+    data dictionary -&gt; OK :)<br />
+    Create table -&gt; ERROR 507 Table tlritm200600 already exists :(<br />
+    Display table in view -&gt; ERROR 506 Table does not exists :eek:<br />
+<br />
+I don't understand what append ???<br />
+<br />
+Anybody has solution ?<br />
+<br />
+Thank's<br />
+<br />
+François<br />
+<br />
+PS: Sorry for my English :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">1st June 2010, 19:33</div></div><div class="posttext">Follow this thread (http://www.baanboard.com/baanboard/showthread.php?t=58399) in code and utilities.  The third post or so far outlines the steps.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">f.martel</div><div class="date">2nd June 2010, 10:14</div></div><div class="posttext">Yessssssssss <br />
+<br />
+It's work find Thank's,<br />
+<br />
+But, for oracle,  you must give right to your view :<br />
+<br />
+grant select on &lt;base&gt;.&lt;view name&gt; to &lt;role&gt;<br />
+<br />
+(source our DBA Oarcle)<br />
+<br />
+François</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">f.martel</div><div class="date">16th March 2011, 17:07</div></div><div class="posttext">Ia orana !<br />
+<br />
+I have another problem for a new view<br />
+<br />
+On Oracle, all the data are OK<br />
+On BaaN, with gtm (ttaad4500), when i want to view data, the table is empty but when i count rows i have 41072 rows (like on oracle)<br />
+<br />
+Anybody has idea's or solution's ?<br />
+<br />
+Thank's<br />
+<br />
+François<br />
+<br />
+PS: Sorry for my English :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">16th March 2011, 17:26</div></div><div class="posttext">Have you created the permissions as before:<br />
+<br />
+grant select on &lt;base&gt;.&lt;view name&gt; to &lt;role&gt;<br />
+<br />
+If so, please make an DBSLOG=01570 and see why the view can not be accessed correctly. Mostlikely your view name is not touched, but a view and table exists.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">f.martel</div><div class="date">17th March 2011, 09:50</div></div><div class="posttext">Ia orana<br />
+<br />
+Thank's Dikkie Dik<br />
+<br />
+Yes, i created the permission.<br />
+<br />
+So, I delete everything and I recreated all (with an other name)  but the problem is the same :(<br />
+<br />
+I attached copy of log file.<br />
+<br />
+Have you idea's ?<br />
+<br />
+Thank's<br />
+<br />
+François</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">17th March 2011, 09:52</div></div><div class="posttext">Could you please run the DBSLOG=01570 and post/sent the dbs.log file?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">f.martel</div><div class="date">17th March 2011, 14:32</div></div><div class="posttext">see attach files<br />
+<br />
+Thank's<br />
+<br />
+François</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">17th March 2011, 14:57</div></div><div class="posttext">Most likely error 215 is caused by:<br />
+<br />
+----- DBMS Output Row ----<br />
+Bind nr 1 : codart     : string  : '0000C100        '<br />
+Bind nr 2 : codclrmb   : string  : [NULL]<br />
+Bind nr 3 : datcre     : date    : 1995/12/21:09.57.27 (ccyy/mm/dd:hh.mm.ss)<br />
+<br />
+Thus you have NULL values on a column. This is not allowed in LN<br />
+<br />
+Regarding the count rows, I see the query:<br />
+<br />
+SQL&gt; ora_parse( &quot;SELECT count(rowid) FROM baan.tlrext003400&quot; ) <br />
+SQL&gt; ora_parse( 0xbffff730 )<br />
+ora_parse( 0xbffff730 ) done<br />
+ora_define 0xbffff730 : nr 1, addr 0xbffff72c, size 4, ext_type 3, len (nil), rcode (nil)<br />
+SQL&gt; ora_multi_execute( 0xbffff730 ) do 0, prefetch 1 --&gt; oci_ret 0 <br />
+ora_multi_execute( 0xbffff730 ) done - rows 0<br />
+SQL&gt; ora_multi_fetch( 0xbffff730 ) no_rows 1<br />
+ora_multi_fetch( 0xbffff730 ) done - rows fetched 1 - End of Fetch<br />
+ora_close_cursor 0xbffff730<br />
+oracle_nr_rows() --&gt; 41074<br />
+<br />
+So it sees 41074 rows in the table. Maybe if you solve the NULL issue, this issue is solved as well.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">f.martel</div><div class="date">17th March 2011, 16:00</div></div><div class="posttext">And the winner is ... Dikkie Dik :)<br />
+<br />
+The value NULL is the problem. I try to explain our analysis and our solution<br />
+<br />
+When we creat a table by BaaN, the &quot; oracle domain &quot; of the field CODCLRMB is char(2)<br />
+After delete table, when we create the view, the &quot; oracle domain &quot; of the field CODCLRMB is varchar(2).<br />
+<br />
+Difference between char en varchar with a empty file :<br />
+  - char =&gt; '  '     (to space)<br />
+  - varchar =&gt; NULL<br />
+<br />
+So in the view we must use nvl (http://www.techonthenet.com/oracle/functions/nvl.php) function =&gt; nvl(codlrmb,'  ')<br />
+<br />
+Now it work find<br />
+<br />
+Than'k's<br />
+<br />
+François</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">18th March 2011, 23:15</div></div><div class="posttext">If it helps, here is a description of how to set everthing up neatly in a BAAN session:<br />
+<br />
+Good Practice for storing external program scripts in BAAN (http://www.baanboard.com/baanboard/showthread.php?t=45885)<br />
+<br />
+This is an example of how I read an external table into BAAN for further processing.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">f.martel</div><div class="date">26th September 2014, 10:55</div></div><div class="posttext">Ia orana !<br />
+<br />
+Auto Reply :-)<br />
+<br />
+In our system, the problem it's for null fields !!!<br />
+So to solve the problem, you must have the function nvl(name_field,' ')<br />
+<br />
+François</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gulya2005</div><div class="date">9th December 2022, 12:38</div></div><div class="posttext">the first non-empty expression from the list<br />
+<br />
+function for selecting the first non-empty expression from the list</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

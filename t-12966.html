@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="output from stpapi in my own report, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] output from stpapi in my own report AFS/DDC/OLE: Function servers" />
+	
+	<title>output from stpapi in my own report [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; output from stpapi in my own report</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">croezen</div><div class="date">12th September 2003, 16:12</div></div><div class="posttext">Hi !<br />
+<br />
+I have a printsession with salesorders that also checks if the project can be closed.<br />
+In the printsession I call the function as described below.<br />
+<br />
+The problem is that I now have 2 outputs and wath I realy want is to have the output of the stpapi session in my own, so i will get an overview of salesorders and underneath every order is the message why the project can't be closed.<br />
+<br />
+Anyone has got experience in this ?<br />
+Any help would be apriciated!!<br />
+<br />
+Eddy<br />
+<br />
+<br />
+<br />
+<br />
+function CloseProject()<br />
+{<br />
+ string error.msg<br />
+ string pr.device<br />
+ pr.device = &quot;D&quot;<br />
+ error.msg = &quot;&quot;<br />
+stpapi.put.field(&quot;tipcs2280m000&quot;, &quot;cprj.f&quot;, str$(tdsls041.orno))<br />
+stpapi.put.field(&quot;tipcs2280m000&quot;, &quot;cprj.t&quot;, str$(tdsls041.orno))<br />
+stpapi.put.field(&quot;tipcs2280m000&quot;, &quot;new.status&quot;,	str$(etol(tcpsts.finished)))<br />
+stpapi.put.field(&quot;tipcs2280m000&quot;, &quot;only.errors&quot;, str$(etol(tcyesno.no)))<br />
+stpapi.set.report(&quot;tipcs2280m000&quot;, &quot;rtipcs228001000&quot;, pr.device, error.msg)<br />
+if isspace(error.msg) then<br />
+           stpapi.print.report(&quot;tipcs2280m000&quot;, error.msg)<br />
+endif<br />
+stpapi.end.session(&quot;tipcs2280m000&quot;)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kbartelds</div><div class="date">12th September 2003, 17:51</div></div><div class="posttext">Hi Eddy,<br />
+<br />
+send the result of the called api session to ascii device (path /dev/null). Check the result of closing project, for the reason of non closing follow the same routine as is described in the source.<br />
+<br />
+Best regards,<br />
+Klaas Bartelds</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">croezen</div><div class="date">17th September 2003, 15:13</div></div><div class="posttext">Klaas,<br />
+<br />
+Thanks for your input but I would like to have both outputs on my device, so I try to send the output to a ASCII file ( append ).<br />
+My subreport that i call through stpapi I send to the same file.<br />
+If I use the same filename I don't get any input from the stpapi session? only from the main session.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">17th September 2003, 16:09</div></div><div class="posttext">Hmm, if I understand you right ;-)<br />
+<br />
+Main:<br />
+  close.the.report()<br />
+  call sub.session()<br />
+  re-open.the.report.if.neccessary()<br />
+<br />
+Subsession:<br />
+  print.to.file(append)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">croezen</div><div class="date">25th September 2003, 14:50</div></div><div class="posttext">It toke some time but here it is !!<br />
+<br />
+<br />
+<br />
+before.program:<br />
+	g.tipcs2280.started = false<br />
+	l.old.cprj = &quot; &quot;<br />
+after.program:<br />
+	if g.tipcs2280.started then<br />
+		stpapi.end.session(&quot;tipcs2280m000&quot;)<br />
+	endif<br />
+|****************************** <br />
+function read.main.table()<br />
+{<br />
+	select	tdsls041.*,<br />
+		tdsls040.*,<br />
+		tccom010.*<br />
+                bla bla bla <br />
+	selectdo<br />
+<br />
+		if l.printen = true then<br />
+			if tdsls041.cprj &lt;&gt; l.old.cprj then<br />
+				CloseProject()<br />
+				e.proj.afsluiten = true<br />
+				rprt_send()<br />
+				l.old.cprj = tdsls041.cprj<br />
+			endif<br />
+			e.proj.afsluiten = false<br />
+			rprt_send()<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+function CloseProject()<br />
+{<br />
+	string		error.msg(100)<br />
+	string		pr.device(40)<br />
+	string		pr.path(256)<br />
+	string		strErr(256)<br />
+<br />
+	g.tipcs2280.started = true<br />
+<br />
+	pr.device = &quot;ASCIT&quot;<br />
+	pr.path = &quot;e:\temp\dummy.txt&quot;<br />
+	error.msg = &quot;&quot;<br />
+	stpapi.put.field(&quot;tipcs2280m000&quot;, &quot;cprj.f&quot;, str$(tdsls041.orno))<br />
+	stpapi.put.field(&quot;tipcs2280m000&quot;, &quot;cprj.t&quot;, str$(tdsls041.orno))<br />
+	stpapi.put.field(&quot;tipcs2280m000&quot;, &quot;new.status&quot;,	str$(etol(tcpsts.finished)))<br />
+	stpapi.put.field(&quot;tipcs2280m000&quot;, &quot;only.errors&quot;, str$(etol(tcyesno.no)))<br />
+	stpapi.set.report(&quot;tipcs2280m000&quot;, &quot;rtipcs228001000&quot;, pr.device, error.msg)<br />
+	stpapi.put.field(&quot;tipcs2280m000&quot;, &quot;spool.fileout&quot;, pr.path)<br />
+	if isspace(error.msg) then<br />
+        	stpapi.continue.process(&quot;tipcs2280m000&quot;, error.msg)<br />
+		strErr = stpapi.get.mess.code(&quot;tipcs2280m000&quot;, error.msg)<br />
+		stpapi.get.field(&quot;tipcs2280m000&quot;, &quot;tipcs020.cprj&quot;, pa.cprj)<br />
+		stpapi.get.field(&quot;tipcs2280m000&quot;, &quot;tipcs020.dsca&quot;, pa.dsca)<br />
+		stpapi.get.field(&quot;tipcs2280m000&quot;, &quot;error.message&quot;, pa.error.message)<br />
+	endif<br />
+	| stpapi.end.session(&quot;tipcs2280m000&quot;)<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

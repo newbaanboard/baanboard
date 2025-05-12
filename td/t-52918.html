@@ -1,0 +1,162 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Make Session language depent Baan IV, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Make Session language depent Baan IV Tools Development" />
+	
+	<title>Make Session language depent Baan IV [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Make Session language depent Baan IV</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">alexpreyer</div><div class="date">4th July 2008, 10:41</div></div><div class="posttext">We are using the session tdssc0402m000 for creating order confirmations for our customers. This session originaly is only for printing an internal list. So from Baan standart the report is only printed in the language of the user printing it.<br />
+<br />
+For the order confirmation it is neccessary to print it in the language of the customer. I searched yesterday long here in the forum, but found nothing helping me.<br />
+<br />
+I have the script of the session and could set there the language depending on the customer. But how can I stear which Report is taken (the report is existing in all necessary languages)?<br />
+<br />
+Thanks for your help<br />
+<br />
+Alex</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">george7a</div><div class="date">4th July 2008, 11:25</div></div><div class="posttext">Hi,<br />
+<br />
+This link discusses the same issue:<br />
+http://www.baanboard.com/baanboard/showthread.php?t=26342<br />
+<br />
+I hope it helps,<br />
+<br />
+- George</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">4th July 2008, 11:40</div></div><div class="posttext">Hi Alex,<br />
+<br />
+in Baan IV standard this is generally done using the include &quot;itccom0010 Report Handling&quot;. Following is the basic program structure:<br />
+<br />
+<br />
+declaration:<br />
+	....<br />
+	long	open.mode<br />
+<br />
+	#include &quot;itccom0010&quot;<br />
+<br />
+choice.cont.process:<br />
+before.choice:<br />
+	spool.device = &quot;D&quot;<br />
+	open.mode    = 1<br />
+on.choice:<br />
+	if not open.report(1,spool.device,open.mode,language$,1) then<br />
+		close.reports()<br />
+		choice.again()<br />
+	endif<br />
+	main.printing.function()<br />
+	close.reports(0)<br />
+<br />
+|******************************	functions *************************************<br />
+functions:<br />
+<br />
+<br />
+function main.printing.function()<br />
+{<br />
+	string	lang.code(1)	|language code: <br />
+				|&quot;1&quot; = Dutsch<br />
+				|&quot;2&quot; = English <br />
+				|&quot;3&quot; = German,.....<br />
+				|as in  &quot;tcmcs046.lang&quot;<br />
+	...		<br />
+<br />
+	print.record(1, lang.code)<br />
+	<br />
+	...<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">alexpreyer</div><div class="date">4th July 2008, 11:59</div></div><div class="posttext">First thanks for your very fast help.<br />
+<br />
+At the moment the call for printing looks:<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+<br />
+	if open.report(1,&quot;&quot;,1) then				<br />
+|		cum.qty = 0					|#158547.o<br />
+		read.main.table()<br />
+		close.reports(1)				<br />
+	else<br />
+		choice.again()<br />
+	endif<br />
+<br />
+Then I tried different things for the open.report command<br />
+(For testing &quot;hardwired&quot; to english):<br />
+<br />
+iif open.report(1,&quot;&quot;,1,2) then<br />
+also<br />
+if open.report(1,&quot;&quot;,1,&quot;2&quot;)<br />
+<br />
+But the printed report stays in german.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">4th July 2008, 12:13</div></div><div class="posttext">Hi Alex,<br />
+<br />
+the trick is to find the language code of the customer and use it when calling the print.record function (see below), the &quot;report handling include&quot; automatically opens the report in the requested language if not already open.<br />
+<br />
+<br />
+function main.printing.function()<br />
+{<br />
+	...		<br />
+	select records to print<br />
+	selectdo<br />
+		select	tcmcs046.lang<br />
+		from	tcmcs046, tccom010<br />
+		where	tccom010.cuno = :customer<br />
+		and	tccom010.clan refres to tcmcs046<br />
+		selectdo<br />
+		endselect<br />
+		....<br />
+		print.record(1, tcmcs046.lang)<br />
+		....<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">alexpreyer</div><div class="date">4th July 2008, 16:29</div></div><div class="posttext">function main.printing.function()<br />
+{<br />
+	...		<br />
+	select records to print<br />
+	selectdo<br />
+		select	tcmcs046.lang<br />
+		from	tcmcs046, tccom010<br />
+		where	tccom010.cuno = :customer<br />
+		and	tccom010.clan refres to tcmcs046<br />
+		selectdo<br />
+		endselect<br />
+		....<br />
+		print.record(1, tcmcs046.lang)<br />
+		....<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+<br />
+Thats worked! Before the print.record only was set to &quot;print.record(1)&quot;. After getting tcmcs046.lang and adding the language to print.record the session is multilanguage able.<br />
+<br />
+Thanks a lot for the great help, I appriciate.<br />
+Alex</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

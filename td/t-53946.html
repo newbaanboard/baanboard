@@ -1,0 +1,207 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="EDI setup with additional text field (urgent), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] EDI setup with additional text field (urgent) Tools Development" />
+	
+	<title>EDI setup with additional text field (urgent) [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; EDI setup with additional text field (urgent)</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Kozure Ohashi</div><div class="date">10th October 2008, 10:05</div></div><div class="posttext">Dear Baanboard,<br />
+<br />
+we use a internal EDI, transferring textfiles between to servers.<br />
+<br />
+Location 1     &lt;----- FTP -----&gt; Location 2<br />
+Sales Order<br />
+|<br />
+Purchase Order ---------------&gt; Sales Order<br />
+<br />
+We are sending purchase orders to another location, containing also some information from the related sales order (endcustomer) and additional sales tables.<br />
+<br />
+Data is originated from:<br />
+tdpur040, tdpur041, tdsls041, tdsls991(additional table with textfield).<br />
+<br />
+In the messages 850, 860 we defined the tdsls991.txta text field, but it is not written to the 850.14 and the 860.9 file, whereas all other fields are written, also other textfields like tdsls041.txta, tipcs021.txta<br />
+<br />
+The setup for 850.9 contains only this single textfield. <br />
+Question: is it necessary to define e.g. tdpur040, tdpur041 in the beginning for layer &quot;9&quot; ?<br />
+<br />
+The definition for EDI ist only done for tcedi5115s000 (Table tcedi501).<br />
+<br />
+Is it necessery to also modify a script (dll / include) to write this field to a file.<br />
+<br />
+Currently we only modified the dll tdslsdll4280 in Location 2 for the incoming message.<br />
+<br />
+Thanks in advance for any help.<br />
+<br />
+Kozure</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ravikrn_k</div><div class="date">10th October 2008, 10:35</div></div><div class="posttext">Hi,<br />
+If you need the text from tdsls991. You need to define this table in the dll of the EDI message at Location 1. After defining this table , you need to modify the dynamic sql in the EDI dll, so that the text is picked up. <br />
+And also you need not modify the EDI setup, so that this new field is sent to the edi file.<br />
+<br />
+Regards..</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kozure Ohashi</div><div class="date">10th October 2008, 10:53</div></div><div class="posttext">Dear ravikrn_k,<br />
+<br />
+thanks for the answer:<br />
+<br />
+Situation is:<br />
+<br />
+(1) Added the table to tdpurdll4280 (location 1) for outgoing 850/860<br />
+(2) Now the 860.9 file is written:<br />
+It contains the edi header, the purchase order number and position number.<br />
+<br />
+But the textfield is still empty. The debugger for tdpurdll4280 shows me, that the text is read (is &lt;&gt; 0) .<br />
+<br />
+Other field from the additonal table tdsls991 like datefield is written to 860.5 file.<br />
+Tried to add the textfield also to 860.5 but without success is still empty.<br />
+<br />
+Regards,<br />
+<br />
+Kozure</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ravikrn_k</div><div class="date">10th October 2008, 12:24</div></div><div class="posttext">Hi,<br />
+Did you modify the script to pick the data from the table tdsls991. <br />
+Regards...Ravi</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kozure Ohashi</div><div class="date">10th October 2008, 14:30</div></div><div class="posttext">Yes,<br />
+<br />
+the script tdpurdll4280 which is related to the message 860 contains everything like for other text fields (tipcs021.txta, tdpur041.txta) which are working.<br />
+<br />
+While debugging you can trace the textnumber, but the text is not written to the file?<br />
+<br />
+It seems somewhere the definition or registration for this field is missing.<br />
+<br />
+Any other place i can search ?<br />
+<br />
+Kozure</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ravikrn_k</div><div class="date">10th October 2008, 17:17</div></div><div class="posttext">Please forward the Script to me , so that I can check it once.<br />
+<br />
+Please check the EDI setup also, whether this field is defined in the loop or not.<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kozure Ohashi</div><div class="date">13th October 2008, 10:23</div></div><div class="posttext">Dear ravikrn_k,<br />
+<br />
+the following modifications are done:<br />
+<br />
+(1) Script tdpurdll4280 (related to Message 860 Purchase Order Change):<br />
+<br />
+<br />
+function extern long set.recordbuffer.active()	<br />
+...<br />
+   case &quot;tdsls991&quot;:<br />
+	edi.rcd = rcd.ttdsls991<br />
+	break		<br />
+   endcase<br />
+...<br />
+---------------------------------------<br />
+function extern long read.next.record()<br />
+...<br />
+   case &quot;tdpur041&quot;:<br />
+...<br />
+      read.references.tdpur041()<br />
+...<br />
+		select	tdsls991.*<br />
+		from	tdsls991, tdsls041<br />
+		where	tdsls041._index2 = {:tdpur041.cprj, :tdpur041.item}<br />
+		and	tdsls991._index1 = {tdsls041.orno, tdsls041.pono}<br />
+		as set with 1 rows<br />
+		selectdo<br />
+		selectempty<br />
+			db.set.to.default(ttdsls941)<br />
+		endselect<br />
+...<br />
+setting a trace to tdsls991.txta and tdsls991.txtb i get the correct text number in the debugger.<br />
+-----------------------------------------------<br />
+<br />
+<br />
+(2) Settings in Session tcedi5115s000:<br />
+<br />
+X12<br />
+860<br />
+Outgoing<br />
+Line<br />
+tdsls991.txtb 0 694 9 5 0 80 blank 0 0 blank 1 ... (mask 3) 100 2<br />
+tdsls991.txta 0 696 9 6 0 80 blank 0 0 blank 1 ... (mask 3) 100 2<br />
+<br />
+<br />
+Can you please advice me, where i could debug (script / dll / function) , if the field is written to the file 860.9 (maybe it is loosing the value on this point).<br />
+<br />
+Regards,<br />
+<br />
+Kozure</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kozure Ohashi</div><div class="date">13th October 2008, 21:56</div></div><div class="posttext">Dear ravikrn_k,<br />
+<br />
+i debugged tcedi7601 script an found a very deep customization for textfields with some filter logic.<br />
+<br />
+That was the reason, the export of the 860.9 message works now perfect.<br />
+<br />
+Thanks for your help!<br />
+<br />
+But now, i have another problem for importing the message 860.9 on location2:<br />
+<br />
+The problem is the settings in the tcedi501 table (Session tcedi5101s000) for the 2 textfields:<br />
+<br />
+The current setting is:<br />
+X12<br />
+860<br />
+Incoming<br />
+Line<br />
+tdsls991.txtb 0 597 9 5 0 80 Yes 0 599 blank No Update<br />
+tdsls991.txtb 1 598 9 6 0 80 blank 597 0 blank No Upate<br />
+<br />
+tdsls991.txta 0 610 9 7 0 80 Yes 0 700 blank No Update <br />
+tdsls991.txta 1 615 9 8 0 80 blank 610 0 blank No Update<br />
+<br />
+(I used existing text fields as a template).<br />
+<br />
+Now the import mixes the field txtb and txta up, i.e. field txta is txtb.<br />
+<br />
+Can somebody please explain me a right setting to import 2 textfields on the same level (860.9). Up to now we had only one text field per level (e.g. 860.5 or 860.4), who to count the fields (is it the same like export: count 5 is txtb count 6 is txta) or is there something special because of maximum text segments (100) and maximum texts per segment (2).<br />
+<br />
+Thanks in advance.<br />
+<br />
+Kozure</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kozure Ohashi</div><div class="date">14th October 2008, 16:56</div></div><div class="posttext">Somebody out there who can explain it:<br />
+<br />
+location 1:<br />
+<br />
+export 2 textfields on one layer (e.g. 860.9)<br />
+<br />
+location 2:<br />
+<br />
+import it.<br />
+<br />
+What are the correct settings. Up to now only the first text field is imported, the second is ignored (i think because of wrong settings).<br />
+<br />
+Thanks for any hints in advance!<br />
+<br />
+Kozure</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

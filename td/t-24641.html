@@ -1,0 +1,131 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Counting days, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Counting days Tools Development" />
+	
+	<title>Counting days [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Counting days</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Beniabdullah</div><div class="date">21st July 2005, 13:04</div></div><div class="posttext">Dear Friends,<br />
+<br />
+How to count the days between two diff. date exclude Saturday and Sunday (working hours).<br />
+e.g :<br />
+<br />
+    Order Date    : 15 July 05 (friday)<br />
+    Receipt Date  : 18 July 05 (monday)<br />
+<br />
+    days = order date - receipt date<br />
+           = 1 (counted only for monday) due 16 Sat, 17 Sun.<br />
+<br />
+Thank's in advance.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st July 2005, 14:03</div></div><div class="posttext">Well the first thing that popped into my mind was to use the company calendar.  You can use a formula like date&gt;=date1 and date&lt;date2 where the day type does not equal weekend (WND on our system) or day type does not equal holidays(if needed).  Of course on our system we do not have a specific workcenter calendar everything falls into the ZZZ workcenter.  I wonder if Baan has a routine.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Juergen</div><div class="date">21st July 2005, 15:01</div></div><div class="posttext">enclosed a small example to read the company calendar which I used in a script<br />
+function read.company.calendar.for.runtime()<br />
+{<br />
+        orno.runt = 0<br />
+<br />
+        select  tirou400.*<br />
+        from    tirou400<br />
+        where   tirou400._index1 inrange {&quot;ZZZ&quot;,:tdsls040.odat}<br />
+                                 and     {&quot;ZZZ&quot;,:orno.last.ddat}<br />
+        and     tirou400.ctod in (&quot;  1&quot;,&quot;  2&quot;)          |Working day 1 (Mo-Th)<br />
+                                                        |Working day 2 (Fr)<br />
+        order by tirou400._index1<br />
+        selectdo<br />
+                if tirou400.date &lt;&gt; orno.last.ddat then<br />
+                   orno.runt = orno.runt + 1<br />
+                endif<br />
+        selectempty<br />
+                |* Work Center &quot;ZZZ&quot; not available<br />
+                orno.runt = orno.last.ddat - tdsls040.odat<br />
+        endselect<br />
+ <br />
+<br />
+Hope this helps a little.<br />
+<br />
+Juergen</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">21st July 2005, 16:47</div></div><div class="posttext">I think that there is a no direct way to solve your problem. Because you exclude weekends. In our system , we construct days calendar  and enter days of year because of factory works times. In this way , we can easily compare days with baan calender and solve problem like yours. As you know that days of week changes in every years. Therefore you must use other calender to compare with it. <br />
+May be , anyone know other solution.  Take it easy .! <br />
+<br />
+Good lucks...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">avpatil</div><div class="date">24th July 2005, 18:41</div></div><div class="posttext">Hi,<br />
+You can use &quot;blank&quot; company calendar from tirou410 table and took the difference between the  difference of cumlative working time. You can write your own DLL so that it will be used by any program. Baan have this somewhere as MRP and MPS uses the planning calendar. If you just want to get the working days excluding weekends you can do simple calucaltion for e.g say the difference between the date is say 30 days then the number of working days would be nearest lowest number that is multiple of 7 i.e 28 and then you can calculate working days as 28*5/7 + 2 = 22 days.<br />
+<br />
+Arvind</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fallguyjg</div><div class="date">5th August 2005, 01:45</div></div><div class="posttext">Beni,<br />
+<br />
+Here's a function that uses company calendar to count days excluding weekends and holidays.<br />
+<br />
+function long no.days.less.weekends(<br />
+			domain tcdate date.f,<br />
+			domain tcdate date.t )<br />
+{<br />
+	| This function returns the number of days from date.f to date.t<br />
+	| excluding weekends and holidays per the company calendar.<br />
+	<br />
+	long	no.of.days<br />
+<br />
+	if date.f = 0 or date.t = 0 or date.t &lt; date.f then<br />
+		return(-1)<br />
+	endif<br />
+	<br />
+	select	count(*):no.of.days<br />
+	from	tirou400<br />
+	where	tirou400._index1 inrange {&quot;ZZZ&quot;, :date.f}<br />
+	and				 {&quot;ZZZ&quot;, :date.t}<br />
+	and	( tirou400.ctod = &quot;WRK&quot; or<br />
+		  tirou400.ctod = &quot;FRI&quot; )<br />
+	selectdo<br />
+	selectempty<br />
+		return(-1)<br />
+	endselect<br />
+	return(no.of.days)<br />
+}<br />
+<br />
+Our company calendar has day types &quot;WRK&quot; and &quot;FRI&quot; as work days.<br />
+<br />
+Date   : 08-05-05 [08:40]      COMPANY CALENDAR                 Page      :    1<br />
+Neways Inc. (MFG)-NEW   Work Center: ZZZ Company Work Center    Company   :  100<br />
+--------------------------------------------------------------------------------<br />
+      |      |          |     |   Type |                                |<br />
+------+------+----------+-----+--------+--------------------------------+-------<br />
+ 2005 |    1 | 01-02-05 | Sun |    SUN | Sunday                         |<br />
+      |      | 01-03-05 | Mon |    WRK | Normal Work Day                |<br />
+      |      | 01-04-05 | Tue |    WRK | Normal Work Day                |<br />
+      |      | 01-05-05 | Wed |    WRK | Normal Work Day                |<br />
+      |      | 01-06-05 | Thu |    WRK | Normal Work Day                | <br />
+      |      | 01-07-05 | Fri |    FRI | Friday                         |<br />
+      |      | 01-08-05 | Sat |    SAT | Saturday                       |<br />
+<br />
+Hope this helps,<br />
+fallguyjg</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Beniabdullah</div><div class="date">9th August 2005, 04:40</div></div><div class="posttext">Hi FallGJ.. thank's <br />
+It's works now...</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Suspect Database!!, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Suspect Database!! Operating Systems &amp; Databases" />
+	
+	<title>Suspect Database!! [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Suspect Database!!</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">sukesh75</div><div class="date">6th May 2007, 13:11</div></div><div class="posttext">Hi guys,<br />
+   On restarting our Baan server after it hung while creating sequential dump of the live company, the baan database was marked suspect. The drive where the mdf file is on has an excess of 19GB free while the drive where the backup file(7Gb) is being created has almost 85gb free and so it wasnt due to disk space problem..I rememeber once seeing a Suspect Database case on Baanboard but i couldnt find it anymore. <br />
+<br />
+Does any one have any sort of procedures or ways to get the database back to normal or how to troubleshoot a suspect database?<br />
+<br />
+I would very much appreciate any help on this as this is our Live production server...<br />
+<br />
+Thanking you in advance...<br />
+sk</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sukesh75</div><div class="date">8th May 2007, 12:31</div></div><div class="posttext">Since there were no replies, could i assume that once your Database gets into a suspect mode, there is no alternative than to restore the sql backup or else start from scratch(reinstall OS/DB/ERP all over again) and restore it from baan sequential dump?<br />
+<br />
+sk</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jclju1</div><div class="date">8th May 2007, 14:13</div></div><div class="posttext">Did you try with google &quot;sql suspect database&quot;?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sukesh75</div><div class="date">8th May 2007, 14:39</div></div><div class="posttext">Yup tried that. <br />
+Some of the suggestion didnt match the error profile and as it is very well known, the combination of baan and sql throws off some exceptional errors which are hard to get over...<br />
+Didnt have too much time to investigate further as it was the begining of a week day and there was too much to do to bring it back on another server while the problematic server was prepared from ground level on...<br />
+<br />
+But for future encounter with this error, i would like to be prepared. I know the first and foremost thing is to have a SQL db backup but other than that is there a way to tackle this situation(suspect db)?<br />
+<br />
+sk</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gramasub</div><div class="date">1st June 2007, 06:48</div></div><div class="posttext">i experienced this problem twice. First time, after trying with disconnect<br />
+and reconnect database from SQL, it worked. But next time, it was very <br />
+difficult to recover. All i could do is to remove the database through SQL<br />
+Enterprise manager and restore the SQL backup.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dorleta</div><div class="date">1st June 2007, 14:24</div></div><div class="posttext">Resetting the Suspect Status<br />
+Microsoft® SQL Server 2000 returns error 1105 and sets the status column of sysdatabases to suspect if SQL Server is unable to complete recovery on a database because the disk drive no longer has any free space. Follow these steps to resolve the problem: <br />
+<br />
+Execute sp_resetstatus. <br />
+<br />
+<br />
+Use ALTER DATABASE to add a data file or log file to the database.<br />
+<br />
+<br />
+Stop and restart SQL Server. <br />
+With the extra space provided by the new data file or log file, SQL Server should be able to complete recovery of the database.<br />
+<br />
+Free disk space and rerun recovery. <br />
+sp_resetstatus turns off the suspect flag on a database, but leaves all other database options intact.<br />
+<br />
+<br />
+<br />
+Caution  Use sp_resetstatus only when directed by your primary support provider or as recommended in Troubleshooting. Otherwise, you might damage your database.<br />
+<br />
+<br />
+Because this procedure modifies the system tables, the system administrator must enable updates to the system tables before creating this procedure. To enable updates, use this procedure:<br />
+<br />
+USE master<br />
+GO<br />
+sp_configure 'allow updates', 1<br />
+GO<br />
+RECONFIGURE WITH OVERRIDE<br />
+GO<br />
+<br />
+After the procedure is created, immediately disable updates to the system tables:<br />
+<br />
+sp_configure 'allow updates', 0<br />
+GO<br />
+RECONFIGURE WITH OVERRIDE<br />
+GO<br />
+<br />
+sp_resetstatus can be executed only by the system administrator. Always shut down SQL Server immediately after executing this procedure.<br />
+<br />
+The syntax is:<br />
+<br />
+sp_resetstatus database_name<br />
+<br />
+This example turns off the suspect flag on the PRODUCTION database.<br />
+<br />
+sp_resetstatus PRODUCTION<br />
+<br />
+Here is the result set:<br />
+<br />
+Database 'PRODUCTION' status reset!<br />
+WARNING: You must reboot SQL Server prior to accessing this database!<br />
+<br />
+sp_resetstatus Stored Procedure Code<br />
+Here is the code of the sp_resetstatus stored procedure:<br />
+<br />
+IF EXISTS ( SELECT * from sysobjects where name = 'sp_resetstatus' )<br />
+   DROP PROCEDURE sp_resetstatus<br />
+GO<br />
+<br />
+CREATE PROC sp_resetstatus @dbname varchar(30) AS<br />
+DECLARE @msg varchar(80)<br />
+IF @@trancount &gt; 0<br />
+      BEGIN<br />
+         PRINT 'Can''t run sp_resetstatus from within a transaction.'<br />
+         RETURN (1)<br />
+      END<br />
+IF suser_id() != 1<br />
+      BEGIN<br />
+         SELECT @msg =  'You must be the System Administrator (SA)'<br />
+         SELECT @msg = @msg + ' to execute this procedure.'<br />
+         RETURN (1)<br />
+      END<br />
+IF (SELECT COUNT(*) FROM master..sysdatabases<br />
+         WHERE name = @dbname) != 1<br />
+      BEGIN<br />
+         SELECT @msg = 'Database ' + @dbname + ' does not exist!'<br />
+         PRINT @msg<br />
+         RETURN (1)<br />
+      END<br />
+IF (SELECT COUNT(*) FROM master..sysdatabases<br />
+         WHERE name = @dbname AND status &amp; 256 = 256) != 1<br />
+      BEGIN<br />
+         PRINT 'sp_resetstatus can only be run on suspect databases.'<br />
+         RETURN (1)<br />
+      END<br />
+BEGIN TRAN<br />
+      UPDATE master..sysdatabases SET status = status ^ 256<br />
+         WHERE name = @dbname<br />
+      IF @@error != 0 OR @@rowcount != 1<br />
+         ROLLBACK TRAN<br />
+      ELSE <br />
+         BEGIN<br />
+            COMMIT TRAN<br />
+            SELECT @msg = 'Database ' + @dbname + ' status reset!'<br />
+            PRINT @msg<br />
+            PRINT ''<br />
+            PRINT 'WARNING: You must reboot SQL Server prior to  '<br />
+            PRINT '         accessing this database!'<br />
+            PRINT ''<br />
+         END<br />
+GO</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sukesh75</div><div class="date">2nd June 2007, 08:44</div></div><div class="posttext">Hi dorleta,<br />
+   Is that all for a database which ran out of physical filespace? In my case, that wasnt the issue. There were like 20gigs left on the drive. So freespace wasnt the issue. It was something else. Talking about which i experienced another db crash just two days back. This time however it was a raid controller which put two hard disks to sleep and which caused logical drive error. When the array was enabled back, three production dbs(including baandb) as well as msdb got into suspect mode. <br />
+<br />
+Month of May hasnt been good to me...<br />
+<br />
+sk</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

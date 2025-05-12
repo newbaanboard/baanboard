@@ -1,0 +1,156 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="repeating after.field, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] repeating after.field Tools Development" />
+	
+	<title>repeating after.field [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; repeating after.field</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">GeraintJones</div><div class="date">12th May 2005, 01:57</div></div><div class="posttext">i have the following code to add out of stocks to our packingslips<br />
+<br />
+after.order.1:<br />
+before.layout:<br />
+	|* Get order line shortage info.<br />
+<br />
+	select	tcibd001.dsca, tdsls401.item, <br />
+		tdsls401.qoor, tdsls401.cups<br />
+	from	tdsls401, tcibd001<br />
+<br />
+	where	tdsls401.orno = {:order}<br />
+	and	tdsls401.clyn = 1<br />
+	and 	tcibd001.item = tdsls401.item<br />
+	selectdo<br />
+<br />
+		shortages.qty = 0<br />
+                shortages.item = tdsls401.item<br />
+                shortages.unit = tdsls401.cups<br />
+        	shortages.shortage = tdsls401.qoor<br />
+		shortages.description = tcibd001.dsca<br />
+	selectempty<br />
+	endselect<br />
+<br />
+after.layout:<br />
+	layout.again()<br />
+<br />
+<br />
+there are two problems, if i remove layout.again() i only get 1 line even if there are 3 or 4, and if i leave it there i get an infinate ammount of lines<br />
+<br />
+any help appreceated.<br />
+<br />
+I am new to Report scripting ;-)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">beginer</div><div class="date">12th May 2005, 07:34</div></div><div class="posttext">Hi ,<br />
+<br />
+The immediate solution that I can think of is setting a flag in selectempty of the query &amp; checking this before calling the layout.again().<br />
+Ofcourse one time the layout will be repeated but not more than that.<br />
+<br />
+There has to be a better solution than this..but this is what i could think of at this moment.<br />
+<br />
+Regards,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Youp2001</div><div class="date">12th May 2005, 13:02</div></div><div class="posttext">Problem is that the system needs to know when all shortages have been printed. Setting a flag in the selectempty won't help you as the query in the before.layout is executed every time again when the layout.again is called. This results in your infinite loop. <br />
+<br />
+You could try to change the query to a dynamic SQL query. Then you can check if you have an SQL id. If the id is filled, you don't need to parse and execute the query anymore. <br />
+<br />
+You get something like this:<br />
+<br />
+before.program:<br />
+          sql.id = 0 <br />
+<br />
+after.order.1:<br />
+before.layout:<br />
+	|* Get order line shortage info.<br />
+             if sql.id = 0 then<br />
+                       query.str = &quot;&lt;your query&gt;&quot;<br />
+                       sql.id = sql.parse(query.str)<br />
+                       sql.where.bind(...) | To set the necessary variable<br />
+                       sql.exec(sql.id)<br />
+                       result = sql.fetch(sql.id) | To fetch the first record<br />
+                       if result &lt;&gt; 0 then<br />
+                                  | An error occurred, probably no records...<br />
+                                  sql.close(sql.id)<br />
+                                  sql.id = 0<br />
+                                  lattr.print = false<br />
+                       endif<br />
+             endif<br />
+after.layout:<br />
+            result = sql.fetch(sql.id)<br />
+            if result = 0 then<br />
+                      layout.again()<br />
+            else<br />
+                      sql.close(sql.id)<br />
+                      sql.id. = 0<br />
+            endif<br />
+            <br />
+I haven't tested the above, but I think you could solve your problem in this way. Alternatively you could load you data in an array and print the array in using layout.again. <br />
+<br />
+Success. <br />
+<br />
+Youp</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th May 2005, 15:51</div></div><div class="posttext">Lots of posts in this form about layout.again - here is just one (http://www.baanboard.com/baanboard/showthread.php?t=1075&amp;highlight=layout.again).  Looks like you just need to stop the layout.again from occuring after the last record.  You can check the print purchase order report.  On our system it counts how many projects have been printed. Something like this with your code - did this kind of quick so this is the concept from our version of rtdpur440101000:<br />
+<br />
+<br />
+detail.1:<br />
+after.layout:<br />
+	record.cnt = 1<br />
+	<br />
+after.order.1:<br />
+before.layout:<br />
+	|* Get order line shortage info.<br />
+	select	count(tdsls401.item):total.cnt<br />
+	from	tdsls401, tcibd001<br />
+	where	tdsls401.orno = {:order}<br />
+	and	tdsls401.clyn = 1<br />
+	and 	tcibd001.item = tdsls401.item<br />
+	selectdo<br />
+	endselect<br />
+<br />
+	current.cnt = 0<br />
+	select	tcibd001.dsca, tdsls401.item, <br />
+		tdsls401.qoor, tdsls401.cups<br />
+	from	tdsls401, tcibd001<br />
+	where	tdsls401.orno = {:order}<br />
+	and	tdsls401.clyn = 1<br />
+	and 	tcibd001.item = tdsls401.item<br />
+	selectdo<br />
+		shortages.qty = 0<br />
+		shortages.item = tdsls401.item<br />
+		shortages.unit = tdsls401.cups<br />
+		shortages.shortage = tdsls401.qoor<br />
+		shortages.description = tcibd001.dsca<br />
+		current.cnt = current.cnt + 1<br />
+		if record.cnt = current.cnt then<br />
+			break<br />
+		endif<br />
+	endselect<br />
+<br />
+after.layout:<br />
+	if record.cnt&lt;total.cnt then<br />
+		record.cnt = record.cnt + 1<br />
+		layout.again()<br />
+	else<br />
+		record.cnt = 0<br />
+	endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">GeraintJones</div><div class="date">13th May 2005, 01:09</div></div><div class="posttext">Thankyou very much, that worked perfectly ;-)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

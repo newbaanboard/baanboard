@@ -1,0 +1,96 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Problem restarting license daemons via UNIX remsh command, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Problem restarting license daemons via UNIX remsh command Tools Administration &amp; Installation" />
+	
+	<title>Problem restarting license daemons via UNIX remsh command [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Problem restarting license daemons via UNIX remsh command</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">chadwickh</div><div class="date">17th September 2002, 20:21</div></div><div class="posttext">We have network licensing on three servers as defined in our $BSE/lib/licence6.1 file. To reset licenses I stop the license daemons in reverse order of the licence6.1 file and then start them up in order one at a time. To make this easier, I created a script that reads in the $BSE/lib/licence6.1 file and does this for me. The script is shown below. Now you have to believe me when I say this script used to work. I think a porting set upgrade caused it to not work anymore. Anyway the problem is when I try to issue a remote shell command to run the $BSE/etc/rc.start_licd script the script hangs until I kill the script or kill the license daemon program. My UNIX admins have no idea what could be causing it, do you? If you run the $BSE/etc/rc.start_licd script manually it says it started the license daemon and you can exit your shell cleanly.<br />
+<br />
+Here's the script:<br />
+<br />
+#!/usr/bin/sh<br />
+# file: resetlicensedaemons.sh<br />
+# auth: Chad Heidema<br />
+# date: 01/02/2002<br />
+# desc: Resets the license daemons on the servers identified by the $BSE/lib/licence6.1 file<br />
+# mods: Added a few lines to be logged to /home/bsp/bsp/license_daemon_reset.log<br />
+<br />
+stop_license_server()<br />
+{<br />
+        if [ &quot;$server&quot; &lt;&gt; &quot; &quot; ]; then<br />
+                echo `date` &quot;********************************************************&quot;<br />
+                echo Stopping license server on: $server        <br />
+                echo `date` &quot;********************************************************&quot; &gt;&gt; $logfile<br />
+                echo $me stopping license server on: $server &gt;&gt; $logfile<br />
+                remsh $server ps -ef | grep licd6.1 | grep -v grep <br />
+                remsh $server /home/bsp/bsp/bin/stoplicensedaemon.sh<br />
+        fi<br />
+}<br />
+<br />
+start_license_server()<br />
+{<br />
+        if [ &quot;$server&quot; &lt;&gt; &quot; &quot; ]; then<br />
+                echo `date` &quot;********************************************************&quot;<br />
+                echo Starting license server on: $server        <br />
+                echo `date` &quot;********************************************************&quot; &gt;&gt; $logfile<br />
+                echo $me starting license server on: $server &gt;&gt; $logfile<br />
+                remsh $server /baan/etc/rc.start_licd<br />
+                remsh $server ps -ef | grep licd6.1 | grep -v grep <br />
+        fi<br />
+}<br />
+<br />
+# main program here<br />
+<br />
+me=`whoami`<br />
+logfile=/home/bsp/bsp/license_daemon_reset.log  <br />
+<br />
+# first read the licence file into 3 variables on the current server<br />
+host=`hostname`<br />
+serverlist=`cat /baan/lib/licence6.1`<br />
+echo `date` &quot;********************************************************&quot;<br />
+echo &quot;Contents of /baan/lib/license6.1 file on $host: &quot; $serverlist<br />
+server1=`echo $serverlist | cut -b-1-6`<br />
+server2=`echo $serverlist | cut -b-8-13`<br />
+server3=`echo $serverlist | cut -b-15-20`<br />
+<br />
+# now shut down the servers in reverse order from 3 to 1<br />
+server=$server3<br />
+echo &quot;Stopping first license server: $server3&quot;<br />
+stop_license_server<br />
+echo &quot;Done stopping first license server&quot;<br />
+server=$server2<br />
+echo &quot;Stopping second license server: $server2&quot;<br />
+stop_license_server<br />
+server=$server1<br />
+stop_license_server<br />
+<br />
+# now start the servers in order from 1 to 3<br />
+server=$server1<br />
+start_license_server<br />
+server=$server2<br />
+start_license_server<br />
+server=$server3<br />
+start_license_server</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">17th September 2002, 20:53</div></div><div class="posttext">Chad,<br />
+<br />
+I have seen similar problems before and I think it's partly due to the behaviour of the license daemon itself. The easiest way in which we managed to solve the issue to start your remote script in the background (using '&amp;') so that the remsh finishes immediately.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

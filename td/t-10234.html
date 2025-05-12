@@ -1,0 +1,193 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="error 206 in update, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] error 206 in update Tools Development" />
+	
+	<title>error 206 in update [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; error 206 in update</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">anupkumar</div><div class="date">4th June 2003, 02:44</div></div><div class="posttext">I have a requirement wherein i have to write a record into a table. Now the table may have the record or may not. So depending on either condition i would like to do an update or an insert on the table. <br />
+<br />
+Again the table name is dynamic (so i cant use a select).<br />
+<br />
+I have written the following code to achieve this result<br />
+<br />
+ db.insert(t&lt;tbl&gt;,db.retry,db.return.error)<br />
+<br />
+ on case db.error()<br />
+       case 0:<br />
+                    break <br />
+       case 100:<br />
+                    buffer = rcd.&lt;tbl&gt;    | Store to be updated values<br />
+                    db.eq(t&lt;tbl&gt;,db.delayed.lock(or db.lock)) | Lock Tbl<br />
+                    rcd.&lt;tbl&gt; = buffer    | Restore to be updated values<br />
+                    db.update(t&lt;tbl&gt;,db.retry)<br />
+                    break<br />
+       default:<br />
+                   &lt;appropriate error messages&gt;<br />
+ endcase<br />
+<br />
+Now in this case when i do a db.update it always returns an error 206 (record not locked). Instead of assiging the whole rcd if i assign any fields other than the index fields the update works( no error messages).<br />
+<br />
+First : why the error message<br />
+Second : How to achieve the update by assigning the whole rcd. I have to do this since the table is dynamic and i dont know at runtime which fields are index fields and have to be excluded.<br />
+<br />
+Anup</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dorleta</div><div class="date">4th June 2003, 13:59</div></div><div class="posttext">I´ve done somthing seemed I did not update but I think that it is very seemed that you want to do<br />
+<br />
+this is the example<br />
+<br />
+function dll0026.archive.table(<br />
+					string table.name(8),<br />
+					domain tcncmp comp.org,<br />
+					domain tcncmp comp.arch,<br />
+					domain tcncmp comp.arch2,<br />
+					ref string record.buffer)<br />
+{<br />
+	<br />
+<br />
+	long	pointer.org<br />
+	long	pointer.arch<br />
+	long	pointer.arch2<br />
+<br />
+	pointer.org  = db.bind(&quot;t&quot;&amp;table.name,&quot;&quot;,comp.org)<br />
+	pointer.arch = db.bind(&quot;t&quot;&amp;table.name,&quot;&quot;,comp.arch)<br />
+	pointer.arch2 = db.bind(&quot;t&quot;&amp;table.name,&quot;&quot;,comp.arch2)<br />
+	if pointer.org &gt; 0 and pointer.arch &gt; 0 and pointer.arch2 &gt; 0 then<br />
+		db.first(pointer.org)<br />
+		while e = 0<br />
+			db.retry.point()			<br />
+<br />
+			db.record.to.columns(pointer.arch)<br />
+			db.insert(pointer.arch, db.retry, db.return.dupl)<br />
+			commit.transaction()<br />
+<br />
+			db.next(pointer.org)<br />
+		endwhile<br />
+		db.unbind(pointer.org)<br />
+		db.unbind(pointer.arch)<br />
+		db.unbind(pointer.arch2)<br />
+	endif<br />
+<br />
+}<br />
+<br />
+you have a more complete example in the dll tccomdll0026 that is the dll of the archiving process.<br />
+<br />
+Another solution maybe use dinamyc SQL<br />
+<br />
+good luck</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">anupkumar</div><div class="date">4th June 2003, 17:01</div></div><div class="posttext">Hi dorleta,<br />
+<br />
+thanks for ur inputs. In my case too the db.insert works fine.. I am facing problem with the updates. In insert there is no record to be locked.<br />
+<br />
+Anup</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">4th June 2003, 18:25</div></div><div class="posttext">Why use db.* calls?  A bit old fashioned, isn't it?<br />
+<br />
+Try this:<br />
+<br />
+<br />
+select &lt;tbl&gt;.* for update<br />
+where &lt;tbl&gt;._index1 = {...}<br />
+selectdo<br />
+    db.update(...)<br />
+selectempty<br />
+    db.insert(...)<br />
+endselect<br />
+<br />
+<br />
+Regards,<br />
+Nico</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">anupkumar</div><div class="date">4th June 2003, 18:40</div></div><div class="posttext">Hi Nico,<br />
+i cant use select statements bcoz my table is dynamic. So cant write a select statement. <br />
+<br />
+so have to depend on db.* statements.<br />
+<br />
+Anup</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">4th June 2003, 20:47</div></div><div class="posttext">Anup,<br />
+<br />
+As Dorleta, gave you the info, refer to the dll - tccomdll0026-Archive Table Distribution.<br />
+<br />
+It has the code to do both inserts and updates.<br />
+<br />
+<br />
+	pointer.org  = db.bind(&quot;t&quot;&amp;table.name,&quot;&quot;,comp.org)<br />
+	pointer.arch = db.bind(&quot;t&quot;&amp;table.name,&quot;&quot;,comp.arch)<br />
+	if pointer.org &gt; 0 and pointer.arch &gt; 0 then<br />
+		mess(&quot;tcibds5214&quot;,0)<br />
+		|Archiving master data ...<br />
+		db.first(pointer.org)<br />
+		while e = 0<br />
+			copy.mem(record.buffer.sv,record.buffer,int.length)<br />
+<br />
+			if db.eq(pointer.arch,db.lock) then<br />
+				for text.field = 1 to text.counter<br />
+					store.long(0,<br />
+						record.buffer(<br />
+						text.field.position(<br />
+						text.field)))<br />
+				endfor<br />
+ 				db.record.to.columns(pointer.arch)<br />
+				empty.ref.fields(table.name)<br />
+				db.insert(pointer.arch)<br />
+				commit.transaction()<br />
+			else<br />
+				copy.mem(record.buffer,record.buffer.sv,<br />
+				int.length)<br />
+				for text.field = 1 to text.counter<br />
+					store.long(0,<br />
+						record.buffer(<br />
+						text.field.position(<br />
+						text.field)))<br />
+				endfor<br />
+ 				db.record.to.columns(pointer.arch)<br />
+				empty.ref.fields(table.name)<br />
+				db.update(pointer.arch)<br />
+				commit.transaction()<br />
+			endif<br />
+			db.next(pointer.org)<br />
+		endwhile<br />
+		db.unbind(pointer.org)<br />
+		db.unbind(pointer.arch)<br />
+		clean.mess()<br />
+	endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">anupkumar</div><div class="date">4th June 2003, 20:55</div></div><div class="posttext">I do not have access to source codes.So could not check. Will check this out. <br />
+<br />
+Thanks<br />
+<br />
+Anup</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">anupkumar</div><div class="date">5th June 2003, 00:41</div></div><div class="posttext">problem solved. the difference between what i was doing and what the standard was doing is that i was using db.update with retry. So db.update without a retry works fine. <br />
+<br />
+Now does this mean i dont have the functionality of a rollback. In this case each update becomes a new transaction in itself. but suppose i want to make a transaction in which i update more than one table , how do i handle the rollback.. or is it automatically handled if the commit.transaction is given after all the tables in the transaction.<br />
+<br />
+bye<br />
+Anup</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

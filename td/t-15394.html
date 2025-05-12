@@ -1,0 +1,108 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Updating fields in other tables when save is performed, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Updating fields in other tables when save is performed Tools Development" />
+	
+	<title>Updating fields in other tables when save is performed [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Updating fields in other tables when save is performed</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">marine</div><div class="date">19th May 2004, 16:18</div></div><div class="posttext">Background:<br />
+<br />
+I have a custom session that the user maintains a custom table regularily.  <br />
+<br />
+Need:<br />
+When that user &quot;saves&quot; a record in the session, I want to add functionality that executes additional code.  (ie. updating a field in another table based off of a value that was just updated).<br />
+<br />
+<br />
+Thank you in advance for any advice you can provide!<br />
+-Marine</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Marc van Kessel</div><div class="date">19th May 2004, 16:47</div></div><div class="posttext">The general aim is to put as little programming<br />
+lines as possible in session-scripts. <br />
+<br />
+This is how I do it: <br />
+<br />
+suppose session (tdsls9190m000) maintains table tdsls990:<br />
+<br />
+Create a library caled &quot;tdslsdal990&quot;<br />
+<br />
+   function tdslsdal990.before.write()<br />
+   {<br />
+       | Perform the update of the related tables.<br />
+       | preferable by calling other DLLs<br />
+       | And WITHOUT TRANSACTION HANDLING<br />
+       | (no db.retry.point or commits)<br />
+   }<br />
+<br />
+  function tdslsdal990.before.rewrite()<br />
+  {<br />
+      | Perhaps the following is enough<br />
+      tdslsdal990.before.write()<br />
+  }<br />
+<br />
+<br />
+Then in the session (e.g. tdsls9190m000) add:<br />
+<br />
+before.write:<br />
+    tdslsdal990.before.write()<br />
+<br />
+before.rewrite:<br />
+   tdslsdal990.before.rewrite()<br />
+<br />
+<br />
+The functionality is executed in the same database<br />
+transaction as the update of table tdsls990, therefor<br />
+eliminating inconsistencies.<br />
+<br />
+Good Luck,<br />
+<br />
+Marc</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">suhas-mahajan</div><div class="date">20th May 2004, 06:35</div></div><div class="posttext">Hi Marine,<br />
+<br />
+Try this -<br />
+<br />
+choice.update.db:<br />
+after.choice:<br />
+update.new.table()<br />
+<br />
+or<br />
+<br />
+after.update.db.commit:<br />
+update.new.table()<br />
+<br />
+<br />
+function update.new.table()<br />
+{<br />
+	select tdesl008.ldcn<br />
+	from tdesl008 for update<br />
+	where tdesl008._index1 = {:tdesl006.srno}<br />
+		and tdesl008.stat = tdstatus.active<br />
+	selectdo<br />
+		tdesl008.ldcn = int0<br />
+		db.update(ttdesl008, db.retry)<br />
+		commit.transaction()<br />
+	endselect<br />
+}<br />
+<br />
+Regards,<br />
+<br />
+-Suhas</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

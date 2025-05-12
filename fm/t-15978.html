@@ -1,0 +1,163 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="program variabele in maintain overview session, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] program variabele in maintain overview session Tools Development" />
+	
+	<title>program variabele in maintain overview session [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; program variabele in maintain overview session</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">veerle</div><div class="date">14th July 2004, 14:14</div></div><div class="posttext">Hey,<br />
+<br />
+I have made a new overview session on table tibom010.  In this overview session some fields should be updated when the enduser has selected a checkbox 'update' for this entrie.  The form field is defined as 'extern domain tcyesno e.update a. But i don't get the value of the different occurences of my update field ?? <br />
+<br />
+Below you find a part of my script : <br />
+<br />
+function extern void update.bom.lines()<br />
+{<br />
+	do.all.occ(update_occurrences)<br />
+	update.occ()<br />
+}<br />
+<br />
+function void update_occurrences()<br />
+{<br />
+	if e.update = tcyesno.yes then<br />
+                         tibom010.cpha = e.cpha<br />
+		tibom010.phst = e.phst<br />
+		display.fld( actual.occ, &quot;tibom010.cpha&quot; )<br />
+		display.fld( actual.occ, &quot;tibom010.phst&quot; )<br />
+	endif<br />
+}<br />
+<br />
+Can somebody explain this problem or give a solution?<br />
+<br />
+Bye, Veerle</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">14th July 2004, 19:14</div></div><div class="posttext">Veerle,<br />
+<br />
+I didnt use the checkboxes, instead I used the option to mark records, in sequence(with shift &amp; mouse) or random (control &amp; mouse).<br />
+<br />
+Here is the piece of code to update -<br />
+<br />
+function extern change.status.qaapp()<br />
+{<br />
+long	i<br />
+curr.stat = zmmig.stat.dev.approved<br />
+for i = 1 to filled.occ<br />
+	if mark.table(i) then<br />
+		do.occ(i, change.status)<br />
+	endif<br />
+endfor<br />
+refresh.all.occs()<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">veerle</div><div class="date">15th July 2004, 08:26</div></div><div class="posttext">Thanks for your reply, but the users would really have the possibility to select a checkbox instead of mark the entries...<br />
+<br />
+Veerle</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Gert Verheyen</div><div class="date">15th July 2004, 13:01</div></div><div class="posttext">Hi Veerle,<br />
+<br />
+my best guess is that your code will only work if your fields are part of the tibom010 table. and your e.xxxx fields are no database fields.<br />
+<br />
+regards,<br />
+Gert Verheyen.<br />
+System Development<br />
+Duni N.V.<br />
+mailto:Gert.Verheyen@Duni.com</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">veerle</div><div class="date">15th July 2004, 13:07</div></div><div class="posttext">Yes, that's true, but i (the company) don't want change the table definition of tibom010!?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">15th July 2004, 20:58</div></div><div class="posttext">Veerle,<br />
+<br />
+You dont have to change the table. You can add a form field variable and change the program script.<br />
+<br />
+I found an example in our application code (Freight Management-Loads)-<br />
+<br />
+Here is some part of the code -<br />
+<br />
+field.select.load:<br />
+when.field.changes:<br />
+	update.selected.loads.array()<br />
+<br />
+function void add.to.selected.loads.array()<br />
+{<br />
+domain  tcyesno     save.select.load<br />
+    <br />
+save.select.load = select.load<br />
+select.load = tcyesno.yes<br />
+update.selected.loads.array()<br />
+select.load = save.select.load<br />
+}<br />
+<br />
+function update.selected.loads.array()<br />
+{<br />
+long	index <br />
+string 	temp.load.selected(1)<br />
+<br />
+index = 0<br />
+if max.filled.index = 100 then<br />
+	message(&quot;Too many selections&quot;,1)<br />
+	execute(end.program)<br />
+endif<br />
+index = qss.search(QSS.EQUAL +QSS.LOOKUP.FOR.STRUCT,<br />
+		fmlbd400.load, selected.loads, def)<br />
+if index &gt; 0 then<br />
+	selected.loads(10,index;1) = <br />
+	(select.load = tcyesno.yes)?&quot;y&quot;:&quot;n&quot;<br />
+else<br />
+	if select.load = tcyesno.yes then<br />
+		temp.load.selected = &quot;y&quot;<br />
+	else<br />
+		temp.load.selected = &quot;n&quot;<br />
+	endif<br />
+	max.filled.index = max.filled.index + 1<br />
+	selected.loads(1,max.filled.index;10) = fmlbd400.load&amp;<br />
+			temp.load.selected<br />
+endif<br />
+}<br />
+<br />
+function extern make.actual()<br />
+{<br />
+long	i<br />
+domain	tcorno		hold.load<br />
+domain	tcmcs.str132m	err.mess<br />
+domain	tcbool		atleast.one.selected<br />
+domain	tcorno		plan.id<br />
+domain	tcorno		actual.plan<br />
+domain	tcbool		commit.required<br />
+domain  tcmcs.str35 load.message<br />
+<br />
+if marked and count.selected.loads(load.message) then<br />
+        mess(&quot;fmzmfs0246.c&quot;, 1, strip$(load.message))<br />
+        |* You have a mix of checkbox-selected (%1$s) and highlighted loads. <br />
+        |* Please use one method of selecting only.<br />
+	return<br />
+endif<br />
+if marked then<br />
+        for i = 1 to filled.occ<br />
+          if mark.table(i) then<br />
+            do.occ(i, add.to.selected.loads.array)<br />
+          endif<br />
+        endfor<br />
+    endif<br />
+    .....</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,272 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Two script in one, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Two script in one Tools Development" />
+	
+	<title>Two script in one [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Two script in one</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">20th January 2009, 13:20</div></div><div class="posttext">Dear Gurus,<br />
+        <br />
+         Below is the script with 2 reports send. I want to merge these two scripts in one so dat i can get the data from both the tables in one report _send(). How to merge the scripts.<br />
+          <br />
+                                   functions:<br />
+function read.main.table()<br />
+{	|db.set.to.default(ttdsfl003) <br />
+	<br />
+	select  tdsfl003.*<br />
+	from 	tdsfl003<br />
+	where	tdsfl003.rwar = :rwar<br />
+	and	tdsfl003.dwar = :dwar<br />
+	and	tdsfl003.date	between :odat.f and :odat.t<br />
+	and	tdsfl003.trtp = &quot;MREQ&quot;<br />
+	order by tdsfl003.orno,tdsfl003.pono<br />
+	selectdo<br />
+		select tiitm001.*<br />
+		from	tiitm001<br />
+		where	tiitm001.item = :tdsfl003.item<br />
+		selectdo<br />
+		endselect<br />
+	rprt_send()<br />
+		endselect	<br />
+<br />
+		select	tdrpl100.*	<br />
+		from	tdrpl100<br />
+		where 	tdrpl100.rwar= :rwar<br />
+		and	tdrpl100.dwar = :dwar<br />
+		and	tdrpl100.odat between :odat.f and :odat.t<br />
+		order by tdrpl100.orno, tdrpl100.pono	<br />
+		selectdo	<br />
+		select tiitm001.*<br />
+		from	tiitm001<br />
+		where	tiitm001.item = :tdrpl100.item<br />
+		selectdo<br />
+		endselect<br />
+	<br />
+			rprt_send()		<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th January 2009, 23:20</div></div><div class="posttext">Well I won't do the merge for you but I can tell you how I have done something similiar.  Let use for example one report for GRP Production Orders and one for SFC Production Orders.  First what I do is look at the two reports and create generic fields for them. So both reports have orno, item and description, maybe need date, and qty. So on the report I would use rpt.orno, rpt.item, tiitm001.dsca, rpt.date, rpt.qty - using the largest domain for rpt.qty.<br />
+<br />
+Then in the session script what I do is something like this(simplified) - not sure about field names:<br />
+<br />
+select tisfc001.*, tiitm001.dsca<br />
+from tisfc001, tiitm001<br />
+where tisfc001._index = {some index search}<br />
+and tiitm001._index1 = {tisfc001.mitm}<br />
+selectdo<br />
+   if (some checks or stuff) then<br />
+      rpt.orno = tisfc001.orno<br />
+      rpt.item = tisfc001.mitm<br />
+      rpt.date = tisfc001.prdt<br />
+      rpt.qty  = tisfc001.qrdr<br />
+      rprt_send()<br />
+   endif<br />
+endselect<br />
+select tipgc510.*, tiitm001.dsca<br />
+from tipgc510, tiitm001<br />
+where tipgc510._index = {some index search}<br />
+and tiitm001._index1 = {tipgc510.item}<br />
+selectdo<br />
+   if (some checks or stuff) then<br />
+      rpt.orno = tipgc510.orno<br />
+      rpt.item = tipgc510.item<br />
+      rpt.date = tipgc510.psdt<br />
+      rpt.qty  = tipgc510.oqan<br />
+      rprt_send()<br />
+   endif<br />
+endselect<br />
+<br />
+This gives me one report from multiple tables - now usually I do something so I know which record come from which table. Sometimes a simple text field that says &quot;GRP&quot; or &quot;SFC&quot;.  This is how I combine multiple reports for multiple tables into one report and session.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">21st January 2009, 09:26</div></div><div class="posttext">Thanks Mark your logic was extremely helpful.<br />
+But i have got problem again.<br />
+I have wittten the script according to your format. It is getting the data for me .<br />
+Problem:<br />
+1. data is not accurate for Ordered (tdsfl003.quan) and Delivered(tdrpl100.dqua)<br />
+2. If I comment 2nd function I get data right for 1st function.<br />
+3. If I comment 1st function I get data right for 2nd function.<br />
+<br />
+              This is my script:<br />
+                     declaration:	<br />
+	table	ttdrpl100	| Replenishment Order Lines	<br />
+	table	ttdrpl105	| Replenishment Order Headers<br />
+	table	ttiitm001	| Items<br />
+	table	ttdsfl008	| Warehouse<br />
+	table	ttdsfl003<br />
+	<br />
+<br />
+	extern	domain	tccwar		rwar,dwar<br />
+	extern	domain	tcdsca		dsca	<br />
+	extern	domain	tcdsca        	dwar.dsca<br />
+	extern	domain	tcorno		orno.f,orno.t,flag,orno<br />
+	extern	domain	tcpono		pono,ppos<br />
+        extern  domain  tcdate          odat.t,odat.f,rddt.t,rddt.f,date,odat,date.t,date.f<br />
+	extern	domain	tcqrp3		dqty,dqua<br />
+    	extern	domain	tcitem		item,item.t,item.f<br />
+	extern	domain	tcmcs.str15	preq,preq.f,preq.t<br />
+|****************************** form section **********************************<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+|****************************** choice section ********************************<br />
+choice.cont.process:<br />
+on.choice:	<br />
+	execute(print.data)<br />
+	choice.print.data:<br />
+	on.choice:	<br />
+		if rprt_open() then		<br />
+			read.main.table()<br />
+			read.main.table1()		<br />
+			rprt_close()	<br />
+			else<br />
+				<br />
+				choice.again()<br />
+		endif<br />
+<br />
+<br />
+|****************************** field section *********************************<br />
+<br />
+field.rwar:<br />
+when.field.changes:<br />
+	rwar = rwar <br />
+	<br />
+field.dwar:<br />
+when.field.changes:<br />
+	dwar = dwar <br />
+<br />
+<br />
+<br />
+field.odat.f:<br />
+when.field.changes:<br />
+	odat.t = odat.f<br />
+<br />
+field.item.f:<br />
+when.field.changes:<br />
+	item.t = item.f<br />
+<br />
+|****************************** function section ******************************<br />
+functions:<br />
+function read.main.table()<br />
+{	 <br />
+	dqua = 0.0 <br />
+	<br />
+	<br />
+	select  tdrpl100.*,tiitm001.dsca<br />
+	from 	tdrpl100,tiitm001<br />
+	where	tdrpl100.rwar = :rwar<br />
+	and	tdrpl100.dwar = :dwar<br />
+	and	tdrpl100.odat between  :odat.f  and :odat.t<br />
+	and	tdrpl100.item refers to tiitm001 <br />
+	order by tdrpl100.orno,tdrpl100.pono<br />
+	selectdo<br />
+		if item = tdrpl100.item then<br />
+		else<br />
+			<br />
+			dqua =  0.0<br />
+		endif<br />
+			orno = tdrpl100.orno<br />
+			dqua = tdrpl100.dqua<br />
+			item = tdrpl100.item<br />
+			pono = tdrpl100.pono<br />
+			rprt_send()<br />
+	<br />
+	endselect<br />
+}<br />
+<br />
+ function read.main.table1()<br />
+{			<br />
+		dqty = 0.0<br />
+		preq = &quot; &quot; <br />
+		select	tdsfl003.*,tiitm001.dsca	<br />
+		from	tdsfl003,tiitm001<br />
+		where 	tdsfl003.rwar= :rwar<br />
+		and	tdsfl003.dwar = :dwar<br />
+		and	tdsfl003.date between :odat.f and :odat.t<br />
+		and 	tdsfl003.item refers to tiitm001<br />
+		order by tdsfl003.orno,tdsfl003.pono<br />
+		selectdo<br />
+		if item = tdsfl003.item then<br />
+		else<br />
+			 <br />
+			dqty =  0.0<br />
+		endif<br />
+			orno = tdsfl003.orno<br />
+			dqty = tdsfl003.quan<br />
+			preq = tdsfl003.preq<br />
+			ppos = tdsfl003.ppos<br />
+			item = tdsfl003.item<br />
+			rprt_send()<br />
+	 endselect<br />
+}<br />
+ According to my thinking the problem can be solved<br />
+  if <br />
+1.in the choice section 2nd function must be executed after fetching all the data from 1st function. <br />
+2. Can any one program 2nd funciton in such a way.<br />
+  Other logic is also appareciated.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st January 2009, 16:01</div></div><div class="posttext">Just the way you do it in the posted script works for me - I have done that plenty of times.  I usually find all the records from one table, then go find all the records from the second table.  So from what I see in the script that is what you are doing I do not see how the two functions could interfere with each other.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">24th January 2009, 11:46</div></div><div class="posttext">I have taken report layout as<br />
+<br />
+itemcode   desc     ordered  deivered       orno<br />
+<br />
+itemcode -&gt; item<br />
+desc -&gt;tiitm0001.desc<br />
+ordered -&gt;dqty<br />
+delivered-&gt;dqua<br />
+orno -&gt; orno<br />
+<br />
+and has after.field-&gt;item</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvpBaaN</div><div class="date">25th January 2009, 23:14</div></div><div class="posttext">I think the probelm is due to variable initiailization. In the following code, when item = tdrpl100.item, you are assigning dqua = 0.0, but then after exiting from the IF statement you are assigning dqua = tdrpl100.dqua. Same is the case in the other function.<br />
+ <br />
+<br />
+if item = tdrpl100.item then<br />
+else<br />
+dqua = 0.0<br />
+endif<br />
+ <br />
+orno = tdrpl100.orno<br />
+dqua = tdrpl100.dqua<br />
+item = tdrpl100.item<br />
+pono = tdrpl100.pono<br />
+rprt_send()<br />
+<br />
+ <br />
+Maybe you should write this code as:<br />
+ <br />
+if item = tdrpl100.item then<br />
+dqua = tdrpl100.dqua<br />
+else<br />
+dqua = 0.0<br />
+endif<br />
+ <br />
+orno = tdrpl100.orno<br />
+item = tdrpl100.item<br />
+pono = tdrpl100.pono<br />
+rprt_send()<br />
+ <br />
+This should be done in both the functions, and then it should work.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

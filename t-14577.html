@@ -1,0 +1,154 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS for Inventory Adjustments, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS for Inventory Adjustments AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS for Inventory Adjustments [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS for Inventory Adjustments</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">DStroud</div><div class="date">24th February 2004, 20:05</div></div><div class="posttext">We have certain items that are purchased consumables that we have to basically receive into inventory and then do an inventory adjustment to zero the on-hand. I create a session to read the tdilc101 table for the specific items and then do the inventory adjustment using AFS.  I cant get my process to work for serialized items. Even though I use the tdilc101.date field as input to the date field in the tdilc1121s000 I get no inventory found. I have posted my code below and would appreciate any help in trying to resolve this problem.<br />
+<br />
+Thanks,<br />
+Doug <br />
+<br />
+<br />
+<br />
+|* Inventory Adjustment<br />
+<br />
+function extern long adjust_inventory()<br />
+{<br />
+<br />
+| Put data on main form<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.item&quot;, tdilc101.item) | Item to adjust<br />
+        stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.idat&quot;, str$(date.num())) | Date of Adjustment<br />
+        stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.cwar&quot;, tdilc101.cwar)  | Warehouse of adjustment<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.kowt&quot;, str$(tckowt.stc.correction)) | Transaction Type      <br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.recd&quot;, &quot;ADJ&quot;) | reason code <br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.odat&quot;, str$(date.num())) | Date of Order<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.pqan&quot;, str$(tdilc101.strs)) | Transaction qty<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.pdat&quot;, str$(date.num())) | Planned Date<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.trdt&quot;, str$(date.num())) | Transaction date<br />
+| Handle sub session<br />
+	stpapi.handle.subproc(&quot;tdilc1120m000&quot;, &quot;tdilc1121s000&quot;,&quot;add&quot;)<br />
+| Now add the above record.<br />
+	stpapi.insert(&quot;tdilc1120m000&quot;, 1, err)<br />
+	if(strip$(err)&lt;&gt;&quot;&quot;) then<br />
+		msg = stpapi.get.mess.code(&quot;tdilc1120m000&quot;)<br />
+		msg = &quot;tdilc1120m000 insert: &quot;&amp; strip$(err)&amp;&quot; Msg Code &quot;&amp;strip$(msg)<br />
+		cleanup.processes(0)<br />
+		return(0)<br />
+	endif<br />
+<br />
+| Continue and init sub-session.<br />
+	stpapi.continue.process(&quot;tdilc1120m000&quot;, err)<br />
+	if(strip$(err)&lt;&gt;&quot;&quot;) then<br />
+		msg = stpapi.get.mess.code(&quot;tdilc1120m000&quot;)<br />
+		msg = &quot;tdilc1120m000 Continue: &quot;&amp; strip$(err)&amp;&quot; Msg Code &quot;&amp;strip$(msg)<br />
+		cleanup.processes(0)<br />
+ 		return(0)<br />
+	endif<br />
+<br />
+| Get serial number of the adjustment.<br />
+	stpapi.get.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.sern&quot;, serial.number.data)<br />
+	serial.number = lval(serial.number.data)<br />
+	stpapi.put.field(&quot;tdilc1121s000&quot;, &quot;tdilc102.item&quot;, tdilc101.item)<br />
+	stpapi.put.field(&quot;tdilc1121s000&quot;, &quot;tdilc102.cntr&quot;, tdilc101.cntr)<br />
+	stpapi.put.field(&quot;tdilc1121s000&quot;, &quot;tdilc102.cwar&quot;, tdilc101.cwar)<br />
+	stpapi.put.field(&quot;tdilc1121s000&quot;, &quot;tdilc102.idat&quot;, str$(date.num()))<br />
+	stpapi.put.field(&quot;tdilc1121s000&quot;, &quot;tdilc102.sera&quot;, str$(serial.number))<br />
+<br />
+| Should not Find the record.<br />
+	ret = stpapi.find(&quot;tdilc1121s000&quot;, err)<br />
+	if ret = 1  then<br />
+		msg = stpapi.get.mess.code(&quot;tdilc1121s000&quot;)<br />
+		msg = &quot;tdilc1121s000 find: &quot;&amp; strip$(err)&amp;&quot; Msg Code &quot;&amp;strip$(msg)<br />
+		cleanup.processes(1)<br />
+		return(0)<br />
+	endif<br />
+<br />
+| Now add the data.<br />
+	stpapi.put.field(&quot;tdilc1121s000&quot;, &quot;tdilc102.clot&quot;, tdilc101.clot)<br />
+	stpapi.put.field(&quot;tdilc1121s000&quot;, &quot;tdilc102.date&quot;, str$(tdilc101.date))<br />
+	stpapi.put.field(&quot;tdilc1121s000&quot;, &quot;tdilc102.loca&quot;, tdilc101.loca)<br />
+	stpapi.put.field(&quot;tdilc1121s000&quot;, &quot;tdilc102.stun&quot;, tdilc101.stun)<br />
+	stpapi.put.field(&quot;tdilc1121s000&quot;, &quot;tdilc102.qstr&quot;, str$(tdilc101.strs))<br />
+	stpapi.put.field(&quot;tdilc1121s000&quot;, &quot;tdilc102.qstk&quot;, str$(tdilc101.stks))<br />
+	stpapi.insert(&quot;tdilc1121s000&quot;, 1, err)<br />
+	if(strip$(err)&lt;&gt;&quot;&quot;) then<br />
+		msg = stpapi.get.mess.code(&quot;tdilc1121s000&quot;)<br />
+		msg = &quot;tdilc1121s000 Insert: &quot;&amp; strip$(err)&amp;&quot; Msg Code &quot;&amp;strip$(msg)<br />
+		cleanup.processes(1)<br />
+		return(0)<br />
+	endif<br />
+<br />
+	stpapi.end.session(&quot;tdilc1121s000&quot;)<br />
+<br />
+| Now check the status - other things could go wrong and not<br />
+| send error messages.<br />
+<br />
+	stpapi.get.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.wtst&quot;, order.stat.data)<br />
+	order.stat = ltoe(lval(order.stat.data))<br />
+	if(order.stat &lt;&gt; tcwtst.closed) then<br />
+		msg2 = &quot;Order status Active - unknown problem&quot;<br />
+		cleanup.processes(1)<br />
+		return(0)<br />
+	endif<br />
+	stpapi.end.session(&quot;tdilc1120m000&quot;)<br />
+	return(1)<br />
+}<br />
+<br />
+<br />
+function cleanup.processes(long end.point)<br />
+{<br />
+| Do not worry about delete messages errors above indicate the<br />
+| part will need to be reviewed.<br />
+<br />
+| Variables.<br />
+	string  err(120)<br />
+<br />
+| End.point 0 then problem with main session. No records to cleanup.<br />
+	if(end.point = 0) then<br />
+		stpapi.end.session(&quot;tdilc1120m000&quot;)<br />
+		return<br />
+	endif<br />
+<br />
+| End.point 1 then not second session record to cleanup<br />
+	if(end.point = 1) then<br />
+		stpapi.end.session(&quot;tdilc1121s000&quot;)<br />
+|Return to main process and delete record.<br />
+		stpapi.delete(&quot;tdilc1120m000&quot;, 1, err)<br />
+		stpapi.end.session(&quot;tdilc1120m000&quot;)<br />
+		return<br />
+	endif<br />
+	return<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th February 2004, 23:34</div></div><div class="posttext">Doug,<br />
+<br />
+From your email:<br />
+ I have determined that it has something to do with the tdilc102.date. It appears that for some reason this doesnt get to the tdilc1121s000<br />
+<br />
+Can you run one manually and have it work?  In the fs code after doing the insert on tdilc1121s00 can you try a get to see if the tdilc102.date is still populated?  I see nothing wrong with the code(it looks familiar enough) and you may just need updated objects for the sessions.<br />
+<br />
+Something else I noticed in comparing your code to mine is that I set one adj quantity in my code and  you use two different quantities.  Are these the same on your system?  Not familiar enough with the table to know offhand.<br />
+<br />
+Mark<br />
+<br />
+PS - You may also want to make sure that all the inventory tables are in sync.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

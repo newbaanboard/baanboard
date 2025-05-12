@@ -1,0 +1,128 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS and Proloq, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS and Proloq AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS and Proloq [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan SIGs</a> &gt; <a href="../index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS and Proloq</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Ilansu</div><div class="date">20th August 2002, 15:34</div></div><div class="posttext">I didn't know about the ASF section so I posted this question on the Tools Development  section.<br />
+<br />
+Did any one try to activate AFS on Proloq ??<br />
+<br />
+I'm trying to do the Maintain Deliveries (tdsls4120m000) using AFS<br />
+The problem is that there is a GDP session in the background and it seems that I dont control it .<br />
+<br />
+Thanks<br />
+Ilan S</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st August 2002, 15:57</div></div><div class="posttext">Just wondering if you could post the code. I do not know anything about Prolog, but maybe someone will see something that may be causing the problem.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ilansu</div><div class="date">22nd August 2002, 14:50</div></div><div class="posttext">Mark hi.<br />
+<br />
+Thanks for the quick respons.<br />
+This is my code for Maintain Deliveries for standard Bann items:<br />
+<br />
+Extern	domain	tcmcs.str100		err		| error message<br />
+Extern	domain	tcbool			insert.err		| operation statues<br />
+Extern	domain	tcorno			orno.to.update<br />
+Extern	domain	tcpono			pono.to.update<br />
+<br />
+function update.sls4120()<br />
+{<br />
+string	string.orno(6)<br />
+string	string.pono(4)<br />
+<br />
+err=&quot;&quot;<br />
+insert.err=false<br />
+<br />
+stpapi.put.field(&quot;tdsls4120m111&quot;,&quot;tdsls045.orno&quot;,str$( orno.to.update))<br />
+stpapi.put.field(&quot;tdsls4120m111&quot;,&quot;tdsls045.pono&quot;,str$(pono.to.update))<br />
+stpapi.find(&quot;tdsls4120m111&quot;)<br />
+stpapi.get.field(&quot;tdsls4120m111&quot;,&quot;tdsls045.orno&quot;,string.orno)<br />
+stpapi.get.field(&quot;tdsls4120m111&quot;,&quot;tdsls045.pono&quot;,string.pono)<br />
+|*****<br />
+if orno.to.update=val(string.orno) and pono.to.update=val(string.pono) then	<br />
+	stpapi.put.field( &quot;tdsls4120m111&quot;, &quot;tdsls045.dqua&quot;,str$(actual.quan))<br />
+	stpapi.put.field( &quot;tdsls4120m111&quot;, &quot;tdsls045.torn&quot;,str$(actual.wqan))<br />
+	stpapi.update( &quot;tdsls4120m111&quot;, 1, err )<br />
+	if not isspace(err) then<br />
+		| problem in save; post to error log<br />
+		insetr.err = true<br />
+	endif<br />
+else<br />
+	insetr.err = true<br />
+endif<br />
+stpapi.end.session(&quot;tdsls4120m111&quot;)<br />
+<br />
+if insert.err then<br />
+	message(err)<br />
+endif<br />
+}<br />
+This code works fine and make the delivery.<br />
+My problem is that for dimension items I have to use the session with the additional proloq session .<br />
+When I make the delivery I use the dimension button that opens the session tdmdm1220s000 (controlling GDP) and he activates another session tdmdm1121s200 (Proloq GDP items)<br />
+There I approve the quantity.<br />
+My new code starts like:<br />
+<br />
+function update.sls4120()<br />
+{<br />
+string	string.orno(6)<br />
+string	string.pono(4)<br />
+err=&quot;&quot;<br />
+insert.err=false<br />
+<br />
+stpapi.put.field(&quot;tdsls4120m111&quot;,&quot;tdsls045.orno&quot;,str$(orno))<br />
+stpapi.put.field(&quot;tdsls4120m111&quot;,&quot;tdsls045.pono&quot;,str$(pono))<br />
+stpapi.find(&quot;tdsls4120m111&quot;)<br />
+stpapi.get.field(&quot;tdsls4120m111&quot;,&quot;tdsls045.orno&quot;,string.orno)<br />
+stpapi.get.field(&quot;tdsls4120m111&quot;,&quot;tdsls045.pono&quot;,string.pono)<br />
+|*****<br />
+if orno=val(string.orno) and pono=val(string.pono) then	<br />
+	stpapi.handle.subproc(&quot;tdsls4120m111&quot;,&quot;tdmdm1220s111&quot;,&quot;add&quot;) | controlling GDP<br />
+	stpapi.application.option( &quot;tdsls4120m111&quot;, 1, 9, err )	| dimmention button<br />
+<br />
+The problem is that the next session doesnt call<br />
+ by zoom but with activate (process) and then switch.to.process(process).<br />
+I add in tdmdm1220s000 :<br />
+	stpapi.handle.subproc(&quot;tdmdm1220s111&quot;,&quot;tdmdm1121s211&quot;,&quot;add&quot;)<br />
+At this point my session gets stuck in a loop !<br />
+It doesnt help.<br />
+<br />
+I hope my code is understandable.<br />
+<br />
+Ilan S</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd August 2002, 04:15</div></div><div class="posttext">Let me see if I understand - You start tdsls4120m111 with the stpapi.application.option, then this session automatically starts the tdmdm1121s211 subsession.  Do you need to control the tdmdm1121s211 subsession? In a couple of cases where subsessions were activated I just ignored them because I did not need to control them. They ran and closed on there own.<br />
+<br />
+Also do you own source?  Then you could debug the sessions and see what you really need to run.<br />
+<br />
+Have your tried putting stpapi.handle.subproc(&quot;tdmdm1220s111&quot;,&quot;tdmdm1121s211&quot;,&quot;add&quot;) before the stpapi.application.option.  Not sure if that will work. Another wild guess would be to try stpapi.handle.subproc(&quot;tdsls4120m111&quot;,&quot;tdmdm1221s211&quot;,&quot;add&quot;). Since I am not familiar with these sessions it is really hard to say if anything will work.<br />
+<br />
+<br />
+Also do you have to use the stpapi.application.option? Is there another way you might be able to get there?  I know I have had problems with sessions that automatically start sub-sessions. Is it possible for you to go straight to the subsession?(source would be helpful here). Not sure if you need code executed in each of the sessions, especially since the tdmdm1120s111 session auto-activates the tdmdm1121s211 session. In a couple of cases I exported variables to get sessions/sub-sessions to work correctly. <br />
+<br />
+Good Luck!<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

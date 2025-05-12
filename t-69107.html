@@ -1,0 +1,234 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS for ticst0101m100 and timfc0101m000 LN10.3, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS for ticst0101m100 and timfc0101m000 LN10.3 AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS for ticst0101m100 and timfc0101m000 LN10.3 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS for ticst0101m100 and timfc0101m000 LN10.3</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ajm1811</div><div class="date">20th July 2016, 17:13</div></div><div class="posttext">Hi,<br />
+<br />
+This is my first script and post on baanboard so please forgive and gently correct me if my ettiquette isn't quite up to scratch!!<br />
+<br />
+I am trying to write a script to do the following:<br />
+<br />
+1) find production warehouse orders in timfc001 that meet certain criteria<br />
+2) delete them<br />
+3) once deleted edit the warehouse of the corresponding record in ticst001<br />
+4) recreate the production warehouse order in timfc001<br />
+<br />
+Steps 1 - 3 I have acheived successfully via DAL functions. <br />
+Step 4 is what I'm struggling with. In order to create a new record in timfc001 it looks like I have to do it from another session. I cannot create a record in there directly. Therefore I am using AFS calls to call timfc0101m000 from ticst0101m000. The steps I take to do what I want to do in LN are:<br />
+<br />
+1) Select the record in ticst0101m000<br />
+2) Run session timfc0101m000 from here<br />
+3) Put a qty into &quot;To Issue&quot; Field (frm.mat.to.issu)<br />
+4) Run the process function<br />
+5) Run the initiate funtion<br />
+<br />
+Done.<br />
+<br />
+Therefore I would have thought my code would be:<br />
+<br />
+<br />
+stpapi.put.field(&quot;ticst0101m100&quot;, &quot;ticst001.pdno&quot;, str$ (ticst001.pdno))<br />
+stpapi.put.field(&quot;ticst0101m100&quot;, &quot;ticst001.pono&quot;, str$ (ticst001.pono))<br />
+afs_ret = stpapi.find(&quot;ticst0101m100&quot;, err.msg)<br />
+if afs_ret then<br />
+	afs_ret = stpapi.mark(&quot;ticst0101m100&quot;, err.msg)<br />
+	if afs_ret then<br />
+		stpapi.handle.subproc(&quot;ticst0101m100&quot;, &quot;timfc0101m000&quot;, &quot;add&quot;)<br />
+		stpapi.form.command(&quot;ticst0101m100&quot;, 2, &quot;timfc0101m000&quot;, err.msg)<br />
+		stpapi.put.field(&quot;timfc0101m000&quot;, &quot;frm.mat.to.issu&quot;, str$ (qty.ordered))<br />
+		stpapi.form.command(&quot;timfc0101m000&quot;, 5, &quot;process.chg.qty&quot;, err.msg)<br />
+		stpapi.form.command(&quot;timfc0101m000&quot;, 5, &quot;initiate.order&quot;, err.msg)<br />
+	endif<br />
+	stpapi.end.session(&quot;timfc0101m000&quot;)<br />
+endif<br />
+stpapi.end.session(&quot;ticst0101m000&quot;)<br />
+<br />
+<br />
+I found the following thread which sounds like exactly what I want to do but it doesn't work for me.<br />
+<br />
+57661<br />
+<br />
+The stpapi.find(&quot;timfc0101m000&quot;, msg.out) in the code from the above thread returns a 0 for me. I therefore tried an stpapi.change.view on timfc0101m000 after the call from ticst0101m000 but I get an error message saying &quot;enter a value for the unit field&quot;. On the form itself I can't see anywhere to enter a value for the unit field. There is a field called timfc001.orun for the unit which is a child of frm.mat.to.issu and I have also tried passing that via afs calls and creating the view but I get the same error.<br />
+<br />
+Any help would be much appreciated.<br />
+<br />
+Thanks,<br />
+<br />
+Andy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th July 2016, 18:43</div></div><div class="posttext">Wish that member had returned and posted a final solution.<br />
+<br />
+Okay - not familiar with your version of baan or even timfc0101m000.  So my question is first does the find in ticst0101m100 work just fine?  Second - you have a stpapi.handle.subproc for timfc0101m000 - but does it work when you hit the stpapi.form.command(&quot;ticst0101m100&quot;, 2, &quot;timfc0101m000&quot;, err.msg)?  You can check this by checking processes ids - I do this in 4c4 thru option dialog - start shell - ps.  I am assuming 2 Then I can see which process is a parent and which is a child.  In this case I would expect the process id of timfc to be a child of the ticst session.   The reason I ask this is sometimes if the child session is not controlled by a parent session things like find might not work correctly.  Also the code you posted does not have the find in it and I am assuming it is like the linked code.<br />
+<br />
+Next question - if you do this manually - when in ticst0101m100 and you zoom to timfc0101m000 - do you have to do a find?  If it zooms to the correct record then the afs code should (in theory) do the same thing.  Do you actually have to get to timfc0101m000 thru a zoom to the session - or can you run it independently of ticst0101m100?   <br />
+<br />
+PS - an ln user might have another solution rather than using AFS.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ajm1811</div><div class="date">21st July 2016, 00:31</div></div><div class="posttext">Thanks for the quick reply Mark.<br />
+<br />
+Yes the first stpapi.find returns a value of 1 as does the stpapi.mark. I've not checked the process ids nor have I done that before in LN but I'll have a go. I've checked the AFS logs and the stpapi.form.command to start session timfc0101m000 does start the session sucessfully.<br />
+<br />
+When browsing to timfc0101m000 from ticst0101m100 I do not have to put any values in or find etc. Everything is there on the screen. I just need to enter qtys. However, if I browse to another record and then back the record that was on the screen initially is no longer there. Therefore, when browsing from ticst0101m100 values are displayed on the screen but nothing is written to the db at this point. I have also tested this with AFS by using an stpapi.get.field and nothing is returned. It only seems to be written to the db when I run the process.chg.qty function, which currently I can only do from the session in LN.<br />
+<br />
+In answer to your last question. It is possible to run timfc0101m000 independently but both the new view and add record commands are disabled. It appears that you can only add records to this session by calling it from another session. Another point to note and I'm not sure if it is significant, there are two ways to search by on this session. By default it is by end item which shows transactions relating to the main item produced by the production order. The other option is by material which shows transactions relating to the material to be issued to the production order. When running timfc0101m000 independently the search mode is by end item. However, when calling from ticst0101m100 it is in the correct search mode.<br />
+<br />
+Thanks<br />
+<br />
+Andy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">21st July 2016, 07:02</div></div><div class="posttext">Hi,<br />
+<br />
+Can you try using stpapi.change.view before putting your position? That might solve your search issue. Rest should work fine if nothing else stucks.<br />
+<br />
+http://www.baanboard.com/baanboard/showthread.php?t=66296<br />
+<br />
+This will give you some hint on stpapi.find.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ajm1811</div><div class="date">21st July 2016, 10:51</div></div><div class="posttext">No matter where I put the stipapi.change.view I get a message. &quot;Please enter a value for the unit field&quot;. I also get this error both when I click new view in LN when doing this manually.<br />
+<br />
+When doing this manually in LN it may also significant to note that I get this message 8 times and that there are 8 form fields relating to qty each with the same child field of timfc001.orun. I thought passing a value to this field would get rid of this message but it doesn't. There is no where on the form to enter a unit but everything seems to go through when I run the process.chg.qty function. That is why I thought calling the function via afs would just make it work. The script runs fine but no data is saved.<br />
+<br />
+Below is my afs.log which looks like it runs successfully but nothing is saved:<br />
+<br />
+<br />
+LOGGING STARTED<br />
+21-07-2016<br />
+&gt;ticst0101m100(25) put.field:ticst001.pdno RRO001922<br />
+&gt;ticst0101m100(25) put.field:ticst001.pono 10<br />
+&gt;ticst0101m100 Find<br />
+22dll-&gt;serv (def.find25)<br />
+ticst0101m100(25)-RUNNING:def.find<br />
+25serv&lt;-4gl (def.find01)<br />
+ticst0101m100(25)-RUNNING:<br />
+&lt;ticst0101m100 record found (1)<br />
+&gt;ticst0101m100 mark<br />
+22dll-&gt;serv (mark.occur25)<br />
+ticst0101m100(25)-RUNNING:mark.occur<br />
+25serv&lt;-4gl (mark.occur0)<br />
+ticst0101m100(25)-RUNNING:<br />
+&lt;ticst0101m100 mark successful<br />
+&gt;ticst0101m100 handle.subproc timfc0101m000 add<br />
+22dll-&gt;serv (handle.subsessiontimfc0101m000225)<br />
+&gt;ticst0101m100 form.command command type: 2 command prog: timfc0101m000<br />
+22dll-&gt;serv (form.command2timfc0101m00025)<br />
+ticst0101m100(25)-RUNNING:form.command<br />
+26serv&lt;-4gl (api.child.startedtimfc0101m00025)<br />
+26serv&lt;-4gl (init.ready)<br />
+timfc0101m000(26)-RUNNING:<br />
+&lt;ticst0101m100 <br />
+25serv&lt;-4gl (form.command0)<br />
+ticst0101m100(25)-RUNNING:<br />
+&gt;timfc0101m000(26) put.field:frm.mat.to.issu 2<br />
+&gt;timfc0101m000 form.command command type: 5 command prog: process.chg.qty<br />
+22dll-&gt;serv (form.command5process.chg.qty26)<br />
+timfc0101m000(26)-RUNNING:form.command<br />
+26serv&lt;-4gl (form.command0)<br />
+timfc0101m000(26)-RUNNING:<br />
+&lt;timfc0101m000 <br />
+&gt;timfc0101m000 form.command command type: 5 command prog: initiate.order<br />
+22dll-&gt;serv (form.command5initiate.order26)<br />
+timfc0101m000(26)-RUNNING:form.command<br />
+26serv&lt;-4gl (form.command0)<br />
+timfc0101m000(26)-RUNNING:<br />
+&lt;timfc0101m000 <br />
+&gt;timfc0101m000 end.session<br />
+22dll-&gt;serv (end.program26)<br />
+timfc0101m000(26)-RUNNING:end.program<br />
+(0)-RUNNING:end.program<br />
+26serv&lt;-4gl (end.program0)<br />
+timfc0101m000(26)-RUNNING:<br />
+26dll-&gt;serv (timfc0101m000: exit(26))<br />
+&gt;ticst0101m000 end.session<br />
+22dll-&gt;serv (afsscript: exit(22))<br />
+<br />
+<br />
+It's as if the value I want to pass to frm.mat.to.issu isn't being put into the form and so it's processing a qty of 0 i.e not writing anything to the db as there is nothing to save. I have also tried running an stpapi.update after passing the value to the buffer but the log suggests that this closes timfc0101m000 after the update and before the process function is called. I can post this log too if it helps?<br />
+<br />
+Thanks,<br />
+<br />
+Andy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ajm1811</div><div class="date">21st July 2016, 13:11</div></div><div class="posttext">Mark - after you suggesting I look through the process IDs I have noticed while stepping through the code that the stpapi.synchronize.dialogue call creates another process running this session but in a different group (see attachment). I use the synchronise call because without it the call to stpapi.update fails. Once the stpapi.update call sucessfully executes, this 2nd instance of the process running timfc0101m000 dies process leaving just the two running ticst0101m100 and timfc0101m000 in the same group.<br />
+<br />
+Could it be that the qty value I'm trying to pass is actually passed to this 2nd instance, then as it has no parent, when I try to update it it dies and I'm actually running the process.chg.qty on the initial instance of timfc0101m000 which has had no qty passed to it?<br />
+<br />
+If this is the case any ideas on how do I fix it?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st July 2016, 14:49</div></div><div class="posttext">That could be exactly what the problem is.  The second session starts and it gets the updates. Step thru your code one line at a time and see when the first instance of timfc0101m000 is gets created.  I think if you can get control of that process it might very well work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baan_guru</div><div class="date">15th May 2021, 13:36</div></div><div class="posttext">After 'change.view' it resets the frm.mat.to.cancel to zero. Thus using put.var to set the variable 'frm.mat.to.cancel' again in AFS.<br />
+<br />
+Similar approach can be taken for other 'frm.mat....' variables.<br />
+<br />
+<br />
+select	timfc001.*<br />
+from	timfc001<br />
+where	timfc001._index1 = {:i.pdno, :i.pono}<br />
+order by timfc001._index1<br />
+as set with 1 rows<br />
+selectdo<br />
+	afs.process.id = -1<br />
+	stpapi.put.field(&quot;timfc0101m000&quot;, &quot;timfc001.pdno&quot;, timfc001.pdno)<br />
+<br />
+	procid = pid<br />
+	procid = pstat(procid, progname, info)<br />
+	while procid &gt; 0<br />
+		prev.progname = progname<br />
+		afs.process.id = procid<br />
+		procid = pstat(procid, progname, info)<br />
+		if progname = &quot;timfc0101m000&quot; and pos(prev.progname, &quot;ottstpapiserv&quot;) &gt; 0 then<br />
+			break<br />
+		else<br />
+			afs.process.id = -1<br />
+		endif<br />
+	endwhile<br />
+<br />
+	if afs.process.id &lt; 0 then<br />
+		o.err.msg = &quot;Error in starting AFS.&quot;<br />
+		return(false)<br />
+	endif<br />
+<br />
+	stpapi.put.field(&quot;timfc0101m000&quot;, &quot;timfc001.pono&quot;, str$(timfc001.pono))<br />
+	stpapi.put.field(&quot;timfc0101m000&quot;, &quot;timfc001.effn&quot;, str$(timfc001.effn))<br />
+	stpapi.put.field(&quot;timfc0101m000&quot;, &quot;timfc001.seqn&quot;, str$(timfc001.seqn))<br />
+	stpapi.put.field(&quot;timfc0101m000&quot;, &quot;timfc001.ittp&quot;, str$(etol(timfc001.ittp)))<br />
+	if stpapi.find(&quot;timfc0101m000&quot;, o.err.msg) = 1 then<br />
+		stpapi.put.field(&quot;timfc0101m000&quot;, &quot;frm.mat.to.cancel&quot;, str$(i.qnty))<br />
+		if stpapi.change.view(&quot;timfc0101m000&quot;, o.err.msg) = 1 then<br />
+			put.var(afs.process.id, &quot;frm.mat.to.cancel&quot;, i.qnty)<br />
+			stpapi.form.command(&quot;timfc0101m000&quot;, 5, &quot;process.chg.qty&quot;, o.err.msg)<br />
+			if isspace(o.err.msg) then<br />
+				return(true)<br />
+			endif<br />
+		endif<br />
+	else<br />
+		o.err.msg = &quot;Record not found in 'Production warehouse Orders'&quot;<br />
+	endif<br />
+endselect</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Generating sequential numbers, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Generating sequential numbers Tools Development" />
+	
+	<title>Generating sequential numbers [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Generating sequential numbers</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">avpatil</div><div class="date">6th November 2008, 15:28</div></div><div class="posttext">Hi,<br />
+I have a type II session where one of the key field is a runnning log. I want the log number to  autoincrement when user is trying to enter a new record. I don't want to use another table to keep the last used log number. <br />
+<br />
+The issue is that user may or may not save all the occurences, so if I do a table read I won't really get the last used. The correct way to do is find the last saved log number from the table and then find how many not saved record and then increment it. What would be the best way to do so? I tried looking into variable attr.element, fattr.row, actual.occ, filled.occ, but I don't think it helped me.<br />
+<br />
+I tried searching this in forum, but probably doesn't know what to search for?<br />
+<br />
+Thanks<br />
+Arvind</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th November 2008, 16:43</div></div><div class="posttext">How do you know if they are saving the occurence or not?  Are they marking the record in some way?  Is this log number something the user needs to see?  I mean as long as the user has the option to save or not save a record the log number displayed would not match what is saved in the table.  Of course if you just saved what ever log number was displayed that would work - but then you would end up with gaps in the log number.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">avpatil</div><div class="date">6th November 2008, 16:48</div></div><div class="posttext">Yes, user sees that log number. I don't want any gap in the log number, beside it is the unique key for the table. It is a type 2 session and cursor goes to this field first and I want the user to be presented with the new log. The issues is that I don't know if user has really saved the previous record or not, so looking into the table will not give me correct log number. <br />
+<br />
+Arvind</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">avpatil</div><div class="date">6th November 2008, 16:51</div></div><div class="posttext">I can always make log number as no input field and save it automatically, after every record is done, but I want to avoid that if I can.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th November 2008, 17:46</div></div><div class="posttext">Well on a multi-occurence session(plus view) I have always read the table and what was on the form to get the counter or sequence number. So for example if the last sequence was 2 in the table, then as the user inserts records(no update executed yet) we read the table then roll through what is on the screen - find the max of the two numbers add 1 then put that on the screen.  I have always made this a display field(don't want user touching this since it is a key and must be unique) and the user could go back to delete records.  This would leave gaps, but okay for what I was doing.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">6th November 2008, 18:57</div></div><div class="posttext">Hi,<br />
+I have a type II session where one of the key field is a runnning log. I want the log number to  autoincrement when user is trying to enter a new record. I don't want to use another table to keep the last used log number. <br />
+<br />
+The issue is that user may or may not save all the occurences, so if I do a table read I won't really get the last used. The correct way to do is find the last saved log number from the table and then find how many not saved record and then increment it. What would be the best way to do so? I tried looking into variable attr.element, fattr.row, actual.occ, filled.occ, but I don't think it helped me.<br />
+<br />
+I tried searching this in forum, but probably doesn't know what to search for?<br />
+<br />
+Thanks<br />
+Arvind<br />
+<br />
+Hello,<br />
+<br />
+there are a lot of solutions, you have to compare db and occ like .<br />
+<br />
+function search.Last.used.serial.number.on.screen()<br />
+{<br />
+<br />
+        for occ.no = 1 to (filled.occ - 1)<br />
+                do.occ.without.update(occ.no, check.nummer)<br />
+        endfor<br />
+        if filled.occ = 0 then occ.no = 0 endif<br />
+<br />
+}<br />
+<br />
+function search.last.used.serial.number.in.table()<br />
+{<br />
+        select  dhitm100.*, dhitm100.sern:last.sern<br />
+        from    dhitm100<br />
+        where   dhitm100._index1 = {:hold.item, :hold.docu}<br />
+        order by dhitm100._index1 desc<br />
+        as set with 1 rows<br />
+        selectdo<br />
+        endselect<br />
+}<br />
+<br />
+function search.for.next.serial.number()<br />
+{<br />
+        last.sern = 0<br />
+        hold.item = dhitm100.item<br />
+        hold.docu = dhitm100.docu<br />
+        on.main.table(search.last.used.serial.number.in.table)<br />
+        on.main.table(search.last.used.serial.number.on.screen)<br />
+        next.sern = last.sern + 1<br />
+        dhitm100.item = hold.item<br />
+        dhitm100.docu = hold.docu<br />
+}<br />
+<br />
+I've done this with a multi occ session and a index with :<br />
+<br />
+dhitm100.item + dhitm100.docu + dhitm100.sern<br />
+<br />
+(itemcode + document + serial)<br />
+<br />
+for a BaaN IV document system linked to tiitm001, so the user can assign 7 types of documents to an article and access (view) these documents (PDF, DOC, JPG, TIF...) from the item master table.<br />
+Documents like datasheets, pictures a.s.o.<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th November 2008, 20:14</div></div><div class="posttext">Yes - that would have been my original suggestion, but the problem with this solution is that the log numbers displayed may not get saved.  This would leave gaps in the log numbers which is something they do not want.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">avpatil</div><div class="date">7th November 2008, 15:25</div></div><div class="posttext">Thanks for your help. I have decided to create a new table for log number and just mark them as used, inthis way I won't be loosing them. It was quite a helpful suggestion.<br />
+<br />
+Arvind Patil</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

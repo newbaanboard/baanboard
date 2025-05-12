@@ -1,0 +1,105 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="spool report to second device, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] spool report to second device Tools Development" />
+	
+	<title>spool report to second device [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; spool report to second device</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">roylansink</div><div class="date">7th April 2020, 16:29</div></div><div class="posttext">A new blog entry has been added:<br />
+<br />
+spool report to second device<br />
+<br />
+Hi All, <br />
+ I'm trying to print a report to a second device. The idea is that with the print, the report is stored to a folder as well. <br />
+The following code is used for testing purpose, but when I run the report, I get a blank notepad file. What am I doing wrong?  <br />
+&lt;code&gt;<br />
+after.report.1:<br />
+after.layout:<br />
+	|Save original values<br />
+	org.spool = spool.id<br />
+	org.pr.line = spool.pr.line<br />
+	org.fileout = spool.fileout<br />
+	|Open extra spooler and print report<br />
+	spool.id = spool.open(&quot;rtcmcs041011000&quot;,&quot;NOTEPAD&quot;,0)          <br />
+	spool.line()<br />
+	spool.close()   <br />
+	|fill predefined vallues with original values <br />
+	spool.id = org.spool<br />
+	spool.pr.line = org.pr.line  <br />
+&lt;/code&gt; </div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">7th April 2020, 18:42</div></div><div class="posttext">Moved the blog post to a thread in Tools Dev forum.<br />
+<br />
+Can you please post a screenshot of your report layout? i.e. What sections do you have on your original report - e.g Header, Detail...<br />
+<br />
+The way you are doing will not work because the spool is reserved for the first spool ID already.<br />
+<br />
+You might need to call internal report script functions to trick the spooler.<br />
+<br />
+e.g. r.1.s.header() for printing Header.<br />
+<br />
+But first, it would be good to understand your report design.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">7th April 2020, 19:28</div></div><div class="posttext">You can try something like this -  Tried this on session tcmcs0401m000<br />
+<br />
+You might need to handle special report fields in your report script. But it works as far as creating a copy.<br />
+<br />
+declaration:<br />
+<br />
+extern long org.spool.id<br />
+extern long my.spool.id<br />
+extern string org.pr.line(1000)<br />
+extern string org.fileout(100)<br />
+<br />
+extern domain tcbool header.printed<br />
+<br />
+before.program:<br />
+   org.spool.id = spool.id<br />
+   my.spool.id = spool.open(&quot;rtc040101000&quot;,&quot;NOTEPAD&quot;,0)<br />
+   header.printed = false<br />
+<br />
+detail.1:<br />
+after.receive.data:<br />
+<br />
+   spool.id = my.spool.id<br />
+   if not header.printed then<br />
+      r.1.s.header()<br />
+      header.printed = true<br />
+   endif<br />
+<br />
+   r.1.s.detail()<br />
+   spool.id = org.spool.id<br />
+<br />
+after.program:<br />
+   spool.id = my.spool.id<br />
+   spool.close()<br />
+   spool.id = org.spool.id<br />
+<br />
+And if your first device is also notepad or something which is writing a text/ascii file, you can simply use this code to copy the file to your destined location - <br />
+<br />
+declaration:<br />
+after.receive.data:<br />
+   long ret<br />
+   string copied_file_path(100)<br />
+<br />
+   copied_file_path = &quot;E:\my_dir\copied_file.txt&quot;<br />
+   ret = file.mv(spool.fileout,copied_file_path)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

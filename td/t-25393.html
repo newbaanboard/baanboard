@@ -1,0 +1,173 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Break down of cost, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Break down of cost Tools Development" />
+	
+	<title>Break down of cost [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Break down of cost</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">nawelk</div><div class="date">19th October 2005, 14:38</div></div><div class="posttext">Hi Friends,<br />
+<br />
+I'm developing a report to get a breakdown of cost of sales using tdsls051 and ticpr300 tables.<br />
+I can't get details of more than one cost component per item .<br />
+<br />
+<br />
+this is the code which i wrote.<br />
+<br />
+I would greatly appreciate if one of you experts can advice me on how to correct this.<br />
+<br />
+function get.cost.values()<br />
+{<br />
+	<br />
+	select max(ticpr300.indt):max.date<br />
+	from	ticpr300 <br />
+	where	ticpr300._index1  inrange {:item.f} and {:item.t}<br />
+	and	ticpr300.item = :tdsls051.item<br />
+	and	ticpr300.cntr = :tdsls051.cntr<br />
+	and	ticpr300.indt between :trdt.f and :trdt.t<br />
+	selectdo<br />
+		<br />
+		read.cost.price()<br />
+		<br />
+	endselect<br />
+}<br />
+<br />
+function read.cost.price()<br />
+{<br />
+	comp = &quot;   &quot;<br />
+	amnt = 0.00<br />
+	<br />
+	select	ticpr300.cpcp, ticpr300.amnt<br />
+	from	ticpr300 <br />
+	where	ticpr300._index1  inrange {:item.f} and {:item.t}<br />
+	and	ticpr300.item = :tdsls051.item<br />
+	and 	ticpr300.cntr = :tdsls051.cntr<br />
+	and	ticpr300.indt = :max.date<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		comp = ticpr300.cpcp<br />
+		amnt = ticpr300.amnt<br />
+	selectempty<br />
+		comp = &quot;   &quot;<br />
+		amnt = 0.00<br />
+	endselect<br />
+	<br />
+}<br />
+<br />
+Thanks in advance</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">v_chandra</div><div class="date">19th October 2005, 14:52</div></div><div class="posttext">Hi<br />
+<br />
+You have given clause &quot;as set with 1 rows&quot; so is it right as per what you want ?<br />
+<br />
+I think following should work for you in second select statement :<br />
+<br />
+function read.cost.price()<br />
+{<br />
+comp = &quot; &quot;<br />
+amnt = 0.00<br />
+<br />
+select ticpr300.cpcp, ticpr300.amnt<br />
+from ticpr300 <br />
+where ticpr300._index1 = {:tdsls051.item,: tdsls051.cntr, :max.date}<br />
+selectdo<br />
+     comp = ticpr300.cpcp<br />
+     amnt = ticpr300.amnt<br />
+selectempty<br />
+     comp = &quot; &quot;<br />
+     amnt = 0.00<br />
+endselect<br />
+}<br />
+<br />
+Thanks &amp; Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nawelk</div><div class="date">20th October 2005, 07:14</div></div><div class="posttext">Hi Chandra,<br />
+<br />
+Thanks a lot for your reply.<br />
+<br />
+I've changed the 2nd select statement as per your suggession;<br />
+<br />
+But the real problem I'm having is that once the program selects one Item it does't give all Cost Components of that particular Item. (it only gives the first cost component). <br />
+<br />
+I need the program to check all cost components once it read a item. For this I think I have to use a WHILE loop. <br />
+<br />
+I'd really appreciate if you could help me on this.<br />
+<br />
+Best Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">v_chandra</div><div class="date">20th October 2005, 07:58</div></div><div class="posttext">Hi<br />
+<br />
+I think there is some problem with your first statement, try writing it this way :<br />
+<br />
+function get.cost.values()<br />
+{<br />
+	select max(ticpr300.indt):max.date, ticpr300.cpcp<br />
+	from	ticpr300 <br />
+	where	ticpr300._index1  = {:tdsls051.item,:tdsls051.cntr}<br />
+	and	ticpr300.indt between :trdt.f and :trdt.t<br />
+             group by ticpr300.cpcp<br />
+	selectdo<br />
+		read.cost.price()<br />
+	endselect<br />
+}<br />
+<br />
+This should give you max date (ticpr300.indt) for the said item, container and given range of date. Also no need to use item.f and item.t when you have specific item (tdsls051.item). <br />
+<br />
+<br />
+Hope this will work for you<br />
+<br />
+Thanks and Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nawelk</div><div class="date">21st October 2005, 06:10</div></div><div class="posttext">Hi ,<br />
+<br />
+I was able to get max date and correct price of one cost component (ticpr300.cpcp) per one item. But then the script go to the next item without searching for other cost omponents of selected item. I think this can be done using a &quot;loop&quot; which i'm not very much familiar. Please suggest a way to sort this out.<br />
+<br />
+Thanks in advance</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">v_chandra</div><div class="date">21st October 2005, 07:50</div></div><div class="posttext">Hi<br />
+<br />
+Check if this works :<br />
+<br />
+domain	tccpcp	cost.comp<br />
+<br />
+function get.cost.value()<br />
+{<br />
+cost.comp = &quot;&quot;<br />
+select ticpr300.cpcp, ticpr300.indt, ticpr300.amnt<br />
+from   ticpr300 <br />
+where  ticpr300._index1 = {:tdsls051.item,:tdsls051.cntr}<br />
+and    ticpr300.indt between :trdt.f and :trdt.t<br />
+order by ticpr300.cpcp asc, ticpr300.indt desc<br />
+selectdo<br />
+	If cost.comp &lt;&gt; ticpr300.cpcp then<br />
+		cost.comp = ticpr300.cpcp<br />
+		&lt; should get cost price of each component with max date for<br />
+		  first cost component&gt;<br />
+		&lt; Also no need to call read.cost.price()&gt;<br />
+	endif<br />
+endselect<br />
+}<br />
+<br />
+<br />
+Thanks &amp; Regards</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

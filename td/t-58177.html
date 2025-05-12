@@ -1,0 +1,83 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="db.insert error 100 duplicates, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] db.insert error 100 duplicates Tools Development" />
+	
+	<title>db.insert error 100 duplicates [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; db.insert error 100 duplicates</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">3rd April 2010, 14:21</div></div><div class="posttext">Hello can anyone spot what I'm doing wrong in the code below. Thanks Neal<br />
+<br />
+I have 2 records in tdpsc964. The first record is added ok to tdpsc965 but the second record isn't added and then the script fails with error 100 duplicates.<br />
+<br />
+select tdpsc964.date,tdpsc964.lotn,tdpsc964.flg1,tdpsc964.user,tdpsc964.time from tdpsc964<br />
+		where tdpsc964._index1 = {:m_date1} 	<br />
+		selectdo<br />
+			|if tdpsc964.flg1(1;2) &lt;&gt; &quot;OK&quot; then		<br />
+				|*Set memvars and get other info from asn inbound file tdpsc961<br />
+				m_date2=tdpsc964.date<br />
+				m_time=tdpsc964.time<br />
+				m_user=tdpsc964.user<br />
+				m_lotn=tdpsc964.lotn<br />
+				<br />
+				|* Check lot not already in tdpsc965<br />
+				db.retry.point()<br />
+				select tdpsc965.lotn,tdpsc965.date,tdpsc965.time,tdpsc965.user from tdpsc965<br />
+				for update<br />
+				where tdpsc965._index2 = {:tdpsc964.lotn}<br />
+				selectdo<br />
+					m_flag=&quot;LOT ALREADY SCANNED&quot;<br />
+				selectempty<br />
+					tdpsc965.date=m_date2<br />
+					tdpsc965.time=m_time<br />
+					tdpsc965.user=m_user<br />
+					tdpsc965.lotn=m_lotn<br />
+					message(m_lotn)<br />
+					message(m_date2)<br />
+					message(m_time)<br />
+					db.insert(ttdpsc965,db.retry)<br />
+					commit.transaction()<br />
+					m_flag=&quot;OK&quot;	<br />
+				endselect<br />
+				<br />
+<br />
+				|Mark 964 as OK<br />
+				|db.retry.point()<br />
+				|db.eq(ttdpsc964,db.lock)<br />
+				|tdpsc964.flg1 = m_flag<br />
+				|db.update(ttdpsc964,db.retry)		<br />
+				|count = 0 <br />
+				|FOR count = 1 TO 50 STEP 1<br />
+		    		|    	if count = 50 then<br />
+    		    		|    		commit.transaction()<br />
+        		    	|	endif<br />
+				|ENDFOR<br />
+			|endif<br />
+		endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd April 2010, 16:04</div></div><div class="posttext">What are all the indexes on tdpsc964?  Do the secondary indexes allow duplicates? To me it looks like the records could be a duplicate record based off index1.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Neal Matthews</div><div class="date">4th April 2010, 00:05</div></div><div class="posttext">Cheers Mark (I was hoping you were around !) you pointed me in the right direction.<br />
+<br />
+My third index on tdpsc965 (which I forgot I'd added) was on date + item. As the item field has yet to be populated this was therefore the same date and blank item for each record.<br />
+<br />
+Thanks again.<br />
+Neal</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

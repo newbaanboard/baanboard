@@ -1,0 +1,194 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Add Times to Job Calendar, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Add Times to Job Calendar Tools Development" />
+	
+	<title>Add Times to Job Calendar [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Add Times to Job Calendar</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">19th June 2007, 22:45</div></div><div class="posttext">We had a custom session that added a range of dates to the job calendar. This worked under older versions of Baan, but since we upgraded to Baan IVc4, it does not handle the times very well<br />
+<br />
+This is because the table (ttaad507) was changed to use UTC. I've been reading through many threads here and on the WIKI about time conversion, but I still cannot get the functions that covnert dates to times to work.<br />
+<br />
+The user inputs a range of dates, and the time (in its own field using tctmhs). I need to covnert this integer to its equivalent in UTC, but I can't get this to work.<br />
+<br />
+Here is what I've tried:<br />
+<br />
+This version adds the hours offset from GMT to the time integer. This actually worked until it got to the end of daylight savings time, then the results were off by an hour.<br />
+<br />
+<br />
+declaration:<br />
+	table	tttaad507	| MRP Calendar<br />
+<br />
+	extern	domain	tcdate        	date.f<br />
+	extern	domain	tcdate        	date.t<br />
+	extern	domain	tcdate        	sel.date<br />
+	extern	domain	tctmhs		run.tm<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	sel.date = date.f<br />
+	while sel.date &lt;= date.t<br />
+		   add.to.calendar()<br />
+	                sel.date = sel.date + 1<br />
+	endwhile<br />
+<br />
+functions:<br />
+<br />
+function add.to.calendar()<br />
+{<br />
+             long   time.offset = 400   | offset from GMT<br />
+<br />
+	db.retry.point()<br />
+	select	ttaad507.*<br />
+	from	ttaad507 for update<br />
+	where   ttaad507._index1 = {:calc, :sel.date, :run.tm}<br />
+	order by ttaad507._index1<br />
+	selectempty<br />
+		ttaad507.calc = calc<br />
+		ttaad507.date = sel.date<br />
+		ttaad507.time = run.time + time.offset		db.insert(tttaad507, db.retry)<br />
+		commit.transaction()<br />
+	selectdo<br />
+	endselect<br />
+}<br />
+<br />
+This version tries to use the local.to.utc() function, but the results seem random. <br />
+<br />
+<br />
+| ... other code as above ... |<br />
+function add.to.calendar()<br />
+{<br />
+	long	utc.days				<br />
+	long	utc.time				<br />
+	long	loc.time<br />
+	long       ret<br />
+	loc.time = run.tm * 3600  | Convert entered time to seconds<br />
+	<br />
+	ret = local.to.utc(utc.days, utc.time, sel.date, loc.time)	<br />
+	db.retry.point()<br />
+	select	ttaad507.*<br />
+	from	ttaad507 for update<br />
+	where   ttaad507._index1 = {:calc, :sel.date, :run.tm}<br />
+	order by ttaad507._index1<br />
+	selectempty<br />
+		ttaad507.calc = calc<br />
+		ttaad507.date = sel.date<br />
+		ttaad507.time = utc.time				db.insert(tttaad507, db.retry)<br />
+		commit.transaction()<br />
+	selectdo<br />
+	endselect<br />
+}<br />
+<br />
+Thanks,<br />
+RD</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">20th June 2007, 08:57</div></div><div class="posttext">Hi there,<br />
+<br />
+I just had a look at ttaad507 in our 4c4 system.<br />
+The two fields used are date (type date) and time (type int).<br />
+So date is the number of days since 01.01.0001 and can be filled using the function date.to.num <br />
+<br />
+long DATE.TO.NUM( long yearno, long monthno, long month_dayno ) This function returns the number of days since 01-01-0001 until the given yearno, monthno and month_dayno. <br />
+<br />
+ Example:<br />
+      long no_of_days<br />
+      no_of_days = date.to.num( 1991, 04, 20 ) | Returns 726942<br />
+<br />
+The field time most probably contains the number of seconds since 00:00 and can be filled easily by multiplying the hours with 3600, adding minutes * 60 and adding remaining seconds.<br />
+In some tables another method is used (for instance ttaad500, job data) to store time by multiplying hours with 1000 and adding the minutes.<br />
+As ttaad507 is empty in our system, I cannot tell for sure which method is used, but if you look at one entry in your system you can easily tell which one you have to use.<br />
+<br />
+hth<br />
+<br />
+Norbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">20th June 2007, 15:30</div></div><div class="posttext">I'm not sure this would work.<br />
+ <br />
+See thread: <br />
+http://www.baanboard.com/baanboard/showthread.php?t=5314&amp;highlight=tttime<br />
+ <br />
+Also see on Infor's web site, Solution ID 119154 and 157136, which describe the introduction of UTC time to the job tables.<br />
+ <br />
+If I go to the standard Baan session for entering these dates (ttaad5107m000) and check the results in GTM, here is what I see:<br />
+ <br />
+Date: 6/21/2007<br />
+Enter Time:  00:10 (i.e. 10 minutes after midnight)<br />
+GTM shows: 0410<br />
+ <br />
+Date: 12/31/2007<br />
+Enter Time: 00:10<br />
+GTM shows 0510.<br />
+ <br />
+Infor solution 157136 explains that UTC does not have daylight savings time, so this makes sense. I just need to find a way to mimic to conversion Baan is doing ttaad5107m000.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">20th June 2007, 17:11</div></div><div class="posttext">Hi there,<br />
+<br />
+seems to me that the second method is used (hours * 100 +minutes) if you are 4 or 5 hours away from GMT depending on summertime.<br />
+As I mentioned, in ttaad500 this is how time is stored on our system.<br />
+So a job that is scheduled for 18:22 has 1822 in the field time in ttaad500 on our system. Strangely enough, I cannot see any entry here with one hour difference regardless whether the month lays within summer or wintertime.<br />
+I found entries in ttaad507 meanwhile (was looking in company 000 this morning) and they match the time displayed in the sessions as described above: hh*100 + mm.<br />
+As far as I understood previous posts, from Baan V on another format is used to store time, but on 4c4 I always found it pretty much straightforward.<br />
+<br />
+good luck<br />
+<br />
+Norbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">20th June 2007, 17:15</div></div><div class="posttext">I realize the way I converted to seconds above was wrong. But even with this correction, it does not return the correct time.<br />
+ <br />
+This is the correct code:<br />
+<br />
+if run.tm &gt; 100 then | After 1AM<br />
+loc.time = ((run.tm / 100) * 3600) + ((run.tm\100)*60)<br />
+else | Before 1 AM<br />
+loc.time = ((run.tm\100)*60) <br />
+endif<br />
+local.to.utc(utc.days, utc.time, sel.date, loc.time)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">21st June 2007, 19:24</div></div><div class="posttext">What service pack of Baan are you using? I think it is in some of the more recent ones they have converted to UTC.<br />
+ <br />
+But I figured out where I was going wrong. I did not realize that local.to.utc returns the UTC time in seconds since midnight. Here is the code that works:<br />
+ <br />
+ <br />
+|Convert local time to UTC time<br />
+long utc.days <br />
+long utc.time <br />
+long loc.time<br />
+long cal.time<br />
+<br />
+| convert entered time to seconds since midnight <br />
+if run.tm &gt; 100 then | if after 1 AM<br />
+       loc.time = ((run.tm / 100) * 3600) + ((run.tm\100)*60)<br />
+else | if before 1 AM<br />
+       loc.time = ((run.tm\100)*60) <br />
+endif<br />
+local.to.utc(utc.days, utc.time, sel.date, loc.time) <br />
+| utc time is in seconds since midnight. Convert back to time.<br />
+cal.time = ((utc.time / 3600)*100) + ((utc.time \ 3600) / 60)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">wiggum</div><div class="date">22nd June 2007, 12:07</div></div><div class="posttext">There is a mistake in your solution. If run.tm = 100 it returns the wrong time. You don't need the if-command the then-path will be right for all values.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">22nd June 2007, 15:17</div></div><div class="posttext">You're right. Thanks.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

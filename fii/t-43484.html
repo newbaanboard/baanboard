@@ -1,0 +1,336 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Year end change, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Year end change Finance, Invoicing and Integration" />
+	
+	<title>Year end change [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Finance, Invoicing and Integration</a> &gt; Year end change</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Robert Williams</div><div class="date">25th October 2007, 16:48</div></div><div class="posttext">Has anyone got some thoughts/experiences on how to handle a  year-end change in Baan IVc4.  Our current year-end is July 31,  2008.  New year-end will be Dec 31, 2007. We can have a short  year, close on Dec 31,  that will push the Fiscal/Reporting/Tax,  year to 2009.  We would be off one year then, entering  transactions in Calendar year 2008, Baan showing 2009, reporting  to stakeholders as 2008.  After a couple years this will be  confusing.  We could go back through all Baan history and change  the Fiscal/Reporting/Tax years backing them all off one year,  this would align 2008 and future years the assumption being that  older data will be accessed less than future data.<br />
+<br />
+We could extend the year to 17 periods.  The issue here is how to  get a hard close on Dec 31, 2007, for reprting and have T/B  reports working properly from P6 to P17 in the extended 2008. <br />
+ There would be no opening balance for P6. P6 would have balances  from P5 on the P&amp;L.<br />
+<br />
+Any experiences and/or thoughts on this would be greatly  appreciated.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">26th October 2007, 07:40</div></div><div class="posttext">Ur 2nd idea to make the year 17 month longer is better . We had similar situation earlier . We copied the TB report specifically for that particular year itself . Whenever u want to c figures for 2008  , u must use this newly created report . There will not be year close and balance carry forwards for early 5 months .<br />
+<br />
+Here is the report script we attached to new TB report for  dividing the year in 2 months and 10 months in our case . U may need to test and verify the same for u . <br />
+<br />
+|******************************************************************************<br />
+|* tfgld340211000   VRC 3.0  a      <br />
+|* Print Trial Balance(Print sequence/Ledger account June 2005 to March 2006) <br />
+|******************************************************************************<br />
+<br />
+	table	ttfgld004<br />
+	table	ttfgld008<br />
+	table	ttfgld201<br />
+	<br />
+	extern	domain	tcorno		comp<br />
+	extern	domain	tfgld.prod 	prod<br />
+	extern	domain	tfgld.amnt	cdit,dbit<br />
+	<br />
+before.program:<br />
+	<br />
+	import(&quot;prod&quot;,prod)<br />
+	import(&quot;year&quot;,year)<br />
+	import(&quot;print.nfinal&quot;,print.nfinal)<br />
+	import(&quot;leac.f&quot;,leac.f)<br />
+	import(&quot;leac.t&quot;,leac.t)<br />
+<br />
+	export(&quot;reportno&quot;,1)<br />
+	comp = get.compnr()<br />
+	<br />
+	<br />
+	if year &lt;&gt; 2005 then<br />
+		end()<br />
+	else<br />
+		if prod &lt;= 2 then<br />
+			end()<br />
+		endif<br />
+	endif<br />
+	dbit = 0<br />
+	cdit = 0<br />
+	if print.nfinal = tcyesno.no then<br />
+		select	tfgld008.leac, tfgld008.atyp<br />
+		from 	tfgld008<br />
+		where	tfgld008.atyp = tfgld.atyp.profitloss<br />
+		and 	tfgld008.subl = 0<br />
+		selectdo<br />
+			select tfgld201.fdah, tfgld201.fcah, tfgld201.prno,tfgld201.leac,<br />
+				tfgld201.year<br />
+			from	tfgld201<br />
+			where	tfgld201._index3 = {:comp, :year, :tfgld008.leac,1}	<br />
+			and	(tfgld201.prno = 1 or tfgld201.prno = 2)<br />
+			selectdo<br />
+				dbit = dbit + tfgld201.fdah<br />
+				cdit = cdit + tfgld201.fcah<br />
+			endselect<br />
+		endselect<br />
+	else<br />
+		select	tfgld008.leac, tfgld008.atyp<br />
+		from 	tfgld008<br />
+		where	tfgld008.atyp = tfgld.atyp.profitloss<br />
+		and 	tfgld008.subl = 0<br />
+		selectdo<br />
+			select tfgld201.fdah, tfgld201.fcah, tfgld201.prno,tfgld201.leac,<br />
+				tfgld201.year, tfgld201.ndah, tfgld201.ncah<br />
+			from	tfgld201<br />
+			where	tfgld201._index3 = {:comp, :year, :tfgld008.leac,1}	<br />
+			and	(tfgld201.prno = 1 or tfgld201.prno = 2)<br />
+			selectdo<br />
+				dbit = dbit + tfgld201.fdah + tfgld201.ndah<br />
+				cdit = cdit + tfgld201.fcah + tfgld201.ncah<br />
+			endselect<br />
+		endselect<br />
+	endif<br />
+	<br />
+detail.1:<br />
+before.layout:<br />
+<br />
+<br />
+	| if tfgld008.leac = &quot;122002      &quot; then<br />
+		| close.bal = close.bal + dbit - cdit<br />
+		| open.bal = open.bal + dbit - cdit<br />
+	| else<br />
+		if print.nfinal = tcyesno.no then<br />
+			select	tfgld008.leac, tfgld008.atyp<br />
+			from 	tfgld008<br />
+			where	tfgld008._index1 = {:tfgld008.leac}<br />
+			| and 	tfgld008.atyp = tfgld.atyp.profitloss<br />
+			selectdo<br />
+				select tfgld201.fdah, tfgld201.fcah, tfgld201.prno,tfgld201.leac,<br />
+					tfgld201.year<br />
+				from	tfgld201<br />
+				where	tfgld201._index3 = {:comp, :year, :tfgld008.leac,1}	<br />
+				and	(tfgld201.prno = 1 or tfgld201.prno = 2)<br />
+				selectdo<br />
+					if tfgld008.atyp = tfgld.atyp.profitloss then<br />
+						amntdr.upto.curr = amntdr.upto.curr - tfgld201.fdah<br />
+						amntcr.upto.curr = amntcr.upto.curr - tfgld201.fcah<br />
+						| amntdr.upto.curr = amntdr.upto.curr + tfgld201.fdah<br />
+						| amntcr.upto.curr = amntcr.upto.curr + tfgld201.fcah<br />
+						|Dipen 13.03.2007 sn<br />
+						select tfgld004.year<br />
+						from tfgld004<br />
+						where tfgld004._index1 = {1}<br />
+						selectdo<br />
+							if tfgld004.year = tfgld201.year then<br />
+								close.bal = close.bal - tfgld201.fdah + tfgld201.fcah<br />
+							endif<br />
+						endselect<br />
+						|Dipen 13.03.2007 en<br />
+						|close.bal = close.bal - tfgld201.fdah + tfgld201.fcah |Dipen 13.03.2007<br />
+						| close.bal = close.bal + tfgld201.fdah - tfgld201.fcah<br />
+						open.bal = 0 <br />
+					else<br />
+						amntdr.upto.curr = amntdr.upto.curr - tfgld201.fdah<br />
+						amntcr.upto.curr = amntcr.upto.curr - tfgld201.fcah<br />
+						| amntdr.upto.curr = amntdr.upto.curr + tfgld201.fdah<br />
+						| amntcr.upto.curr = amntcr.upto.curr + tfgld201.fcah<br />
+						open.bal = open.bal + tfgld201.fdah - tfgld201.fcah	<br />
+						| close.bal = 0 |Dipen 13.03.2007<br />
+						| close.bal = close.bal - tfgld201.fdah + tfgld201.fcah					<br />
+					endif<br />
+				endselect<br />
+			endselect<br />
+		else<br />
+			select	tfgld008.leac, tfgld008.atyp<br />
+			from 	tfgld008<br />
+			| where	tfgld008._index1 inrange {:leac.f} and {:leac.t}<br />
+			where	tfgld008._index1 = {:tfgld008.leac}	<br />
+			| and	tfgld008.atyp = tfgld.atyp.profitloss<br />
+			selectdo<br />
+				select tfgld201.fdah, tfgld201.fcah, tfgld201.prno,tfgld201.leac,<br />
+					tfgld201.year, tfgld201.ndah, tfgld201.ncah<br />
+				from	tfgld201<br />
+				where	tfgld201._index3 = {:comp, :year, :tfgld008.leac,1}	<br />
+				and	(tfgld201.prno = 1 or tfgld201.prno = 2)<br />
+				selectdo<br />
+					if tfgld008.atyp = tfgld.atyp.profitloss then<br />
+						amntdr.upto.curr = amntdr.upto.curr - tfgld201.fdah - tfgld201.ndah<br />
+						amntcr.upto.curr = amntcr.upto.curr - tfgld201.fcah - tfgld201.ncah<br />
+						| amntdr.upto.curr = amntdr.upto.curr + tfgld201.fdah + tfgld201.ndah<br />
+						| amntcr.upto.curr = amntcr.upto.curr + tfgld201.fcah + tfgld201.ncah<br />
+						select tfgld004.year<br />
+						from tfgld004<br />
+						where tfgld004._index1 = {1}<br />
+						selectdo<br />
+							if tfgld004.year = tfgld201.year then<br />
+								close.bal = close.bal - (tfgld201.fdah + tfgld201.ndah) +<br />
+								( tfgld201.fcah+ tfgld201.ncah)<br />
+							endif<br />
+						endselect<br />
+						<br />
+						| close.bal = close.bal + tfgld201.fdah - tfgld201.fcah +<br />
+								| tfgld201.ndah - tfgld201.ncah<br />
+						open.bal = 0 <br />
+						| close.bal = 0 |Dipen 13.03.2007<br />
+					else<br />
+						amntdr.upto.curr = amntdr.upto.curr - tfgld201.fdah - tfgld201.ndah<br />
+						amntcr.upto.curr = amntcr.upto.curr - tfgld201.fcah - tfgld201.ncah<br />
+						| amntdr.upto.curr = amntdr.upto.curr + tfgld201.fdah + tfgld201.ndah<br />
+						| amntcr.upto.curr = amntcr.upto.curr + tfgld201.fcah + tfgld201.ncah<br />
+						| open.bal = open.bal - tfgld201.fdah + tfgld201.fcah -<br />
+								| tfgld201.ndah + tfgld201.ncah	<br />
+						open.bal = open.bal + tfgld201.fdah - tfgld201.fcah +<br />
+								tfgld201.ndah - tfgld201.ncah<br />
+						| close.bal = 0 |Dipen 13.03.2007<br />
+					endif<br />
+					| dbit = dbit + tfgld201.fdah + tfgld201.ndah<br />
+					| cdit = cdit + tfgld201.fcah + tfgld201.ncah<br />
+				endselect<br />
+			endselect<br />
+		endif<br />
+	| endif<br />
+	|Hitesh Dec 2006 .sn<br />
+	if tfgld008.leac = &quot;122002      &quot; then<br />
+		close.bal = close.bal + dbit - cdit<br />
+		| open.bal = open.bal + dbit - cdit<br />
+		| mntdr.upto.curr = amntdr.upto.curr - -<br />
+		| amntcr.upto.curr = amntcr.upto.curr - tfgld201.fcah		<br />
+	endif<br />
+	|Hitesh Dec 2006 en<br />
+|	if print.zbal = tcyesno.no then				|#23340.o<br />
+	if print.zbal = tcyesno.no and tfgld008.atyp &lt;&gt; tfgld.atyp.text then<br />
+								|#23340.n<br />
+		if (open.bal = 0) and  (amntdr.curr = 0) and (amntcr.curr = 0)<br />
+			and (amntdr.upto.curr = 0) and (amntcr.upto.curr = 0)<br />
+			and (close.bal = 0) then<br />
+			lattr.print = false<br />
+		endif<br />
+	endif <br />
+<br />
+detail.2:							|#10016806.sn<br />
+before.layout:<br />
+<br />
+	| if tfgld008.leac = &quot;122000      &quot; or tfgld008.leac = &quot;120000      &quot; <br />
+		| or tfgld008.leac = &quot;100000      &quot; then<br />
+		| close.bal = close.bal + dbit - cdit<br />
+	| else<br />
+		if print.nfinal = tcyesno.no then<br />
+			select	tfgld008.leac, tfgld008.atyp<br />
+			from 	tfgld008<br />
+			where	tfgld008._index1 = {:tfgld008.leac}<br />
+			| and 	tfgld008.atyp = tfgld.atyp.profitloss<br />
+			selectdo<br />
+				select tfgld201.fdah, tfgld201.fcah, tfgld201.prno,tfgld201.leac,<br />
+					tfgld201.year<br />
+				from	tfgld201<br />
+				where	tfgld201._index3 = {:comp, :year, :tfgld008.leac,1}	<br />
+				and	(tfgld201.prno = 1 or tfgld201.prno = 2)<br />
+				selectdo<br />
+					if tfgld008.atyp = tfgld.atyp.profitloss then<br />
+						amntdr.upto.curr = amntdr.upto.curr - tfgld201.fdah<br />
+						amntcr.upto.curr = amntcr.upto.curr - tfgld201.fcah<br />
+						| amntdr.upto.curr = amntdr.upto.curr + tfgld201.fdah<br />
+						| amntcr.upto.curr = amntcr.upto.curr + tfgld201.fcah<br />
+						select tfgld004.year<br />
+						from tfgld004<br />
+						where tfgld004._index1 = {1}<br />
+						selectdo<br />
+							if tfgld004.year = tfgld201.year then<br />
+								close.bal = close.bal - tfgld201.fdah + tfgld201.fcah<br />
+							endif<br />
+						endselect<br />
+						| close.bal = close.bal + tfgld201.fdah - tfgld201.fcah<br />
+						open.bal = 0 <br />
+						| close.bal = 0 |Dipen 13.03.2007<br />
+					else<br />
+						amntdr.upto.curr = amntdr.upto.curr - tfgld201.fdah<br />
+						amntcr.upto.curr = amntcr.upto.curr - tfgld201.fcah<br />
+						| amntdr.upto.curr = amntdr.upto.curr + tfgld201.fdah<br />
+						| amntcr.upto.curr = amntcr.upto.curr + tfgld201.fcah<br />
+						open.bal = open.bal + tfgld201.fdah - tfgld201.fcah					<br />
+						| close.bal = 0 |Dipen 13.03.2007<br />
+						| close.bal = close.bal - tfgld201.fdah + tfgld201.fcah					<br />
+					endif<br />
+				endselect<br />
+			endselect<br />
+		else<br />
+			select	tfgld008.leac, tfgld008.atyp<br />
+			from 	tfgld008<br />
+			| where	tfgld008._index1 inrange {:leac.f} and {:leac.t}<br />
+			where	tfgld008._index1 = {:tfgld008.leac}	<br />
+			| and	tfgld008.atyp = tfgld.atyp.profitloss<br />
+			selectdo<br />
+				select tfgld201.fdah, tfgld201.fcah, tfgld201.prno,tfgld201.leac,<br />
+					tfgld201.year, tfgld201.ndah, tfgld201.ncah<br />
+				from	tfgld201<br />
+				where	tfgld201._index3 = {:comp, :year, :tfgld008.leac,1}	<br />
+				and	(tfgld201.prno = 1 or tfgld201.prno = 2)<br />
+				selectdo<br />
+					if tfgld008.atyp = tfgld.atyp.profitloss then<br />
+						amntdr.upto.curr = amntdr.upto.curr - tfgld201.fdah - tfgld201.ndah<br />
+						amntcr.upto.curr = amntcr.upto.curr - tfgld201.fcah - tfgld201.ncah<br />
+						| amntdr.upto.curr = amntdr.upto.curr + tfgld201.fdah + tfgld201.ndah<br />
+						| amntcr.upto.curr = amntcr.upto.curr + tfgld201.fcah + tfgld201.ncah<br />
+						select tfgld004.year<br />
+						from tfgld004<br />
+						where tfgld004._index1 = {1}<br />
+						selectdo<br />
+							if tfgld004.year = tfgld201.year then<br />
+								close.bal = close.bal - (tfgld201.fdah + tfgld201.ndah) +<br />
+								( tfgld201.fcah+ tfgld201.ncah)<br />
+							endif<br />
+						endselect<br />
+						| close.bal = close.bal + tfgld201.fdah - tfgld201.fcah +<br />
+								| tfgld201.ndah - tfgld201.ncah<br />
+						| close.bal = 0 |Dipen 13.03.2007<br />
+						open.bal = 0 <br />
+					else<br />
+						amntdr.upto.curr = amntdr.upto.curr - tfgld201.fdah - tfgld201.ndah<br />
+						amntcr.upto.curr = amntcr.upto.curr - tfgld201.fcah - tfgld201.ncah<br />
+						| amntdr.upto.curr = amntdr.upto.curr + tfgld201.fdah + tfgld201.ndah<br />
+						| amntcr.upto.curr = amntcr.upto.curr + tfgld201.fcah + tfgld201.ncah<br />
+						| open.bal = open.bal - tfgld201.fdah + tfgld201.fcah -<br />
+								| tfgld201.ndah + tfgld201.ncah		<br />
+						open.bal = open.bal + tfgld201.fdah - tfgld201.fcah +<br />
+								tfgld201.ndah - tfgld201.ncah	<br />
+						| close.bal = 0 |Dipen 13.03.2007<br />
+					endif<br />
+					| dbit = dbit + tfgld201.fdah + tfgld201.ndah<br />
+					| cdit = cdit + tfgld201.fcah + tfgld201.ncah<br />
+				endselect<br />
+			endselect<br />
+		endif<br />
+<br />
+	| endif<br />
+	|Hitesh Dec 2006 sn<br />
+	if tfgld008.leac = &quot;122000      &quot; or tfgld008.leac = &quot;120000      &quot; <br />
+		or tfgld008.leac = &quot;100000      &quot; then<br />
+		close.bal = close.bal + dbit - cdit<br />
+	endif<br />
+	|Hitesh Dec 2006 en<br />
+	<br />
+|	if print.zbal = tcyesno.no then				|#23340.o<br />
+	if print.zbal = tcyesno.no and tfgld008.atyp &lt;&gt; tfgld.atyp.text then<br />
+								|#23340.n<br />
+		if (open.bal = 0) and  (amntdr.curr = 0) and (amntcr.curr = 0)<br />
+			and (amntdr.upto.curr = 0) and (amntcr.upto.curr = 0)<br />
+			and (close.bal = 0) then<br />
+			lattr.print = false<br />
+		endif<br />
+	endif 							|#10016806.en</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Baanboozeled</div><div class="date">27th October 2007, 23:04</div></div><div class="posttext">My company did something about 8 years ago before I started working here.  They chose to configure the next fiscal year waaay out from 2000 to 8000.  Then we are stuck with 8001,8002,8003 etc...  You can call Baan support and they can easily walk you through something much more elegant.  It involves GTM in the fiscal year and periods tables.  So, I wouldn't recommend trying it without baan support.<br />
+hope this helps!<br />
+bb</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

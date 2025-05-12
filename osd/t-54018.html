@@ -1,0 +1,113 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Statistics with Oracle 10r2, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Statistics with Oracle 10r2 Operating Systems &amp; Databases" />
+	
+	<title>Statistics with Oracle 10r2 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Statistics with Oracle 10r2</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">16th October 2008, 20:45</div></div><div class="posttext">Has anybody had problems with gathering statistics?<br />
+I have some problems with some tables:<br />
+EXECUTE DBMS_STATS.GATHER_TABLE_STATS(ownname=&gt; ,tabname=&gt;' ' <br />
+,cascade=&gt;true);<br />
+<br />
+Oracle's job is blocked.<br />
+<br />
+This is not working well againt some of the tables...for example tibom010.<br />
+Sometimes it hangs and sometimes goes through with hours of runtime.<br />
+&quot;old time&quot; analyze with compute is working fine.<br />
+<br />
+gather stats is hanging here:<br />
+SELECT COUNT (rep)<br />
+FROM (SELECT /*+ leading(v1 v2) use_nl_with_index(v2) */<br />
+COUNT (v1.val) rep<br />
+FROM (SELECT rn, val<br />
+FROM (SELECT ROWNUM rn, val<br />
+FROM (SELECT /*+ no_merge no_parallel(t) <br />
+no_parallel_index(t) dbms_stats cursor_sharing_exact use_weak_name_resl <br />
+dynamic_sampling(0) no_monitoring */<br />
+SUBSTRB (sys_ds_alias_43,<br />
+1,<br />
+32<br />
+) val<br />
+FROM SYS.ora_temp_1_ds_9491 t<br />
+WHERE SUBSTRB (sys_ds_alias_43, 1, 32) IS NOT NULL<br />
+GROUP BY SUBSTRB (sys_ds_alias_43, 1, 32)<br />
+HAVING COUNT (SUBSTRB (sys_ds_alias_43,<br />
+1,<br />
+32<br />
+)<br />
+) = 1))<br />
+WHERE ORA_HASH (rn) &lt;= 3680349010) v1,<br />
+(SELECT /*+ index(t2) */<br />
+NLSSORT (&quot;T$MITM&quot;,<br />
+'nls_sort=''INFOR_GENERIC_M'''<br />
+) val<br />
+FROM &quot;ERPLN6A&quot;.&quot;TTIBOM010250&quot; t2) v2<br />
+WHERE v2.val LIKE v1.val || '%'<br />
+GROUP BY v1.val<br />
+HAVING COUNT (v1.val) &lt;= 2)<br />
+<br />
+*****<br />
+So, we are using infor_generic_m customized sorting. Could that be a reason for this!? It's been a lot of problems,bugs with it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">17th October 2008, 08:58</div></div><div class="posttext">Are you on the latest patch set for oracle?<br />
+<br />
+10.2.0.4 would be the minimum i'd use.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">17th October 2008, 09:26</div></div><div class="posttext">Yes, it is 10.2.0.4, with nls -corrections for infor_generic_m.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">18th October 2008, 00:51</div></div><div class="posttext">never heard of that...<br />
+<br />
+What is it?<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">27th October 2008, 10:06</div></div><div class="posttext">SolutionID<br />
+221481</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">puskas</div><div class="date">11th April 2011, 06:07</div></div><div class="posttext">Yes checkout <br />
+<br />
+Patch : Bug 6399168 - DBMS_STATS can be slow for large table<br />
+<br />
+<br />
+The DBMS_STATS generate a select like the one below where much of the time is spent.<br />
+<br />
+select  /*+ gather_plan_statistics * / count(rep) <br />
+  from (select /*+ leading(v1) use_nl(v2) */ count(v1.val) rep <br />
+          from (select /*+ no_merge noparallel(t) noparallel_index(t)<br />
+                       cursor_sharing_exact dynamic_sampling(0) no_monitoring */<br />
+                       &quot;Column from the table&quot; val <br />
+                  from &quot;Table where stats are gathered&quot; t <br />
+                 where &quot;Column from the table&quot; is not null<br />
+                group by &quot;Column from the table&quot; <br />
+                  having count(&quot;Column from the table&quot;) = 1 ) v1,<br />
+       (select /*+ index(t2) */ &quot;Column from the table&quot; val <br />
+          from &quot;Table where stats are gathered&quot; t2 ) v2<br />
+where v2.val = v1.val <br />
+group by v1.val <br />
+having count(v1.val) &lt;= 2;<br />
+<br />
+<br />
+Fixed in a 10.2.0.4 patch to DBMS_STATS.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

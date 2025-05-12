@@ -1,0 +1,87 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="stpapi.browse.set does not update all lines, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] stpapi.browse.set does not update all lines AFS/DDC/OLE: Function servers" />
+	
+	<title>stpapi.browse.set does not update all lines [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; stpapi.browse.set does not update all lines</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">6th June 2013, 21:23</div></div><div class="posttext">I am writing an AFS session for Maintain Receipt (tdpur4120m000). <br />
+ <br />
+Everything is working fine thanks to help from other posts on this site, but I am having one problem.<br />
+ <br />
+Sometimes the source data (a text file sent by another application) only has receipts for a few lines on a PO. I need to deliver zero and backorder the remaining lines so that they can immediately be available for another receipt. <br />
+ <br />
+I tried to use the following code to do this. My idea was to backorder all lines first, then use stpapi.find to find the lines in the source data and receive them:<br />
+ <br />
+loop = stpapi.browse.set(&quot;tdpur4120m000&quot;, &quot;first.set&quot;, err)<br />
+while loop<br />
+ stpapi.get.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.pono&quot;, value)<br />
+ stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.date&quot;, str$(date.num()))<br />
+ stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.diqu&quot;, str$(0))<br />
+ stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.dqua&quot;, str$(0))<br />
+ stpapi.update(&quot;tdpur4120m000&quot;, 1, err)<br />
+ loop = stpapi.browse.set(&quot;tdpur4120m000&quot;, &quot;next.set&quot;, err)<br />
+endwhile<br />
+ <br />
+The code does loop through all lines. The stpapi.get.field does return the value of every line number. But the stpapi.update stops working after 12-15 lines. There is no error: the lines just don't get updated. <br />
+ <br />
+The updates stop about half way down the second page, that is just after I would have to hit page down if I were receiving this manually. I'm not sure if that has something to do with it. <br />
+ <br />
+Any help is appreciated.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th June 2013, 23:33</div></div><div class="posttext">Can I ask why you have to put them in back order?  All I do is create one receipt for every line in the PO.  The next time a part comes in the AFS code finds the original receipt and does a receipt against it.  So this receipt is always ready to go for the next part - even if it is months later(and it is sometimes).<br />
+<br />
+Now having said that something to try in the code - after the browse.set try a stpapi.mark record.  If that does not work then can you put a find right have the browse.set?  I know I have one session where I have to do that - just can't find it right now.  Let me check some more.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th June 2013, 23:54</div></div><div class="posttext">What happens is the next set does not make the record the current record in the buffer, by doing a find it makes it the current record.<br />
+<br />
+Found it:<br />
+<br />
+<br />
+<br />
+rc =  stpapi.browse.set( &quot;ticpr9152m00b&quot;, &quot;next.set&quot; )<br />
+| Do this because the next set is not making the record available<br />
+| for update<br />
+if rc = 1 then<br />
+	stpapi.get.field( &quot;ticpr9152m00b&quot;, &quot;ticpr952.cpcp&quot;, cpc )<br />
+	stpapi.get.field( &quot;ticpr9152m00b&quot;, &quot;ticpr952.ptyp&quot;, ptyp )<br />
+	stpapi.put.field(&quot;ticpr9152m00b&quot;, &quot;ticpr952.item&quot;, adj.item)<br />
+	stpapi.put.field(&quot;ticpr9152m00b&quot;, &quot;ticpr952.cprj&quot;, adj.proj)<br />
+	stpapi.put.field(&quot;ticpr9152m00b&quot;, &quot;ticpr952.mbcs&quot;, str$(adj.mbcs))<br />
+	stpapi.put.field( &quot;ticpr9152m00b&quot;, &quot;ticpr952.ptyp&quot;, ptyp )<br />
+	stpapi.put.field( &quot;ticpr9152m00b&quot;, &quot;ticpr952.cpcp&quot;, cpc )<br />
+	rc1 = stpapi.find( &quot;ticpr9152m00b&quot; )<br />
+endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">7th June 2013, 00:03</div></div><div class="posttext">Thanks for the tips. I will try them. <br />
+ <br />
+We mostly backorder out of habit, but there are a few reasons we want to continue to do this. <br />
+ <br />
+We may be using a combination of AFS and manual receiving. For a manual user it is generally faster to create a new receipt than to find an old one. <br />
+ <br />
+We are also working on automating the AP matching process, and you can use the supplier's packing slip number as a way to match AP to a receipt. Our suppliers usually have one invoice per packing slip.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th June 2013, 01:03</div></div><div class="posttext">That makes sense.  All of our production part receipts are done via the automated session - but they still have the manual option.  They only use manual for non-production part receipts.  I think we trained our users out of doing it manual since the automated session required so much less work(and thought) on their part. :)<br />
+<br />
+PS - I found 3 other places where the next.set did not work.  Two were deletes - in those cases I just used first.set every time until all the records were deleted.  In the other case I did a browse with next.set and then a stpapi.mark right after it to get it to work.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

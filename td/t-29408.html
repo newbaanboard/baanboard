@@ -1,0 +1,147 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Query - db.nr.rows() - resultcount, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Query - db.nr.rows() - resultcount Tools Development" />
+	
+	<title>Query - db.nr.rows() - resultcount [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Query - db.nr.rows() - resultcount</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Bender</div><div class="date">2nd January 2007, 18:21</div></div><div class="posttext">Baan: Baan IVc4<br />
+DB: SQL Server 2000<br />
+OS: Windows 2003<br />
+C/S: Both<br />
+<br />
+Hi there,<br />
+<br />
+can anyone solve this Problem? ForumSearch did not help yet.<br />
+I am quite new to baan but have experience in DynamicSQL for Oracle.<br />
+<br />
+Here my Problem:<br />
+I want to transfer tabledata from one company to another.<br />
+After i checked and compared all RDI-Infos an possible references, <br />
+i want to get a count of the data i want to transfer.<br />
+<br />
+So i'm building a SQL with a &quot;count(*):1&quot; and a &quot;not exists&quot; clause. <br />
+Everything passes until the fetch is reached. Then i get this Errormessage in the Event-Viewer only: &quot;bdberrno     509 (Bad memory cursor; bad table pointer specified)&quot;<br />
+The Session itself crashes away to Nirvana.<br />
+<br />
+This is the part of the code, that matters.<br />
+<br />
+If anybody has a clue, please tell me :)<br />
+Thanks in advance guys<br />
+<br />
+****************<br />
+sql.source.cnt.select=sprintf$(&quot;select count(%s):1 &quot;&amp; &quot;from %s where %s._compnr = %d &quot; <br />
+&amp; &quot;and not exists (select * from %s where %s._compnr = %d) &quot; ,str.cnt.column<br />
+,tmp.source.table, tmp.source.table, tmp.sourcecompnr<br />
+,tmp.target.table, tmp.target.table, tmp.targetcompnr)<br />
+sql_id.source.cnt.tbl = sql.parse(sql.source.cnt.select)<br />
+if sql_id.source.cnt.tbl&lt;&gt;0 then     if(sql.select.bind(sql_id.source.cnt.tbl, 1, src.cnt)=0)then         if(sql.exec(sql_id.source.cnt.tbl)=0)then             while true                 on case sql.fetch(sql_id.source.cnt.tbl)                     case eendfile:<br />
+                        break<br />
+                     case 0:<br />
+                        break<br />
+                     default:<br />
+endcase<br />
+                break<br />
+endwhile<br />
+sql.break(sql_id.source.cnt.tbl)<br />
+            sql.close(sql_id.source.cnt.tbl)<br />
+        endif<br />
+endif<br />
+endif        <br />
+****************</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">solepeder</div><div class="date">2nd January 2007, 19:05</div></div><div class="posttext">Hi,<br />
+<br />
+I didn't work a lot with this, but you can try this: (modifications in blue)<br />
+<br />
+sql.source.cnt.select=sprintf$(&quot;select count(*):1 &quot;<br />
+			&amp; &quot;from %s where %s._compnr = :2 &quot; <br />
+			&amp; &quot;and not exists (select %s.* from %s where %s._compnr = :3) &quot;<br />
+			,tmp.source.table, tmp.source.table, tmp.target.table,<br />
+			,tmp.target.table, tmp.target.table)<br />
+<br />
+sql_id.source.cnt.tbl = sql.parse(sql.source.cnt.select)<br />
+<br />
+if sql_id.source.cnt.tbl&lt;&gt;0 then<br />
+	if(sql.select.bind(sql_id.source.cnt.tbl, 1, src.cnt)=0)then<br />
+		sql.where.bind(sql_id.source.cnt.tbl, 2, tmp.sourcecompnr)<br />
+		sql.where.bind(sql_id.source.cnt.tbl, 3, tmp.targetcompnr)<br />
+		if(sql.exec(sql_id.source.cnt.tbl)=0)then<br />
+			while true<br />
+				on case sql.fetch(sql_id.source.cnt.tbl)<br />
+				case eendfile:<br />
+					break<br />
+<br />
+				case 0:<br />
+					break<br />
+<br />
+				default:<br />
+<br />
+				endcase<br />
+				break<br />
+<br />
+			endwhile<br />
+<br />
+			sql.break(sql_id.source.cnt.tbl)<br />
+			sql.close(sql_id.source.cnt.tbl)<br />
+		endif<br />
+<br />
+	endif<br />
+<br />
+endif   <br />
+<br />
+In the other hand...<br />
+Table source and target exist in the company source and target, don't they?<br />
+<br />
+I hope this work...<br />
+<br />
+Soledad</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Bender</div><div class="date">2nd January 2007, 19:20</div></div><div class="posttext">thanks for helping  ;) <br />
+but your suggestions do not change the gruesome result :(<br />
+<br />
+i'll keep trying though...<br />
+<br />
+By the Way, do you know how to determine wich column is a index column in a table?<br />
+<br />
+greetz,<br />
+Bender</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">solepeder</div><div class="date">3rd January 2007, 22:14</div></div><div class="posttext">thanks for helping  ;) <br />
+but your suggestions do not change the gruesome result :(<br />
+<br />
+i'll keep trying though...<br />
+<br />
+By the Way, do you know how to determine wich column is a index column in a table?<br />
+<br />
+greetz,<br />
+Bender<br />
+<br />
+The table that contains table index is ttadv421. You should use field ttadv421.part.<br />
+<br />
+I hope this help you.<br />
+<br />
+Soledad</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Bender</div><div class="date">4th January 2007, 10:28</div></div><div class="posttext">Thanks Soledad, this would make it easier, i did it myself now using every info from rdi :) But Thanks again man ;)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

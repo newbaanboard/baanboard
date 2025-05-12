@@ -1,0 +1,183 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Problem defining upper and bottom spool margin in LN, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Problem defining upper and bottom spool margin in LN Tools Development" />
+	
+	<title>Problem defining upper and bottom spool margin in LN [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Problem defining upper and bottom spool margin in LN</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Remco_Smeets</div><div class="date">22nd June 2015, 16:04</div></div><div class="posttext">A new blog entry has been added:<br />
+<br />
+Problem defining upper and bottom spool margin in LN<br />
+<br />
+Hello all,<br />
+ I want to write an session that decides for all reports how long the first page may be, and how long the other pages may be.<br />
+ I want to do this in a seperate session so it can be applied to all reports instead of having to modify all the reports.<br />
+ I started with:<br />
+ function extern check.page.start()<br />
+{<br />
+    if lattr.pageno = 1 then<br />
+        if lattr.lineno &lt; 20 then<br />
+            lattr.print = false<br />
+        else<br />
+        endif<br />
+    else<br />
+        if lattr.lineno &lt; 5 then<br />
+        else<br />
+            lattr.print = false<br />
+        endif<br />
+    endif<br />
+}<br />
+ function extern check.page.end()<br />
+{<br />
+    if lattr.pageno = 1 then<br />
+        if lattr.lineno &lt; 35 then<br />
+        else<br />
+            lattr.break = true<br />
+        endif<br />
+    else<br />
+        if lattr.lineno &lt; 55 then<br />
+        else<br />
+            lattr.break = true<br />
+        endif<br />
+    endif<br />
+}<br />
+ however i need to have these functions in a  spool.open function.<br />
+ This is where i got a bit stuck. Since i need to stay in the same report (namewise) that i started so i can modify it later on with pdftk.<br />
+ The lattr.lineno should later be parameterised, hence i put it in an external function.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">22nd June 2015, 18:43</div></div><div class="posttext">Hi,<br />
+<br />
+Please create threads in related forums.<br />
+<br />
+Moved this to Tool Development. I guess, you need to pass the values to the functions and then return the values.<br />
+<br />
+Based on the return values, you can do lattr.print or lattr.break things which will be applicable on the called report.<br />
+<br />
+Something like this -<br />
+<br />
+function extern domain tcbool check.page.start(domain tcmcs.long pgno,domain tcmcs.long lnno)<br />
+{<br />
+    if pgno = 1 then<br />
+        if lnno &lt; 20 then<br />
+            return(false)<br />
+        else<br />
+        endif<br />
+    else<br />
+        if lnno &lt; 5 then<br />
+        else<br />
+            return(false)<br />
+        endif<br />
+    endif<br />
+    return(true)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Remco_Smeets</div><div class="date">23rd June 2015, 13:19</div></div><div class="posttext">Hello bhushanchanda,<br />
+Thank you, i rewrote the function, do not have a main function for it, but it will look something like:<br />
+<br />
+function extern tcxls.dll901.check.postion(domain tcmcs.str14 output.device, domain tclong pageno, domain tcmcs.str999 vorlage)<br />
+{<br />
+check.page.start(pageno, vorlage)<br />
+check.page.end(spool.device, pageno, vorlage)<br />
+}<br />
+<br />
+<br />
+function check.page.end(domain tcmcs.str14 output.device, domain tclong pageno)<br />
+{<br />
+	lattr.textlines.max = get.max.page(output.device, pageno)<br />
+}<br />
+<br />
+function long get.max.page(domain tcmcs.str14 output.device, domain tclong pageno)<br />
+{<br />
+	select	ttaad300.pgln<br />
+	from	ttaad300<br />
+	where	ttaad300._index1 = {: output.device}<br />
+	selectdo<br />
+		select 	tcxls901.pgln<br />
+		from	tcxls901<br />
+		where	tcxls901.dsca = {:vorlage}<br />
+		selectdo<br />
+			select tcxls901.pgln<br />
+			from	tcxls901<br />
+			where	tcxls901.pgno = {: pageno}<br />
+			selectdo<br />
+				return(tcxls901.pgln)<br />
+			selectempty			<br />
+				select 	tcxls901.pgln<br />
+				from		tcxls901<br />
+				where		tcxls901.dsca = vorlage	<br />
+				order by 	tcxls901.pgst desc<br />
+				as set with 1 rows<br />
+				selectdo			<br />
+					if tcxls901.pgln &gt; ttaad300.pgln then<br />
+						return(ttaad300.pgln)<br />
+					else<br />
+						return(tcxls901.pgln)<br />
+					endif<br />
+				endselect<br />
+			endselect	<br />
+		selectempty <br />
+			return(ttaad300.pgln)<br />
+		endselect<br />
+	endselect<br />
+{		<br />
+<br />
+function long get.page.start(domain tclong pageno)<br />
+{<br />
+	select 	tcxls901.pgst<br />
+	from	tcxls901<br />
+	where	tcxls901.dsca = {:vorlage}<br />
+	selectdo<br />
+		select  tcxls901.pgst<br />
+		from	  tcxls901<br />
+		where	tcxls901.pgno = {: pageno}<br />
+		selectdo<br />
+			return(tcxls901.pgst)<br />
+		selectempty<br />
+			select 	tcxls901.pgst<br />
+			from		tcxls901<br />
+			where		tcxls901.dsca = {:vorlage}	<br />
+			order by 	tcxls901.pgst desc<br />
+			as set with 1 rows<br />
+			selectdo<br />
+				return	(tcxls901.pgst)<br />
+			endselect<br />
+		endselect	<br />
+	selectempty<br />
+		message (&quot;Keine Vorlage einstellungen vorhanden&quot;)<br />
+		return(1)<br />
+	endselect<br />
+}<br />
+<br />
+For some reason it won't keep my tabs after adding the colour it seems.<br />
+<br />
+The problem i'm facing now however is that i want this function to be implemented easy in easy report without having to put it in every &quot;before.layout&quot;. Do you have an idea how to solve that easiest?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd June 2015, 15:17</div></div><div class="posttext">If your going to add color then surround it with the code tags.  Edit you post to see what I did to make it more readable.  If you don't use color you could just use code=baan inside the [] then end it with /code.  Just a helpful hint for using the board.  Sorry can't help with your problem, but it sounds like you want every report to run this and I just do not know how to do that.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Remco_Smeets</div><div class="date">23rd June 2015, 16:11</div></div><div class="posttext">Hello Mark,<br />
+<br />
+Yes it would be for every report with the least amount of efford.<br />
+So preferably only 1 function somewhere at the start.<br />
+<br />
+Kind regards, Remco</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="List view with fields from multiple tables, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] List view with fields from multiple tables Tools Development" />
+	
+	<title>List view with fields from multiple tables [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; List view with fields from multiple tables</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">giggty</div><div class="date">20th April 2018, 15:51</div></div><div class="posttext">Hello,<br />
+so my requirement is to recreate tisfc0105m300 but instead of tisfc001.mitm it should display ticst001.sitm. I created a session, added all the fields from tisfc005 I need to the form (cprj - this is view field, cspa, cact and pdno) and ticst001 (sitm and ques). Now because tisfc005 has no references to ticst001 I need to link these two somehow. query.extend functions seem like a perfect tool for this. So I added this code:<br />
+<br />
+before.program:<br />
+	query.extend.select(&quot;ticst001.sitm, ticst001.ques&quot;, EXTEND_OVERWRITE)<br />
+	query.extend.from(&quot;ticst001&quot;, EXTEND_OVERWRITE)<br />
+	query.extend.where(&quot;ticst001._index1 = tisfc001.pdno&quot;, EXTEND_OVERWRITE)<br />
+<br />
+And it doesn't work.<br />
+1. ticst001.sitm and ticst001.ques values are joined in some chaotic manner (definitely not by where-clause), there are less rows than should be and when i resize window i see as different values are fetched each time. Here is the resultant query that gets executed:<br />
+<br />
+SELECT tisfc005.*,tisfc001.pdno,tisfc001.osta, ticst001.sitm, ticst001.ques <br />
+FROM tisfc005,tisfc001,ticst001  <br />
+WHERE tisfc005._index2 = { :tisfc005.cprj} AND ( <br />
+(ticst001._index1 = tisfc001.pdno)) AND  <br />
+tisfc005.pdno REFERS TO tisfc001 <br />
+|Based on index:2 <br />
+ORDER BY tisfc005.cprj,tisfc005.cspa,tisfc005.cact,tisfc005.pdno,tisfc005.effn,tisfc005.dlin<br />
+<br />
+2. Because there is one to many relationship between tisfc005.pdno and ticst001.sitm (ticst001 key is {pdno, pono}) for every row in tisfc005 there are multiple items in ticst001, they all should be displayed. But those are considered as one row, so when I try to mark one of them, the whole group (with identical tisfc005.pdno) gets marked :confused:<br />
+3. LN UI filters are absent for ticst001 fields (see attachment)<br />
+<br />
+I tried populating ticst001 fields in read.view: section with pretty much same results. The best picture I can get is by adding this into before.display.object:<br />
+<br />
+before.display.object:<br />
+	select ticst001.sitm, ticst001.ques<br />
+	from ticst001<br />
+	where ticst001._index1 = {:tisfc005.pdno}<br />
+	selectdo<br />
+	endselect<br />
+<br />
+but still only one ticst001.sitm is fetched for every tisfc005.pdno.<br />
+<br />
+How this should be done properly? I have spent like two days on this already and I'm out of ideas :(</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">giggty</div><div class="date">25th April 2018, 14:52</div></div><div class="posttext">I am surprised no one shared any thoughts. This problem appears to be like a fairly routine one :)<br />
+<br />
+So I made some progress. I've added sec.add.table(&quot;ticst001&quot;) call after query.extend.where() and now the join between tisfc005 and ticst001 is carried out properly and filters are there. The only problem left (and it pretty much nullifies my efforts) is that occurrences with identical tisfc005 key fields are treated as one row, so when I mark one of them all get marked.<br />
+I concluded that the problem broke down to the fact that tisfc005 can't be used as the main table for my session. So I switched to ticst005 and joined ticst001, tisfc005 with query extensions. Two new problems emerged:<br />
+1. I need to have tisfc005.cprj as view field and be able to browse through projects with next/previous view buttons. I can make it as view field but switching projects doesn't work (I guess by default it works only for main table index fields). I've made the needed corrections in the choice.prev.view and choice.next.view sections, and it seems to work but for some reason next.view button gets disabled after first run. I tried adding enable.commands(&quot;next.view&quot;) into after.choice to no avail :confused: <br />
+2. Standard search is only available for main table index fields. Is it possible to enable search by tisfc005.cprj somehow?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">giggty</div><div class="date">26th April 2018, 16:06</div></div><div class="posttext">Ok, I overkilled it a bit :)<br />
+<br />
+There are cprj, cact and cspa in ticst005, so I don't really need to join tisfc005. I see two possible solutions here:<br />
+<br />
+1. Make a custom table with all the needed fields and add it as a main table to the session.<br />
+2. Add a new index on ticst005 with cprj.<br />
+<br />
+I stick to 2 for the time being. What should I bear in mind here? Is altering standard table a valid practice?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th April 2018, 15:35</div></div><div class="posttext">Valid practice - I think it is, but what you have to watch for is future service packs or patches that might create an index where yours is.  I believe this happed to us early on - a baan sp added an index 2 on a table where we already had one in production.  Some of the standard sessions used it after the sp and had some issues with using the one we added.  I do not recall us having an issue like but once - the same happened with a table also.  You just have to watch it at each sp.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

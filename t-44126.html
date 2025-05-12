@@ -1,0 +1,138 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Automate a report, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Automate a report AFS/DDC/OLE: Function servers" />
+	
+	<title>Automate a report [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Automate a report</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">monica1</div><div class="date">8th November 2007, 11:12</div></div><div class="posttext">I  need the total field of a report. There is any way to obtein it througth AFS?<br />
+I know how to print it, but I don´t know if it is possible.<br />
+<br />
+Thank you for advance,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jp.aalders</div><div class="date">8th November 2007, 13:38</div></div><div class="posttext">Just a total?  For usage in some other application or report?  While printing the report you can write the neccesary information to a sequential file using seq.write/seq.put commands. Afterwards you can obtain the values needs from any report or application you like. The report itself can periodically run in a job or even executed from another session.<br />
+<br />
+Good luck!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">monica1</div><div class="date">8th November 2007, 13:45</div></div><div class="posttext">I write this code:<br />
+<br />
+   stpapi.put.field(&quot;cagldca009l04&quot;, &quot;divisa&quot;, str$(i.ccur))<br />
+   stpapi.put.field(&quot;cagldca009l04&quot;, &quot;fecha.f&quot;, str$(date.to.num(i.year ,1, 1)))<br />
+   stpapi.put.field(&quot;cagldca009l04&quot;, &quot;fecha.t&quot;, str$(date.to.num(i.year + 1 ,1, 1) - 1))<br />
+   stpapi.put.field(&quot;cagldca009l04&quot;, &quot;bpid.f&quot;, i.bpid)<br />
+   stpapi.put.field(&quot;cagldca009l04&quot;, &quot;bpid.t&quot;, i.bpid)<br />
+   stpapi.put.field(&quot;cagldca009l04&quot;, &quot;cuenta.desde&quot;, i.leac)<br />
+   stpapi.put.field(&quot;cagldca009l04&quot;, &quot;cuenta.hasta&quot;, i.leac)<br />
+   stpapi.put.field(&quot;cagldca009l04&quot;, &quot;acreedores&quot;, str$(etol(tcyesno.yes)))<br />
+   stpapi.put.field(&quot;cagldca009l04&quot;, &quot;deudores&quot;, str$(etol(tcyesno.no)))<br />
+   stpapi.put.field(&quot;cagldca009l04&quot;, spool.fileout, file.name)<br />
+	stpapi.set.report(&quot;cagldca009l04&quot;, &quot;rcagldca0094000&quot;, &quot;ASCIF&quot;, err.msg)<br />
+	if isspace(err.msg) then<br />
+      stpapi.form.command(&quot;cagldca009l04&quot;, 5, &quot;exec.cont.process&quot;, err.msg)<br />
+		error.code = stpapi.get.mess.code(&quot;cagldca009l04&quot;,err.msg)<br />
+	endif<br />
+	stpapi.end.session(&quot;cagldca009l04&quot;)<br />
+<br />
+<br />
+<br />
+and I want to obtein a field called saldo that it has created in the source of the report. How can I obtein this field?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th November 2007, 13:56</div></div><div class="posttext">Actually what I do is run the report to disc and then read it back in using the seq.open, and seq.gets.  In my case I now what fields to read .  In your code you have stpapi.put.field(&quot;cagldca009l04&quot;, spool.fileout, file.name), all you need to typically do is spool.fileout = somedir &amp; file.name.  I say typically because sometimes spool.fileout will not get reset - probably a bug in baan on our version, but I have worked around it. Let me see if I can find a sample.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th November 2007, 14:06</div></div><div class="posttext">Here is where I read a report back in:<br />
+<br />
+function process.bom.file()<br />
+{<br />
+ 	long	file.in, num.level, some.seqn, i<br />
+ 	string	textbuff(255), dummy(32),read.item(32),read.net(32),read.stoc(32), read.level(8),<br />
+		some.level(6), read.mbcs(4), read.ordr(32)<br />
+	<br />
+ 	some.seqn = 1<br />
+ 	file.in = seq.open(spool.fileout,&quot;r&quot;)<br />
+ 	while not seq.eof(file.in)<br />
+ 		e = seq.gets(textbuff,255,file.in)<br />
+                         | Skip headings<br />
+ 		if(	textbuff(1;4) = &quot;Date&quot; or textbuff(1;4) =&quot;----&quot; or <br />
+ 			textbuff(1;4) = &quot;BaaN&quot; or isspace(textbuff(1;4)) or<br />
+ 			textbuff(1;4) = &quot;Manu&quot; or textbuff(1;4) = &quot;Effe&quot; or<br />
+ 			textbuff(1;4) = &quot;Revi&quot; or textbuff(1;4) = &quot;   L&quot; or<br />
+			textbuff(1;4) = &quot;Proj&quot; or textbuff(1;4) = &quot;MAX &quot; or<br />
+			textbuff(1;4) = &quot;BAE &quot;) then<br />
+ 			continue<br />
+ 		endif<br />
+ 		|Item|Desc|Item Type|Planner|lead time|No units|Net quantity|gross qty|inv unit<br />
+ 		rc = string.scan(textbuff,&quot;%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s&quot;, <br />
+ 				read.level, read.item, dummy, dummy,<br />
+				read.mbcs, dummy, dummy, dummy, dummy, dummy,<br />
+				read.net, read.stoc, read.ordr,dummy)<br />
+				<br />
+		some.level = &quot;&quot;<br />
+		for i = 1 to 8<br />
+			if read.level(i;1) &lt;&gt; &quot;.&quot; then<br />
+				some.level = some.level &amp; read.level(i;1)<br />
+			|else<br />
+			|	break<br />
+			endif<br />
+		endfor<br />
+		num.level = val(some.level)<br />
+		<br />
+<br />
+		if num.level = 1 then<br />
+			track.level = 1<br />
+			hold.level = 1<br />
+			track.item(1,track.level) = tiudi017.mitm<br />
+		else<br />
+			if num.level &gt; hold.level then<br />
+			| Adding a new level<br />
+				track.level = track.level + 1<br />
+				track.item(1, track.level) = hold.item<br />
+			else<br />
+			| subtrack a level<br />
+				if num.level &lt; hold.level then<br />
+					track.level = track.level - 1<br />
+				endif<br />
+			endif<br />
+		endif<br />
+		| Item for the level<br />
+		hold.level = num.level<br />
+		hold.item = read.item<br />
+		tiudi018.assy = track.item(1, track.level)		<br />
+		<br />
+<br />
+		tiudi018.lvel = num.level		<br />
+ 		tiudi018.mitm = tiudi017.mitm<br />
+		tiudi018.seqn = some.seqn<br />
+ 		tiudi018.item = read.item<br />
+ 		tiudi018.qana = val(read.net)<br />
+ 		tiudi018.stoc = val(read.stoc)<br />
+ 		tiudi018.ordr = val(read.ordr)<br />
+		tiudi018.mbcs = read.mbcs<br />
+ 		db.insert(ttiudi018)<br />
+ 		commit.transaction()<br />
+		some.seqn = some.seqn + 1<br />
+ 	endwhile<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">monica1</div><div class="date">9th November 2007, 09:13</div></div><div class="posttext">Thank you very much. I do it and it works fine.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

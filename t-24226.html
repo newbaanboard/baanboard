@@ -1,0 +1,197 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="change job parameters through AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] change job parameters through AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>change job parameters through AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; change job parameters through AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">7th June 2005, 12:10</div></div><div class="posttext">Hello,<br />
+<br />
+We have a job - running daily - with a bunch of sessions, in which the user has to change every day a range of dates and order numbers.<br />
+I want to simplify this, mainly to avoid mistakes, by creating one session, in which the user enters the relevant date/order, upon hitting 'continue' the job parameters for all relevant sessions (linked to the specific job) are updated.<br />
+<br />
+Is it possible to do this with AFS? I'm new to AFS, so please specify the answers maybe with an example or so. So far the first thing I'm getting stuck on, is that I don't know how to activate/execute the button 'change job' - i.e. the button you hit after changing the job parameters in a specific session.<br />
+<br />
+Thanks in advance,<br />
+<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">p.cole</div><div class="date">7th June 2005, 13:27</div></div><div class="posttext">I don't think this is possible via AFS. The only way I know of is to update ttaad503, either with a custom session or using the exchange module.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">7th June 2005, 13:31</div></div><div class="posttext">But why is this not possible? Can you explain this &quot;verdict&quot; a little please..?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">p.cole</div><div class="date">7th June 2005, 14:16</div></div><div class="posttext">The available AFS functionality provided by dll ottstpapihand can be seen by running ${BSE}/bic_info{VERSION} -eu ottspapihand.  There is nothing exposed to handle adding sessions to, or changing sessions within jobs.    I'm on Baan IVc4 but I doubt anything has changed on B50B.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th June 2005, 14:21</div></div><div class="posttext">I think you could possibly do it with AFS.  You just have to figure our how to activate the option you have selected.  We found it was easier just to make a custom session to allow the user to update the parameters(order numbers and warehouses only).  I can not remember who posted something on this, but that is what we used.  I will find the link and include it in this post.  Here it is http://www.baanboard.com/baanboard/showthread.php?t=9261.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">7th June 2005, 16:43</div></div><div class="posttext">mark, is it not much more complicated to write such a code as from that post you sent me the link to? I woul dhav eot figure out where to put the correct values and at which field sequence in the strings etc. Is it not much easier to call the regular Baan-logic using AFS? If I figure out what the name of the command for saving the changed job parameteres is, then it should work, no?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th June 2005, 17:30</div></div><div class="posttext">In our case I think it was just easier to parse out a couple of fields.  If you are changing a lot of the parameters on the session then I would say it would probably be easier using AFS code.  The only problem I see is activating the code to &quot;make a job&quot; or as you mention &quot;modify the job&quot;.  I have never really tried it so I am not sure if that piece can be figured out, but in theory it should work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">8th June 2005, 12:42</div></div><div class="posttext">Ok Mark and others,<br />
+<br />
+I tried getting there, but since I'm really the first time experimenting with AFS, I need your help on this please. Here is what I did, just to start:<br />
+<br />
+function read.main.table()<br />
+{<br />
+	long	count<br />
+	long	retval<br />
+	long 	ret, ret2, ret3<br />
+	string	error(100)<br />
+<br />
+	stpapi.put.field(&quot;ttaad5501m000&quot;, &quot;ttaad501.cjob&quot;, JOB)<br />
+	stpapi.put.field(&quot;ttaad5501m000&quot;, &quot;ttaad501.seri&quot;, &quot;1&quot;)<br />
+	ret = stpapi.find(&quot;ttaad5501m000&quot;, error)<br />
+	if ret &lt;&gt; 1 then<br />
+		message(&quot;error&quot;)<br />
+	else<br />
+		if stpapi.mark(&quot;ttaad5501m000&quot;, error) then<br />
+			stpapi.handle.subproc(&quot;ttaad5501m000&quot;, &quot;tcmcs0445m000&quot;, &quot;add&quot;)<br />
+			stpapi.form.command(&quot;ttaad5501m000&quot;, 5, &quot;replace_job&quot;, error)<br />
+			stpapi.put.field(&quot;tcmcs0445m000&quot;, &quot;creg.f&quot;, &quot;ABC&quot;)<br />
+|			ret = stpapi.update(&quot;tcmcs0445m000&quot;, false, error)<br />
+|			if ret then <br />
+|				ret = stpapi.save(&quot;tcmcs0445m000&quot;, error)<br />
+|			endif<br />
+			stpapi.form.command(&quot;tcmcs0445m000&quot;, 5, &quot;replace_job&quot;, error)<br />
+			stpapi.end.session(&quot;tcmcs0445m000&quot;, error)<br />
+		endif<br />
+	endif<br />
+	stpapi.end.session(&quot;ttaad5501m000&quot;, error)	<br />
+<br />
+}<br />
+<br />
+Nothing seems to happen. The values are not updated. Is there an update/saving command which I still have to execute? If I write an stpapi.form.command and the command name is not found, do I then receive an error back? The error field is not filled, yet I am not sure if for the second stpapi.form.command (on tcmcs0445m000) I am using the right function name. I just made it up, assuming that it is the same name as in ttaad5501m000. <br />
+<br />
+Would appreciate help on this.<br />
+<br />
+Regards,<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th June 2005, 15:34</div></div><div class="posttext">I can not tell if it is the correct command(replace_job) - we are on 4c4 and do not have that option.  I can tell you this - when you execute the stpapi.form.command(in debug mode) if you do not see tcmcs0445m000 start(using ps to see the processes running in the background), then the command is wrong.  You might want to try ttstpsessinfo on the session and see if it gives a clue to the function name.  Not sure since this is Baan 5 stuff.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">8th June 2005, 15:42</div></div><div class="posttext">Mark, I am not sure if you understood me correctly. The form command replace_job IS correct for session ttaad5101m000 (sessions per job). And indeed tcmcs0445 IS being activated. The only thing is that after I do the put to creg.f, I have to hit the button &quot;change job&quot; (job wijzigen). The command name of this function I can only guess, because this is tools stuff... <br />
+<br />
+What about the other question: will the stpapi.form.command return me an error if the given function name is incorrect? Because in my case the &quot;error&quot; field stays empty... <br />
+<br />
+Is my syntax correct for the rest (except for the doubt regarding the function name)?<br />
+<br />
+<br />
+Thanks,<br />
+<br />
+En</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th June 2005, 15:55</div></div><div class="posttext">Sorry - my bad.  Mis-understood what you were asking.  As for the form.command - yes I would expect it to return some type of error, but I could be wrong.  Let me ask a question - When you do this manually and session tcmcs0445m000 comes up, you enter the new parameters, then do you click save and exit or do you have to click on replace_job again?  I am just wondering if you have to a save or update like you have commented out.  Also do you have source for tcmcs0445m000?  You might be able to debug it when running manually to see what happens.  This could help in seeing what has to take place when running in api mode.<br />
+<br />
+Had to do this twice lost my connection.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Evert-Jan Bosch</div><div class="date">8th June 2005, 16:19</div></div><div class="posttext">With pressing button Change Job choice create.job is executed.<br />
+I tried that in debugger and that choice was executed.<br />
+Probably that will work with AFS also.<br />
+stpapi.form.command(&quot;tcmcs0445m000&quot;, 5, &quot;create.job&quot;, error)<br />
+If that will not work, try:<br />
+stpapi.form.command(&quot;tcmcs0445m000&quot;, 2, &quot;create.job&quot;, error)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">8th June 2005, 16:39</div></div><div class="posttext">No, when I do this manually, I don't press save, just hit the 'change job' button, and then a message pops up &quot;job has been changed&quot; or something like that, and the session exits (returning to ttaad5101m000)<br />
+<br />
+Regarding debugging: I don't have the source for tcmcs0445, but how much wiser would I get from it? what kind of things could I see from running in debug? Please note: the option 'change job' is not available when running tcmcs0445m000 directly. It only appears on the form, when coming from ttaad5101m000 (to change the job parameters of an existing job/session).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Evert-Jan Bosch</div><div class="date">8th June 2005, 16:42</div></div><div class="posttext">I stick to my point.<br />
+When I hit the 'change job' button in session tcmcs0445m000 in debugger, choice 'create.job' is executed! I think it is worth to try it via AFS.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Evert-Jan Bosch</div><div class="date">8th June 2005, 16:46</div></div><div class="posttext">Please note: the option 'change job' is not available when running tcmcs0445m000 directly. It only appears on the form, when coming from ttaad5101m000 (to change the job parameters of an existing job/session).<br />
+I tried in the same way in debugger.<br />
+So, I think we talk about the same steps and the same problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th June 2005, 16:47</div></div><div class="posttext">I would try what Evert-Jans recommended first.<br />
+<br />
+I would think that if a button appears then there is some code associated with it - I was hoping you could see something in debug mode in the script.  One thing I was thinking was that you could make sure the put fields data was actually present before executing the stpapi.form command.  Does the tcmcs0445m000 session close down after the second stapi.form.command?  Maybe Evert-Jan posted is the answer.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">8th June 2005, 16:58</div></div><div class="posttext">Ok, first of all Evert-Jan, thanks for your posts. I didn't see you first post till after I posted my last post, that's why I didn't respond to your suggestions. The funny thing is that I had already tried create.job, which is the standard command for job handling. I tried it after your suggestion also with 2 instead of 5:<br />
+stpapi.form.command(&quot;tcmcs0445m000&quot;,2, &quot;create.job&quot;, error)<br />
+both variations don't seem to do anything, yet don't rerturn errors. <br />
+<br />
+Mark, regarding your post: I guess it works differently in Baan IV than in Baan V. The job options/buttons/functionality are not programmed on program script level for each session individually, but are general tools functionality. The way it works is: you have a standard form option 'create jobs'. If the option is activated, you see a button 'create job' when the session is running in normal mode. When you go to an existing job/session, and want to change the parameters, you hit 'adjust job' in ttaad5101m000, and then the session opens up. In this case the button is not &quot;create job&quot;, but &quot;change job&quot;.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Evert-Jan Bosch</div><div class="date">8th June 2005, 17:04</div></div><div class="posttext">hm,<br />
+In dutch I call this &quot;jammer&quot;.<br />
+In english something like: it's a pity. I guess.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">8th June 2005, 17:18</div></div><div class="posttext">Yup, a pitty!! Just to make sure again: is the syntax correct for the rest? I just want to get to it that my job parameters will be changed...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Evert-Jan Bosch</div><div class="date">8th June 2005, 17:22</div></div><div class="posttext">I'm not an expert in this area...<br />
+It's the 1st time I say something about AFS...<br />
+May be others can check the syntax?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th June 2005, 20:00</div></div><div class="posttext">en@frrom - I was just wondering about you choice of words in one place you say &quot;change job&quot; and yet in your code you say replace_job.  Have you tried:<br />
+<br />
+stpapi.form.command(&quot;tcmcs0445m000&quot;, 5, &quot;change.job&quot;, error)<br />
+<br />
+or <br />
+<br />
+stpapi.form.command(&quot;tcmcs0445m000&quot;, 5, &quot;change_job&quot;, error)<br />
+<br />
+<br />
+Another thought was - is there any possibility that ttaad5501m000 has some sort of control over the tcmcs0445m000 session and maybe the secord form command actually has to run against ttaad5501m000 instead of tcmcs0445m000?<br />
+<br />
+Just grasping at straws at this point and suggesting what ever &quot;pops&quot; into the vacancy between my ears.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">17th June 2005, 16:12</div></div><div class="posttext">Sorry for not responding for so long, but had to go on with other things. Back to this issue now..<br />
+<br />
+Mark, the reason you saw replace_job and create.job is: I know that replace_job is the correct name of the form command in ttaad5501m000 to change the job parameters per session. When debugging, I also verified that tsmcs0445m000 is activated the moment the replace_job is hit.<br />
+<br />
+For saving the changes from within tcmcs0445m000 I have no idea about the correct form command name. Trying create.job is because this is the standard Baan command being activated when a session is included into a job. This unfortunately doesn't help. I have tried replacing create.job by: user.choice.0, user.choice.1, user.choice.2, replace.job, create_job, newjob (this is the command name when a session is added to a new job) etc. Couldn't yet get it to work.<br />
+<br />
+Any other ideas/suggestions? I have also logged a case to Baan Support with a question on how to go about such a situation; wonder what the response will be.......</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th June 2005, 19:25</div></div><div class="posttext">(1) I was just wondering if you could run ttstpcreatdll on the tcmcs session to see what it creates.  Just wondering if it would create those choice options.<br />
+<br />
+(2) Do you have source code for tcmcs0445m000?  You might be able to debug what is happening inside the code and work around the problem.  If no source do you have a wrapper program like Qkey, RMCis or Rush?  You can use this to see what happens inside the code by just seeing what events get executed.<br />
+<br />
+I just used the above two options to debug why for service pack 18 the tdpur4121m000 session and tdilc4123s000 session did not play well together.  It took several days to figure out how to get it working again.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">20th June 2005, 15:17</div></div><div class="posttext">Marc, both those things I tried already last week. <br />
+- ttstpcreatdll doesn't give me any job handling function.<br />
+- when debuging tcmcs0445, when the button change job is hit, the create.job.before/after choice sentions are hit.<br />
+<br />
+So far it looks like I will give up. I will just hard-coded fill the ttaad503 strings with the correct parameters.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="transaction is on, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] transaction is on Tools Development" />
+	
+	<title>transaction is on [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; transaction is on</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">nlebert</div><div class="date">1st February 2007, 18:19</div></div><div class="posttext">Application objective : input unique serial numbers through a temporary file using a blank form 2 and update serial number file. <br />
+<br />
+Checking the threads I found that I  musn't have any retry.point or commit.transaction in my update function ( managed by the std pgm ), but I still have the &quot; transaction is on &quot; message.<br />
+<br />
+attached pgm script summary</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">1st February 2007, 19:11</div></div><div class="posttext">I don't know where you picked up that you shouldn't need a commit/abort.transaction, but since you insert a new record into a baan-table, you do need it...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">1st February 2007, 20:22</div></div><div class="posttext">Application objective : input unique serial numbers through a temporary file using a blank form 2 and update serial number file. <br />
+<br />
+Checking the threads I found that I  musn't have any retry.point or commit.transaction in my update function ( managed by the std pgm ), but I still have the &quot; transaction is on &quot; message.<br />
+<br />
+attached pgm script summary<br />
+<br />
+|******************************************************************************<br />
+|* tssma9511  0  VRC B40C c4 expl<br />
+|* Saisie des numéros de Série<br />
+|* Noel LEBERT Resp Baan         <br />
+|* 2007-02-01<br />
+|******************************************************************************<br />
+|* Main table tssma959 Fichier temporaire, Form Type 2<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+                table	  ttssma959	                  | Input file<br />
+                table	  ttssma951                       | serial number<br />
+        <br />
+        extern  domain    tcitem          prog.item       | item<br />
+        <br />
+|****************************** Program section *******************************<br />
+before.program:<br />
+        import(&quot;prog.item&quot;, prog.item)<br />
+        <br />
+|****************************** field section *********************************<br />
+field.tssma959.sern:<br />
+when.field.changes:<br />
+      if        sn_exist()<br />
+      then      input.again()<br />
+      endif<br />
+|****************************** function section ******************************<br />
+functions:<br />
+function domain tcbool sn_exist()<br />
+{<br />
+	<br />
+	db.retry.point()<br />
+	<br />
+        domain  tcbool  ret<br />
+        <br />
+        SELECT  tssma951.*<br />
+        FROM    tssma951 for update<br />
+        WHERE   tssma951._index1 = {:tssma959.sern, :prog.item}<br />
+        AS SET WITH 1 ROWS<br />
+        SELECTDO<br />
+                message(&quot;Serial number exists&quot;)<br />
+                ret = true<br />
+        SELECTEMPTY<br />
+                tssma951.item = prog.item<br />
+                tssma951.sern = tssma959.sern<br />
+                db.insert(ttssma951, db.retry)<br />
+                commit.transaction()<br />
+                ret = false<br />
+                message(&quot;mise a jour&quot;)<br />
+        ENDSELECT<br />
+        commit.transaction()<br />
+        return(ret)<br />
+}<br />
+|*******************************************************************************</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nlebert</div><div class="date">2nd February 2007, 10:22</div></div><div class="posttext">Thanks for your quick answers<br />
+<br />
+I took my information in thread : commit only in library<br />
+<br />
+When I apply the suggestion, I get an error message 206 ( Record is not locked ) on main table when saving main form.<br />
+<br />
+As explained in thread reply that's std pgm will run an commit.transaction that as already been runned through the function (That I feel logical). <br />
+It's the reason I tried don't to use retry.point or commit in function .<br />
+<br />
+Have you an other other idea ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">4th February 2007, 17:52</div></div><div class="posttext">Try to use only one commit.transaction()<br />
+<br />
+|****************************** field section *********************************<br />
+field.tssma959.sern:<br />
+when.field.changes:<br />
+if sn_exist()<br />
+then input.again()<br />
+endif<br />
+|****************************** function section ******************************<br />
+functions:<br />
+function domain tcbool sn_exist()<br />
+{<br />
+<br />
+db.retry.point()<br />
+<br />
+domain tcbool ret<br />
+<br />
+SELECT tssma951.*<br />
+FROM tssma951 for update<br />
+WHERE tssma951._index1 = {:tssma959.sern, rog.item}<br />
+AS SET WITH 1 ROWS<br />
+SELECTDO<br />
+message(&quot;Serial number exists&quot;)<br />
+ret = true<br />
+SELECTEMPTY<br />
+tssma951.item = prog.item<br />
+tssma951.sern = tssma959.sern<br />
+db.insert(ttssma951, db.retry)<br />
+ret = false<br />
+message(&quot;mise a jour&quot;)<br />
+ENDSELECT<br />
+commit.transaction()<br />
+return(ret)<br />
+}<br />
+<br />
+<br />
+I think it should work ! <br />
+Good Luck !</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">6th February 2007, 09:12</div></div><div class="posttext">Hi there,<br />
+<br />
+a superfluous commit shouldn't be the problem, I rather guess that you forgot to code &quot;for update&quot; in your select statement (that's what triggers the lock :-)<br />
+<br />
+hth<br />
+<br />
+Norbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mostrightfuture</div><div class="date">9th February 2007, 11:52</div></div><div class="posttext">Hi, <br />
+<br />
+I am not sure but just and idea, It seems that the concerning form is not running directly as a main form but calling from the other form through the programing, and there a transaction is already started, so in that case there is not need to call retry.point of commit.transaction. The update in the main table of this form should be as part of already started transaction.<br />
+<br />
+MRF</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nlebert</div><div class="date">22nd February 2007, 09:23</div></div><div class="posttext">Finally I found the following solution that works perfectly.<br />
+<br />
+Instead of invoking a function ( or DLL ), I invoke a session ( script 3GL without stand pgm ) that check and update the secondary table (called through a zoom.to$ - z.session).<br />
+This avoids any conflict with db.retry and commit transaction.<br />
+Thanks every body for your help</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

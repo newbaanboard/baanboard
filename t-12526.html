@@ -1,0 +1,105 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Updating tiitm0101m000, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Updating tiitm0101m000 AFS/DDC/OLE: Function servers" />
+	
+	<title>Updating tiitm0101m000 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Updating tiitm0101m000</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">balugr</div><div class="date">8th August 2003, 05:30</div></div><div class="posttext">Hi<br />
+<br />
+Baan IV c4 on Win NT, Informix<br />
+<br />
+I had developed an AFS script which reads Item code and Purchase Price from a file and updates the Item Master as given below.<br />
+<br />
+<br />
+string.scan(in.record, &quot;%s, %f&quot;, in.item, in.price.tmp)<br />
+in.price = round(in.price.tmp, 4, 1)<br />
+stpapi.put.field(&quot;tiitm0101m000&quot;, &quot;tiitm001.item&quot;, in.item)<br />
+ret.value.1 = stpapi.find(&quot;tiitm0101m000&quot;)<br />
+if ret.value.1 = 1 then<br />
+	stpapi.put.field(&quot;tiitm0101m000&quot;, &quot;tiitm001.prip&quot;, str$(in.price))<br />
+	stpapi.enum.answer(&quot;tiitm0101m000&quot;, &quot;timcr00001&quot;, tcyesno.yes)<br />
+	stpapi.enum.answer(&quot;tiitm0101m000&quot;, &quot;tiitm0101q&quot;, tcyesno.no)<br />
+	stpapi.enum.answer(&quot;tiitm0101m000&quot;, &quot;tiitm0101r&quot;, tcyesno.no)<br />
+	err.msg = &quot;&quot;<br />
+	stpapi.update(&quot;tiitm0101m000&quot;, true, err.msg)<br />
+	if not isspace(err.msg) then<br />
+		message.out = err.msg<br />
+		rprt_send()<br />
+                        stpapi.recover(&quot;tiitm0101m000&quot;, err.msg)<br />
+	endif<br />
+else<br />
+	message.out = &quot;Item not found &quot; &amp; in.item<br />
+	rprt_send()<br />
+endif<br />
+<br />
+I had only one stpapi.end.session(&quot;tiitm0101m000&quot;) at the end of the loop and the script was working fine.<br />
+<br />
+Recently, I found that only the first Item's price is being updated and the rest of it is not updated and there was no error message also.<br />
+<br />
+After trial and error, I added a stpapi.end.session(&quot;tiitm0101m000&quot;) at the end of updating each Item and the script is working fine now.<br />
+<br />
+I would like to know if any of you had this problem, because the upload takes more time now and we would like to speed this up.<br />
+<br />
+Appreciate any feed back on this.<br />
+<br />
+Bala</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rupertb</div><div class="date">8th August 2003, 09:45</div></div><div class="posttext">Bala please post the whole script (you can attach it if you like) as the problem could be elsewhere in your script.<br />
+<br />
+Regards,<br />
+Rupert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">8th August 2003, 10:08</div></div><div class="posttext">I would like to know if any of you had this problem, because the upload takes more time now and we would like to speed this up.It is a common problem in AFS that you have to update the records one-by-one, with closing of the sessions inbetween.  Thus, it will not be possible to improve performance here.<br />
+<br />
+A solution (for better performance, but bad for maintenance) would be to trace the database update actions (DBSLOG or SQL trace) that happen when updating the price manually, and rebuilding these same updates in your script.  Just be very careful if you decide to use this option.  Don't forget any updates!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rupertb</div><div class="date">8th August 2003, 10:23</div></div><div class="posttext">Hi Nico, well I'll be... I've only just started using AFS and in all cases it is being used for once off updates (maintain receipts, adjust inventory wara wara wara...) It seems that what you are saying is true and that takes away some of the luster of AFS.<br />
+Another problem I came across was in tdilc1121s000 where plenty of variables were being set in a 'field' 'after.zoom' section.<br />
+<br />
+Groete uit Afrika,<br />
+Rupert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">8th August 2003, 10:30</div></div><div class="posttext">There is a trick to fool those fields that get reset:<br />
+<br />
+stpapi.update(&quot;session&quot;, false, error.str)<br />
+stpapi.put.field(...) |Fix the fields here again<br />
+stpapi.save(&quot;session&quot;, error.str)<br />
+<br />
+According to the manual you are not allowed to do field updates between an update and a save, but in some sessions it is the only way to get it to work!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th August 2003, 15:39</div></div><div class="posttext">I would like to know if any of you had this problem, because the upload takes more time now and we<br />
+                                    would like to speed this up.<br />
+<br />
+<br />
+Yes - have had this problem also.  It is not like this on all sessions, but out of habit I do one update/insert, then close the session.  Some sessions do work when leaving them up between updates - you just have to play with each session.<br />
+And besides even if it is slow it still beats entering the data by hand.<br />
+<br />
+And Nico - I have never tried a put between an update and a save.  I have had to insert,save and then update the record for some fields that get reset.  Again it depends on the session.  One of the things that make API function servers fun. :)<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">8th August 2003, 17:38</div></div><div class="posttext">Mark, look at the solution in this thread (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=10511) Works quite well!</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

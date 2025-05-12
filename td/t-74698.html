@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="extension for table whinr110 (inventory transaction) - weird behaviour, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] extension for table whinr110 (inventory transaction) - weird behaviour Tools Development" />
+	
+	<title>extension for table whinr110 (inventory transaction) - weird behaviour [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; extension for table whinr110 (inventory transaction) - weird behaviour</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">okneb1</div><div class="date">1st November 2022, 15:55</div></div><div class="posttext">Hi,<br />
+<br />
+LN 10.7<br />
+Portingset:9.4f<br />
+Tools Interface Version (Bshell):2450<br />
+<br />
+What I'm trying to do: Whenever a &quot;receipt&quot; record gets created in whinr110, I'm also trying to update CDFs on all other &quot;issue&quot; records in whinr110 that are related to a specific prod. order.<br />
+<br />
+So, for example: A record of type &quot;Receipt&quot; gets created in whinr110 and is related to prod. order 1000. This record already has a CDF filled with some data. At the moment when this record gets inserted, I also want to fill this CDF on pre-existing transactions in whinr110 (type Issue) that are related to this prod. order 1000. The &quot;issue&quot; records already exist in table whinr110 as they are created before the receipt is confirmed.<br />
+<br />
+My code in after.save in extension point for whinr110:<br />
+<br />
+function extern long after.save.object(long mode)<br />
+{<br />
+	| hook code<br />
+	if mode = DAL_NEW then<br />
+                	if (trim$(whinr110.cdf_huid) &lt;&gt; &quot;&quot;) and<br />
+                	   (whinr110.koor = tckoor.act.sfc) and<br />
+                	   (whinr110.kost = tckost.receipt) and<br />
+                	   (trim$(whinr110.rcno) &lt;&gt; &quot;&quot;) and<br />
+                	   (trim$(whinr110.orno) &lt;&gt; &quot;&quot;) then<br />
+                	        |* WARNING: this function calls disable.table.extension()<br />
+                	        |* to prevent recursion error<br />
+                	        update.cdf.handling.unit.for.receipt3(whinr110.item, <br />
+                                        whinr110.cwar, whinr110.trdt,whinr110.seqn,<br />
+                	                whinr110.rcno, whinr110.rcln, whinr110.orno,<br />
+                	                whinr110.ocmp, whinr110.cdf_huid)<br />
+                	endif<br />
+	endif<br />
+<br />
+<br />
+And my function:<br />
+<br />
+function update.cdf.handling.unit.for.receipt3(<br />
+        domain tcitem i.item, <br />
+        domain tccwar i.cwar, <br />
+        domain tcdate i.trdt,<br />
+        domain tcmcs.long i.seqn,<br />
+	domain whinh.shpm i.rcno, <br />
+	domain tcpono i.rcln, <br />
+	domain tcorno i.orno,<br />
+	domain tcncmp i.ocmp,<br />
+	domain whhuid i.huid)<br />
+{<br />
+        select whinr110.*<br />
+        from whinr110 for update<br />
+        where whinr110.ocmp = :i.ocmp <br />
+        and whinr110.koor = 1 |* production order<br />
+        and whinr110.orno = :i.orno<br />
+        and whinr110.kost = 5 |* issue<br />
+        and TRIM(whinr110.cdf_huid) = &quot;&quot;<br />
+        order by whinr110.trdt DESC<br />
+        selectdo<br />
+                whinr110.cdf_huid = i.huid<br />
+                disable.table.extension()<br />
+                db.update(twhinr110,db.retry)        <br />
+        endselect       <br />
+}<br />
+<br />
+<br />
+And this is just not working for me. With the debbuger I get into the function update.cdf.handling.unit.for.receipt3, into the selectdo statement. db.update also returns 0, everything looks ok while debbuging, but the record just doesn't get updated (CDF is not updated in DB) after the stand. process ends. No error in event log, nothing in other logs. If I ommit the disable.table.extension(), I ofcourse get the recursion error - expected error.<br />
+<br />
+I've done scenarios like this multiple times already in the past: whenever a record gets inserted in table A, also update some other records in table A. I've always done this in the after.save trigger of table A. But in this case it seems whinr110 is different in this regard.<br />
+<br />
+Anyone else got this experience with whinr110?<br />
+<br />
+EDIT: I just did another quick test with tccom100 table (Customers), and this principle is working: whenever I insert a new customer, name gets updated to <br />
+&quot;test999&quot;. At the same time, I update the name to &quot;rr&quot; on some other, pre-existing records. And it's working OK. And it's the same principle as with my first case on whinr110 - but there it's just not working<br />
+<br />
+<br />
+function extern long after.save.object(long mode)<br />
+{<br />
+	| hook code<br />
+	domain tccom.bpid i.item<br />
+	i.item = tccom100.bpid<br />
+	<br />
+	if mode = DAL_NEW then<br />
+                	select tccom100.*<br />
+                	from tccom100 for update<br />
+                	where tccom100.bpid = :i.item<br />
+                	as set with 1 rows<br />
+                	selectdo<br />
+                	        tccom100.nama = &quot;test999&quot;<br />
+                	        disable.table.extension  ()<br />
+                	        db.update(ttccom100,db.retry)<br />
+                	endselect<br />
+                	<br />
+                	select tccom100.*<br />
+                	from tccom100 for update<br />
+                	where TRIM(tccom100.bpid) = &quot;TEST1&quot; or<br />
+                	TRIM(tccom100.bpid) = &quot;TEST2&quot;<br />
+                	or TRIM(tccom100.bpid) = &quot;TEST3&quot;<br />
+                	selectdo<br />
+                	        tccom100.nama = &quot;rr&quot;<br />
+                	        disable.table.extension  ()<br />
+                	        db.update(ttccom100,db.retry)<br />
+                	endselect<br />
+	endif<br />
+	return (0)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">3rd November 2022, 12:18</div></div><div class="posttext">Hi.<br />
+<br />
+I normally do it the other way round: Assign the values to CDFs in the before.save.object hook. So you don't have to select whinr110 &quot;for update&quot;, just assign the values you like.<br />
+And: isspace(...) is better than trim$(...) &lt;&gt; &quot;&quot;.<br />
+<br />
+Regards<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">okneb1</div><div class="date">3rd November 2022, 21:34</div></div><div class="posttext">günther,<br />
+<br />
+I'm doing it in the before.save.object for the receipt transaction, but the problem is that CDF value is not yet known when issue transactions are created.<br />
+<br />
+Timeline of events:<br />
+1. Issue transactions A and B are written to whinr110. At this moment receipt is not created yet and we don't know the CDF value<br />
+2. Receipt is created and confirmed, receipt transaction C is written to whinr100. CDF value is assigned in the before.save<br />
+3. We should now also update CDF in the issue transactions A&amp;B from step 1 which are connected to receipt through order no. (in this step select whinr100, for update is almost unavoidable)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

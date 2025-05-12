@@ -1,0 +1,258 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="inserting a planned order, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] inserting a planned order AFS/DDC/OLE: Function servers" />
+	
+	<title>inserting a planned order [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; inserting a planned order</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">LittleJohn</div><div class="date">25th April 2004, 22:14</div></div><div class="posttext">Hi,<br />
+<br />
+I'm trying to insert a record using FS for the session cprrp1500m000. This takes to the maintain session cprrp1100s000.<br />
+<br />
+Before calling the below stmts, I select a record and store all the values in temp vars.<br />
+<br />
+Since this is &quot;cp&quot;, the domain used for the Item is &quot;cpitem&quot; and not &quot;tcitem&quot;. The only difference is, the field length of item here is 50 in 'cp'. The first three are used for a cluster (tcemm135).<br />
+<br />
+There are already 10 orders present in this table. <br />
+I select the first one and want to change  a few field values before inserting the new record. The problem is, <br />
+<br />
+when I do a put.order_item(old.item) and do a get.order_item()<br />
+it is returning the item value of the 10th record (the last one).<br />
+Why is it doing this ?<br />
+<br />
+I tried to parse the item value and assign it to the FS function, but its still the same.<br />
+<br />
+<br />
+The code is below :<br />
+ret = cprrp1500m000f.synchronize.dialog(&quot;add&quot;, hold.error)<br />
+	<br />
+	cprrp1100s000f.put.scenario(old.plnc)<br />
+	cprrp1100s000f.put.order_type(old.type)<br />
+	cprrp1100s000f.put.plan_level(old.plvl)<br />
+	<br />
+	<br />
+                cprrp1100s000f.put.order_item.segment.1(old.item(1;3))<br />
+	cprrp1100s000f.put.order_item.segment.2(old.item(4;9))<br />
+	cprrp1100s000f.put.order_item.segment.3(old.item(13;38))<br />
+	hold.item = cprrp1100s000f.get.order_item()<br />
+                |* still retains the item value of the 10th record<br />
+<br />
+                temp.cprj = shiftl$(strip$(old.item(4;9)))<br />
+	temp.item = shiftl$(strip$(old.item(13;38)))<br />
+	temp.clus = &quot;&quot;<br />
+                cprrp1100s000f.put.order_item.segment.1(temp.clus)<br />
+	cprrp1100s000f.put.order_item.segment.2(temp.cprj)<br />
+	cprrp1100s000f.put.order_item.segment.3(temp.item)<br />
+	hold.item = cprrp1100s000f.get.order_item()<br />
+                |* still retains the item value of the 10th record<br />
+<br />
+	cprrp1100s000f.put.planning_method(old.plmt)<br />
+	cprrp1100s000f.put.planned_requirement_date(old.prdt)<br />
+	cprrp1100s000f.put.planner(old.cplb)<br />
+	cprrp1100s000f.put.destination_warehouse(old.dwar)<br />
+	cprrp1100s000f.insert(1, hold.error)<br />
+	new.orno = cprrp1100s000f.get.planned_order()<br />
+	if not isspace(hold.error) then<br />
+		ret = seq.write(hold.error &amp; str$(chr$(10)),1024, fptr)<br />
+		exit()<br />
+	endif<br />
+Can anyone please help me with this. Thanks<br />
+<br />
+Regards<br />
+LittleJohn</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">LittleJohn</div><div class="date">26th April 2004, 05:21</div></div><div class="posttext">I made a few changes in my code... the correct record values are shown when I do a get_item().<br />
+<br />
+but the problem is.. It still does not let me insert a record.<br />
+<br />
+The starting session is cprrp1500m000 and I insert here, it takes me to the cprrp1100s000 session. I am able to enter the below record manually. There is a further subsession cprrp1110s000 and some fields get updated there when i enter data in the cprrp1100s000 session. I dont have to enter data there manually.<br />
+<br />
+Is it necessary that I enter data in the cprrp1110s000 session as well ? I tried doing that too, but no luck.  :confused: <br />
+<br />
+cprrp1500m000f.put.scenario(old.plnc)<br />
+cprrp1500m000f.put.order_type(old.type)<br />
+cprrp1500m000f.put.planned_order(old.orno)<br />
+if cprrp1500m000f.find() = 1 then<br />
+      ret = cprrp1500m000f.synchronize.dialog(&quot;add&quot;, hold.error)<br />
+      cprrp1100s000f.put.scenario(old.plnc)<br />
+      hold.plnc = cprrp1100s000f.get.scenario()<br />
+	<br />
+	cprrp1100s000f.put.order_type(old.type)<br />
+	<br />
+	cprrp1100s000f.put.planned_order(hold.orno)<br />
+	new.orno = cprrp1100s000f.get.planned_order()<br />
+	<br />
+	cprrp1100s000f.put.plan_level(old.plvl)<br />
+	hold.plvl = cprrp1100s000f.get.plan_level()<br />
+	<br />
+	cprrp1100s000f.put.order_item.segment.1(old.item(1;3))<br />
+	cprrp1100s000f.put.order_item.segment.2(old.item(4;9))<br />
+	cprrp1100s000f.put.order_item.segment.3(old.item(13;38))<br />
+	hold.item = cprrp1100s000f.get.order_item()<br />
+	<br />
+	cprrp1100s000f.put.planning_method(old.plmt)<br />
+	cprrp1100s000f.put.planned_requirement_date(old.prdt)<br />
+	cprrp1100s000f.put.order_status(old.osta)<br />
+	cprrp1100s000f.put.planner(old.cplb)<br />
+	cprrp1100s000f.put.destination_warehouse(old.dwar)<br />
+	cprrp1100s000f.insert(1, hold.error)<br />
+<br />
+It always comes back with the error saying &quot;Order Item not allowed&quot;  :confused: <br />
+The item is present in item master, costing &amp; plan items for all levels....<br />
+<br />
+What am i doing wrong here ?<br />
+<br />
+Thanks<br />
+LittleJohn</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th April 2004, 23:02</div></div><div class="posttext">Sometimes when you use API's the data from main sessions to sub-sessions does not get passed to the sub-session.  It could very well be that the 1110 sub-session is causing your problem. When inserting manually does the 1110 sub-session open and close automatically?  What happens when debugging your code?  When this sub-session(1110s000) opens in api mode have you done some get fields to make sure everything is correct?<br />
+<br />
+Sorry but I am on Baan 4c4 and not really familiar with these sessions.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">LittleJohn</div><div class="date">26th April 2004, 23:25</div></div><div class="posttext">Thanks for your reply Mark...<br />
+<br />
+When inserting manually, the subsession cprrp1110s000 does not open manually. There is a button &quot;order details&quot; on the form of the cprrp1100s000 session. It opens up only i manually click on that button. <br />
+But yes, some fields of that session table (cprrp110) do get updated when entering the data in the cprrp1100s000.<br />
+<br />
+during debug, the cprrp1110s000 session opens up in the background, but comes up with a error saying that item is not found when doing a update, but It shows the correct item when i do a get(). <br />
+(I dont do a insert since the record is already inserted there by the cprrp1100s000, if done manually). <br />
+<br />
+This is what i had added for the cprrp1110s000 sub-session<br />
+ret = cprrp1500m000f.synchronize.dialog(&quot;add&quot;, hold.error)<br />
+	<br />
+	cprrp1100s000f.put.scenario(old.plnc)<br />
+	cprrp1100s000f.put.order_type(old.type)<br />
+	cprrp1100s000f.put.planned_order(hold.orno)<br />
+	cprrp1100s000f.put.plan_level(old.plvl)<br />
+	hold.plvl = cprrp1100s000f.get.plan_level()<br />
+	cprrp1100s000f.put.order_item.segment.1(old.item(1;3))<br />
+	cprrp1100s000f.put.order_item.segment.2(old.item(4;9))<br />
+	cprrp1100s000f.put.order_item.segment.3(old.item(13;38))<br />
+	cprrp1100s000f.put.planning_method(old.plmt)<br />
+	cprrp1100s000f.put.planned_requirement_date(old.prdt)<br />
+	cprrp1100s000f.put.order_status(old.osta)<br />
+	cprrp1100s000f.put.planner(old.cplb)<br />
+	cprrp1100s000f.put.destination_warehouse(old.dwar)<br />
+	cprrp1100s000f.insert(1, hold.error)<br />
+|** Fails at this INSERT<br />
+|* The subsequent lines also fail even if i do a find() first....<br />
+<br />
+	new.orno = cprrp1100s000f.get.planned_order()<br />
+	<br />
+	cprrp1100s000f.handle.sub.process(&quot;cprrp1110s000&quot;, &quot;add&quot;)<br />
+	cprrp1110s000f.put.scenario(old.plnc)<br />
+	cprrp1110s000f.put.order_type(old.type)<br />
+	cprrp1110s000f.put.planned_order(hold.orno)<br />
+	cprrp1110s000f.put.order_quantity(hold.qty)<br />
+	|cprrp1110s000f.put.order_line_start_date(date.num())<br />
+	cprrp1110s000f.put.order_line_finish_date(old.olfd)<br />
+	cprrp1110s000f.save(hold.error)<br />
+	cprrp1110s000f.update(1, hold.error)<br />
+	|cprrp1110s000f.end()<br />
+Any suggestions?<br />
+<br />
+Regards<br />
+LittleJohn</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">LittleJohn</div><div class="date">26th April 2004, 23:32</div></div><div class="posttext">Is there a way to &quot;duplicate/copy&quot; the order from the cprrp1500m000 session using the FS ? I can manually do that. Maybe, If I Mark the record, the FS can copy the record, then all i would have to do is, modify the order number before inserting it.<br />
+Is there such a API call to duplicate. I could not find any in my FS DLL. Would I still have to start the &quot;synchronize.dialog&quot; ??<br />
+<br />
+Thanks in Advance.<br />
+<br />
+Regards<br />
+LittleJohn</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th April 2004, 15:53</div></div><div class="posttext">I have never done a copy of a record using this method - never really had a reason to try it.  So I am not sure if you can do it.  I know you can do a lot of get.fields and then do a put.field with a insert or save.  Not complicated but a lot of work.  <br />
+<br />
+Now for somethings you can try:<br />
+<br />
+(1) If I understand correctly in debug mode when you do the insert on rrp1100s000 it automatically starts the rrp1110s000 session. Is this correct? If so then I would expect this statement cprrp1100s000f.handle.sub.process(&quot;cprrp1110s000&quot;, &quot;add&quot;) to be before the insert.  <br />
+<br />
+(2) You may also want to try insert with the 0 option followed by a save.  I have had this work before - can not recall when or where but I know I used this once when the insert was not working.<br />
+<br />
+(3) You can also try using Kill instead of add for the 1110s000 session.  Then if you need to run it you can use the stpapi.option command.<br />
+<br />
+Please note that I am on 4c4 and am relaying things that have worked for me.  So I do not really know anything about the stpapi.synchronize.dialog command.  No promises that the these things might work, but you never know with stpapi commands.  Also do you own source code?  That could make things a lot easier.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">LittleJohn</div><div class="date">28th April 2004, 00:26</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Thanks for your reply.<br />
+<br />
+1. The session cprrp1110s000 does not start until i do the cprrp1100s000f.handle.sub.process(&quot;cprrp1110s000&quot;, &quot;add&quot;).<br />
+I have to do the insert for the cprrp1100s000 session first.<br />
+<br />
+2. This WORKED. Tried it with the 0 option during the 'add'. It adds the record in the header table (cprrp1100s000). After this, I assign all values to the handle.sub.process(cprrp1110s000)... this one fails :(<br />
+This is not inserting the detail record.<br />
+Still struggling with this detail FS insert.<br />
+The last resort is to input the detail record using a db.insert :) (dont want to do it... but... well...)  <br />
+If only i had the source code :rolleyes: <br />
+<br />
+Really appreciate your time on this Mark. Thanks again<br />
+<br />
+Regards<br />
+LittleJohn</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">28th April 2004, 15:49</div></div><div class="posttext">(1) This is not how I would expect it to act. I would not expect the 1110s000 subsession to come up until you activated it.  You can see a sample of my code in this post (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=15152). <br />
+<br />
+<br />
+(2) This is where you might want to try the kill command instead of add.  The use the stpapi.application option like in the sample.  This may give you better control over the 1110s000 session.<br />
+<br />
+These are the challenges that make function servers fun. :)<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">28th April 2004, 17:37</div></div><div class="posttext">Does this sub-session start in insert mode??  I was just working on some function servers Gordon developed.  In our case a tools patch started causing problems with our contractor interface in our test financial companies.  This ran sessions tfgld1100m000 which called tfgld1101s000.  When inserting a batch into tfgld1101s000 it started giving the error &quot;Transaction type not allowed&quot;.  I started also having problems when creating the invoice using tfacp1110s000.  In both cases as soon as the subsession is activated I do a stpapi.save - no data or putfields or anything.  Then I let Gordons code run and do the insert. This seems to have fixed the problem.  Supposedly this tools patch was the latest and greatest.  You may have the same situation.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">LittleJohn</div><div class="date">28th April 2004, 17:42</div></div><div class="posttext">that's gud lead to work on.<br />
+Let me try the dummy save and kill. See if that resolve the issue.<br />
+In fact what we've done is, once the header is insert using the FS, we are doing a db.insert for the detail record and calling the respective std functional DLLs to update other fields.<br />
+The functional situation is resolved... but i'd still like to keep it clean with a FS usage through out.<br />
+IF there is any change to those DLLS through some patch, then this insert goes for a toss :p  You know what I mean.<br />
+<br />
+Like you say, Mark... these things make function servers fun :)<br />
+Let me try what you suggested.<br />
+Thanks again for your time.<br />
+<br />
+Cheers<br />
+LittleJohn</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">29th August 2005, 09:27</div></div><div class="posttext">Hi Little John,<br />
+<br />
+Sorry for way, way, way late reply. You asked this question when I checked out of Baan to work with other ERP brand. I quit being moderator too back then. Well, I bumped at this discussion thread today while doing research on transaction type, a Finance concept (strangely your question popped up there). If this doesn't help you, then at least it should help the next person.<br />
+Anyway, the glaring error-raising code was that you should've done stpapi.insert() on the main session, i.e. cprrp1500m000, as per API manual<br />
+<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

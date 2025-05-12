@@ -1,0 +1,67 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Backorders on Receiving AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Backorders on Receiving AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>Backorders on Receiving AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Backorders on Receiving AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">7th April 2014, 21:56</div></div><div class="posttext">I have an AFS session for receiving (tdpur4120m000) that is working well, but I'm having an issue with backorders.<br />
+<br />
+With some lines, I want the system calculate the backorder. With other lines, I want to enter a specific backorder. The problem is that as soon as I enter a backorder, that value of tdpur045.bqua stays in memory and it is copied to the subsequent lines. <br />
+<br />
+I might end up with this:<br />
+<br />
+Line 10; Order Qty: 10; Del. Qty: 5  &lt; System enters 5 in Backorder<br />
+Line 20; Order Qty: 8; Del. Qty: 4 &lt; System enters 4 in Backorder<br />
+Line 30; Order Qty: 10; Del. Qty: 5; Backorder Qty: 0<br />
+Line 40; Order Qty: 3; Del. Qty 1; Backorder Qty: 0 &lt; System picked up 0 from Line 40.<br />
+<br />
+In Lines 10 and 20, I don't send a backorder to AFS, and it calculates the correct backorder. In Line 30, I send a backorder of 0 (to cancel the line). In Line 40, I want it to go back to calculating the backorder, but instead it picks up 0, the amount from the previous line. <br />
+<br />
+How do I clear that value from memory and get AFS to go back to calculating the backorder?<br />
+<br />
+My code looks like this (somewhat simplified). I have the values to receive in a table called tdcus021. If the backorder quantity is -1, AFS should calculate the backorder. <br />
+loop = stpapi.browse.set(&quot;tdpur4120m000&quot;, &quot;first.set&quot;, err)<br />
+           while loop<br />
+              | You need to use this get, put and find combo to make each line of the <br />
+              | receipt current, so you can edit it. Just using next.set by itself <br />
+              | doesn't do that. <br />
+               stpapi.get.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.orno&quot;, f.orno)<br />
+              stpapi.get.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.pono&quot;, f.pono)<br />
+              stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.reno&quot;, str$(reno))<br />
+              stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.orno&quot;, f.orno)<br />
+              stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.pono&quot;, f.pono)<br />
+            pono = lval(f.pono)<br />
+              rc1 = stpapi.find(&quot;tdpur4120m000&quot;)<br />
+             | Line is now current, start entering data<br />
+               stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.date&quot;, str$(date.num()))<br />
+            | form.quan contains the order quantity. need this for backorder            stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.diqu&quot;, str$(tdcus021.dqua))<br />
+             stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.dqua&quot;, str$(tdcus021.dqua))<br />
+            |if tdcus021.bqua &lt;&gt; -1 then<br />
+                stpapi.put.field(&quot;tdpur4120m000&quot;, &quot;tdpur045.bqua&quot;, str$(tdcus021.bqua))<br />
+            endif            <br />
+<br />
+             | Upsdate and go to next line<br />
+            stpapi.update(&quot;tdpur4120m000&quot;, 1, err)<br />
+            loop = stpapi.browse.set(&quot;tdpur4120m000&quot;, &quot;next.set&quot;, err)    <br />
+        endwhile</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th April 2014, 00:42</div></div><div class="posttext">You can always try opening and closing the session after each line - or at least when you put the back order qty.  A lot of overhead if you are doing hundreds of orders.  This is all that jumps into my mind right now.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

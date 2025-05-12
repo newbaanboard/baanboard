@@ -1,0 +1,188 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Oracle-Process, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Oracle-Process Operating Systems &amp; Databases" />
+	
+	<title>Oracle-Process [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Oracle-Process</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">MarioS</div><div class="date">15th May 2003, 12:26</div></div><div class="posttext">Hello everybody,<br />
+<br />
+does anybody know what kind of process the &quot;oracle&lt;SID&gt;&quot;-Process is, e.g.<br />
+<br />
+ps -ef :<br />
+<br />
+oracleBAANDB (DESCRIPTION=(LOCAL=YES(SDU=8192)(TDU=8192)(ADDRESS=(PROTOCOL=beq<br />
+<br />
+There seems to be a &quot;oracle&lt;SID&gt;&quot;-process for every Baan-session, but I can not find the connection between the bshell and the &quot;oracle&lt;SID&gt;&quot;-process, because the PPID is always 1 , i.e. the init-process. I also cannot find a connection between this process and the Oracle session ID/serial.<br />
+<br />
+Sometimes some of these processes seem to hang and block CPU-time but how can I find a way to identify the corresponding Baan-Session ? If there is none, can this process be terminated ?<br />
+How do you handle this ?<br />
+<br />
+Thank you.<br />
+<br />
+Mario</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jclju1</div><div class="date">15th May 2003, 13:07</div></div><div class="posttext">but I can not find the connection between the bshell and the &quot;oracle&lt;SID&gt;&quot;-process, because the PPID is always 1 <br />
+Owner of the bshell and the &quot;oracle&lt;SID&gt;&quot;-process is the same user.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">15th May 2003, 14:32</div></div><div class="posttext">I think this is what you are looking for:<br />
+<br />
+SQL&gt; l<br />
+  1  select s.process<br />
+  2  from v$process p, v$session s<br />
+  3  where p.pid = s.sid<br />
+  4* and p.spid = '9475'<br />
+SQL&gt; /<br />
+<br />
+PROCESS<br />
+---------<br />
+9473<br />
+<br />
+$  ps -ef |/usr/xpg4/bin/grep -E '9473|9475' |grep -v grep<br />
+ dwesten  9473  9472  0 13:50:56 ?        0:00 oracle8 (dwesten:9472/PIPE&lt;dwesten@bobbie:9471&gt;) 9472 321 11 12<br />
+  oracle  9475     1  0 13:50:56 ?        0:00 oracleCF (DESCRIPTION=(LOCAL=YES)(SDU=8192)(TDU=8192)(ADDRESS=(PROTOCOL=beq)))<br />
+<br />
+<br />
+Of course it can be extended as you like.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">James</div><div class="date">15th May 2003, 16:04</div></div><div class="posttext">Mario,<br />
+<br />
+The process you refer to is a Database Thread spawned by the Oracle Database.<br />
+<br />
+This is the process used for the Oracle 'session' - triggered by communications from the bshell via the oracle driver.<br />
+<br />
+Indeed, this process can get busy, consume CPU and even hang sometimes.  <br />
+<br />
+To identify the session status within the database, find the unix process id and run:<br />
+<br />
+SQL&gt; select username, status, process, program from v$session where process = 12345;<br />
+<br />
+An ACTIVE status will indicate the DML/DDL statements are still running within the database.  Query v$sqltext or v$sql to find the active SQL code.<br />
+<br />
+Indeed, use Dikkie's code above to trace this Oracle thread back to the Baan bshell &amp; oracle driver.<br />
+<br />
+If the Oracle thread is completely hung, the recommended way to terminate this process is to kill the Oracle Session from within the database.<br />
+<br />
+SQL&gt; select sid, serial# from v$session where process =12345;<br />
+<br />
+16  8<br />
+<br />
+SQL&gt; alter system kill session &quot;16,8&quot;;<br />
+<br />
+The status in v$session will then be changed to KILLED. And after a short period the unix process should terminate.<br />
+<br />
+If the unix process is still hanging after this, then a unix kill can then be used on that process.<br />
+<br />
+Have fun.<br />
+<br />
+James</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">MarioS</div><div class="date">15th May 2003, 16:06</div></div><div class="posttext">YES !!!<br />
+<br />
+You saved my day.<br />
+<br />
+Thank you.<br />
+<br />
+M.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">suhas-mahajan</div><div class="date">17th May 2003, 08:42</div></div><div class="posttext">Hi Respected James,<br />
+<br />
+You wrote:<br />
+----------------------------<br />
+If the unix process is still hanging after this, then a unix kill can then be used on that process.<br />
+----------------------------<br />
+<br />
+My Query:<br />
+If the NT process is still hanging after this, how can we kill the process?<br />
+If we tried Task Manager &gt; Process &gt; End Process &gt; Warning &gt; Yes, it give the error &quot;Unable to terminate process, The operation could not be completed, Access is denied.&quot;<br />
+<br />
+Any idea about NT?<br />
+<br />
+-Suhas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">James</div><div class="date">19th May 2003, 14:48</div></div><div class="posttext">Hi Suhas,<br />
+<br />
+I'm no NT expert - though by the sounds of it you're a bit stuck.<br />
+<br />
+You could try restarting the database service - but even that may not free the process.  If the process is causing a problem, you may end up having to reboot.<br />
+<br />
+One of the many major drawbacks and un-popularities of NT.  Thought about Linux?<br />
+<br />
+James</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">19th May 2003, 14:53</div></div><div class="posttext">The NT resource kit has a utility called 'kill'. This one should help you to really kill the process.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baaniac</div><div class="date">20th May 2003, 19:23</div></div><div class="posttext">Hi,<br />
+<br />
+I got the following script from Oracle site - <br />
+<br />
+http://otn.oracle.com/oramag/code/tips2003/030903.html<br />
+<br />
+First, you can find out which Oracle process has hung-up by the folloing script -<br />
+<br />
+set pagesize 100<br />
+set linesize 100<br />
+column Program format a20<br />
+SELECT  s.Sid             AS &quot;Sid&quot;,<br />
+   s.Serial#              AS &quot;Serial#&quot;,<br />
+   p.spid                 AS &quot;ThreadID&quot;,<br />
+   s.OSUser               AS &quot;OSUser&quot;,<br />
+   s.Program              AS &quot;Program&quot;<br />
+FROM   V$Process p, V$session s<br />
+WHERE  p.addr=s.paddr(+)<br />
+ORDER BY s.Sid<br />
+<br />
+Sample Output: <br />
+<br />
+Sid Serial# ThreadID OSUser  Program<br />
+--- ------- -------- ------  -------<br />
+...<br />
+10  809     102      User01  Prog.exe<br />
+11  345     333      SeUser  App.exe  <br />
+15  719     422      User01  Prge.exe<br />
+20  345     123      SeUs    Acco.exe  <br />
+            555<br />
+            324<br />
+<br />
+Then use the following command from a command prompt to remove the threads, i.e. killed session: <br />
+<br />
+&quot;orakill  DatabaseInstanceName  ThreadNumber&quot;<br />
+<br />
+example <br />
+ <br />
+&quot;orakill ORCL 555&quot; <br />
+<br />
+example <br />
+<br />
+&quot;orakill ORCL 324&quot;</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

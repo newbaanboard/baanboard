@@ -1,0 +1,168 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Exchange - Only need to import date for a couple of table fields, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Exchange - Only need to import date for a couple of table fields Tools Development" />
+	
+	<title>Exchange - Only need to import date for a couple of table fields [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Exchange - Only need to import date for a couple of table fields</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">pjohns</div><div class="date">26th June 2003, 14:32</div></div><div class="posttext">Hello,<br />
+<br />
+I want to update a couple of fields in the tiitm001 table.<br />
+<br />
+I have created an Exchange scheme detailing the two fields that I want to update/overwrite. But each time I run the Exchange Import I get 606 errors. When checking the logs I can see that these errors are related to tiitm001 fields that I'm not importing.<br />
+<br />
+At first I thought my exchange scheme needs to include ALL table fields but if you read the help for tuxch0122m000 it says: -<br />
+<br />
+&quot;All TRITON fields which must be filled from ASCII file fields must be specified as individual relations. Fields which are not defined will remain empty when the new record is added, and old values will be retained in case of overwriting. At least all the fields of the primary index of the TRITON table must be defined.&quot;<br />
+<br />
+One of my relations is the primary index(item) of the itm001 table.<br />
+<br />
+I have tried creating field relations just for the two fields that I wish to update linking them to the fields in my ASCII file. I've also included all other fields from the itm001 table telling Exchange to use the default value.<br />
+<br />
+Can somebody please point me in the right direction on how to get my update to work?<br />
+<br />
+thanks<br />
+<br />
+PJ</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kbartelds</div><div class="date">26th June 2003, 14:56</div></div><div class="posttext">Hi,<br />
+<br />
+If you're seeing reference errors in logfile, and manual change of the item table does not give any problem, you will be inserting records instead of update/overwrite. Might be item alignment? Set insert to false, only use update. If no records are being updated you have an alignment problem, which can be solved be using a field script with shiftl$ or shiftr$.<br />
+<br />
+Regards,<br />
+Klaas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Juergen</div><div class="date">26th June 2003, 14:58</div></div><div class="posttext">Hi PJ,<br />
+<br />
+you are right. In your case you have only to include the item field (key field) and the fields that you wants to overwrite/update in your table field definition.<br />
+<br />
+So it seems for me that the settings in &quot;Maintain Table Relations (Import)&quot; and/or &quot;Maintain Field Relations (Import)&quot; are not correct. Maybe you can post the settings you made.<br />
+<br />
+Rgds,<br />
+Juergen</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">26th June 2003, 15:12</div></div><div class="posttext">If I read it correctly, all you want to do is update date fields for existing record.  I presume your ASCII file has the format:<br />
+item(16 chars, aligned correctly)|date1 (format dd/mm/yyyy)|date2 (format dd/mm/yyyy)<br />
+Then the easiest would be to point the Exchange scheme to tuxch005 instead of tiitm001.  For the first couple of fields you should assign fixed values, and on the field newv create a condition with the following:<br />
+<br />
+string  dat(12)<br />
+string  msg(30)<br />
+string  path(128)<br />
+string  line(256)<br />
+string  item(16)<br />
+string  date1(10)<br />
+string  date2(10)<br />
+long    ftxt<br />
+long    cntr<br />
+long    rslt<br />
+<br />
+path = getenv$(&quot;HOME&quot;) | Or whatever...<br />
+cntr = 0<br />
+<br />
+ftxt = seq.open(path &amp; &quot;filename&quot;, &quot;r&quot;)<br />
+if (ftxt &lt; 1) and (ftxt &lt;&gt; -2) then<br />
+  msg = sprintf$(&quot;Error %d opening file&quot;, ftxt)<br />
+  return(msg)<br />
+endif<br />
+if ftxt = -2 then<br />
+  return(&quot;File not found&quot;)<br />
+endif<br />
+<br />
+db.retry.point()<br />
+while seq.gets(line, 256, ftxt) = 0<br />
+  rslt = string.scan(line, &quot;%s|%s|%s&quot;, item, date1, date2)<br />
+<br />
+  if rslt = 3 then<br />
+    select  tiitm001.date1, tiitm001.date2<br />
+    from    tiitm001 for update<br />
+    where   tiitm001._index1 = {:item}<br />
+    selectdo<br />
+      tiitm001.date1 = date.to.num(lval(date1(7;4)),<br />
+                                          lval(date1(4;2)),<br />
+                                          lval(date1(1;2)))<br />
+      tiitm001.date2 = date.to.num(lval(date2(7;4)),<br />
+                                          lval(date2(4;2)),<br />
+                                          lval(date2(1;2)))<br />
+      db.update(ttiitm001, db.retry)<br />
+    endselect<br />
+  endif<br />
+<br />
+  cntr = cntr + 1<br />
+endwhile<br />
+commit.transaction()<br />
+<br />
+|* If you want to delete the file after the update, use this:<br />
+seq.unlink(path &amp; &quot;filename&quot;)<br />
+|* else, just close the file<br />
+seq.close(ftxt)<br />
+<br />
+dat = dte$()<br />
+return(sprintf$(&quot;Updated %d items at &quot;, cntr) &amp;<br />
+        dat(1;2) &amp; &quot;/&quot; &amp; dat(3;2) &amp; &quot;/20&quot; &amp; dat(5;2) &amp; &quot; &quot; &amp;<br />
+        dat(7;2) &amp; &quot;:&quot; &amp; dat(9;2) &amp; &quot;:&quot; &amp; dat(11;2))<br />
+Just fix the date1 and date2 fields, and the filename, and it should work the way you want it!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ssbaan</div><div class="date">26th June 2003, 16:06</div></div><div class="posttext">exchange scheem 606 err problem <br />
+We have done exactly what you wnat to do many of times using exchange. You might want to check what you have for the session tuxch0122m000 (Maintain field relations) and on form 2<br />
+your entry should be as follows<br />
+<br />
+Triton field overwrite update<br />
+<br />
+item no no<br />
+usab (or some other yes yes<br />
+field)<br />
+<br />
+<br />
+Tour table realtions should have overwite only for the table tiitm001.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pjohns</div><div class="date">26th June 2003, 18:50</div></div><div class="posttext">ssbaan - I tried your suggestion but it made no difference.<br />
+<br />
+Juergen - As requested I have attached settings for table and field relations.<br />
+<br />
+Hope this helps<br />
+<br />
+Thanks<br />
+<br />
+PJ</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Juergen</div><div class="date">27th June 2003, 08:54</div></div><div class="posttext">Hi PJ,<br />
+<br />
+please set the Field Update Record in  &quot;Maintain Table Relations (Import)&quot; to no . For field &quot;item in &quot;Maintain Field Relations (Import)&quot; Update and Overwrite must be set to no as ssbaan suggest.<br />
+<br />
+Juergen</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pjohns</div><div class="date">27th June 2003, 10:06</div></div><div class="posttext">Thanks Juergen it's working now.<br />
+<br />
+If I had read ssbaan's post properly I would solved the problem a bit quicker!<br />
+<br />
+Thanks to all for your assistance.<br />
+<br />
+Have good weekends!<br />
+<br />
+Regards<br />
+<br />
+PJ</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

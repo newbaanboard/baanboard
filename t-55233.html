@@ -1,0 +1,115 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS from Report Script, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS from Report Script AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS from Report Script [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS from Report Script</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ben.kansas</div><div class="date">3rd March 2009, 22:02</div></div><div class="posttext">Hi All,<br />
+<br />
+In BaanIVc4 I am trying to print one report (the BOM) right after another report (our custom router) via AFS in such a way that it collates the two reports--for every Router that prints I want a BOM to print.  If multiple copies of the Router are printed the same number of BOMs need to be printed, with each copy of the BOM following the copy of the Router and preceding the next copy of the Router.<br />
+<br />
+I have successfully accomplished this by placing AFS commands in the after.report section of the Router report script.<br />
+<br />
+Now here is my problem: the BOM is printed on device 1B (landscape) while the Router is printed on 1A (portrait), even using AFS commands to set the BOM to print to device 1B, the BOM always prints to the device which is selected for printing by the Router 1A.  If I change the Router's printing device to 1B then then BOM will also print on 1B.<br />
+<br />
+Does anyone know how I might change the device to print the BOM to 1B while still having the Router print to 1A?<br />
+<br />
+Thanks,<br />
+Ben</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bigjack</div><div class="date">5th March 2009, 06:23</div></div><div class="posttext">hi,<br />
+<br />
+try setting the spool.device before calling the reports via AFS.<br />
+<br />
+try,<br />
+<br />
+spool.device = &quot;YOURDEVICE&quot;<br />
+<br />
+Bye</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ben.kansas</div><div class="date">5th March 2009, 15:53</div></div><div class="posttext">Hi BigJack,<br />
+<br />
+Thanks for your input.<br />
+<br />
+I tried changing the spool device as you suggested, but it didn't change the result.<br />
+<br />
+Here is the code for the function and function call.<br />
+<br />
+after.program:<br />
+	if(print.bom = tcyesno.yes)then<br />
+		afs.to.print.bom(temp.mitm, check.date)<br />
+	endif<br />
+<br />
+function long afs.to.print.bom(domain tcitem mitm, domain tcdate check.date1)<br />
+{<br />
+	long ret.val<br />
+	string str.session(13)<br />
+	string str.report(15)<br />
+	string err.msg(40)<br />
+	domain tcyesno yn.print<br />
+	string temp.spool.paper.type(14)<br />
+	string temp.spool.device(14)<br />
+	<br />
+	temp.spool.paper.type = spool.paper.type<br />
+	temp.spool.device = spool.device<br />
+	<br />
+	spool.device = &quot;1B&quot;<br />
+	<br />
+	yn.print = tcyesno.no<br />
+	str.session = &quot;tibom1410m000&quot;<br />
+	str.report = &quot;rtibom141001100&quot;<br />
+	<br />
+	<br />
+	stpapi.put.field(str.session, &quot;item.f&quot;, mitm)<br />
+	stpapi.put.field(str.session, &quot;item.t&quot;, mitm)<br />
+	stpapi.put.field(str.session, &quot;check.eff.date&quot;, &quot;Yes&quot;)<br />
+	stpapi.put.field(str.session, &quot;eff.date&quot;, str$(check.date1))<br />
+	stpapi.put.field(str.session, &quot;prt.operations&quot;, &quot;No&quot;)<br />
+	stpapi.put.field(str.session, &quot;prt.ref.dsgn&quot;, &quot;No&quot;)<br />
+	stpapi.put.field(str.session, &quot;prt.item.txta&quot;, &quot;No&quot;)<br />
+	stpapi.put.field(str.session, &quot;prt.bom.txta&quot;, &quot;No&quot;)<br />
+	stpapi.put.field(str.session, &quot;prt.oper.txta&quot;, &quot;No&quot;)<br />
+	stpapi.put.field(str.session, &quot;text.language&quot;, &quot;EN&quot;)<br />
+	|stpapi.put.field(str.session, &quot;spool.pr.copies&quot;, str$(spool.pr.copies))<br />
+	stpapi.set.report(str.session, str.report, &quot;1B&quot;, err.msg)<br />
+	stpapi.put.field(str.session, &quot;spool.device&quot;, &quot;1B&quot;)<br />
+	if(isspace(err.msg))then<br />
+		stpapi.continue.process(str.session, err.msg)<br />
+	endif<br />
+	<br />
+	stpapi.end.session(str.session)<br />
+	<br />
+	if(isspace(err.msg))then<br />
+		ret.val = 1<br />
+	else<br />
+		ret.val = 0<br />
+	endif<br />
+	<br />
+	<br />
+	spool.device = temp.spool.device<br />
+	<br />
+	return(ret.val)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th March 2009, 16:15</div></div><div class="posttext">The problem is that spool.device can not be changed once you get into the report.  If I need to run two reports I run them from the same session using AFS so I can control the spool.device using that method. I do not know if this is a bug or what, but I have the same problem with spool.copies and spool.fileout.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

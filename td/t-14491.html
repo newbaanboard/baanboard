@@ -1,0 +1,113 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="problems with SQL, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] problems with SQL Tools Development" />
+	
+	<title>problems with SQL [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; problems with SQL</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">kondratus</div><div class="date">14th February 2004, 09:45</div></div><div class="posttext">Hello,<br />
+I have following query, he finds several records , but if delete the commentary that I get 'No rows selected'. Where problem?<br />
+<br />
+select  ticst001.pdno, ticst001.pono, <br />
+            min(tisfc010.opno):min_opno,tisfc010.tano<br />
+from    tiitm001, ticst001, tisfc001, tirou001, tisfc010 <br />
+where   tiitm001.kitm =1 <br />
+   and ticst001.qucs = 0                    <br />
+   and tisfc001.osta &gt; 1 and tisfc001.osta &lt; 6  <br />
+   and tisfc001.pdno between :pdno.f and :pdno.t<br />
+   and tisfc010.qrjc = 0<br />
+   and tisfc010.qcmp = 0<br />
+   and tiitm001.item = ticst001.sitm<br />
+   and ticst001.pdno = tisfc001.pdno<br />
+   and ticst001.pdno = tisfc010.pdno<br />
+   and ticst001.cwar = tirou001.wipw <br />
+   and tirou001.cwoc = tisfc010.cwoc<br />
+   and ticst001.opno = 0  <br />
+   and(<br />
+           (tiitm001.dsca like &quot;.*aaaaaa.*&quot; and tisfc010.tano = 2525 )<br />
+|        or<br />
+|         (tiitm001.dsca like  &quot;.*bbbbbb.*&quot;  and tisfc010.tano = 2519)<br />
+         )	                 <br />
+group by ticst001.pdno, ticst001.pono, tisfc010.tano</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">14th February 2004, 16:07</div></div><div class="posttext">If you use the groupby statement, you're not really selecting a ticst001 record. In your selectdo I would call your own delete function and pass the ticst001 key.<br />
+<br />
+<br />
+selectdo<br />
+   del_ticst001(ticst001.pdno, ticst001.pono, ticst001.tano)<br />
+endselect<br />
+<br />
+...<br />
+<br />
+function del_ticst001(domain tipdno pdno, domain tipono pono, domain titano tano)<br />
+{<br />
+select ticst001.*<br />
+from ticst001<br />
+where ticst001._index1 = {:pdno, :pono, :tano}<br />
+selectdo<br />
+   db.retry.point()<br />
+   db.delete(ticst001, db.retry)<br />
+   commit.transaction()<br />
+endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kondratus</div><div class="date">16th February 2004, 09:03</div></div><div class="posttext">Hi gfasbender!<br />
+Excuse for my English, but you have not correctly understood me, I wanted to tell, that it is necessary to remove comments from query, that is in the simplified variant the following searches should turn out:<br />
+<br />
+select  tiitm001.*, tisfc010.*<br />
+from    tiitm001, tisfc010 <br />
+where   tiitm001.kitm =1  <br />
+   and(<br />
+           (tiitm001.dsca like &quot;.*aaaaaa.*&quot; and tisfc010.tano = 2525 )<br />
+|        or<br />
+|         (tiitm001.dsca like  &quot;.*bbbbbb.*&quot;  and tisfc010.tano = 2519)<br />
+         )	                 <br />
+This query returns some recordings but if we shall make so:<br />
+<br />
+select  tiitm001.*, tisfc010.*<br />
+from    tiitm001, tisfc010 <br />
+where   tiitm001.kitm =1  <br />
+   and(<br />
+           (tiitm001.dsca like &quot;.*aaaaaa.*&quot; and tisfc010.tano = 2525 )<br />
+         or<br />
+          (tiitm001.dsca like  &quot;.*bbbbbb.*&quot;  and tisfc010.tano = 2519)<br />
+         )	                 <br />
+The query returns that that is found nothing.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Martin</div><div class="date">16th February 2004, 09:34</div></div><div class="posttext">@kondratus<br />
+<br />
+its very tricky to combine an 'and' condition and two 'or' conditions.<br />
+The result is not really clear.<br />
+So the better way is the follwowing:<br />
+<br />
+select tiitm001.*, tisfc010.*<br />
+from tiitm001, tisfc010<br />
+where (tiitm001.kitm =1<br />
+and<br />
+tiitm001.dsca like &quot;.*aaaaaa.*&quot; and tisfc010.tano = 2525 )<br />
+or<br />
+(tiitm001.kitm=1 and<br />
+tiitm001.dsca like &quot;.*bbbbbb.*&quot; and tisfc010.tano = 2519)<br />
+<br />
+<br />
+Martin</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

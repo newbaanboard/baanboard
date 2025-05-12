@@ -1,0 +1,118 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Annoying: check.input and DAL, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Annoying: check.input and DAL Tools Development" />
+	
+	<title>Annoying: check.input and DAL [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Annoying: check.input and DAL</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">26th March 2007, 13:54</div></div><div class="posttext">Since BaanERP the &quot;check.input&quot; subsection shouldn't work anymore for table fields. <br />
+<br />
+I habe now a session which uses tdpur401 as main table. Only for this session I have to restrict input for some fields.<br />
+<br />
+Because there is an existing DAL I have to use a property hook to check input. But due to the fact that tdpur401 is called from a lot of sessions, I have always to check which program the DAL calls. IMHO in that case a lot unnecessary code, which doesn't help to keep scripts readable.<br />
+<br />
+Isn't there still an other way, to check restrictions in the GUI-script?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bigjack</div><div class="date">26th March 2007, 19:13</div></div><div class="posttext">HI,<br />
+<br />
+Have you tried something like,<br />
+<br />
+field.xxxyyyzzz<br />
+on.input:<br />
+       if not valid_input() then<br />
+               input.again()<br />
+       endif<br />
+<br />
+<br />
+I think it should work.<br />
+<br />
+Cya</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">27th March 2007, 10:27</div></div><div class="posttext">Hi bigjack,<br />
+<br />
+thank you for that hint. I thougt about  realizing it that way. But at least I decided to do the validation in the DAL with check of the current prog-name, even if I dislike the &quot;complexity&quot; of this solution! <br />
+<br />
+Im always unsure, using the inputsections for validation. Isn't it possible to trick that kind of validation with consequent use of the mouse? I mean is it sure that the validation always run if one does an input to the field, and select another field with the mouse? Or is this only a problem in &quot;after.input&quot; ? <br />
+<br />
+<br />
+greetings</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">MariaC</div><div class="date">27th March 2007, 14:14</div></div><div class="posttext">Be careful of using the progname in a DAL.  My experience is that it doesn't work properly as the dal seems to be activated by the first program that uses is and it will always keep that program name.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">27th March 2007, 14:51</div></div><div class="posttext">Hi Maria,<br />
+<br />
+thank you for that hint! A typical thing one can lose sight of!!<br />
+<br />
+What do you mean with program name? The variable &quot;prog.name$&quot;?<br />
+<br />
+I did it that way: I declared an &quot;extern&quot; variable: &quot;session.name&quot; in GUI-Script and DAL. In the GUI-Script I assigned a value to that variable and in the DAL I checked it. Is it the same approach where you get problems with?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Leerkes</div><div class="date">27th March 2007, 21:21</div></div><div class="posttext">Hi there,<br />
+<br />
+If you check table fields and the table has a dal, then indeed the check.input sections for the table fields are ignored in the UI scripts. The check.input sections are only called for non-main table form fields.<br />
+<br />
+It depends on the type of DAL how the check has to be programmed. In DAL2if a table field cannot be empty, then that should be programmed in the is.mandatory() hook. The rest should be put in the is.valid() hook.<br />
+<br />
+If a check is depending on the UI script (or anything else) that is triggering the DAL, then the only thing which you can do is introduce a global variable in the DAL which indicates whether the DAL is called from that particular situation. So let's say we introduce in the DAL the following global variable:<br />
+boolean g.triggered.from.my.ui<br />
+<br />
+Then introduce in the DAL 2 business methods with which you can put that global variable to true and one to false.<br />
+<br />
+function extern long tablexxx.dal.is.triggered.from.my.ui()<br />
+{<br />
+    DLLUsage<br />
+    EndDLLUsage<br />
+    g.triggered.from.my.ui = true<br />
+<br />
+    return(0)<br />
+}<br />
+<br />
+and another function to put that global variable to false, although you are probably not going to use that one. Then in the UI do a dal.start.business.method(&quot;tablexxxx&quot;, &quot;tablexxx.dal.is.triggered.from.my.ui&quot;, long.ret) to put that variable to true. In the checks in the DAL etc. you can then depend the check on the global variable g.triggered.from.my.ui you introduced.<br />
+<br />
+I hope this is of some help. <br />
+Regards,<br />
+Michiel</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">28th March 2007, 14:49</div></div><div class="posttext">Michiel,<br />
+<br />
+this is what I actually did. But I'm still a little unsure if the &quot;global variable&quot; in all instaces is treated right.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Leerkes</div><div class="date">29th March 2007, 09:14</div></div><div class="posttext">Hi Spartacus,<br />
+<br />
+I used this method a couple of times and it is a good way to make your dal react differently to specific UI scripts. <br />
+<br />
+Regards,<br />
+Michiel</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">29th March 2007, 09:53</div></div><div class="posttext">Hi Michiel,<br />
+<br />
+I also did some tests with that solution. I paid special attention how parallel instances of the DAL react. Everythings seems to be fine.<br />
+<br />
+So things seem to be fine. <br />
+<br />
+Thank you for your support</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Tools error in session ottstpprcm, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Tools error in session ottstpprcm Tools Development" />
+	
+	<title>Tools error in session ottstpprcm [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Tools error in session ottstpprcm</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">thibaan</div><div class="date">23rd June 2008, 19:50</div></div><div class="posttext">Hi people,<br />
+<br />
+I'm facing this error: <br />
+<br />
+Tools error in session ottstpprcm: internal error in Process Change Manager ('unreachable case' failed).<br />
+File: pttstpprcm0 (line 378). Description: strip$(action) = api.child.starte: Unexpected action.<br />
+<br />
+It's occurring when I try to run tisfc0130m000 (AFS) in whinh3512m000, on this extern function: option.confirm.receipt.li()<br />
+<br />
+Any idea? :confused:<br />
+Thank you in advance.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">george7a</div><div class="date">24th June 2008, 09:39</div></div><div class="posttext">Hi,<br />
+<br />
+Please post your code. It might help in finding the reason for this error.<br />
+<br />
+- George</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">thibaan</div><div class="date">24th June 2008, 20:35</div></div><div class="posttext">My code is below:<br />
+<br />
+<br />
+|++++++++++++++++++++++++++ Confirm Receipt Functions +++++++++++++++++++++++++<br />
+<br />
+function extern option.confirm.receipt.li()<br />
+{							<br />
+	|* This option confirms selected receipt lines<br />
+								|#149271.sn<br />
+	if not option.confirm.receipt.li.is.allowed() then<br />
+		mess(	&quot;tcmcss0210&quot;,<br />
+		|* Executing the Form Command %1$s is not allowed.<br />
+			1,<br />
+			labelof(&quot;option.confirm.receipt.li&quot;))<br />
+		return<br />
+	endif<br />
+								|#149271.en<br />
+								<br />
+	|* To prevent the program from hanging, kill the message timer.<br />
+	whinh.dll3014.kill.timed.message()<br />
+	unregister.for.receipt.notifiers()<br />
+<br />
+	number.of.lines.confirmed = 0<br />
+	number.of.errors = 0<br />
+	dal.clear.error.messages()<br />
+<br />
+	|* Advice must be started with empty run number<br />
+	whinh.dll3200.reset.run.number()<br />
+<br />
+	START.DLL.UI(	confirm.marked.receipt.lines,<br />
+			IFERRKEEPMSG,<br />
+			&quot;whinhs0941&quot;)<br />
+			|* Confirming<br />
+<br />
+	if number.of.lines.confirmed  = 0 and<br />
+	   dal.count.error.messages() = 0 then<br />
+		dal.set.error.message(&quot;whinhs0313&quot;)<br />
+		|* No receipt lines eligible for confirmation.<br />
+	endif<br />
+<br />
+	whinh.dll3014.display.messages(form.text$(&quot;whinhs0992&quot;), true)<br />
+	|* Confirm receipt line:<br />
+<br />
+	if number.of.lines.confirmed &gt; 0 then<br />
+		whinh.dll3014.timed.message( message.id,<br />
+					     pid,<br />
+					    &quot;whinhs1029&quot;,<br />
+					     number.of.lines.confirmed)<br />
+		|* %d Receipt line(s) confirmed<br />
+	endif<br />
+<br />
+	register.for.receipt.notifiers()<br />
+	whinh.dll0031.prcm.notify.receipt.inspection.inbound()<br />
+<br />
+	whinh312.rcno = receipt.number<br />
+<br />
+	|* Advice must be started with empty run number<br />
+	whinh.dll3200.reset.run.number()<br />
+<br />
+	display.indicators()<br />
+	check.header()<br />
+<br />
+	run.automatic.reception.subcontrating(	prod.order,<br />
+						prod.opno,<br />
+						recep.qrcr)<br />
+<br />
+}<br />
+<br />
+function run.automatic.reception.subcontrating(domain tcpdno 	i.prod.order,<br />
+						domain	tcopno	i.prod.opno,<br />
+						domain	tcqst1	i.recep.qrcr)<br />
+{<br />
+	stpapi.put.field(&quot;tisfc0130m000&quot;, &quot;tisfc010.pdno&quot;,str$(i.prod.order))<br />
+	stpapi.change.view(&quot;tisfc0130m000&quot;, error.msg)<br />
+	stpapi.put.field(&quot;tisfc0130m000&quot;, &quot;tisfc010.opno&quot;,str$(i.prod.opno))<br />
+<br />
+	retval = stpapi.find(&quot;tisfc0130m000&quot;, error.msg)<br />
+	if retval = 1 then<br />
+		retval = stpapi.mark(&quot;tisfc0130m000&quot;, error.msg)<br />
+		if retval then <br />
+			retval = stpapi.synchronize.dialog(&quot;tisfc0130m000&quot;, &quot;modify&quot;, error.msg)<br />
+			if retval then <br />
+				stpapi.enum.answer(&quot;tisfc0130m000&quot;,&quot;tisfc01027&quot;, tcyesno.yes)<br />
+				stpapi.enum.answer(&quot;tisfc0130m000&quot;,&quot;tisfc02029&quot;, tcyesno.yes)<br />
+				stpapi.put.field(&quot;tisfc0130m000&quot;, &quot;qcmp.form&quot;,str$(i.recep.qrcr))<br />
+				stpapi.update(&quot;tisfc0130m000&quot;, true, error.msg)<br />
+			endif<br />
+		endif<br />
+	endif<br />
+	stpapi.end.session(&quot;tisfc0130m000&quot;,error.msg)	<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">wiggum</div><div class="date">25th June 2008, 11:44</div></div><div class="posttext">I had also a problem with ttstpprcm and couldn't solve it with AFS. I use now the business method complete.operation() of the DAL of table tisfc010.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">thibaan</div><div class="date">25th June 2008, 12:36</div></div><div class="posttext">Using business method complete.operation() i got this message: &quot;The Data Access Layer doesn´t allow the operation update on table tisfc010&quot; (Error -12)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">thibaan</div><div class="date">25th June 2008, 16:58</div></div><div class="posttext">When It's started since whinh3512m000 (MMT) the AFS doesn't work. If It's started since whinh3512m100 (Mult occur but NOT MMT) it works fine... there's something wrong with bms, prcm, or something like that...<br />
+<br />
+Any idea?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">25th June 2008, 20:16</div></div><div class="posttext">AFS does not work with MMT. You have to explore using DAL2. Search for other threads with keyword 'DAL2'.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ignalf</div><div class="date">21st October 2008, 16:47</div></div><div class="posttext">I have solved it of the following way: the apis of session tisfc0130m000 programmed in a new session that it them executes and finishes automatically. This new session is called from standard scripts by the function start.session (MODAL...).<br />
+<br />
+And IT WORKS...<br />
+<br />
+Regards</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

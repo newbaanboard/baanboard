@@ -1,0 +1,192 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="export/import textnumbers with exchange, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] export/import textnumbers with exchange Tools Development" />
+	
+	<title>export/import textnumbers with exchange [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; export/import textnumbers with exchange</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">11th June 2003, 17:01</div></div><div class="posttext">Hi all,<br />
+<br />
+What is the best way, to export some data CONTAINING TEXTNUMBERS from one system to another using Exchange?<br />
+<br />
+Spartacus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">11th June 2003, 17:14</div></div><div class="posttext">well, the numbers would come over with a regular exchange on that field, but you want to get the text too, which is stored in a separate table.<br />
+<br />
+You can find the quick guide for this on the baan support site - search for 'quick guide exchange' and it will come up.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">estotz</div><div class="date">11th June 2003, 18:19</div></div><div class="posttext">Easiest way is to export it with exchange using multi-line format and then importing it with exchange on the other end using the same multi-line format.<br />
+<br />
+Make sure the text group that you created the text with exists on the target server and that the user doing the import has the same default text group defined.<br />
+<br />
+Advantage of using multi-line format is that the text manager handles the numbering of the texts etc.  If you were to use the numeric option then there are many more considerations.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">12th June 2003, 10:45</div></div><div class="posttext">Thank you all, for your help.<br />
+<br />
+I found a document called &quot;Exchange - Multi-line Text&quot;. Hope this is what you meant ?<br />
+<br />
+If I understand right, the trick is to export/import in multi-line format.<br />
+Based on this a think, the generated ASCII file contains no textnumber, but the text itself. <br />
+With import, I think, this text will be imported, and a NEW text number is generated?<br />
+<br />
+But if a new textnumber is generated, that means, if however, one text (the same number) is present in different tables, this relation will be lost?<br />
+<br />
+Spartacus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">12th June 2003, 17:31</div></div><div class="posttext">I see what you mean.  This would be true I guess unless you pay special attention. Probably you can:<br />
+<br />
+1.  Import main table, creates new text numbers in the new company.<br />
+<br />
+2.  Import secondary table.  Don't create new text, instead read the record from step 1 and use that text number to fill your text fields.<br />
+<br />
+Another option if they are on the same system is to share the text up, so you don't have to recreate in the new company.  I don't know if that's right for your setup though.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">12th June 2003, 20:29</div></div><div class="posttext">This is a possiblity, I can think over. At the moment I'm not sure, if this a little bit comlicate way is necessary.<br />
+<br />
+Perhaps it will be also a good idea to create a protcol of changed textnumbers, so that in case of trouble it will be possible to compare the new with the old situation.<br />
+<br />
+<br />
+Spartacus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">13th June 2003, 14:33</div></div><div class="posttext">Why not use the text functions provided?  At least, in BaanIV they work perfectly!  As per the following code, which is part of an exchange condition for updating service orders:<br />
+<br />
+<br />
+function long update_text(domain tcorno _orno, long lines, string buffer(,))<br />
+{<br />
+  string  tfld(17)  | Name of textfield<br />
+  string  tgrp(8)   | Name of textgroup<br />
+  string  stmp(256) | Name of temp file<br />
+  string  topt(15)  | &quot;Edit_options&quot; for textfield<br />
+  string  kwd1(17)  | Keyword 1<br />
+  string  kwd2(17)  | Keyword 3<br />
+  string  kwd3(17)  | Keyword 4<br />
+  long    newt      | New text?<br />
+  long    i         | Iterator<br />
+<br />
+  |* Update the service order<br />
+  db.retry.point()<br />
+  select  tssma301.txtb<br />
+  from    tssma301 for update<br />
+  where   tssma301._index1 = {:_orno}<br />
+  selectdo<br />
+    tfld = &quot;tssma301.txtb&quot;<br />
+    if tssma301.txtb = 0 then<br />
+      newt = true<br />
+    endif<br />
+<br />
+    |* Read the defaults of the textfield<br />
+    i = text.defaults(tfld, tgrp, topt)<br />
+    if i = -2 then<br />
+      return(-1)<br />
+    endif<br />
+    if isspace(tgrp) then<br />
+      |* Use the default text group<br />
+      tgrp = &quot;text&quot;<br />
+    endif<br />
+    kwd1 = read_ttadv140(&quot;tssma301.orno&quot;)<br />
+    kwd2 = read_ttadv140(tfld)<br />
+    kwd3 = sprintf$(&quot;%-d&quot;, orno)<br />
+<br />
+    |* Write the buffer to a temporary file<br />
+    stmp = creat.tmp.file$(getenv$(&quot;BSE_TMP&quot;))<br />
+    ftmp = seq.open(stmp, &quot;w&quot;)<br />
+    for i = 1 to tlin<br />
+      seq.puts(strip$(sbuf(1, i)), ftmp)<br />
+    endfor<br />
+    seq.close(ftmp)<br />
+    if newt then<br />
+      text.write(tfld, language$, kwd1, kwd2, kwd3, &quot;&quot;, tgrp, topt, stmp)<br />
+    else<br />
+      text.rewrite(tfld, language$, kwd1, kwd2, kwd3, &quot;&quot;, tgrp, topt, stmp)<br />
+    endif<br />
+<br />
+    |* Remove the temporary file<br />
+    ftmp = seq.open(stmp, &quot;w&quot;)<br />
+    seq.unlink(stmp)<br />
+    db.update(ttssma301, db.retry)<br />
+  selectempty<br />
+    |* Order not found<br />
+    return(-1)<br />
+  endselect<br />
+  commit.transaction()<br />
+<br />
+  return(0)<br />
+}<br />
+<br />
+function domain tttxt.kwrd read_ttadv140(domain ttadv.clab clab)<br />
+{<br />
+  table   tttadv140           | Labels by package VRC<br />
+  domain  tttxt.kwrd  rslt    | Result (of function)<br />
+<br />
+  select  ttadv140.desc, ttadv140._index2<br />
+  from    ttadv140<br />
+  where   ttadv140._index2 = {:language$, &quot;ts&quot;, &quot;B40 &quot;, &quot;c4&quot;, &quot;    &quot;, :clab, 1}<br />
+  and     ttadv140._compnr = 0<br />
+  order by<br />
+          ttadv140._index2 desc as set with 1 rows<br />
+  selectdo<br />
+    rslt = ttadv140.desc<br />
+  selectempty<br />
+    rslt = &quot;Unknown&quot;<br />
+  endselect<br />
+<br />
+  return(rslt)<br />
+}<br />
+<br />
+Regards,<br />
+Nico</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">13th June 2003, 20:53</div></div><div class="posttext">Nico,<br />
+<br />
+Spartacus is working with BaaN-5 series. Hence your solution would not <br />
+work because there have been changes with the Label handling logic in <br />
+BaaN with the introduction of LTS (Language Translation System).<br />
+<br />
+The table ttadv140 table structure is changed now with the introduction <br />
+of the field - Context of Label which is part of the indexes.<br />
+<br />
+Also refer to the tools dll - ttdlllabels for various functions.<br />
+<br />
+<br />
+long  getlabel( domain ttaad.clan clan.i, domain ttadv.cpac cpac.i, <br />
+domain ttadv.clab clab.i, ref domain ttadv.llen leng.io, <br />
+ref domain ttadv.lhgt lhgt.io, ref domain ttadv.vers vers.io, <br />
+ref domain ttadv.rele rele.io, ref domain ttadv.cust cust.io, <br />
+[ domain ttadv.cont context ], [ ref domain ttcdes desc mb ], <br />
+[ long develop ] )<br />
+<br />
+void  search.existing.labels( domain ttaad.clan curr.clan, <br />
+domain ttadv.cpac curr.cpac, ref domain ttcdes desc mb, <br />
+ref domain ttadv.clab clab, ref domain ttadv.lhgt lhgt, <br />
+ref domain ttadv.llen leng, ref long no.matches, <br />
+[ domain ttadv.cont cont ] )<br />
+ <br />
+long  search.label.with.clab( ref domain ttcdes label.desc mb, <br />
+long insert.flag, domain ttaad.clan curr.lang, ref long needed.length, <br />
+long curr.leng, long curr.lhgt, domain ttadv.clab curr.clab, <br />
+domain ttadv.cpac curr.cpac, domain ttadv.vers curr.vers, <br />
+domain ttadv.rele curr.rele, domain ttadv.cust curr.cust )</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

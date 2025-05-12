@@ -1,0 +1,67 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS session not terminating in batch job, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS session not terminating in batch job AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS session not terminating in batch job [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS session not terminating in batch job</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">12th December 2012, 16:30</div></div><div class="posttext">I'm having problems with an AFS session that runs in a batch job. Sometimes it does not terminate correctly and leaves the batch job user logged in. <br />
+<br />
+Here is the situation:<br />
+<br />
+We sell many phantom items. When the user enters these on the sales order, they need to change the &quot;Issue Status&quot; field to &quot;Issue Main Item&quot;. Of course they forget, so I wrote a session to fix this and run it in a batch job. The script looks like this:<br />
+<br />
+  <br />
+...First it runs SQL to find any order lines with &quot;Issue Components&quot;<br />
+  stpapi.put.field(&quot;tdsls4101m000&quot;, &quot;tdsls040.orno&quot;, str$(i.orno))<br />
+  ret = stpapi.find(&quot;tdsls4101m000&quot;)<br />
+  stpapi.handle.subproc(&quot;tdsls4101m000&quot;, &quot;tdsls4102s000&quot;, &quot;add&quot;)<br />
+  stpapi.continue.process(&quot;tdsls4101m000&quot;, err.msg)<br />
+<br />
+  stpapi.put.field(&quot;tdsls4102s000&quot;, &quot;tdsls041.pono&quot;, str$(i.pono))<br />
+  ret = stpapi.find(&quot;tdsls4102s000&quot;)<br />
+  stpapi.put.field(&quot;tdsls4102s000&quot;, &quot;tdsls041.isss&quot;, str$(tcisss.issue.main))<br />
+  **SEE NOTE**<br />
+  if stpapi.update(&quot;tdsls4102s000&quot;, true, err.msg) = 0 then <br />
+     stpapi.recover(&quot;tdsls4102s000&quot;, err.msg)<br />
+  endif<br />
+  stpapi.end.session(&quot;tdsls4102s000&quot;)<br />
+  stpapi.end.session(&quot;tdsls4010m000&quot;)<br />
+<br />
+The problem is that sometimes the line gets delivered before the batch job runs. When this happens, the err.msg value in the stpapi.update() function will be &quot;Deliveries already entered...&quot;.  Changing the line is not possible.<br />
+<br />
+If I run this session manually, stpapi.recover() and stpapi.end.session() do their job and the session ends. <br />
+<br />
+I'm not really sure what happens in the batch job. The log shows the session ends, and no errors are thrown, but the batch job user stays logged in after the batch job ends. <br />
+<br />
+I realize that I could just change the query to filter out delivered orders. But and AFS session could run into other messages and errors, and I would like to see if there is a way to handle this in AFS itself.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th December 2012, 20:48</div></div><div class="posttext">Can you check to see if you have any sub-processes that did not really get ended for a batch job?  I have had a few sessions that have caused some of the sub-processes not end correctly and hangs the AFS session. Of course I can see this manually, but not sure how to see it in batch. In some cases I have had to add a pause to give things time to cleanup in the background.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">12th December 2012, 22:38</div></div><div class="posttext">Thanks. I will look into that. <br />
+<br />
+I do give the batch job 20 minutes to complete? Would that do the same thing a pause.<br />
+<br />
+In the job history, the session is shown as terminating within seconds of starting, and the next session in the job begins.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th December 2012, 15:45</div></div><div class="posttext">I can't say - never really messed that much with jobs.  In a couple of sessions I had to put a suspend(1000) or suspend(5000) to give things time to cleanup before launching the session again.  What I am thinking is that at times the code in the selectdo is getting executed so fast that maybe the stpapi.recover is not finishing before the stpapi.end.sessions get executed.  Then the stpapi.end does not get completed because of the recover command. What is tough is remembering that the stpapi code executes in the session, sends the command to the subsession, and goes to the next command.  When I put some of the sessions I call in debug mode using qkey I can see the stpapi called session still executing(for example an update) while the AFS session has moved onto the next command.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

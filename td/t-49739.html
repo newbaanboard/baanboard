@@ -1,0 +1,268 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="performance of db-functions, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] performance of db-functions Tools Development" />
+	
+	<title>performance of db-functions [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; performance of db-functions</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">25th March 2008, 11:54</div></div><div class="posttext">I just tried to replace some db.next(), db.prev()- functions I used some month ago. No, with a little more time, I tried to replace that &quot;outdated&quot; functions.<br />
+<br />
+So I replaced them with SQL-Code as discussed here: http://www.baanboard.com/baanboard/showthread.php?t=8707&amp;highlight=db.eq<br />
+<br />
+But I found the performance of the SQLs very poor, so that I didn't change it. Does anybody have experience with the performance of db-functions compared with SQLs? Any hints to speed up the thing?<br />
+<br />
+The problem which should be solved is, to analyze a big table (tdpur451). For that you have to to back and forth, from every selected record to check some things.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">toolswizard</div><div class="date">25th March 2008, 12:55</div></div><div class="posttext">It all depends on the structure of you program.  While you can replace the code with standard SQL, sometimes it is not effecient.  It works when you can rebuild a section of code to work in a loop (i.e. within a select do).  <br />
+<br />
+The slow down comes on the select statement itself.  It does take time to set up.  Sometimes it is better to use dynamic SQL and set up the statement the long way.  This way the setup is only done once.<br />
+<br />
+A copy of your code or at least a representation of the flow of your code would get you more help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">27th March 2008, 16:21</div></div><div class="posttext">Hi,<br />
+<br />
+I think basicly the problem is, as you wrote, that there is a select (which takes time) with every record we find in tdpur451.<br />
+<br />
+I think I shouldn't post the whole program, but the principle is:<br />
+<br />
+- select tdpur451 (with some conditions)<br />
+- for every record in tdpur451 check if there is a previous one, with the same conditions.<br />
+<br />
+I have a solution with db.next etc:<br />
+<br />
+<br />
+function domain tcbool check.if.delivered.to.much()<br />
+{<br />
+	domain tcorno	tmp451.orno<br />
+	domain tcpono tmp451.pono<br />
+	domain tcamnt	tmp451.amta<br />
+	domain tcbool	previous.found<br />
+	domain tcbool next.found<br />
+	<br />
+	tmp451.orno = tdpur451.orno		<br />
+	tmp451.pono = tdpur451.pono		<br />
+<br />
+	previous.found = false<br />
+	next.found = false<br />
+	ret = db.eq(ttdpur451)<br />
+	|Vorgänger suchen<br />
+	ret = db.prev(ttdpur451)<br />
+	if ret &lt;&gt; 0 then<br />
+		ret = db.eq(ttdpur451)<br />
+		return(false)<br />
+	else<br />
+		if 	tmp451.orno = tdpur451.orno and<br />
+				tmp451.pono = tdpur451.pono and<br />
+				tdpur451.sqnb = 0                 and			<br />
+				tdpur451.cotp.c &lt;&gt; &quot;PR1&quot;	and	<br />
+				tdpur451.amta &gt; 0 		and<br />
+				tdpur451.ckor &lt;&gt; tdsls.ckor.turnover then <br />
+					db.next(ttdpur451)	<br />
+					return(true)<br />
+		else<br />
+			db.next(ttdpur451)	 <br />
+			return(false)<br />
+		endif<br />
+	endif<br />
+	db.next(ttdpur451) 		<br />
+	return(false)	<br />
+}<br />
+<br />
+<br />
+which is very fast, compared with this version:<br />
+<br />
+<br />
+function domain tcbool previous.pos.record.exist()<br />
+{<br />
+	domain tcorno	tmp451.orno<br />
+	domain tcpono tmp451.pono<br />
+	domain tcamnt	tmp451.amta	<br />
+		<br />
+	select 	tmp451.orno:tmp451.orno, tmp451.pono:tmp451.pono, tmp451.amta:tmp451.amta<br />
+	from		tdpur451 tmp451<br />
+	where		tmp451._index1 &lt; {:tdpur451.orno,  :tdpur451.pono, :tdpur451.sqnb,:tdpur451.trdt,:tdpur451.ckor,:tdpur451.sern} 	<br />
+	and   tmp451.cotp.c &lt;&gt; &quot;PR1&quot;<br />
+	and		tmp451.ckor &lt;&gt; 3<br />
+	and		tmp451.sqnb = 0	<br />
+	and		tmp451.ckor &lt;&gt; tdsls.ckor.cancellation<br />
+	selectdo<br />
+		if 	tmp451.orno = tdpur451.orno and<br />
+				tmp451.pono = tdpur451.pono and <br />
+				tmp451.amta &gt; 0 then<br />
+					return(true) <br />
+		endif<br />
+	endselect<br />
+	return(false)<br />
+}<br />
+<br />
+<br />
+which runs endless.<br />
+<br />
+Do you think dynmic sql can help something?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">toolswizard</div><div class="date">27th March 2008, 16:42</div></div><div class="posttext">Dynamic SQL would help if the structure was the same as the original.<br />
+<br />
+In the code you posted, the table is being read from the begining until the order is read, it i not efficient.  I would add an Order by Statement with a desc (decending) search and that should put you where you need to be.  Followed by a set with 1 rows, although you may want to leave this out until you are done debuggin.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">27th March 2008, 16:59</div></div><div class="posttext">Richard,<br />
+<br />
+I do not agree that it is identical, sorry.<br />
+<br />
+old:<br />
+<br />
+ret = db.prev(ttdpur451)<br />
+<br />
+<br />
+new:<br />
+<br />
+select 	...<br />
+from	tdpur451 tmp451<br />
+where	tmp451._index1 &lt; {:tdpur451.orno,  :tdpur451.pono, :tdpur451.sqnb,:tdpur451.trdt,:tdpur451.ckor,:tdpur451.sern} 	<br />
+|NOT HERE: and   tmp451.cotp.c &lt;&gt; &quot;PR1&quot;<br />
+|NOT HERE: and		tmp451.ckor &lt;&gt; 3<br />
+|NOT HERE: and		tmp451.sqnb = 0	<br />
+|NOT HERE: and		tmp451.ckor &lt;&gt; tdsls.ckor.cancellation<br />
+AS SET WITH 1 ROWS<br />
+selectdo<br />
+    |YOUR CHECKS HERE<br />
+endselect<br />
+<br />
+<br />
+The parts that I marked &quot;NOT HERE&quot; mean that here the database could get a different sql code that on a simple db.prev(). <br />
+<br />
+The part &quot;AS SET WITH 1 ROWS&quot; is missing, so maybe your code loops over more than 1 record.<br />
+<br />
+I'm not sure if that makes your code faster, but I just wanted to show that changing from db.prev() / db.next() to sql is a sometimes a bit more complex.<br />
+<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">28th March 2008, 10:35</div></div><div class="posttext">Toolswizard:<br />
+thanks I think I will copy the session and play a little around with that. I am curious what I can gain!<br />
+<br />
+Günther:<br />
+What you marked with: &quot;NOT HERE&quot; should be part of the selection. I did the same (hopefully) in the db.prev/db.next-function. These conditions are also a reason 'cause I would like to get rid of db.prev/db.next.<br />
+And yes, I know it is not easy to replace one off these things with the other. But I found the use of db.prev/db.next a little dangerous. Even so it is outdated. On the other way it &quot;can be&quot; very easy, quick and simple to swith back and forth on record.<br />
+<br />
+Btw: I just see that there is still two times the same &quot;ckor&quot;-condition in the code. Thougth I had removed it already ;-)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">28th March 2008, 19:45</div></div><div class="posttext">I will make assumptions about the function:<br />
+- that it returns true if &quot;too much is delivered&quot; and false otherwise.<br />
+- The condition for &quot;too much delivered&quot; is that a record with specified _index1 (and the other where clause conditions) is found.<br />
+<br />
+What you need to do is possibly as follows:<br />
+<br />
+<br />
+	select 	tdpur451.*<br />
+	from	tdpur451<br />
+	where	tdpur451._index1 = {:tdpur451.orno,<br />
+                                    :tdpur451.pono, <br />
+                                    :tdpur451.sqnb,<br />
+                                    :tdpur451.trdt,<br />
+                                    :tdpur451.ckor,<br />
+                                    :tdpur451.sern} 	<br />
+	and        tdpur451.cotp.c &lt;&gt; &quot;PR1&quot;<br />
+	and        tdpur451.sqnb = 0	<br />
+	and        tdpur451.ckor &lt;&gt; tdsls.ckor.cancellation<br />
+        order by tdpur451._index1<br />
+        as set with 1 rows<br />
+	selectdo<br />
+            |* Assign the tmp field values here if necessary ...<br />
+	    return(true) <br />
+	endselect<br />
+	return(false)<br />
+<br />
+<br />
+This should yield equivalent performance - if not, you need have the DBA 'tweak' the 'statistics' or whatever magic they do.<br />
+<br />
+Note the &quot;=&quot; in the select instead of the &quot;&lt;&quot; - that is what will make the most difference - inequality functions seem to kill the select, most of the times. Also, the 'order by' will force the index to be used.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">2nd April 2008, 11:59</div></div><div class="posttext">Hi shah_bs,<br />
+<br />
+interesting hints, thank you.<br />
+But one thing should be mentioned: I need the &quot;&lt;&quot; because I have to know, if there is any &quot;further&quot; set with the same conditions, what means in relation with the flow of the rest of the program, that there is delivered to much.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">2nd April 2008, 16:20</div></div><div class="posttext">If you have the proper constraints that applies, you will get better performance if you use 'inrange' instead of &quot;&lt;&quot;, and break out when your condition is satisfied - for example, you definitely know that the search is for a given order/position/sqnb - that leaves the date and the sern (since cotp.c and ckor are are 'hard constrained', so, if you have the from and to values of these based on earlier logic, you can try:<br />
+<br />
+select 	tdpur451.*<br />
+from	tdpur451<br />
+where	tdpur451._index1 = {:tdpur451.orno,<br />
+                            :tdpur451.pono, <br />
+                            :tdpur451.sqnb}<br />
+and     tdpur451.trdt inrange :trdt.f and :trdt.t<br />
+and     tdpur451.sern inrange :sern.f and :sern.t<br />
+and     tdpur451.cotp.c &lt;&gt; &quot;PR1&quot;<br />
+and     tdpur451.sqnb = 0	<br />
+and     tdpur451.ckor &lt;&gt; tdsls.ckor.cancellation<br />
+order by tdpur451._index1<br />
+selectdo<br />
+    if &lt;&lt;Condition is met&gt;&gt;<br />
+    then<br />
+        |* Assign the tmp field values here if necessary ...<br />
+        return(true) <br />
+    endif<br />
+endselect<br />
+return(false)<br />
+<br />
+<br />
+Depending on need, change the &quot;order by&quot; to &quot;order by desc&quot;</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">2nd April 2008, 16:28</div></div><div class="posttext">Actually, after I read your earlier post again, you can even do as follows:<br />
+<br />
+<br />
+select 	tdpur451.*<br />
+from	tdpur451<br />
+where	tdpur451._index1 = {:tdpur451.orno,<br />
+                            :tdpur451.pono, <br />
+                            :tdpur451.sqnb}<br />
+and     tdpur451.cotp.c &lt;&gt; &quot;PR1&quot;<br />
+and     tdpur451.sqnb = 0	<br />
+and     tdpur451.ckor &lt;&gt; tdsls.ckor.cancellation<br />
+order by tdpur451._index1 desc    <br />
+selectdo<br />
+    if &lt;&lt;Condition is met&gt;&gt;<br />
+    then<br />
+        |* Assign the tmp field values here if necessary ...<br />
+        return(true) <br />
+    endif<br />
+endselect<br />
+return(false)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">9th April 2008, 11:13</div></div><div class="posttext">Hi Shah,<br />
+<br />
+if I understand u right, it is faster to put conditions &quot;in&quot; the selectdo-loop&quot; than to have them in the select itself?<br />
+<br />
+Btw.: Last week I made already some performance tests. But I found it a little strange, that the measured times for the same program with the same selects differ in a wide range. I think it must have something to do with caching. I have the feeling, that in most cases the first run of a program takes much longer than the next ones. But I'm not sure about that.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">9th April 2008, 20:20</div></div><div class="posttext">I did not mean it like that.<br />
+<br />
+Based on the description of your requirement, what I understood is that you want to keep looking for more records until the condition of your decision criteria is met (meaning 'too much delivered' is satisfied or not). That is why the &quot;if &lt;&lt;Condition is met&gt;&gt;&quot; is inside the selectdo loop. It also allows to do away with the &quot;&lt;&quot; condition.<br />
+<br />
+In general, however, if you get the resultset that you require by placing the entire selection criteria in the 'where clause', that will almost always be faster. In your special case, it seems you have no choice (as far as I understand the requirement) but to put the check for condition inside of the selectdo loop.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,303 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Entering cycle counting data through API, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Entering cycle counting data through API AFS/DDC/OLE: Function servers" />
+	
+	<title>Entering cycle counting data through API [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Entering cycle counting data through API</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">18th September 2006, 12:26</div></div><div class="posttext">Hi guys,<br />
+We're in the process of making cycle counting data entry barcode-enabled by using BaanIV API. Before any physical count data fly from the warehouse to BaanIV, however, we'd like to &quot;reset&quot; all the counted inventory to zero (this feature is built-in in BaanERP). This is assuming that if they can't find the stuff in the actual warehouse, then the counted physical stock should be set to zero. We're implementing this &quot;reset&quot; function through API inside a new BaanIV session. We've debugged this script as well as looked through the API log (afs.log) and found nothing wrong with it. But somehow, when I go back to the session manually (not through API), only the first line in each &quot;view&quot; is reset properly to zero. Could you give me a hand on this, please? Thanks<br />
+|****************************** DECLARATION SECTION<br />
+declaration:<br />
+	#pragma used dll ottstpapihand<br />
+	extern domain tcorno cco<br />
+	string TempStr(30)<br />
+|****************************** CHOICE      SECTION <br />
+choice.cont.process:<br />
+on.choice:<br />
+	stpapi.browse.view(&quot;tdilc5110m000&quot;,&quot;first.view&quot;)<br />
+	stpapi.get.field(&quot;tdilc5110m000&quot;,&quot;tdilc501.orno&quot;,TempStr)<br />
+	stpapi.enum.answer(&quot;tdilc5110m000&quot;,&quot;tdilc50001&quot;,tcyesno.yes)<br />
+	while lval(TempStr)&lt;&gt;cco<br />
+		NextView()<br />
+	endwhile<br />
+	ZeroAllSets()<br />
+	NextView()<br />
+	while lval(TempStr)=cco<br />
+		ZeroAllSets()<br />
+		NextView()<br />
+	endwhile	<br />
+	stpapi.end.session(&quot;tdilc5110m000&quot;)<br />
+|****************************** FIELD       SECTION <br />
+field.cco:<br />
+check.input:<br />
+	select orno<br />
+	from tdilc501<br />
+	where orno=:cco<br />
+	as set with 1 rows<br />
+	selectempty<br />
+		set.input.error(&quot;Order not present&quot;)<br />
+	endselect<br />
+|****************************** FUNCTION    SECTION <br />
+functions:<br />
+function ZeroCountedQty()<br />
+{<br />
+	stpapi.put.field(&quot;tdilc5110m000&quot;,&quot;tdilc501.cstk&quot;,&quot;0&quot;)<br />
+	stpapi.update(&quot;tdilc5110m000&quot;,TRUE,TempStr)	<br />
+}<br />
+<br />
+function ZeroAllSets()<br />
+{<br />
+	stpapi.browse.set(&quot;tdilc5110m000&quot;,&quot;first.set&quot;)<br />
+	ZeroCountedQty()<br />
+	while stpapi.browse.set(&quot;tdilc5110m000&quot;,&quot;next.set&quot;)=1<br />
+		ZeroCountedQty()<br />
+	endwhile<br />
+}<br />
+<br />
+function NextView()<br />
+{<br />
+	stpapi.browse.view(&quot;tdilc5110m000&quot;,&quot;next.view&quot;)<br />
+	stpapi.get.field(&quot;tdilc5110m000&quot;,&quot;tdilc501.orno&quot;,TempStr)<br />
+}<br />
+And here's the API log<br />
+LOGGING STARTED<br />
+18-09-2006<br />
+&gt;tdilc5110m000 browse.view<br />
+3dll-&gt;serv (getxml)<br />
+3dll-&gt;serv (starttdilc5110m000100)<br />
+5serv&lt;-4gl (api.child.startedtdilc5110m0003)<br />
+5serv&lt;-4gl (init.ready)<br />
+tdilc5110m000(5)-RUNNING:<br />
+3dll-&gt;serv (first.view5)<br />
+tdilc5110m000(5)-RUNNING:first.view<br />
+5serv&lt;-4gl (first.view0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 1 ok<br />
+&gt;tdilc5110m000 get.field:tdilc501.orno<br />
+&lt;tdilc5110m000(5) get.field:tdilc501.orno=700190<br />
+&gt;tdilc5110m000 enum.answer tdilc50001:1<br />
+3dll-&gt;serv (enum.answertdilc5000115)<br />
+tdilc5110m000(5)-RUNNING:enum.answer<br />
+5serv&lt;-4gl (enum.answer0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&gt;tdilc5110m000 browse.view<br />
+3dll-&gt;serv (next.view5)<br />
+tdilc5110m000(5)-RUNNING:next.view<br />
+5serv&lt;-4gl (next.view0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 1 ok<br />
+&gt;tdilc5110m000 get.field:tdilc501.orno<br />
+&lt;tdilc5110m000(5) get.field:tdilc501.orno=700190<br />
+&gt;tdilc5110m000 browse.view<br />
+3dll-&gt;serv (next.view5)<br />
+tdilc5110m000(5)-RUNNING:next.view<br />
+5serv&lt;-4gl (next.view0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 1 ok<br />
+&gt;tdilc5110m000 get.field:tdilc501.orno<br />
+&lt;tdilc5110m000(5) get.field:tdilc501.orno=700190<br />
+&gt;tdilc5110m000 browse.view<br />
+3dll-&gt;serv (next.view5)<br />
+tdilc5110m000(5)-RUNNING:next.view<br />
+5serv&lt;-4gl (next.view0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 1 ok<br />
+&gt;tdilc5110m000 get.field:tdilc501.orno<br />
+&lt;tdilc5110m000(5) get.field:tdilc501.orno=700191<br />
+&gt;tdilc5110m000 browse.set<br />
+3dll-&gt;serv (first.set5)<br />
+tdilc5110m000(5)-RUNNING:first.set<br />
+5serv&lt;-4gl (first.set0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 1 ok<br />
+&gt;tdilc5110m000(5) put.field:tdilc501.cstk 0<br />
+&gt;tdilc5110m000 update<br />
+3dll-&gt;serv (modify.set+save5)<br />
+tdilc5110m000(5)-RUNNING:modify.set+save<br />
+5serv&lt;-4gl (modify.set+save0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 <br />
+&gt;tdilc5110m000 get.field:tdilc501.cstk<br />
+&lt;tdilc5110m000(5) get.field:tdilc501.cstk=0<br />
+&gt;tdilc5110m000 browse.set<br />
+3dll-&gt;serv (next.set5)<br />
+tdilc5110m000(5)-RUNNING:next.set<br />
+5serv&lt;-4gl (next.set0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 1 ok<br />
+&gt;tdilc5110m000(5) put.field:tdilc501.cstk 0<br />
+&gt;tdilc5110m000 update<br />
+3dll-&gt;serv (modify.set+save5)<br />
+tdilc5110m000(5)-RUNNING:modify.set+save<br />
+5serv&lt;-4gl (modify.set+save0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 <br />
+&gt;tdilc5110m000 get.field:tdilc501.cstk<br />
+&lt;tdilc5110m000(5) get.field:tdilc501.cstk=0<br />
+&gt;tdilc5110m000 browse.set<br />
+3dll-&gt;serv (next.set5)<br />
+tdilc5110m000(5)-RUNNING:next.set<br />
+5serv&lt;-4gl (next.set0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 1 ok<br />
+&gt;tdilc5110m000(5) put.field:tdilc501.cstk 0<br />
+&gt;tdilc5110m000 update<br />
+3dll-&gt;serv (modify.set+save5)<br />
+tdilc5110m000(5)-RUNNING:modify.set+save<br />
+5serv&lt;-4gl (modify.set+save0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 <br />
+&gt;tdilc5110m000 get.field:tdilc501.cstk<br />
+&lt;tdilc5110m000(5) get.field:tdilc501.cstk=0<br />
+&gt;tdilc5110m000 browse.set<br />
+3dll-&gt;serv (next.set5)<br />
+tdilc5110m000(5)-RUNNING:next.set<br />
+5serv&lt;-4gl (next.set0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 1 ok<br />
+&gt;tdilc5110m000(5) put.field:tdilc501.cstk 0<br />
+&gt;tdilc5110m000 update<br />
+3dll-&gt;serv (modify.set+save5)<br />
+tdilc5110m000(5)-RUNNING:modify.set+save<br />
+5serv&lt;-4gl (modify.set+save0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 <br />
+&gt;tdilc5110m000 get.field:tdilc501.cstk<br />
+&lt;tdilc5110m000(5) get.field:tdilc501.cstk=0<br />
+&gt;tdilc5110m000 browse.set<br />
+3dll-&gt;serv (next.set5)<br />
+tdilc5110m000(5)-RUNNING:next.set<br />
+5serv&lt;-4gl (next.setEOF)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 0 No record found<br />
+&gt;tdilc5110m000 browse.view<br />
+3dll-&gt;serv (next.view5)<br />
+tdilc5110m000(5)-RUNNING:next.view<br />
+5serv&lt;-4gl (next.view0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 1 ok<br />
+&gt;tdilc5110m000 get.field:tdilc501.orno<br />
+&lt;tdilc5110m000(5) get.field:tdilc501.orno=700191<br />
+&gt;tdilc5110m000 browse.set<br />
+3dll-&gt;serv (first.set5)<br />
+tdilc5110m000(5)-RUNNING:first.set<br />
+5serv&lt;-4gl (first.set0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 1 ok<br />
+&gt;tdilc5110m000(5) put.field:tdilc501.cstk 0<br />
+&gt;tdilc5110m000 update<br />
+3dll-&gt;serv (modify.set+save5)<br />
+tdilc5110m000(5)-RUNNING:modify.set+save<br />
+5serv&lt;-4gl (modify.set+save0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 <br />
+&gt;tdilc5110m000 get.field:tdilc501.cstk<br />
+&lt;tdilc5110m000(5) get.field:tdilc501.cstk=0<br />
+&gt;tdilc5110m000 browse.set<br />
+3dll-&gt;serv (next.set5)<br />
+tdilc5110m000(5)-RUNNING:next.set<br />
+5serv&lt;-4gl (next.set0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 1 ok<br />
+&gt;tdilc5110m000(5) put.field:tdilc501.cstk 0<br />
+&gt;tdilc5110m000 update<br />
+3dll-&gt;serv (modify.set+save5)<br />
+tdilc5110m000(5)-RUNNING:modify.set+save<br />
+5serv&lt;-4gl (modify.set+save0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 <br />
+&gt;tdilc5110m000 get.field:tdilc501.cstk<br />
+&lt;tdilc5110m000(5) get.field:tdilc501.cstk=0<br />
+&gt;tdilc5110m000 browse.set<br />
+3dll-&gt;serv (next.set5)<br />
+tdilc5110m000(5)-RUNNING:next.set<br />
+5serv&lt;-4gl (next.set0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 1 ok<br />
+&gt;tdilc5110m000(5) put.field:tdilc501.cstk 0<br />
+&gt;tdilc5110m000 update<br />
+3dll-&gt;serv (modify.set+save5)<br />
+tdilc5110m000(5)-RUNNING:modify.set+save<br />
+5serv&lt;-4gl (modify.set+save0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 <br />
+&gt;tdilc5110m000 get.field:tdilc501.cstk<br />
+&lt;tdilc5110m000(5) get.field:tdilc501.cstk=0<br />
+&gt;tdilc5110m000 browse.set<br />
+3dll-&gt;serv (next.set5)<br />
+tdilc5110m000(5)-RUNNING:next.set<br />
+5serv&lt;-4gl (next.setEOF)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 0 No record found<br />
+&gt;tdilc5110m000 browse.view<br />
+3dll-&gt;serv (next.view5)<br />
+tdilc5110m000(5)-RUNNING:next.view<br />
+5serv&lt;-4gl (next.view0)<br />
+tdilc5110m000(5)-RUNNING:<br />
+&lt;tdilc5110m000 1 ok<br />
+&gt;tdilc5110m000 get.field:tdilc501.orno<br />
+&lt;tdilc5110m000(5) get.field:tdilc501.orno=700192<br />
+&gt;tdilc5110m000 end.session<br />
+3dll-&gt;serv (end.program5)<br />
+tdilc5110m000(5)-RUNNING:end.program<br />
+5dll-&gt;serv (tdilc5110m000: exit(5))<br />
+3dll-&gt;serv (afsscript: exit(3))<br />
+<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th September 2006, 15:18</div></div><div class="posttext">Your code should work - but try this in your 0 qty routine:<br />
+<br />
+	while stpapi.browse.set(&quot;tdilc5110m000&quot;,&quot;next.set&quot;)=1<br />
+		stpapi.find(&quot;tdilc5110m000&quot;,err)<br />
+		stpapi.get.field(&quot;tdilc5110m000&quot;,&quot;tdilc501.cstk&quot;,err)<br />
+		stpapi.put.field(&quot;tdilc5110m000&quot;,&quot;tdilc501.cstk&quot;,&quot;0&quot;)<br />
+		stpapi.update(&quot;tdilc5110m000&quot;,true,err)	<br />
+	endwhile<br />
+<br />
+I really think your code should work, but on my system it was like after the first update the next record was not made current.  I tried stpapi.mark, but it did not work either.  So I tried the find command and that seemed to do the trick.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">19th September 2006, 04:29</div></div><div class="posttext">Wow, Mark, your generosity with your time to help the rest of us is remarkable. I tried quite a few acrobatic tricks to try to make it work, including using stpapi.mark() . After I hit a brick wall, I posted this thread at the end of the working day yesterday. I hadn't tried using stpapi.find() though. I'm at another client today, but I'll be back at this BaanIV API client tomorrow and will surely try it first thing in the morning (we're almost exactly half a world apart, so 9 AM tomorrow - 20 Sep 06 - here will be 9PM today - 19 Sep 06 - at your place). Thanks so much for the tip, man! You're indeed one of a kind<br />
+<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul P</div><div class="date">20th September 2006, 11:46</div></div><div class="posttext">Internet was down from morning til now. I did try it first thing in the morning. AND IT WORKS! Amazing! Thanks, Mark. So, according to Mark's suggestion, I modified ZeroCountedQty() as follows:<br />
+function ZeroCountedQty()<br />
+{<br />
+	stpapi.find(&quot;tdilc5110m000&quot;)<br />
+	stpapi.put.field(&quot;tdilc5110m000&quot;,&quot;tdilc501.cstk&quot;,&quot;0&quot;)<br />
+	stpapi.update(&quot;tdilc5110m000&quot;,TRUE,TempStr)	<br />
+}<br />
+On top of it, I had to make changes to NextView() to make it more error tolerant:<br />
+function NextView()<br />
+{<br />
+	if stpapi.browse.view(&quot;tdilc5110m000&quot;,&quot;next.view&quot;)=1 then<br />
+		stpapi.get.field(&quot;tdilc5110m000&quot;,&quot;tdilc501.orno&quot;,TempStr)<br />
+	else<br />
+		TempStr=&quot;&quot;<br />
+	endif<br />
+}<br />
+Rgds,<br />
+Paul</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

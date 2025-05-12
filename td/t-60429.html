@@ -1,0 +1,378 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="inventory valuation report, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] inventory valuation report Tools Development" />
+	
+	<title>inventory valuation report [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; inventory valuation report</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">24th April 2011, 11:04</div></div><div class="posttext">Dear All,<br />
+<br />
+The below script works perfectly for inventory on hand as on date but shows variance when it is taken after a day of same date. <br />
+For Example:<br />
+                      If I take the report as on 17th April evening the inventory will be matching but if I take the report on 18th,19th.......any date it will show variance like negative quantiy that was not appearing on 17th April.<br />
+<br />
+|*******************************************************************************<br />
+|* pinv6230	Stock Valuation	by Item<br />
+|* H.A. Rietveld<br />
+|* 13-06-91<br />
+|* Version3.2<br />
+|*<br />
+|*******************************************************************************<br />
+|*1000 This program is for stock valuation by item<br />
+|*******************************************************************************<br />
+<br />
+declaration:<br />
+<br />
+	table ttiitm001			   	| items<br />
+	table ttiitm004				| Conversion Factor<br />
+	table ttdinv000			   	| parameters inventory control<br />
+	table ttdinv001			   	| items by warehouse<br />
+	table ttdinv700			   	| stock transactions by item<br />
+	table tticpr010			   	| cost pricec omponents<br />
+	table tticpr300			   	| standard cost price by item<br />
+	table ttcmcs003			   	| warehouses<br />
+	table ttcmcs023			   	| item groups<br />
+	table ttcmcs096				| statussen<br />
+<br />
+|*** prog variables ************************************************************<br />
+<br />
+	domain tcdate copr.indt		   	| introd. date for costprice<br />
+	domain tcdate archive.date		| date of archiving<br />
+	<br />
+	extern domain tcqana storeqty		| storage quantity	<br />
+	extern domain tcqiv1 item.stoc	   	| item stock	level<br />
+	extern domain tcamnt item.matc	   	| item material costs<br />
+	extern domain tcamnt item.oprc	   	| item operation costs<br />
+	extern domain tcamnt amnt.matc	   	| amount material costs<br />
+	extern domain tcamnt amnt.oprc	   	| amount operation costs<br />
+	extern domain tcamnt amnt.copr	   	| amount cost price<br />
+	extern domain tcmcs.st40 item.cntr 	| item &amp; cntr<br />
+	extern domain tctext error.message	| Error message<br />
+	extern	domain	tcseak	seab.f,seab.t,seak.f,seak.t<br />
+<br />
+|*** form variables ************************************************************<br />
+<br />
+	extern domain tcitem item.f fixed    	| from item<br />
+	extern domain tcitem item.t fixed    	| up to item<br />
+	extern domain tccuni cntr.f fixed    	| from cntr<br />
+	extern domain tccuni cntr.t fixed    	| up to cntr<br />
+	extern domain tccitg citg.f fixed    	| from citg<br />
+	extern domain tccitg citg.t fixed    	| up to citg<br />
+	extern domain tccwar cwar.f fixed    	| from cwar<br />
+	extern domain tccwar cwar.t fixed    	| up to cwar<br />
+	extern domain tcdate stoc.date	     	| stock valuation date<br />
+	extern domain tcyesno suppr.zero.stoc	| suppress zero stock y/n<br />
+	extern domain tcyesno spec.by.item   	| specify by item y/n<br />
+<br />
+|*** includes ******************************************************************<br />
+<br />
+	#include &quot;itccom0010&quot;			| Report Handling<br />
+	#include &quot;itcmcs0095&quot;			| Parameter Handling<br />
+<br />
+|*** program sections **********************************************************<br />
+<br />
+before.program:<br />
+	tcmcs0095.read.parm(&quot;tdinv000&quot;)<br />
+	read.tcmcs096()<br />
+<br />
+|*** forms *********************************************************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+	get.screen.defaults()<br />
+<br />
+|*** fields ********************************************************************<br />
+<br />
+field.item.f:<br />
+when.field.changes:<br />
+	item.t = item.f<br />
+<br />
+field.cntr.f:<br />
+when.field.changes:<br />
+	cntr.t = cntr.f<br />
+<br />
+field.citg.f:<br />
+when.field.changes:<br />
+	citg.t = citg.f<br />
+<br />
+field.cwar.f:<br />
+when.field.changes:<br />
+	cwar.t = cwar.f<br />
+<br />
+field.stoc.date:<br />
+before.input:<br />
+	if tdinv000.sths = tcyesno.no then    |	If no history stock transactions<br />
+		stoc.date  = date.num()<br />
+		attr.input = false<br />
+	endif<br />
+check.input:<br />
+	if stoc.date &gt; date.num() then<br />
+		set.input.error(&quot;tdinv62301&quot;)<br />
+	endif<br />
+	if stoc.date &lt;= archive.date then<br />
+		set.input.error(&quot;tdinv62302&quot;)<br />
+	endif<br />
+<br />
+|*** choices *******************************************************************<br />
+<br />
+choice.create.job:<br />
+before.choice:<br />
+	if spec.by.item = tcyesno.yes then<br />
+		reportgrp = 1<br />
+	else<br />
+		reportgrp = 2<br />
+	endif<br />
+<br />
+choice.cont.process:<br />
+before.choice:<br />
+	check.all.input()<br />
+on.choice:<br />
+	if open.report(1,&quot;&quot;,1,language$,(spec.by.item =	tcyesno.yes?1:2)) then<br />
+		execute.stock.valuation.for.selected.items()<br />
+		close.reports(2)<br />
+	else<br />
+		job.process.error = true<br />
+		end()<br />
+	endif<br />
+<br />
+|*** functions *****************************************************************<br />
+<br />
+functions:<br />
+<br />
+function read.tcmcs096()<br />
+{<br />
+	select tcmcs096.*<br />
+	from   tcmcs096<br />
+	where  tcmcs096._index1 = {&quot;INV&quot;,1}<br />
+	selectdo<br />
+		archive.date = lval(tcmcs096.koda)<br />
+	selectempty<br />
+		archive.date = 0<br />
+	endselect<br />
+}<br />
+<br />
+function execute.stock.valuation.for.selected.items()<br />
+{<br />
+	select	tiitm100.*, tiitm001.*, tcmcs023.*<br />
+	from	tiitm100, tiitm001, tcmcs023<br />
+	where	tiitm100._index1 inrange {:item.f, :cntr.f}<br />
+				 and     {:item.t, :cntr.t}<br />
+	and	tiitm100.item refers to tiitm001.item<br />
+	and	tiitm001.czed = tcyesno.no<br />
+	and	tiitm001.citg inrange :citg.f and :citg.t<br />
+	and	tiitm001.stva = tcstva.stnd.copr<br />
+	and	tiitm001.seab between :seab.f and :seab.t<br />
+	and	tiitm001.seak between :seak.f and :seak.t<br />
+	and	tiitm001.citg refers to tcmcs023<br />
+	|order by tiitm001.reli,tiitm001.item<br />
+	selectdo<br />
+		tiitm004.conv = 0		|   customized by Sambhaji to calculate<br />
+		select tiitm004.* from tiitm004    | storage quantity of item<br />
+		where tiitm004.item = :tiitm001.item<br />
+		selectdo<br />
+		if tiitm001.cuni = tiitm001.stgu then<br />
+		tiitm004.conv = 1<br />
+		endif<br />
+		storeqty = tiitm001.stoc / tiitm004.conv<br />
+		selectempty<br />
+		storeqty = 0<br />
+		endselect<br />
+		if storeqty = 0 then<br />
+		select tiitm004.* from tiitm004<br />
+		where tiitm004.citg = :tiitm001.citg<br />
+		selectdo<br />
+		if tiitm001.cuni = tiitm001.stgu then<br />
+		tiitm004.conv = 1<br />
+		endif<br />
+		<br />
+		storeqty = tiitm001.stoc / tiitm004.conv<br />
+		selectempty<br />
+		storeqty = 0<br />
+		endselect<br />
+		endif<br />
+		if storeqty = 0 then<br />
+		select tiitm004.* from tiitm004<br />
+		where tiitm004.basu = :tiitm001.cuni<br />
+		selectdo<br />
+		if tiitm001.cuni = tiitm001.stgu then<br />
+		tiitm004.conv = 1<br />
+		endif<br />
+		storeqty = tiitm001.stoc / tiitm004.conv<br />
+		selectempty<br />
+		storeqty = 0<br />
+		endselect<br />
+		endif 						| upto this point<br />
+	<br />
+		if not isspace(tiitm001.cntr) then<br />
+			item.cntr = tiitm001.reli &amp; &quot; &quot; &amp; tiitm001.cntr<br />
+		else<br />
+			item.cntr = tiitm001.reli<br />
+		endif<br />
+		display(&quot;tiitm001.reli&quot;)<br />
+		determine.item.cost.price.data()<br />
+		determine.item.stock.valuation.by.warehouse()<br />
+		if copr.indt = 0 and item.stoc &lt;&gt; 0 then<br />
+			print.error.message()<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+|*********************** determine item	cost price data	************************<br />
+<br />
+function determine.item.cost.price.data()<br />
+{<br />
+	initialize.cost.price.data()<br />
+	if stoc.date &lt; tiitm001.ltcp then<br />
+		copr.indt = determine.cost.price.introduction.date()<br />
+	endif<br />
+	read.cpr300.cost.price.data()<br />
+}<br />
+<br />
+function initialize.cost.price.data()<br />
+{<br />
+	item.matc = 0.0<br />
+	item.oprc = 0.0<br />
+	copr.indt = tiitm001.ltcp<br />
+}<br />
+<br />
+function domain tcdate determine.cost.price.introduction.date()<br />
+{<br />
+	select	ticpr300.*<br />
+	from	ticpr300<br />
+	where	ticpr300._index1 = {:tiitm001.reli, :tiitm001.cntr}<br />
+	and	ticpr300.indt &lt;= :stoc.date<br />
+	order by ticpr300.item desc, ticpr300.cntr desc,<br />
+		 ticpr300.indt desc, ticpr300.cpcp desc<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		return(ticpr300.indt)<br />
+	endselect<br />
+	return(0)<br />
+}<br />
+<br />
+function read.cpr300.cost.price.data()<br />
+{<br />
+	select	ticpr300.*, ticpr010.*<br />
+	from	ticpr300, ticpr010<br />
+	where	ticpr300._index1 = {:tiitm001.reli, :tiitm001.cntr,<br />
+				    :copr.indt}<br />
+	and	ticpr300.cpcp refers to ticpr010<br />
+	selectdo<br />
+		if ticpr010.cref = tccref.material or<br />
+		   ticpr010.cref = tccref.chg.material then<br />
+			item.matc = item.matc +	ticpr300.amnt<br />
+		else<br />
+			item.oprc = item.oprc +	ticpr300.amnt<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+function determine.item.stock.valuation.by.warehouse()<br />
+{<br />
+	item.stoc = 0<br />
+	select	tdinv001.*, tcmcs003.*<br />
+	from	tdinv001, tcmcs003<br />
+	where	tdinv001._index2 inrange {:tiitm001.reli, :tiitm001.cntr,<br />
+					  :cwar.f}<br />
+				     and {:tiitm001.reli, :tiitm001.cntr,<br />
+				          :cwar.t}<br />
+	and	tdinv001.cwar refers to tcmcs003<br />
+	selectdo<br />
+		if determine.stock.level() then<br />
+			determine.item.stock.level()<br />
+		endif<br />
+		if copr.indt &lt;&gt; 0 and report.item.stock() then<br />
+			determine.item.stock.value()<br />
+			if tiitm004.conv = 0 then<br />
+				tiitm004.conv = 1<br />
+			endif<br />
+			storeqty = item.stoc / tiitm004.conv<br />
+			print.record(1)<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+function domain tcbool determine.stock.level()<br />
+{<br />
+	if stoc.date &lt; date.num() then<br />
+		if stoc.date &lt; tdinv001.hstd then<br />
+			item.stoc = 0.0<br />
+			return (false)<br />
+		else<br />
+			item.stoc = tdinv001.hstb<br />
+			return (true)<br />
+		endif<br />
+	endif<br />
+	item.stoc = tdinv001.stoc<br />
+	return (false)<br />
+}<br />
+<br />
+function determine.item.stock.level()<br />
+{<br />
+	select	tdinv700.*<br />
+	from	tdinv700<br />
+	where	tdinv700._index1 = {:tdinv001.item, :tdinv001.cntr,<br />
+				    :tdinv001.cwar}<br />
+	and	tdinv700.trdt &lt;= :stoc.date<br />
+	selectdo<br />
+		if tdinv700.kost = tckost.stc.correction or<br />
+		   ( tdinv700.kost = tckost.stc.transfer and<br />
+		     tdinv700.koor &lt;&gt; tckoor.act.sls	 and<br />
+		     tdinv700.koor &lt;&gt; tckoor.sma.order ) or<br />
+		   tdinv700.kost = tckost.pur.receipt	 or<br />
+		   tdinv700.kost = tckost.prd.receipt	 or<br />
+		   tdinv700.kost = tckost.rpl.receipt then<br />
+			item.stoc = item.stoc +	tdinv700.quan<br />
+		else<br />
+			item.stoc = item.stoc - tdinv700.quan<br />
+		endif<br />
+	endselect<br />
+}<br />
+<br />
+function domain tcbool report.item.stock()<br />
+{<br />
+	if item.stoc = 0 and suppr.zero.stoc = tcyesno.yes then<br />
+		return (false)<br />
+	endif<br />
+	return (true)<br />
+}<br />
+<br />
+function determine.item.stock.value()<br />
+{<br />
+	amnt.matc = round(item.matc * item.stoc,2,1)<br />
+	amnt.oprc = round(item.oprc * item.stoc,2,1)<br />
+	amnt.copr = amnt.matc +	amnt.oprc<br />
+}<br />
+<br />
+function print.error.message()<br />
+{<br />
+	error.message = sprintf$(form.text$(&quot;tdinv62303&quot;), item.cntr,<br />
+							stoc.date)<br />
+	if open.report(2,spool.device,0,language$,3) then<br />
+		print.record(2)<br />
+	endif<br />
+}<br />
+<br />
+|**** end of source ****</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th April 2011, 05:43</div></div><div class="posttext">Just scrolling through the code I did not see anything obvious.  If the stoc date is entered then it could be that - because I see a couple of places where stoc date is compared to todays date(date.num()).  Maybe that, not really sure.<br />
+<br />
+Does it do the same in the test environment?  I would recommend running the report in debug mode like it is the 17th and then the 18th - you should be able to step through the code and find the differences.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Getting strange error when zooming, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Getting strange error when zooming Tools Development" />
+	
+	<title>Getting strange error when zooming [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Getting strange error when zooming</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Thomasm</div><div class="date">14th September 2020, 12:44</div></div><div class="posttext">I am geting a strange error when I want to zoom to the session tipcs3140m000 (General Project Cost). I get the error if I zoom from the menu and if I zoom from the code (zoom.to$())<br />
+<br />
+The error is:<br />
+Error 506 (Table does not exist) on tfgld008000 in db_eq<br />
+Can not continue in tipcs3140m000 (&lt;89&gt;)[db.eq]<br />
+<br />
+Obviously that table should not exist in company 0. But why is it trying to select on company 0?<br />
+<br />
+The code in the script that generates the error (in session tipcs3140m000) is: <br />
+function fill.unit.code()<br />
+	|In this function the unit code 1 of the imported ledger account<br />
+	|is read and put in variable 'ftrs.cuni'.<br />
+{<br />
+	table	ttfgld008<br />
+	tfgld008.leac = import.leac<br />
+	ftrs.cuni = db.eq(ttfgld008) ? &quot;&quot; : tfgld008.uni1<br />
+}<br />
+<br />
+I don't have access to change standard but I can export values from the zooming session.<br />
+<br />
+Any suggestions would be appreciated :)<br />
+<br />
+Thx,<br />
+Thomas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th September 2020, 14:46</div></div><div class="posttext">Is it a custom session zooming to the tipcs3140m000?  Is there other code in tipcs3140m000 that sets the company based off something else in the zoom?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Thomasm</div><div class="date">14th September 2020, 16:54</div></div><div class="posttext">Thanks for your reply Mark,<br />
+<br />
+Yes, it is a  a custom session and you are right that there is code under the 'before.zoom:' section. But there is nothing there to set the company number. And also (verified with debugger) when calling 'zoom.to$()' from a user action this section is completely bypassed.<br />
+<br />
+I have then noticed that there is also a sub-session (tipcs3410s000) and when I call that instead it is the same behaviour.<br />
+<br />
+The code in the session we are zooming to is defined under the section 'form.1'. To try to avoid that part of the code I created a custom session just as a copy but then put the only available form as form number 2. Did not make any changes.<br />
+<br />
+So I ended up creating my own session as a copy of the session I want to zoom to and made it with own script name. Now I could copy the standard script into that and compile. So when I do that and it crashes the debugger will show me the part of code that is wrong. This way I could figure out what variable was not correctly initialised.<br />
+<br />
+Turns out in the end that if I add the below code to the 'before.zoom' section in the session I am zooming from then it works. It does not end up on the correct record but as I need to do an insert anyway this is good enough for now.<br />
+<br />
+<br />
+	| for tipcs3140s000<br />
+	tfgld102.tcom = get.compnr()<br />
+	select<br />
+		*<br />
+	from<br />
+		tfgld008<br />
+	where<br />
+		iprj = tfgld.intr.pcs<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		tfgld102.leac = tfgld008.leac<br />
+	endselect<br />
+<br />
+<br />
+Thanks a lot for taking your time Mark!!<br />
+<br />
+Thx,<br />
+Thomas</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,312 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Index in SQL, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Index in SQL Tools Development" />
+	
+	<title>Index in SQL [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Index in SQL</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ganesh_kapase</div><div class="date">16th November 2005, 10:58</div></div><div class="posttext">Hi<br />
+<br />
+How to use index key for a particular table in SQL especially when index keys are more than one for single table. In below sample case I need _index2 for tibom010 table to include one more condition as :<br />
+tibom010.sitm &gt;= :rm.item.f and tibom010.sitm &lt;= :rm.item.t<br />
+<br />
+SQL<br />
+select	tisfc001.*, ticst001.*, tibom010.*<br />
+from	tisfc001, ticst001, tibom010<br />
+where   tisfc001.pdno &gt;= :pdno.f<br />
+and 	tisfc001.pdno &lt;= :pdno.t<br />
+and	tibom010.mitm &gt;= :item.f<br />
+and	tibom010.mitm &lt;= :item.t<br />
+and	tibom010.mitm = tisfc001.mitm<br />
+and	tibom010.sitm = ticst001.sitm<br />
+and	tisfc001.pdno = ticst001.pdno<br />
+<br />
+Thanx in advance<br />
+<br />
+Regards,<br />
+<br />
+<br />
+GANESH</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">v_chandra</div><div class="date">16th November 2005, 13:23</div></div><div class="posttext">Hi<br />
+<br />
+As per what i do is always use index which is primary, even if i could use the second index along with it, because such type of SQL  could have a performance issue, or use the index for which you have got the value to search for, if it is &quot;     &quot; (blank) to &quot;ZZZZ&quot; then better use the index for which you have got some value.<br />
+<br />
+In your case as your main table in selection is tisfc001 use only tisfc001._index1. <br />
+<br />
+By the way could you elaborate on what you are actually trying to get out of that query ?. May be able to suggest you to get some better query ...<br />
+<br />
+Thanks &amp; Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">16th November 2005, 16:18</div></div><div class="posttext">You can also use &quot;table._index2 inrange {:item.f} and {:item.t}&quot;.  So for your query I would do something like this:<br />
+<br />
+select	tisfc001.*,  tibom010.*<br />
+from	tisfc001,  tibom010<br />
+where     tisfc001._index1 inrange {:pdno.f} and {:pdno.t}<br />
+and        tisfc001.mitm inrange {:item.f} and {:item.t} <br />
+and        tibom010._index1 = {tisfc001.mitm}<br />
+and	tibom010.sitm inrange {:sub.item.f} and {:sub.item.t}<br />
+<br />
+Not sure I understand what you are doing with ticst001 - because you sub-item query can come from there.  So like v_chandra understanding what you want out of the query may help someone make better suggestions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ganesh_kapase</div><div class="date">17th November 2005, 06:43</div></div><div class="posttext">Hi<br />
+<br />
+I am trying to write a SQL to generate a report of BOM v/s Production Order having order status as Active, Completed or Closed. <br />
+<br />
+There are two reasons as 1) Sometimes there is difference between the qty required as per BOM and actual qty used in the Produtction Order.<br />
+2) Sometimes we were using items / material which are not defined in the BOM through &quot;Maintain Estimated Material (tisfc0110m000) session&quot;.<br />
+<br />
+We want list out those items. If you suggest better SQL or tips for script I will be thankful to all.<br />
+<br />
+Regards,<br />
+<br />
+<br />
+Ganesh</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">17th November 2005, 07:14</div></div><div class="posttext">BaanERP Application Software Engineering Guides<br />
+ <br />
+Choosing the index<br />
+--------------------------------------------------------------------------------<br />
+<br />
+Problem<br />
+It is important to know how the driver will define an index before it parses a query.<br />
+<br />
+Solution<br />
+The database driver will create index hints to the RDBMS. These index hints are defined as follows:<br />
+<br />
+First, the where condition is evaluated to define which table fields are checked.<br />
+After this evaluation, the number of index parts in each index (from 1 to the number of indices) is compared with the number of matching fields used in the where condition.<br />
+The index number with the highest hit rate (most matching) will be taken as index hint to the database.<br />
+If there are equal numbers of fields in the where condition that match the index fields, the index with the lowest number is taken.<br />
+<br />
+There are two solutions to force the hint generator to give the correct index hint to the database. <br />
+<br />
+Implement order by table._index? <br />
+Implement index hint in 4gl program. (Available from the Verdi release). <br />
+See help page 'Index hints'.<br />
+<br />
+Example<br />
+<br />
+Table books has the next fields: book number, description, author, publisher, ISBN number.<br />
+It has the next indices: 1. Book number, 2. Author and book number, 3. ISBN number, 4. Publisher and book number.<br />
+<br />
+Bad situation<br />
+<br />
+select	books.*<br />
+from	books<br />
+where	books.number inrange  1 and 10<br />
+and	books.publisher = &quot;Publisher X&quot;<br />
+The driver will go for the 4th index. This is really bad for performance: If a publisher has hundreds of books, hundreds of records are checked on the number range 1 to 10.<br />
+<br />
+Note:<br />
+the output sequence is undefined.<br />
+<br />
+Improved<br />
+<br />
+select	books.*<br />
+from	books<br />
+where	books.number inrange 1 and 10<br />
+and	books.publisher = &quot;Publisher X&quot;<br />
+order by books._index1<br />
+The driver will go for the 1st index. Output sequence is defined. Not more than 10 books will be read and checked on the specific publisher.<br />
+Improved (Verdi solution)<br />
+<br />
+select    books.*<br />
+from      books<br />
+where     books.number inrange 1 and 10<br />
+and       books.publisher = &quot;Publisher X&quot;<br />
+hint      use index 1 on books<br />
+The driver will go for the 1st index. Output sequence is undefined.<br />
+<br />
+BaanERP Application Software Engineering Guides<br />
+<br />
+Queries on tables with multiple index parts<br />
+--------------------------------------------------------------------------------<br />
+<br />
+Problem<br />
+If a table index has multiple index parts, the performance will slow down when queries are implemented by having one or more of the next where conditions: <br />
+<br />
+where table._index? &gt;= { :field1 } <br />
+where table._index? &gt; { :field1 } <br />
+where table._index? &lt;= { :field2 } <br />
+where table._index? &lt; { :field2 } <br />
+where table._index? between { :field.f } and { :field.t } <br />
+Solution<br />
+If possible, reduce the number of index parts and/or read by specifying the highest number of index parts in an index.<br />
+<br />
+Example<br />
+Bad situation<br />
+<br />
+select	catalogue.*<br />
+from	catalogue<br />
+where	catalogue._index2 inrange { :a, :b, :c, :d }<br />
+and	                          { :a, :b, :c, :e }<br />
+selectdo<br />
+Improved<br />
+<br />
+select	catalogue.*<br />
+from	catalogue<br />
+where	catalogue._index2 = { :a, :b, :c }<br />
+and	catalogue.d inrange :d and :e <br />
+selectdo</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th November 2005, 16:20</div></div><div class="posttext">Well Ganesh I do not know about others, but I like to &quot;keep things simple&quot;.  There are many ways to do what you are asking.  In my session I would probably do something like this:<br />
+<br />
+<br />
+select	tisfc001.mitm, ticst001.pdno, ticst001.sitm,<br />
+	ticst001.qucs<br />
+from	tisfc001, ticst001<br />
+where	tisfc001._index1 inrange {:pdno.f} and {:pdno.t}<br />
+and	tisfc001.osta inrange tcosta.hours.adj and tcosta.closed<br />
+and	ticst001._index1 = {tisfc001.pdno}<br />
+and	ticst001.sitm inrange :sub.item.f and :sub.item.t<br />
+selectdo<br />
+	| You can play with other indexes - like index2 on the tibom010<br />
+	select	tibom010.qana<br />
+	from	tibom010<br />
+	where	tibom010._index1 = {:tisfc001.mitm}<br />
+	and	tibom010.sitm = :ticst001.sitm<br />
+	selectdo<br />
+		| Compare qty - double.cmp might be better<br />
+		if tibom010.qana &lt;&gt; ticst001.qucs then<br />
+			rprt_send()<br />
+		endif<br />
+	selectempty<br />
+		| Item not on BOM<br />
+		rprt_send()<br />
+	endselect<br />
+endselect<br />
+<br />
+This SQL is a simple query that says a part in ticst001 is either on the BOM or not.  This would not work at our site since we use multi-level phantoms.  And if you want to do this as simple EASY-SQL query(prompting for the order and sub-order range) then you take the inner select and put it in the detail section of a report script.  At that point the inner select would use lattr.print instead of rprt_send.  Like I said - a simple easy to understand query set-up. I am sure there is a way to combine it all into one query, but sometimes it is best to break the queries up into individual selects.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ganesh_kapase</div><div class="date">20th November 2005, 11:24</div></div><div class="posttext">Hi Mark<br />
+<br />
+My purpose solved, I wrote code as below. First it will compare tisfc001 with tibom010 and vise versa.<br />
+<br />
+{<br />
+	select	tisfc001.*, ticst001.*<br />
+	from	tisfc001, ticst001<br />
+	where   tisfc001._index2 inrange {:cprj.f,:item.f,:pdno.f} and {:cprj.t,:item.t,:pdno.t}<br />
+	and	tisfc001.osta BETWEEN 5 and 7<br />
+	and	ticst001._index3 inrange {:rm.item.f} and {:rm.item.t}<br />
+	and	tisfc001.pdno = ticst001.pdno<br />
+	order by tisfc001.pdno, tisfc001.mitm, ticst001.sitm<br />
+	selectdo<br />
+		ord.mitm = tisfc001.mitm<br />
+		ord.sitm = ticst001.sitm<br />
+		compare.bom()	|to get items which are not in BOM but are estimated in Prod.Order<br />
+		mfg.itm.desc()<br />
+		if m.cnt = 0 then<br />
+			if yesno = tcyesno.no then<br />
+				if ((bom.qty * tisfc001.qdlv) - ticst001.qucs) &lt;&gt; 0 then  |bom.qty = BOM net qty<br />
+					m.count = 0<br />
+				else<br />
+					m.count = 9<br />
+				endif<br />
+			endif<br />
+		endif<br />
+		rprt_send()<br />
+	endselect<br />
+	bom.item.not.in.order()	<br />
+}<br />
+<br />
+function compare.bom()<br />
+{<br />
+	select tibom010.*<br />
+	from tibom010<br />
+	where	tibom010.mitm = :ord.mitm<br />
+	and	tibom010.sitm = :ord.sitm<br />
+	selectdo<br />
+		m.cnt   = 0<br />
+		m.count = 0<br />
+		bom.qty = tibom010.qana<br />
+	selectempty<br />
+		m.cnt   = 1<br />
+		m.count = 1<br />
+	endselect<br />
+}<br />
+<br />
+function mfg.itm.desc()<br />
+{<br />
+	select tiitm001.*<br />
+	from tiitm001<br />
+	where tiitm001.item = :ord.mitm<br />
+	selectdo<br />
+		m.dsca = tiitm001.dsca<br />
+	endselect<br />
+}<br />
+<br />
+function bom.item.not.in.order()<br />
+{<br />
+	select	tisfc001.*, tibom010.*<br />
+	from	tisfc001, tibom010<br />
+	where   tisfc001._index1 inrange {:pdno.f} and {:pdno.t}<br />
+	and	tibom010._index2 inrange {:rm.item.f,:item.f} and {:rm.item.t,:item.t}<br />
+	and	tisfc001.osta BETWEEN 5 and 7<br />
+	and	tisfc001.mitm = tibom010.mitm<br />
+	order by tisfc001.pdno, tibom010.mitm, tibom010.sitm<br />
+	selectdo<br />
+		ord.mitm = tibom010.mitm<br />
+		ord.sitm = tibom010.sitm<br />
+		ord.no	 = tisfc001.pdno<br />
+		compare.order()	|to get items which are in BOM but are deleted from Prod.Order<br />
+		mfg.itm.desc()<br />
+		if m.cnt = 0 then<br />
+			if m.cnt1 = 0 then<br />
+				m.count = 2<br />
+				rprt_send()<br />
+				m.cnt1 = 1<br />
+			endif<br />
+			if yesno = tcyesno.no then<br />
+				if (tibom010.qana * tisfc001.qdlv) &lt;&gt; 0 then<br />
+					m.count = 3<br />
+				else<br />
+					m.count = 9<br />
+				endif<br />
+			endif<br />
+		endif<br />
+		rprt_send()<br />
+	endselect<br />
+}<br />
+<br />
+function compare.order()<br />
+{<br />
+	select ticst001.*<br />
+	from ticst001<br />
+	where	ticst001.sitm = :ord.sitm<br />
+	and	ticst001.pdno = :ord.no<br />
+	selectdo<br />
+		m.cnt   = 1<br />
+	selectempty<br />
+		m.cnt   = 0<br />
+		m.count = 3<br />
+	endselect<br />
+}<br />
+<br />
+Thanx for your co-operation.<br />
+<br />
+<br />
+Ganesh</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

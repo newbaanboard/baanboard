@@ -1,0 +1,99 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="ORA-1555 rollback error and Oracle9, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] ORA-1555 rollback error and Oracle9 Operating Systems &amp; Databases" />
+	
+	<title>ORA-1555 rollback error and Oracle9 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; ORA-1555 rollback error and Oracle9</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">27th May 2004, 13:55</div></div><div class="posttext">Hi!<br />
+Anybody facing problems with BaanIVc4 on Oracle9.2?<br />
+We are using automatic undo management and still getting errors. We try to solve this by setting undo_retention to higher value. Information in Metalink is quite confusing.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">27th May 2004, 16:51</div></div><div class="posttext">Yes, its unfortunatly still possible.. remember your undo retention needs to be set to a time long enough to hold the transaction..<br />
+if its a very large time, check with Baan support to see if they<br />
+can optimize the session. Sometimes they can break transactions into smaller chunks to help with this.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">30th May 2004, 08:00</div></div><div class="posttext">Hi there,<br />
+<br />
+in my understanding, if your undo_retention is long enough to hold your transaction and you still get the error, than this must mean, that your undo talblespace is too small. <br />
+<br />
+Can you check this?<br />
+<br />
+Regards<br />
+<br />
+Markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">1st June 2004, 10:40</div></div><div class="posttext">Since 9i the possibility to get an ORA-1555 is less compared to previous versions. But still this is possible due to:<br />
+- an undo tablespace that is too small or<br />
+- an application that keeps a cursor open for a too long time.<br />
+<br />
+The last issue can be solved by:<br />
+- add an &quot;as prepared set&quot; to the main 4 GL query when this query has no &quot;for update&quot; clause.<br />
+- break the main query after processing e.g. 10.000 rows if the main query has a &quot;for update&quot; clause and restart the main query after these 10.000 rows. An example of the latest could be:<br />
+completed = false<br />
+repeat<br />
+	db.retry.point()<br />
+	counter = 0<br />
+	select	*<br />
+	from	&lt;table&gt; for update<br />
+	|* Read from previous point onwards<br />
+	where	table._index1 &gt; {:hold.field1}<br />
+	|* Sort by on index to prevent problems<br />
+	order 	by table._index1 with retry repeat last row<br />
+	|* Speed up transfer of data<br />
+	hint use array fetching<br />
+	and buffer 100 rows<br />
+	and array size 100<br />
+	selectdo<br />
+		update.other.tables()<br />
+		|* Commit once a 50 rows<br />
+		counter = counter + 1<br />
+		if counter\50 = 0 then<br />
+			commit.transaction()<br />
+		|* When  query is open longer than 10.000<br />
+		|* records, than restart query<br />
+			if counter &gt;= 10000 then<br />
+				|* Set all index 1 fields<br />
+				hold.field1 = table.field1<br />
+				break<br />
+			endif<br />
+		endif<br />
+	selectempty<br />
+		completed = true<br />
+	selecteos<br />
+		commit.transaction()<br />
+		completed = true<br />
+	endselect<br />
+|* Only complete when complete flag has been set<br />
+until completed<br />
+<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">1st June 2004, 11:05</div></div><div class="posttext">I was surprised that Oracle uses Rollback for reading because of  read consistency. We had 1555 when generating export file using export schema.<br />
+So this might mean that this query got overwritten by another session before query end. I changed undo_retention to 4800 and now it seems to work. Of course tablespace area is also enlarged.<br />
+So, &quot;as prepared set&quot; is not a solution for these kind of things.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

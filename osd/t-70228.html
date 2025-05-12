@@ -1,0 +1,89 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Sync tables between 2 databases, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Sync tables between 2 databases Operating Systems &amp; Databases" />
+	
+	<title>Sync tables between 2 databases [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Sync tables between 2 databases</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Ivanus</div><div class="date">19th July 2017, 15:39</div></div><div class="posttext">Hi, we are having a production system and on a separate Server our Testsystem. Both are having the same OS and the same Version of SQL Database.<br />
+To refresh our Testsystem from time to time I was thinking about to synchronize some tables we need from the production system to the Testsystem.<br />
+I don't want to copy the whole database because then I have to make a lot of adjustments on the Testsystem again.<br />
+Any idea how this could work?<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">19th July 2017, 22:54</div></div><div class="posttext">I would not do this for test - but I am not a DBA, but stuff gets out of sync and it makes it hard to test.  But it should work assuming you get all the necessary tables and the referenced tables - I am thinking from a 4c4 perspective.  What we do is we actually have another copy where we do not load certain tables (like tfgld tables) but we know for a fact those tables are not needed in the simulation company.  All this really does is make the cloning faster for that company.  Just my opinion.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ivanus</div><div class="date">20th July 2017, 12:06</div></div><div class="posttext">Hi, we also need the finance tables in our Testsystem (it's also our Development System).<br />
+I also tried it with the common way to dump in BaaN the whole company out but this takes 15 hours and than I have to import it in the Testsystem and this will also take more than 15 hours.<br />
+Any other suggestion?<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jeffersyuan</div><div class="date">21st July 2017, 14:23</div></div><div class="posttext">Hi,<br />
+<br />
+To myself, I would like you to write a small program to do the sync job.<br />
+<br />
+Indeed, I just finish one small tool which support copy company data between two different database, for example, from SQL to Oracle, from sql to sql, from oracle to sql, from oracle to oracle etc.<br />
+<br />
+Jeffers<br />
+<br />
+Hi, we also need the finance tables in our Testsystem (it's also our Development System).<br />
+I also tried it with the common way to dump in BaaN the whole company out but this takes 15 hours and than I have to import it in the Testsystem and this will also take more than 15 hours.<br />
+Any other suggestion?<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">toolswizard</div><div class="date">9th August 2017, 16:24</div></div><div class="posttext">We have a 2tb database on Oracle.  Originally we did the dump/load from oracle and it would take 5 to 7 days.<br />
+<br />
+I broke the seq dump down into segments, the largest files in their own job, the smaller ones in groups. I got the job down to 30 hours.  We have faster processors now on the production system and run 10 jobs at a time, getting the dump down to 2 1/2 hours from 20. Total time now is about 18 hours total. Loading is slower as the processors and memory are less, and we only run 6 to 8 jobs at a time.<br />
+<br />
+If you did the same, breaking down the total tables into several jobs, you should be able to get it down in a few hours.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">GaryEd</div><div class="date">14th August 2017, 20:35</div></div><div class="posttext">This is how we do it<br />
+<br />
+Notes: <br />
+Be very careful doing this as it is very easy with one simple typo to wipe out a whole lot of data.<br />
+Before beginning make sure table sharing between test companies matches production companies.<br />
+Running the exports (step 5) will lock the table during the dump so it must be run when no users are on the system (including jobs).<br />
+1.	Run session ttaad4222m000 (count number of records by table) for each production company. Output to a text file.<br />
+2.	Run baan sql query “logical”. Output to a text file. (this query is specific to us but basically gets a list of logical tables to be able to filter them out of the lists of tables to dump)<br />
+3.	Using MS Access (or some other method) create a text file for each company with a list of tables that are not a logical table and that contain data. Save the file as XXXseqdump.txt in the E:\baan\bin folder (where XXX = company number). The idea is to only dump tables that contain data and to not dump data that is physically in another company so that the process runs as quickly as possible.<br />
+4.	From a command prompt on the server change to the E:\baan\bin folder and run the following to override the normal default settings. This will help the process run quicker (per baan support).<br />
+fillenv<br />
+Set USER=baan<br />
+set RDS_FULL=100<br />
+set SSTS_SET_ROWS=1000<br />
+set MSQL_ARRAY_FETCH=1<br />
+set MSQL_ARRAY_INSERT=1<br />
+set MSQL_MAX_ARRSZ=100<br />
+5.	Run the following command for each company in turn (where XXX = company number).<br />
+bdbpre -t&quot;|&quot; -IXXXseqdump.txt -oE:\seq_dumps\XXX –CXXX<br />
+6.	Run baan session tccom0214m000 (from file/run) in each source company. The directory must match the folder where you dumped the data (see step 5). You must specify all prod company to test company mappings. The field is not big enough to do it all at once so you need to split it in two and run the session twice. The format is prod1&gt;test1;prod2&gt;test2 (separator is semi-colon).<br />
+<br />
+ <br />
+<br />
+7.	Run session ttaad4231m000 to delete all tables in each test company. You will get a report stating that logical tables could not be deleted, this is ok. This makes sure that there is no orphan data in tables that are not populated in the production company.<br />
+8.	From command prompt run following for each company (where XXX = source/prod company and YYY = target/test company).<br />
+bdbpost -t&quot;|&quot; -kmnf -DE:\seq_dumps\XXX -cYYY<br />
+9.	Run session ttaad4230m000 to create remaining empty tables in each test company.<br />
+10.	Log in to test company and make sure all is ok.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

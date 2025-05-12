@@ -1,0 +1,195 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS waiting timed out (frozen), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS waiting timed out (frozen) AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS waiting timed out (frozen) [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS waiting timed out (frozen)</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jp.aalders</div><div class="date">19th December 2011, 23:51</div></div><div class="posttext">Hi fellow Baan programmers, <br />
+<br />
+Who has a clue why my AFS function gets frozen and doesn't finish? <br />
+<br />
+I currently try to develop a AFS session in tpptc1100m000 to update the status of an element from &quot;free&quot; to &quot;actual&quot;. When saving the changed record the session calls the subsession tpptc1102s000 after the message tpptc11001 has been answered with &quot;yes&quot;. <br />
+<br />
+This routine is handled with the AFS code below but the session hangs when the continue.process is executed.  The AFS log states...<br />
+<br />
+&gt;tpptc1100m000 handle.subproc tpptc1102s000 add<br />
+81dll-&gt;serv (handle.subsession^Atpptc1102s000^A2^A84)<br />
+&gt;tpptc1102s000(85) put.field:cspp        1<br />
+&gt;tpptc1102s000(85) put.field:step.size 1<br />
+&gt;tpptc1100m000 continue.process<br />
+tpptc1100m000waiting for prev cont.proc<br />
+tpptc1100m000waiting timed out<br />
+81dll-&gt;serv (cont.process^A84)<br />
+<br />
+----------------------- AFS function used -------------------------------<br />
+<br />
+<br />
+function status.structuurdeel()<br />
+{<br />
+        string  st_sessie(13)                  |* AFS session<br />
+        string  subsession(13)                |* AFS subsession<br />
+        string  afs.mess(100)                 |* AFS messages<br />
+        string  errtype(100)                   |* AFS messages<br />
+        string  errmess(100)                  |* AFS messages<br />
+        string  afs.error(100)                 |* AFS messages<br />
+        domain  tccprj  ret.cprj<br />
+        domain  tppdm.cspa ret.cspa<br />
+        domain  tccprj  i.cprj<br />
+        domain  tppdm.cspa i.cspa<br />
+        domain  tppdm.cspa top.cspa<br />
+<br />
+        |* Functie initialisation<br />
+        i.cprj = &quot;A06045&quot;        |* Sample<br />
+        i.cspa   = &quot;      15&quot;     |* Sample<br />
+        top.cspa = &quot;       1&quot;    |* Sampe<br />
+     <br />
+       |* Answer the message tpptc11001 with yes<br />
+        ret = stpapi.enum.answer(st_sessie,&quot;tpptc11001&quot;,tppdm.yeno.yes)<br />
+<br />
+        st_sessie  = &quot;tpptc1100m000&quot;    |* Main session<br />
+        subsession = &quot;tpptc1102s000&quot;    |* Sub session<br />
+<br />
+        |* Search record ( project / element )<br />
+        stpapi.put.field(st_sessie,&quot;tpptc100.cprj&quot;,i.cprj)<br />
+        stpapi.put.field(st_sessie,&quot;tpptc100.cspa&quot;,i.cspa)<br />
+        ret = stpapi.find(st_sessie, afs.mess)<br />
+<br />
+        |* Read values found<br />
+        stpapi.get.field(st_sessie,&quot;tpptc100.cprj&quot;,ret.cprj)<br />
+        stpapi.get.field(st_sessie,&quot;tpptc100.cspa&quot;,ret.cspa)<br />
+<br />
+<br />
+        stpapi.put.field(st_sessie,&quot;tpptc100.stat&quot;, str$(tpptc.stat.actual))<br />
+        ret = stpapi.update(st_sessie ,true, afs.error)<br />
+<br />
+        |<br />
+<br />
+        |* Recover record indien AFS mislukt.<br />
+        if  not  ret then<br />
+            ret = stpapi.recover(st_sessie, afs.error)<br />
+        endif<br />
+<br />
+       |* Subsession tpptc1102s000 is started<br />
+        stpapi.handle.subproc(st_sessie,subsession,&quot;add&quot;)<br />
+<br />
+        |* Set values <br />
+        stpapi.put.field(subsession,&quot;cspp&quot;,top.cspa)<br />
+        stpapi.put.field(subsession,&quot;step.size&quot;, &quot;1&quot;)<br />
+<br />
+        |* Continue process<br />
+        stpapi.continue.process(st_sessie,afs.mess)<br />
+<br />
+        |* End subsession and and main session<br />
+        stpapi.end.session(subsession)<br />
+        stpapi.end.session(st_sessie)<br />
+}<br />
+<br />
+Thanks for your assistance in advance! regards John</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th December 2011, 15:16</div></div><div class="posttext">Okay - the first thing I saw was the stpapi.handle.subproc.  It should be set before the subsession is activated.  My tpptc1100m000 does not zoom to a sub-session when I change that field so I can't really test it.<br />
+<br />
+function status.structuurdeel()<br />
+{<br />
+        string  st_sessie(13)                  |* AFS session<br />
+        string  subsession(13)                |* AFS subsession<br />
+        string  afs.mess(100)                 |* AFS messages<br />
+        string  errtype(100)                   |* AFS messages<br />
+        string  errmess(100)                  |* AFS messages<br />
+        string  afs.error(100)                 |* AFS messages<br />
+        domain  tccprj  ret.cprj<br />
+        domain  tppdm.cspa ret.cspa<br />
+        domain  tccprj  i.cprj<br />
+        domain  tppdm.cspa i.cspa<br />
+        domain  tppdm.cspa top.cspa<br />
+<br />
+        |* Functie initialisation<br />
+        i.cprj = &quot;A06045&quot;        |* Sample<br />
+        i.cspa   = &quot;      15&quot;     |* Sample<br />
+        top.cspa = &quot;       1&quot;    |* Sampe<br />
+     <br />
+       |* Answer the message tpptc11001 with yes<br />
+        ret = stpapi.enum.answer(st_sessie,&quot;tpptc11001&quot;,tppdm.yeno.yes)<br />
+<br />
+        st_sessie  = &quot;tpptc1100m000&quot;    |* Main session<br />
+        subsession = &quot;tpptc1102s000&quot;    |* Sub session<br />
+<br />
+        |* Search record ( project / element )<br />
+        stpapi.put.field(st_sessie,&quot;tpptc100.cprj&quot;,i.cprj)<br />
+        stpapi.put.field(st_sessie,&quot;tpptc100.cspa&quot;,i.cspa)<br />
+        ret = stpapi.find(st_sessie, afs.mess)<br />
+<br />
+        |* Read values found<br />
+        stpapi.get.field(st_sessie,&quot;tpptc100.cprj&quot;,ret.cprj)<br />
+        stpapi.get.field(st_sessie,&quot;tpptc100.cspa&quot;,ret.cspa)<br />
+<br />
+<br />
+        stpapi.put.field(st_sessie,&quot;tpptc100.stat&quot;, str$(tpptc.stat.actual))<br />
+<br />
+       |* Subsession tpptc1102s000 is started<br />
+        stpapi.handle.subproc(st_sessie,subsession,&quot;add&quot;)<br />
+<br />
+        ret = stpapi.update(st_sessie ,true, afs.error)<br />
+<br />
+         |* Recover record indien AFS mislukt.<br />
+        if  not  ret then<br />
+            ret = stpapi.recover(st_sessie, afs.error)<br />
+        endif<br />
+<br />
+        |* Set values <br />
+        stpapi.put.field(subsession,&quot;cspp&quot;,top.cspa)<br />
+        stpapi.put.field(subsession,&quot;step.size&quot;, &quot;1&quot;)<br />
+<br />
+        |* Continue process<br />
+        stpapi.continue.process(st_sessie,afs.mess)<br />
+<br />
+        |* End subsession and and main session<br />
+        stpapi.end.session(subsession)<br />
+        stpapi.end.session(st_sessie)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jp.aalders</div><div class="date">20th December 2011, 20:39</div></div><div class="posttext">:eek:<br />
+<br />
+stupid... sometimes you just stare too long at your code....<br />
+The problem was caused by myself, <br />
+<br />
+|* Set values <br />
+ stpapi.put.field(subsession,&quot;cspp&quot;,top.cspa)<br />
+ stpapi.put.field(subsession,&quot;step.size&quot;, &quot;1&quot;)<br />
+<br />
+<br />
+ |* Continue process<br />
+ stpapi.continue.process(st_sessie,afs.mess)<br />
+<br />
+The continue.process was not executed for the subsession but for the main session. I changed the continue.process to the subsession and now it's running fine.<br />
+<br />
+Thanks for the support &amp; time!<br />
+<br />
+John</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th December 2011, 21:08</div></div><div class="posttext">Glad you solved it.  I was just getting ready to post if I used your code up to the update it worked for me.  Then again I did not have the subsession so did not catch that.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jp.aalders</div><div class="date">20th December 2011, 21:48</div></div><div class="posttext">Glad you solved it.  I was just getting ready to post if I used your code up to the update it worked for me.  Then again I did not have the subsession so did not catch that.<br />
+<br />
+Thanks for your effort Marc, good to have communities like these :-)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

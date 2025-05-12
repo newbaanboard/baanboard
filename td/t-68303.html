@@ -1,0 +1,100 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="stpapi calls to release order (tisfc024m000) not working, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] stpapi calls to release order (tisfc024m000) not working Tools Development" />
+	
+	<title>stpapi calls to release order (tisfc024m000) not working [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; stpapi calls to release order (tisfc024m000) not working</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">VishalMistry</div><div class="date">26th October 2015, 17:43</div></div><div class="posttext">Hi all<br />
+I am calling following function which releases the production order passed to it.<br />
+<br />
+function execute.session.tisfc0204m000(domain tcpdno ref.pdno)		<br />
+{<br />
+	<br />
+	stpapi.put.field(REL.ORDR,&quot;pdno.f&quot;,str$(ref.pdno))<br />
+	stpapi.put.field(REL.ORDR,&quot;pdno.t&quot;,str$(ref.pdno))<br />
+	stpapi.put.field(REL.ORDR,&quot;cprj.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(REL.ORDR,&quot;cprj.t&quot;,&quot;ZZZZZZ&quot;)<br />
+	stpapi.put.field(REL.ORDR,&quot;prdt.f&quot;,str$(0))<br />
+	stpapi.put.field(REL.ORDR,&quot;prdt.t&quot;,str$(prdt.t.cus))<br />
+	stpapi.set.report(REL.ORDR, &quot;rtisfc020401000&quot;, alt.dev, error.msg)<br />
+	stpapi.print.report(REL.ORDR, error.msg)<br />
+	stpapi.end.session( REL.ORDR, error.msg)						<br />
+}		<br />
+<br />
+The status of prod.order is planned or document printed and the device selected is getting stored in alt.dev.<br />
+<br />
+Calling this session	does not change the status of production order to Released.<br />
+<br />
+Anybody any clue please. Any help in this regard is highly appreciated.<br />
+<br />
+Vishal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">VishalMistry</div><div class="date">26th October 2015, 18:28</div></div><div class="posttext">I got solution. The Actual code is <br />
+<br />
+stpapi.put.field(REL.ORDR,&quot;pdno.f&quot;,str$(ref.pdno))<br />
+	stpapi.put.field(REL.ORDR,&quot;pdno.t&quot;,str$(ref.pdno))<br />
+	stpapi.put.field(REL.ORDR,&quot;cprj.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(REL.ORDR,&quot;cprj.t&quot;,&quot;ZZZZZZ&quot;)<br />
+	|stpapi.put.field(REL.ORDR,&quot;prdt.f&quot;,str$(0))<br />
+	stpapi.put.field(REL.ORDR,&quot;prdt.t&quot;,str$(prdt.t.cus))<br />
+	stpapi.set.report(REL.ORDR, &quot;rtisfc020401000&quot;, alt.dev, error.msg)<br />
+	stpapi.continue.process(REL.ORDR,error.msg)<br />
+	|stpapi.print.report(REL.ORDR, error.msg)<br />
+	stpapi.end.session( REL.ORDR, error.msg)<br />
+<br />
+Actually i forgot to write <br />
+stpapi.set.report(REL.ORDR, &quot;rtisfc020401000&quot;, alt.dev, error.msg)<br />
+stpapi.continue.process(REL.ORDR,error.msg)<br />
+<br />
+Vishal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th October 2015, 19:10</div></div><div class="posttext">The old code below worked for me - but the production order on our system has to be at documents printed status before it will change to releases using tisfc0204m000.  I also pushed the date range out just to make sure it was covered.  So you might want to check the date you are using also.<br />
+<br />
+<br />
+function release_production_order()<br />
+{<br />
+	spool.device  = &quot;&quot;<br />
+	spool.fileout = &quot;&quot;<br />
+	sfc.order = 374644<br />
+| Setup report.<br />
+| Put the fields.<br />
+	stpapi.put.field( &quot;tisfc0204m000&quot;, &quot;ccot.f&quot;, &quot; &quot; )<br />
+	stpapi.put.field( &quot;tisfc0204m000&quot;, &quot;ccot.t&quot;, &quot;ZZZ&quot; )<br />
+<br />
+	stpapi.put.field( &quot;tisfc0204m000&quot;, &quot;pdno.f&quot;,str$(sfc.order))<br />
+	stpapi.put.field( &quot;tisfc0204m000&quot;, &quot;pdno.t&quot;,str$(sfc.order))<br />
+	stpapi.put.field( &quot;tisfc0204m000&quot;, &quot;prdt.f&quot;, str$(date.num()-1000) )<br />
+	stpapi.put.field( &quot;tisfc0204m000&quot;, &quot;prdt.t&quot;, str$(date.num()+1000) )<br />
+| Set report<br />
+	stpapi.set.report(&quot;tisfc0204m000&quot;,&quot;rtisfc020401000&quot;,&quot;D66&quot;,errmsg)<br />
+	if(strip$(errmsg)&lt;&gt;&quot;&quot;) then<br />
+		message(&quot;Report: &quot;&amp;errmsg)<br />
+	else<br />
+		stpapi.continue.process( &quot;tisfc0204m000&quot;, errmsg)<br />
+		if(strip$(errmsg)&lt;&gt;&quot;&quot;) then<br />
+			message(&quot;Continue: &quot;&amp;errmsg)<br />
+		endif<br />
+	endif<br />
+	tmsg = stpapi.get.mess.code(&quot;tisfc0204m000&quot;, errmsg)	<br />
+	stpapi.end.session( &quot;tisfc0204m000&quot; )<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

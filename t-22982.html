@@ -1,0 +1,137 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS and switch.to.company, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS and switch.to.company AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS and switch.to.company [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS and switch.to.company</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Juergen</div><div class="date">26th January 2005, 10:01</div></div><div class="posttext">Hi,<br />
+<br />
+I have a big problem with the function switch.to.company and AFS. <br />
+<br />
+We build up a connector between our EDM System ProfiDB and our Baan system (IVc4 SP 14). Item and BOM information from the EDM System will be automatically transferd (via ASCII files) to Baan. On the Baan side main parts in the session are done using AFS. This is working very well.<br />
+<br />
+The only problem is that we have two companies in Baan (company A and company B). Depending on two fields in the ASCII files the data must be inserted in company A or in company B or into both companies.<br />
+The last option is the problem. The Baan session is running in company A. If now the data must be inserted into both companies the session first insert the data in company A and in a second loop insert the data in company B.<br />
+<br />
+To do this I use the function switch.to.company before calling the AFS functions.<br />
+<br />
+function create.edmitm(domain tccomp comp)<br />
+{<br />
+        if get.compnr() &lt;&gt; comp then<br />
+           ret.sw = switch.to.company(comp)<br />
+        endif<br />
+<br />
+        stpapi.put.field(&quot;tiedm0110m000&quot;, &quot;tiedm010.eitm&quot;, in.item)<br />
+        ....<br />
+        ....<br />
+        ret = stpapi.insert(&quot;tiedm0110m000&quot;, 1, error.mess)<br />
+        ....<br />
+        stpapi.end.session(&quot;tiedm0110m000&quot;)<br />
+<br />
+<br />
+switch.to.company returns 1 (o.k) but stpapi.insert returns 0 (failed) with error.mess &quot;Record already exists&quot; for insert the data into company B. <br />
+<br />
+The error does not occur if the data needs olny be inserted into company B and the session is running in company A. So the switch.to.company itself is working. The error only occur if the data needs to be inserted into both companies in one run.<br />
+<br />
+After hours of debugging and checking (e.g. AFS.LOG) now I am helpless.<br />
+<br />
+In some other threads regarding AFS and switch.to.company I found nothing what can be the problem. Normally it must work.<br />
+<br />
+Maybe someone out there knows more or has the same problems in the past?<br />
+<br />
+Regards,<br />
+Juergen</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th January 2005, 19:12</div></div><div class="posttext">Just something to try - add a suspend(x) after the last session.  Try something like 3000 milliseconds.  I know on some of my sessions if I do not pause things and let them clear out then I have problems when continuing.  I do not have a clue if this is even remotely possible in your case, but something to try.  And yes 3000 is rather a long pause, but if it works you can always try lower values.  Again just something to try.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Juergen</div><div class="date">28th January 2005, 08:30</div></div><div class="posttext">Hello Mark,<br />
+<br />
+I tried your suggestion, but with no success. The problem must be in this area. Maybe the session which is called thru AFS will not closed complete or some internal pointers are not resetting.<br />
+Nevertheless thank`s for the tip.<br />
+<br />
+The Problem is that we must go live with the Connector between EDM and Baan in the next time. If there is no solution for the problem I have to redesign the Baan part. Means to kick off AFS and doing it in the old way. :(<br />
+<br />
+Thanks again,<br />
+Juergen</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kbartelds</div><div class="date">28th January 2005, 09:59</div></div><div class="posttext">Just a possible solution: create 3 sessions. First one to read the ascii file, second one to control data for company A and third one to control data for company B. Second and third session will have the same source code and will contain the afs code to send data to edm tables.<br />
+<br />
+The first session reads the file and analyses the data and will use a zoom.to to the second and/or third session to fill in the data in company A/B. The data from the file that is used to fill edm can be exported/imported, so is the requiered company number.<br />
+<br />
+Regards,<br />
+Klaas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Juergen</div><div class="date">28th January 2005, 11:03</div></div><div class="posttext">Thanks Klaas,<br />
+<br />
+good idea. Need some additional coding but if I don`t find an easier solution for the problem in the next days I will give it a try. Splitting it into itself closed tasks can be the solution.<br />
+<br />
+Regards,<br />
+Juergen</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">29th January 2005, 16:06</div></div><div class="posttext">Just an idea if you are using jobs for the import: Split it into 2 jobs. One for Company A and one for Company B. Then the second job has to wait until the first job has ended. So you have 2 &quot;clean&quot; environments. <br />
+<br />
+Regards <br />
+csecgn</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">31st January 2005, 17:36</div></div><div class="posttext">Just FYI, I had a problem when running a batch job and using the switch.to.company with a bunch of old (ancient) db.* statements.  So, it's not just afs, I think it has to do with the processing shell.  We could switch once, but not back and forth very well.  Our solution was to spawn another process for different companies as well, and that took care of it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">1st February 2005, 14:38</div></div><div class="posttext">Lisa, <br />
+Db statements work properly if u use _compnr in SQL conditions for db.update / delete .For inserting records writing ppmmm999._compnr = ??? before db.insert works.<br />
+<br />
+I had worked quite sometime back on this and it worked . Maybe u have a different set of objects or scenario .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">1st February 2005, 15:58</div></div><div class="posttext">Thanks Hitesh, undoubtedly you are right.  Our problem was that we had 'straight lined' the Baan session code, and that did not use the comany number in the db's.  We could add them, but kept running into problems on every db.  To complicate, it was a finance session and which company to read for in a multi logistic / single finance setup was not so easy.  The quickest solution was to start new processes.  My point was just that the shells themself have a problem with it, without special handling on each db, when called from afs or not.  The Baan sessions have no issue, they restart each time called.  Our batch processes calls of those standard sessions expose the issues.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">2nd February 2005, 15:01</div></div><div class="posttext">Completely agree with u. Especially in a complex scenario like multi-company setup with logical tables with lot of other issues , this is the best strategy. <br />
+<br />
+Wrt shells having problems , I have also noticed this at times.Think Marks idea of using suspend(x) is worth testing. However this too is tested . So currently agree  with the workarounds suggested by others and also if possible to get the help from SSA support on this.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Juergen</div><div class="date">3rd February 2005, 08:35</div></div><div class="posttext">The problem with the function switch.to.company is solved from the Baan Support.<br />
+<br />
+Troublemakers in our case was the tools objects ottstpapihand and ottstpstandard. After installing a new set of tools components now the session works without problems.<br />
+<br />
+Thanks to all for their help and proposals.<br />
+<br />
+Regards,<br />
+Juergen</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vcolombo</div><div class="date">24th May 2005, 16:13</div></div><div class="posttext">Hi! Please, can you tell me the solution number you used in order to solve this? I have the same problem...  :( Thanks!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Juergen</div><div class="date">24th May 2005, 16:19</div></div><div class="posttext">Hi,<br />
+<br />
+the solution number is 147361. <br />
+<br />
+Regards,<br />
+Juergen</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

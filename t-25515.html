@@ -1,0 +1,210 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Maintain Outbound in AFS fails for Order Type: &quot;Collect Order&quot;, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Maintain Outbound in AFS fails for Order Type: &quot;Collect Order&quot; AFS/DDC/OLE: Function servers" />
+	
+	<title>Maintain Outbound in AFS fails for Order Type: &quot;Collect Order&quot; [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Maintain Outbound in AFS fails for Order Type: &quot;Collect Order&quot;</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">FoxZapper</div><div class="date">31st October 2005, 14:06</div></div><div class="posttext">Hello,<br />
+<br />
+I am trying to automate the Collect Order Process.<br />
+In this, I managed to:<br />
+1. create a new sales order header<br />
+2.  insert new sales order lines.<br />
+<br />
+And when I save the record, the Maintain Outbound Data session (tdilc4102s000) gets activated immediately as its an order of type &quot;Collect Order&quot; [Note: tcmcs0142m000: Maintain Order Type with Collect Order = Yes]<br />
+<br />
+I have already successfully managed to run the Maintain Outbound Process via the Maintain Outbound Data  (tdilc4101m000) and the subsequent occurance of the subsession tdils4102s000. <br />
+<br />
+However, in this case, the program fails as I am assuming there are 2 subsessions (tdsls4105s000  and tdilc4102s000) to be activated from the main session Maintain Sales Order  tdsls4101m000<br />
+ <br />
+Has someone come across this issue?<br />
+Any suggestions are welcome. <br />
+<br />
+Regards,<br />
+<br />
+Arun<br />
+<br />
+<br />
+function insert.so.lines.and.outbound.data()<br />
+{<br />
+long	ret.val, ret.val1, ret.val2, ret.val3<br />
+string	so.str(8)<br />
+string	err.mess(132)<br />
+string	so.number.str(10)<br />
+string	position.string(5)<br />
+<br />
+get.max.position.for.order() <br />
+<br />
+		stpapi.put.field(&quot;tdsls4101m000&quot;, &quot;tdsls040.orno&quot;, so.number.str)<br />
+		ret.val1 = stpapi.find(&quot;tdsls4101m000&quot;, error.msg)<br />
+	<br />
+		if ret.val1 = 1 then<br />
+			<br />
+			stpapi.handle.subproc(&quot;tdsls4101m000&quot;, &quot;tdsls4105s000&quot;, &quot;add&quot;)<br />
+			stpapi.continue.process(&quot;tdsls4101m000&quot;, error.msg)			<br />
+			stpapi.get.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.orno&quot;, so.str)<br />
+			<br />
+			stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.orno&quot;, so.number.str)<br />
+			stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.pono&quot;, position.number.str)<br />
+			stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.item&quot;, &quot;51209&quot;)<br />
+			stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.cwar&quot;, &quot;001&quot;)<br />
+			stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.oqua&quot;, &quot;1&quot;)<br />
+			stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.pric&quot;, &quot;735&quot;)<br />
+			stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.ldam&quot;, &quot;0&quot;)<br />
+			stpapi.put.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.disc&quot;, &quot;0&quot;)<br />
+			ret.val2 = stpapi.insert(&quot;tdsls4105s000&quot;, true, err.mesg)<br />
+				if ret.val2 &lt;&gt; 1 then<br />
+				|* If error, then recover the session<br />
+					ret.val3 = stpapi.recover(&quot;tdsls4105s000&quot;, err.mess)<br />
+					create.so.insert.err.file()<br />
+				else<br />
+					success.rec = success.rec + 1<br />
+					|* Maintain Outbound Data						<br />
+					stpapi.handle.subproc(&quot;tdsls4105s000&quot;, &quot;tdilc4102s000&quot;, &quot;add&quot;)<br />
+					get.next.sequence.number.for.sales.sera.serb.from.tdilc401()<br />
+					|* Begin the Subsession to maintain the data<br />
+					stpapi.put.field( &quot;tdilc4102s000&quot;, &quot;tdilc401.koor&quot;, str$(etol(tdilc.koob.act.sls)))<br />
+					stpapi.put.field( &quot;tdilc4102s000&quot;, &quot;tdilc401.orno&quot;, order.no.str)<br />
+					stpapi.put.field( &quot;tdilc4102s000&quot;, &quot;tdilc401.pono&quot;, position.number.str)<br />
+					ret.val3 = stpapi.change.view(&quot;tdilc4102s000&quot;, error.msg)<br />
+					stpapi.put.field( &quot;tdilc4102s000&quot;, &quot;tdilc401.orno&quot;, order.no.str)<br />
+					stpapi.put.field( &quot;tdilc4102s000&quot;, &quot;tdilc401.pono&quot;, position.number.str)<br />
+					stpapi.put.field( &quot;tdilc4102s000&quot;, &quot;tdilc401.sera&quot;, sera.str)<br />
+					stpapi.put.field( &quot;tdilc4102s000&quot;, &quot;tdilc401.serb&quot;, serb.str)<br />
+					stpapi.put.field( &quot;tdilc4102s000&quot;, &quot;tdsls041.item&quot;, &quot;51209&quot;)					<br />
+					stpapi.put.field( &quot;tdilc4102s000&quot;, &quot;tdilc401.loca&quot;, &quot;RE&quot;)<br />
+					stpapi.put.field( &quot;tdilc4102s000&quot;, &quot;tdilc401.stun&quot;, &quot;set&quot;)<br />
+					stpapi.put.field( &quot;tdilc4102s000&quot;, &quot;tdilc401.qstr&quot;, &quot;1&quot;)<br />
+					stpapi.put.field( &quot;tdilc4102s000&quot;, &quot;tdilc401.qsts&quot;, &quot;1&quot;)<br />
+						<br />
+					ret.val = stpapi.insert(&quot;tdilc4102s000&quot;, true, err.mesg )<br />
+					if ret.val &lt;&gt; 1 then<br />
+						ret.val2 = stpapi.recover(&quot;tdilc4102s000&quot;, err.mess)<br />
+						|create.err.file()<br />
+					else<br />
+						success.rec = success.rec + 1<br />
+						first.time = false<br />
+					endif<br />
+					stpapi.end.session( &quot;tdilc4102s000&quot;)<br />
+					stpapi.end.session( &quot;tdilc4513s000&quot;)<br />
+				endif<br />
+			stpapi.end.session( &quot;tdsls4105s000&quot;)<br />
+			stpapi.end.session( &quot;tdsls4504s000&quot;)	<br />
+		else<br />
+			|* Order Not found<br />
+			err.mesg = sprintf$(&quot;Sales Order:%s could not be found!!&quot;, so.number.str)<br />
+			create.so.insert.err.file()<br />
+		endif<br />
+		stpapi.end.session( &quot;tdsls4101m000&quot;)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">31st October 2005, 15:25</div></div><div class="posttext">Just an observation - does ret.val2 = stpapi.insert(&quot;tdsls4105s000&quot;, true, err.mesg) then launch tdilc4102s000?  If so then move your stpapi.handle.subproc up above the insert statement.  Just guessing since I can't see the code in get.next.sequence.number.for.sales.sera.serb.from.tdilc401().<br />
+<br />
+Another question - is it possible for you to use the kill option and then run tdilc4102m000?  Not sure since I do not understand this whole process.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">FoxZapper</div><div class="date">31st October 2005, 15:43</div></div><div class="posttext">Dear Mark,<br />
+<br />
+Thanks for your reply.<br />
+Actually from a UI perspective, the moment the user saves the record in tdsls4105s000, the system activates the tdilc4102s000 session internally. Based on your obeservation, I tried moving the <br />
+stpapi.handle.subproc( &quot;tdsls4105s000&quot;, &quot;tdilc4102s000&quot;, &quot;add&quot;)<br />
+before the <br />
+ret.val2 = stpapi.insert(&quot;tdsls4105s000&quot;, true, err.mesg)<br />
+<br />
+Unfortunately, the moment the focus reaches<br />
+stpapi.put.field( &quot;tdilc4102s000&quot;, &quot;tdilc401.koor&quot;, str$(etol(tdilc.koob.act.sls)))<br />
+<br />
+the code freezes and gets delayed considerably.<br />
+<br />
+Have you ever come across a case where 2 subsessions needed to be activated in sequence.<br />
+My process is similar to the one below (where you had posted some answers too!)<br />
+afs problem with tdilc4102s000 out of tdsls4105s000  (http://www.baanboard.com/baanboard/showthread.php?t=16198) <br />
+<br />
+Any ideas?<br />
+<br />
+<br />
+Regards,<br />
+<br />
+Arun</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">31st October 2005, 16:03</div></div><div class="posttext">Yes - I have one that interacts with tfgld1101m00 and several of the tfacp sessions.  Of course that was one of my uglier processes, but it works.  Several questions pop into my mind?  One when the insert is executed does this activate the tdilc session? If so does the stpapi.put.field( &quot;tdilc4102s000&quot;, &quot;tdilc401.koor&quot;, str$(etol(tdilc.koob.act.sls) activate another instance of tdilc4102s000 in the background?  If yes - then I have this question?  When you run it manually can you just cancel out of the tdilc4102s000 session.  Then possible activate it again??<br />
+<br />
+Even better would be if you had source code and could put tdsls4105s000 and tdilc4102s000 in debug mode.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">FoxZapper</div><div class="date">31st October 2005, 17:14</div></div><div class="posttext">Dear Mark,<br />
+<br />
+This is the flow. The following sessions are activated in sequence. <br />
+<br />
+a. Maintain Sales Order tds4101m000<br />
+b. Maintain Sales Order Lines tdsls4105s000<br />
+While inserting the lines, it also activates the session tdsls4504s000  in the background.<br />
+<br />
+The moment, we save a record (insert) on this session, the following get activated.<br />
+Maintain Outbound Data tdilc4102s000<br />
+It also activates the session tdilc4513s000  in the background. <br />
+<br />
+In my script, the AFS successfully inserts the data into the Sales Order Line <br />
+stpapi.insert(&quot;tdsls4105s000&quot;, true, err.mesg)<br />
+<br />
+But the focus is lost from:<br />
+stpapi.handle.subproc(&quot;tdsls4105s000&quot;, &quot;tdilc4102s000&quot;, &quot;add&quot;)<br />
+stpapi.continue.process(&quot;tdsls4105s000&quot;, err.mess)<br />
+stpapi.get.field(&quot;tdsls4105s000&quot;, &quot;tdsls041.orno&quot;, so.str)[U]<br />
+<br />
+Manually, there is no way to cancel this session tdilc4102s000 as at this moment the focus is lost from all other sessions.<br />
+The only way to establish that the other sessions are running is via the Bshell.<br />
+<br />
+Having the source code would have made my life a lot easier.... but life isn't always fair.<br />
+<br />
+Regards,<br />
+<br />
+Arun</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">31st October 2005, 17:52</div></div><div class="posttext">Sent an email to you.<br />
+<br />
+I have done a lot of ugly things to get function servers to work with some sessions.  I have posted code to kill a session in the background - but I do not know if it would do you any good.  In my case I kill the session (no control like yours), but then I re-launch it with another stpapi command which then gives me code.  You can try this by hand - run your function server. Once tdilc4102 launches then use the bsehll and kill both tdilc4102 and tdilc4513.  See if control returns to your program.  Then run tdilc4101m000 by hand and do the outbound stuff.  And then let your code just close.  Does this process work?<br />
+<br />
+I had to get this in today - I learned that true is not always equal to true in Baan.  I know understand how Baan handles boolean.  In service pack 19 I had one program where I had api.mode = true.  TSK! TSK! It worked before, but now api.mode=2 which is still true yet not equal to true.   I just could not resist. :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">FoxZapper</div><div class="date">3rd November 2005, 12:37</div></div><div class="posttext">Dear Mark,<br />
+<br />
+Thanks for your assistance and suggestions.<br />
+Your scripts were useful. Managed to establish that all 'COLLECT' orders activate the ilc subsessions.<br />
+But, the issue is not with my script, it's with the session itself. According to BaaN tdsls4105m00  and tdsls4105s000 Maintain Sales Order Lines(Wholesale)are not supported on AFS.<br />
+<br />
+The session Maintain Sales Order Lines (tdpur4102s000) is supported for use with API and Application Function Servers while session Maintain Sales Order Lines (Wholesale) (tdpur4105s000) is not. Support is dependent on the session and not the program script. A function server generated for session Maintain Sales Order Lines (Wholesale) (tdpur4105s000) is used at your own risk and not supported because Baan has not adapted the session logic to be compatible with API and function server requirements.<br />
+<br />
+I should have checked this before attempting this on AFS. My bad!<br />
+Surprisingly, even though BaaN does not support these sessions, I was able to insert Sales Order Lines using my AFS script.<br />
+<br />
+I plan to activate this via tdsls4102s000 and try the same. Will let you know how it turns out.<br />
+<br />
+Regards,<br />
+<br />
+Arun</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd November 2005, 15:45</div></div><div class="posttext">Glad to be of help.  I have plenty of function servers for non-supported sessions.  So far it has not stopped me and plus I think Baan should make all sessions API friendly.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

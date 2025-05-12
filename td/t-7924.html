@@ -1,0 +1,117 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Select as UN-prepared set?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Select as UN-prepared set? Tools Development" />
+	
+	<title>Select as UN-prepared set? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Select as UN-prepared set?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">RobertB</div><div class="date">3rd December 2002, 11:21</div></div><div class="posttext">Hi all,<br />
+<br />
+ERP 5.0c (SP7), MS-SQL Server 7...<br />
+<br />
+I know there is an option, when doing a select, to have the option &quot;as pepared set...&quot;, in order to retrieve all data before starting processing it.<br />
+<br />
+It seems in our setup that this option is somehow set as standard, ie if I simply write something like:select titad988.item<br />
+from titad988<br />
+order by titad988._index1<br />
+selectdo<br />
+<br />
+... select some stuff from other tables...<br />
+<br />
+endselectthen it takes Baan something like 5 minutes to start the inner processing. We're talking a mere 4800 records * 3 fields in titad988, this is a test table which nobody else is accessing, there are no locks on the table, either in Baan or in MS-SQL Server. Same results with/without debugger.<br />
+<br />
+Once the inner processing starts, everything goes quickly. My question is, why doesn't Baan simply get the data as an &quot;unprepared&quot; set (get each record individually)- or does our problem have something to do with the way Baan communicates with MS-SQL Server? And is there anything I can do about it?<br />
+<br />
+HYCH,<br />
+RobertB</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">3rd December 2002, 12:53</div></div><div class="posttext">Check your settings (tabledef, db_resource, env variables) as:<br />
+- rds full<br />
+- ssts_set_rows<br />
+<br />
+If these variables are set very high it could result in the effect you describe. rds_full retrieves rows from the driver in sets of XX rows to the bshell. If the value is e.g. 10.000 you can see this behavior.<br />
+<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertB</div><div class="date">3rd December 2002, 14:51</div></div><div class="posttext">Dick,<br />
+<br />
+Nope, that went right over my head ;)  - can you tell where we  find/set  these objects/values?<br />
+<br />
+R</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">3rd December 2002, 15:02</div></div><div class="posttext">the parameters e.g. rds_full can be set in several places:<br />
+- on UNIX it can be set in the bse_vars (in your $HOME, /usr/bse or $BSE/lib directory)<br />
+- in your environment variables (e.g. .profile on UNIX or retistry on NT/W2K)<br />
+- in your $BSE/lib/tabledef or %BSE%\lib\tabledef file (between brackets directly behind your database driver name<br />
+- in your $BSE/lib/defaults/db_resource or %BSE%\lib\defaults\db_resource file<br />
+<br />
+For more info about the usage and setting I would recoomend to my Performance Tracing and Tuning Guide (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=7665) <br />
+<br />
+If you still have problems after reading the first couple of paragraps of chapter 5 let me you and we will try to help you further.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertB</div><div class="date">4th December 2002, 08:02</div></div><div class="posttext">Dick,<br />
+<br />
+Thanks for the help so far...  OK, I've taken a look at the registry, both on the Server and a couple of clients, but found no entries for rds_full or ssts_set_rows (only bse_tmp).<br />
+<br />
+Next, we took a look at the db_resource file and found the following entries:dbsinit:01<br />
+use_shm_info:0<br />
+ds_timeout_detect:35<br />
+bdb_max_session_schedule:50<br />
+msql_lock_timeout:10<br />
+msql_query_timeout:0<br />
+msql_use_ffo:1<br />
+to which we have now added a new line: rds_full:2. Setting rds_full to 2 (or 3, 4 or 5) however has had no tangible effect on the performance of queries (at least those relating to the previous problem).<br />
+<br />
+Next, we took a look at the tabledef file and found 190 lines of the formattcibd001:000:msql7(MSQL_LEVEL=1,MSQL_SERVERHOST=10.1.0.125):N<br />
+tisfc000:*:msql7(MSQL_LEVEL=1,MSQL_SERVERHOST=10.1.0.125):Y<br />
+tdipu001:*:msql7(MSQL_LEVEL=1,MSQL_SERVERHOST=10.1.0.125):Y<br />
+<br />
+with one line of this format*:*:msql7(MSQL_LEVEL=1,MSQL_SERVERHOST=10.1.0.125):N<br />
+ If I read your comments correctly, you suggest that we append a line liketitad988:*:msql7(RDS_FULL=2,MSQL_LEVEL=1,MSQL_SERVERHOST=10.1.0.125):Y<br />
+ to alter the behaviour for the test table titad988?<br />
+<br />
+Also, chapter 5 of your (very helpful!) .PDF Performance Tuning Guide deals mostly with issues relating to Oracle/DB2 databases - apart from those which we find in our db_resource file, are there any other resource parameters for MS SQL Server 7 of which we should be aware?<br />
+<br />
+RB</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">4th December 2002, 08:12</div></div><div class="posttext">The variable rds_full could be set the best in the %BSE%\lib\defaults\db_resource file else you have to specify it in all lines of the tabledef (less readable and longer startup time of driver).<br />
+<br />
+I know that MSQL is missing yet. This is planned for the next version. As my MSQL knowledge is less I need some help from expert collegues.<br />
+<br />
+But about your original problem: You can do to things:<br />
+- set DBSLOG=1000 (e.g. in environment or db_resource) to see what the value of the different environment variables are. BTW setting DBSLOG in the db_resource will set the variable for all users....<br />
+- Trace with e.g. MSQLPROF to see if all rows are really fetched to the database or that you maybe *think* they are already fetched but some else goes wrong.<br />
+<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertB</div><div class="date">4th December 2002, 09:08</div></div><div class="posttext">Dick,<br />
+<br />
+thanks again for great support! Yes, tracing is the next step (we've done this in the past, but not recently :o )...  Maybe when we change over to Baan 5.2/MS SQL Server 2000 (next year), the problem will go away? :D</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">4th March 2004, 19:04</div></div><div class="posttext">Hey, this is a really old post, not sure why I am replying at all.  Just came up in a search.<br />
+<br />
+If you choose the order by clause - does it not have to read all the records so it knows the order?  I would think so, especially since there is not a read by that index specifically.  Wondering if you have upgraded to 2000 and if this went away?  Or if you remove the order by if this query would act different.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

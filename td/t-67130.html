@@ -1,0 +1,273 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="subsession import field is reset by main.table.io, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] subsession import field is reset by main.table.io Tools Development" />
+	
+	<title>subsession import field is reset by main.table.io [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; subsession import field is reset by main.table.io</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Andy..</div><div class="date">1st December 2014, 19:12</div></div><div class="posttext">I am calling a new subsession that refers to sales orderline and a new table<br />
+It seems to work fine with the code below in that it looks up the sales orderline that matches the custom table and you can scroll around records and it updates associated values fine<br />
+<br />
+BUT when you run it as a subsession with the imported zoom values, it works fine tdtst041.orno is set to the zoom.orno value and seems like it will work UNTIL it reaches main.table.io where it resets tdtst041.orno to the first record in the table <br />
+<br />
+I guess I'm doing something stupid, but I can't see it - Help!<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+	<br />
+before.program:<br />
+	<br />
+<br />
+zoom.from.all:<br />
+on.entry:<br />
+     import(&quot;zoom.orno&quot;, zoom.orno)<br />
+     import(&quot;zoom.pono&quot;, zoom.pono)<br />
+<br />
+<br />
+     	select tdtst041.*<br />
+	from	tdtst041<br />
+	where	tdtst041._index1 = {:zoom.orno, :zoom.pono}<br />
+	selectdo<br />
+		|do nothing, allow edit<br />
+		<br />
+	selectempty<br />
+		|start insert record<br />
+<br />
+		execute(add.set)<br />
+<br />
+	endselect<br />
+<br />
+              |not necessary as values are setup already...<br />
+	|if zoom.orno&gt;0 then<br />
+	|	tdtst041.orno = zoom.orno<br />
+	|	tdtst041.pono = zoom.pono<br />
+	|endif<br />
+	<br />
+	<br />
+<br />
+main.table.io:<br />
+after.read:<br />
+|find sales orderline references<br />
+		select	tdsls041.*<br />
+		from	tdsls041<br />
+		where	tdsls041._index1 = {:tdtst041.orno, :tdtst041.pono}<br />
+		selectdo<br />
+<br />
+		selectempty<br />
+			message(&quot;Order/position &quot; &amp; str$(tdtst041.orno) &amp; &quot;/&quot; &amp; str$(tdtst041.pono) &amp; &quot; not found in tdsls041&quot;)<br />
+		endselect<br />
+<br />
+|lookup item desc<br />
+		select	tiitm001.*<br />
+		from	tiitm001<br />
+		where	tiitm001._index1 = {:tdsls041.item}<br />
+		selectdo<br />
+		selectempty<br />
+		endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">1st December 2014, 19:57</div></div><div class="posttext">i am just wondering, is the start command of the session first.set ?? in that case it will fetch the 1st record and more over there is no query.extension used.<br />
+<br />
+what i understand is you are basically providing a maintain session for tdtst041 and also checking if its present in standard table tdsls041 ,  I feel you probably should be using query.extension ( so the the query set will have only zoomed order and therefore you  main.table.io ==&gt; after.read : will have only those order</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd December 2014, 16:17</div></div><div class="posttext">I think Vamsi already cover the best option to look at with the start option - make it find or maybe refresh.  I just wish in 4c4 you had some of the LN functionality for query extensions - rather than using before program section.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Andy..</div><div class="date">3rd December 2014, 11:53</div></div><div class="posttext">i am just wondering, is the start command of the session first.set ?? in that case it will fetch the 1st record and more over there is no query.extension used.<br />
+<br />
+what i understand is you are basically providing a maintain session for tdtst041 and also checking if its present in standard table tdsls041 ,  I feel you probably should be using query.extension ( so the the query set will have only zoomed order and therefore you  main.table.io ==&gt; after.read : will have only those order<br />
+<br />
+Hi, I have only used query.extension in BaanIV to limit/alter the existing query rather than adding another table - is it possible to use query.extension to add tdsls041 to the session in BaanIV?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Andy..</div><div class="date">3rd December 2014, 12:38</div></div><div class="posttext">I have rechecked the session is not calling 'first.set' and it isn't - if I change it to something obvious like 'insert' then it does the insert action.  Now I have removed some code and end up with the following actual problem...<br />
+<br />
+<br />
+zoom.from.all:<br />
+on.entry:<br />
+     import(&quot;zoom.orno&quot;, zoom.orno)<br />
+     import(&quot;zoom.pono&quot;, zoom.pono)<br />
+<br />
+     import(&quot;zoom.orno&quot;, tdtst041.orno)<br />
+     import(&quot;zoom.pono&quot;, tdtst041.pono)<br />
+<br />
+		message(&quot;orno=&quot; &amp; str$(tdtst041.orno) &amp; &quot; pono=&quot; &amp; str$(zoom.pono))<br />
+at this stage orno and pono are set to the zoomed values<br />
+<br />
+<br />
+main.table.io:<br />
+before.read:<br />
+	|orderline()<br />
+	message(&quot;orno=&quot; &amp; str$(tdtst041.orno))<br />
+<br />
+by this time, orno is set to first record in the table<br />
+<br />
+it doesn't matter what happens elsewhere in the code - as soon as it reaches main.table.io is resets orno to the first record!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">3rd December 2014, 13:40</div></div><div class="posttext">Hi,<br />
+<br />
+Is this LN? You can write the code in before.display.object section.<br />
+<br />
+Also, try to add a refresh.parent(-1) in before.program section.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd December 2014, 17:15</div></div><div class="posttext">What is the start option on the session?  I will look for some same 4c4 code to show how I do query extensions.  It basically filters on the main table.  Then if I need fields from another table I build them in a couple of extra places.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd December 2014, 17:54</div></div><div class="posttext">Here is a complete sample script - don't get wrapped up in the skip.io code.  It was the only way I could filter some tables where some of the filter fields were not on the actual table.  You can also see where I display the revision which is in another table.  This is a simple session where I build the query extension field to be used on the main table tdexi305.<br />
+<br />
+<br />
+|******************************************************************************<br />
+|* tdexi3505  0  VRC B40T c4 dev <br />
+|* No ACK Review session.  Maintable is tdexi305.<br />
+|* Mark               <br />
+|* 2014-05-06<br />
+|******************************************************************************<br />
+|* Main table tdexi305 PO Exostar Interface Table, Form Type 2<br />
+|******************************************************************************                                                                                <br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+<br />
+                table     ttdexi305             | PO Exostar Interface Table<br />
+                table     ttdexi320             | Exostar Response.<br />
+                table     ttdpur041            | PO Lines<br />
+                table     ttdudi040            | PO Extension Table<br />
+                <br />
+|Script fields<br />
+                extern  domain                tcdate                   date.f, date.t     | Date Filer<br />
+                extern  domain                tcitem                   item.f, item.t    | Item Filter<br />
+                extern  domain                tcsuno                  suno.f, suno.t    | Supplier Filter<br />
+                extern  domain                tcemno                                buyr.f, buyr.t     | Buyer Filter<br />
+                extern  domain                tcorno                   orno.f, orno.t    | Purchase Order filer<br />
+                extern                  string                    q1(200)                 <br />
+                <br />
+                <br />
+|****************************** form section **********************************<br />
+before.program:<br />
+                if background then<br />
+                                import(&quot;date.f&quot;,date.f)<br />
+                                import(&quot;date.t&quot;,date.t)<br />
+                                import(&quot;suno.f&quot;,suno.f)<br />
+                                import(&quot;suno.t&quot;,suno.t)<br />
+                                import(&quot;buyr.f&quot;,buyr.f)<br />
+                                import(&quot;buyr.t&quot;,buyr.t)<br />
+                                import(&quot;item.f&quot;,item.f)<br />
+                                import(&quot;item.t&quot;,item.t)<br />
+                                import(&quot;orno.f&quot;,orno.f)<br />
+                                import(&quot;orno.t&quot;,orno.t)                <br />
+                                build.qry.ext()<br />
+                                <br />
+                else<br />
+                                item.f = &quot;&quot;<br />
+                                item.t = &quot;ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ&quot;<br />
+                endif<br />
+|****************************** field section *********************************<br />
+field.tdexi305.orno:<br />
+after.display:<br />
+                select    tdudi040.revi<br />
+                from      tdudi040<br />
+                where   tdudi040._index1 = {:tdexi305.orno}<br />
+                as set with 1 rows<br />
+                selectdo<br />
+                endselect<br />
+|****************************** form section **********************************<br />
+|****************************** choice section ********************************<br />
+|****************************** Main Table section ****************************<br />
+main.table.io:<br />
+after.read:<br />
+                select    tdpur041.orno, tdudi040.revi<br />
+                from      tdpur041, tdudi040<br />
+                where   tdpur041._index1 = {:tdexi305.orno}<br />
+                and        tdpur041.item inrange :item.f and :item.t<br />
+                and        tdudi040._index1 = {tdpur041.orno}<br />
+                group by tdpur041.orno, tdudi040.revi<br />
+                selectdo<br />
+                                select    tdexi320.orno<br />
+                                from      tdexi320<br />
+                                where   tdexi320._index1 = {:tdexi305.orno}<br />
+                                and        tdexi320.revi = :tdudi040.revi<br />
+                                as set with 1 rows<br />
+                                selectdo<br />
+                                                | If it finds it in the 320 table then it is in AWE or ACK status.<br />
+                                                skip.io(&quot;&quot;)<br />
+                                endselect<br />
+                selectempty<br />
+                                | This will skip orders where the item is not in the range<br />
+                                | or the actual order is deleted.<br />
+                                skip.io(&quot;&quot;)<br />
+                endselect<br />
+|****************************** function section ******************************<br />
+functions:<br />
+function build.qry.ext()<br />
+{<br />
+                query.extension = &quot;&quot;<br />
+                query.extension = &quot;tdexi305._index1 inrange {&quot; &amp; str$(orno.f) &amp;&quot;} and {&quot; &amp; str$(orno.t) &amp; &quot;}&quot;<br />
+                query.extension = query.extension &amp; &quot; and tdexi305.date inrange &quot; &amp; str$(date.f) &amp; &quot; and &quot; &amp; str$(date.t)<br />
+                if buyr.f &lt;&gt; 0 or buyr.t &lt;&gt; 999999 then<br />
+                                query.extension = query.extension &amp; &quot; and tdexi305.buyr inrange &quot; &amp; str$(buyr.f) &amp; &quot; and &quot; &amp; str$(buyr.t)<br />
+                endif<br />
+                if strip$(suno.f) &lt;&gt; &quot;&quot; or strip$(suno.t) &lt;&gt; &quot;ZZZZZZ&quot; then<br />
+                                query.extension = query.extension &amp; &quot; and tdexi305.suno inrange &quot; &amp; chr$(34) &amp; suno.f &amp; chr$(34) &amp; &quot; and &quot; &amp; <br />
+                                chr$(34) &amp; suno.t &amp; chr$(34)<br />
+                endif<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd December 2014, 17:57</div></div><div class="posttext">Just noticed something else:<br />
+<br />
+<br />
+zoom.from.all:<br />
+on.entry:<br />
+     import(&quot;zoom.orno&quot;, zoom.orno)<br />
+     import(&quot;zoom.pono&quot;, zoom.pono)<br />
+<br />
+     import(&quot;zoom.orno&quot;, tdtst041.orno)<br />
+     import(&quot;zoom.pono&quot;, tdtst041.pono)<br />
+<br />
+		message(&quot;orno=&quot; &amp; str$(tdtst041.orno) &amp; &quot; pono=&quot; &amp; str$(zoom.pono))<br />
+<br />
+<br />
+For some reason I had an issue somewhere in the past importing directly into a table field. What I do is this:<br />
+<br />
+zoom.from.all:<br />
+on.entry:<br />
+     import(&quot;zoom.orno&quot;, zoom.orno)<br />
+     import(&quot;zoom.pono&quot;, zoom.pono)<br />
+<br />
+     tdtst041.orno = zoom.orno<br />
+     tdtst041.pono) = zoom.pono<br />
+     message(&quot;orno=&quot; &amp; str$(tdtst041.orno) &amp; &quot; pono=&quot; &amp; str$(zoom.pono))<br />
+     execute(find.data)<br />
+<br />
+<br />
+<br />
+Went and checked one of my sessions:<br />
+<br />
+zoom.from.all:<br />
+on.entry:<br />
+                import(&quot;zoom.rfq&quot;,zoom.rfq)<br />
+                tdexi020.rfqnum = zoom.rfq<br />
+                execute(find.data)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

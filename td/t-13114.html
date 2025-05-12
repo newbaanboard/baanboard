@@ -1,0 +1,127 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="reexecution of session, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] reexecution of session Tools Development" />
+	
+	<title>reexecution of session [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; reexecution of session</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mohan05</div><div class="date">25th September 2003, 11:43</div></div><div class="posttext">Hi All<br />
+<br />
+I want to reexecute one session based on some condition.<br />
+How can I do it. <br />
+The scenario is something like this.<br />
+<br />
+read.main.table()<br />
+   Select *<br />
+   from tablename<br />
+   selectdo<br />
+      |updated the table &amp; start reexecuting from first line or <br />
+      |wherever I want<br />
+   selectempty<br />
+      |Continue with norman execution<br />
+   endselect<br />
+<br />
+-Mohan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sanjaykathuria</div><div class="date">25th September 2003, 11:50</div></div><div class="posttext">Dear Mohan,<br />
+<br />
+Use zoom.to$ statment to call any external session in running session.<br />
+<br />
+Best of Luck<br />
+<br />
+Sanjay</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mohan05</div><div class="date">25th September 2003, 13:05</div></div><div class="posttext">dear sanjay<br />
+<br />
+i want to re-execute the same session form begining when that condition occurs in my script.<br />
+<br />
+-Mohan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gous99</div><div class="date">25th September 2003, 14:45</div></div><div class="posttext">First, what event calls your read.main.table?<br />
+<br />
+Let's say it is the cont.process event, then, when your condition is true, call     execute(cont.process)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mohan05</div><div class="date">26th September 2003, 11:45</div></div><div class="posttext">Hi <br />
+<br />
+i already tried this but getting error like <br />
+&quot;Query Should be inExec status or Eval status&quot;<br />
+<br />
+What this error due to. <br />
+<br />
+-mohan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">29th September 2003, 17:52</div></div><div class="posttext">Not understanding everything here - <br />
+Are you trying to call the execute(cont.process) from within your read.main.table() function / selectdo?  If so, that is called recursion - calling yourself - and it's not allowed in Baan.<br />
+<br />
+When you say 're-execute' a session - you mean the same session you are in?  That is confusing, even for the code.  Do you mean re-execute an action of your session based on your chosen values?  If so, what action..?  Or an action from another session?   Maybe use api coding to call another session logic...<br />
+<br />
+Explain more and we can help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">King Willy</div><div class="date">29th September 2003, 18:10</div></div><div class="posttext">you can avoid error &quot;Query Should be inExec status or Eval status&quot; using dinamyc SQL.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mohan05</div><div class="date">30th September 2003, 06:48</div></div><div class="posttext">hi lbencic<br />
+<br />
+Yes I want to execute the same session in selectdo of read.main.table(). In selectdo on this perticular condition I am updating some table so that next time this condition will not occur &amp; the session executes with no error. I tried                          execute(cont.process) but the before mentioned error is occuring.<br />
+<br />
+-mohan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">King Willy</div><div class="date">30th September 2003, 10:02</div></div><div class="posttext">I thin you're looking for something like this:<br />
+<br />
+extern	domain	tcfield	field.actual<br />
+extern	long	level.recursion,sql.x,sql(MAX.RECURSION)	<br />
+<br />
+<br />
+function read.main.table()<br />
+{<br />
+	level.recursion=level.recursion+1 <br />
+<br />
+	sql.x=sql.parse(<br />
+			&quot;select tablename.* &quot;&amp;<br />
+			&quot;from tablename &quot;&amp;<br />
+			&quot;where	tablename._index1 = {:1} &quot;<br />
+			)<br />
+	sql.where.bind(sql.x,1,field.actual)<br />
+	sql(level.recursion)=sql.x<br />
+	sql.exec(sql.x)<br />
+	while (sql.fetch(sql.x)=0)<br />
+		if conditions.ok(tablename.field) then<br />
+			update.proc()	<br />
+			field.actual=tablename.field<br />
+			read.main.table()<br />
+		else<br />
+			exit.proc()744	<br />
+		endif<br />
+	endwhile<br />
+	sql.close(sql.x)<br />
+	level.recursion=level.recursion-1		<br />
+	if level.recursion&lt;&gt;0 then<br />
+		sql.x=sql(level.recursion)<br />
+	endif<br />
+}<br />
+<br />
+The update.proc() may be a zoom.to$ command, but be carefull with the recursion level or you will create infinite new processes.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

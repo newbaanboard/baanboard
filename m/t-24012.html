@@ -1,0 +1,433 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="seq.open, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] seq.open Miscellaneous" />
+	
+	<title>seq.open [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Miscellaneous</a> &gt; seq.open</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">berthe</div><div class="date">10th May 2005, 16:02</div></div><div class="posttext">Hi,<br />
+<br />
+I'm using the function seq.open(file, &quot;a+&quot;) to open a specified will and to append some information. However, if an other user opened the specified file, I cannot open the file (return value = -13).<br />
+<br />
+Is it possible to append some information to an opened file? Which function or parameter should I use?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">10th May 2005, 20:31</div></div><div class="posttext">Berthe,<br />
+BaanERP Programmers Guide 7.3_a_sp1<br />
+13 EACCES - Permission denied<br />
+--------------------------------------------------------------------------------<br />
+Description:  <br />
+This error indicates that you do not have permission to read, write or execute <br />
+the file. <br />
+Solution:  <br />
+Check and modify the permissions of: The file that is mentioned in the error <br />
+message. The directory in which the file that is mentioned in the error message <br />
+is stored. <br />
+How did you create the file ? Did you use - creat.tmp.file$() ?<br />
+creat.tmp.file$()<br />
+--------------------------------------------------------------------------------<br />
+Syntax<br />
+string creat.tmp.file$( [string pathname] )<br />
+<br />
+Description<br />
+This creates a temporary file. By default, the file is created in the current <br />
+directory. To create the file in a different directory, use the optional <br />
+pathname argument to specify the full path to the required directory.<br />
+<br />
+In UNIX environments, a unique temporary file is created with UNIX-<br />
+privilege mode 0664. <br />
+If you specified the file name/creation  yourself you have to change the File <br />
+Access Permissions so that the bsp group users can also write to the same file - <br />
+e = file.chmod(fname, S_IRWXU + S_IRWXG + S_IROTH)<br />
+Is it possible to append some information to an opened file?<br />
+Yes, you can. Copy and paste this prototype code into a 3-GL and execute for 2 different users. <br />
+The person who closes the file to flush/write from the buffer to the file on disk will update it first.<br />
+<br />
+	#pragma	used	dll	ottdlldisplay<br />
+|******************************************************************************<br />
+function main()<br />
+{<br />
+long	fp<br />
+string	dtinfo(80), fname(128)<br />
+<br />
+fname = bse.tmp.dir$() &amp; &quot;/np.log&quot;<br />
+fp = seq.open(fname, &quot;a+&quot;)<br />
+if fp &lt; 0 then<br />
+	mess(&quot;zmadms0036&quot;, 1, fname)		|* File Opening Error: %1$s<br />
+	exit(1)<br />
+endif<br />
+dtinfo = sprintf$(&quot; %u(%02m/%02d/%04Y)-%U(%02h%x%02m%x%02s:%a) &quot;, utc.num(), utc.num())<br />
+message(&quot;Hello &quot; &amp; logname$ &amp; dtinfo)<br />
+e = seq.puts(logname$ &amp; &quot; &quot; &amp; dtinfo, fp)<br />
+e = seq.close(fp)<br />
+display.file(fname, &quot;NP's Appended Log File&quot;, 80, 25, &quot;&quot;, prog.name$, false)<br />
+}<br />
+|******************************************************************************</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">berthe</div><div class="date">11th May 2005, 10:25</div></div><div class="posttext">Hi NPRao,<br />
+<br />
+The file is not created using creat.tmp.file because the file is an existing file, so it shouldn't be created again.<br />
+<br />
+I tried to use <br />
+e = file.chmod(g.path.to, S_IRWXU + S_IRWXG + S_IROTH)<br />
+g.pointer.to = seq.open(g.path.to, &quot;a+&quot;)<br />
+but g.pointer.to is still -13, so I cannot use the code you offered me.<br />
+<br />
+If the file is not opened by an other user, seq.open(g.path.to, &quot;a+&quot;) returns 3. So i have enough permissions to append information to the file.<br />
+<br />
+I also tried to copy the existing file to a tmp file, adjust the tmp file and copy the tmp file to the existing file, but the last copy doesn't work: file.cp returns -1.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">11th May 2005, 20:35</div></div><div class="posttext">Berthe,<br />
+<br />
+It doesnt matter how the file is created (write/append/over-write modes etc). The file and directory ownerships/permission affect the operations. You can only change the file ownerships/group owner if only you are the owner or administrator/super-user.<br />
+<br />
+Please post your complete code, makes it easy to debug.<br />
+<br />
+I think this is related to the Windows OS File Handling. Refer to the articles -<br />
+<br />
+PC Ext: Explanation of Opportunistic Locking on Windows NT (http://support.microsoft.com/default.aspx?scid=kb;EN-US;q129202) <br />
+<br />
+Q: UNIX and Windows NT file access (http://answers.google.com/answers/threadview?id=17003) <br />
+<br />
+Subject: Re: UNIX and Windows NT file access <br />
+Answered By: bookface-ga on 20 May 2002 04:58 PDT <br />
+Rated:     <br />
+Both of the OSes handle this problem in the same way, though it is implemented slightly differently. Both use the same system for multiple programs that run concurrently, whether under one user or<br />
+multiple users.<br />
+<br />
+Basically, programs declare that they want to use a file by a process known as locking the file; there are two forms of locking a file, read and write, and both can be done in either exclusive or shared mode. <br />
+Their declaration is put in the file descriptor, which is where information about the file is stored and accessed.<br />
+<br />
+Generally it is preferred to use the shared mode of locking, called 'advisory locking' under *nix systems, versus the exclusive form of locking, termed 'mandatory locking' in *nix.<br />
+<br />
+These modes are just as they sound; shared or advisory locking merely indicates that the file is in use and involved in some program or another; shared locks increment a counter in the file descriptor, and<br />
+leave it up to the next program trying to establish a lock to the file to process this information if it chooses (for instance, by waiting until all other programs have finished working with the file, or by<br />
+declaring another shared lock on the file).<br />
+<br />
+Exclusive/Mandatory locking requires that no other programs access the file during the time the lock is established; it is generally unnecessary for files like documents, but it could be a vitally<br />
+important distinction, for system libraries in Windows for example. If a write lock is established in this mode, no other program may write to it; if a read lock is established this way, no other programs may<br />
+read from the file concurrently. When this happens, other processes may stop and wait, checking every once in a while, when they see the mandatory lock flag is set; or they can just give up on the file and<br />
+return some sort of an error or message to the user.<br />
+<br />
+As a side note, Windows locking does not check properly for file permissions before attempting to lock a file, only when actually reading/writing data to the file. This presents a security risk, as a<br />
+malignent program could conceivably block access to all files on the disk by locking them exclusively. See the last link below for details.<br />
+<br />
+As another aside, there is an alternative form of locking available under Windows, described in detail in the second link.<br />
+<br />
+From:<br />
+http://www.ecst.csuchico.edu/~beej/guide/ipc/flock.html<br />
+&quot;There are two types of locking mechanisms: mandatory and advisory. Mandatory systems will actually prevent read()s and write()s to file. Several Unix systems support them. Nevertheless, I'm going to ignore<br />
+them throughout this document, preferring instead to talk solely about advisory locks. With an advisory lock system, processes can still read and write from a file while it's locked. Useless? Not quite, since<br />
+there is a way for a process to check for the existence of a lock before a read or write. See, it's a kind of cooperative locking system. This is easily sufficient for almost all cases where file <br />
+locking is necessary.&quot;<br />
+<br />
+From:<br />
+http://support.microsoft.com/default.aspx?scid=kb;EN-US;q129202<br />
+&quot;With Exclusive Oplock, if a file is opened in a non-exclusive (deny none) mode, the redirector requests an opportunistic lock of the entire file. As long as no other process has the file open, the server<br />
+will grant this oplock, giving the redirector exclusive access to the specified file. This will allow the redirector to perform read-ahead, write-behind, and lock caching, as long as no other process tries to<br />
+open the file.<br />
+<br />
+When a second process attempts to open the file, the original owner will be asked to Break Oplock or Break to Level II Oplock. At that point, the redirector must invalidate cached data, flush writes and<br />
+locks, and release the oplock, or close the file.<br />
+<br />
+Opportunistic Locking level II, provides a method for granting read access to a file by more than one workstation, and these workstations can cache read data locally (read-ahead). As long as no station writes<br />
+to the file, multiple stations can have the file open with level II oplock.&quot;<br />
+<br />
+From: <br />
+http://www.securiteam.com/windowsntfocus/6J00H0U3GW.html<br />
+<br />
+&quot;Applications can lock the file after file descriptor is open by application (or in the open() call itself). Usually there are two modes for locking - SHARED and EXCLUSIVE. A single application can put<br />
+the EXCLUSIVE lock on a file. If file is locked exclusively, no further locks can be put on the file by any another process. The main problem of the file locking mechanism is that it does not check for<br />
+any file permissions or the mode the file is opened with before locking is done. This makes it possible for an application with read-only (Under privileged) access to a file to lock it exclusively.<br />
+The way file locks interfere with file access depends on the particular OS. There are two possible situations: moderate and non-moderate file locks. *BSD and Linux use non-moderate locking,<br />
+while Windows NT locking is moderate. What does it mean? Under UNIX, file locking is only checked when another application tries to lock the file. If the application does not use file locking, it will not be<br />
+affected by file locking. Under Windows, things are different. If one application exclusively locks the file, another application cannot access this file even if it does not try to lock the file. This should<br />
+be treated as a design flaw, because the mechanism for file locking needs to interact security mechanism and verify the application's files permissions. This means that many security critical mechanisms under <br />
+Windows can be DoS'ed by file locking.&quot;<br />
+<br />
+Finally, here's how it's handled with Python under Windows, very<br />
+similarly to the 'flock' method under Unix:<br />
+http://aspn.activestate.com/ASPN/Python/Reference/Products/ActivePython/PythonWin32Extensions/Windows_NT_Files_.2d.2d_Locking.html<br />
+<br />
+Search Strategy:<br />
+http://www.google.com/search?q=file+locking+windows+write+read<br />
+http://www.google.com/search?q=read+lock+write+unix+file<br />
+<br />
+Hope this was helpful. Please ask for clarification if necessary.<br />
+<br />
+- bookface</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">berthe</div><div class="date">12th May 2005, 11:20</div></div><div class="posttext">Hi,<br />
+<br />
+I don't think I can do that mutch with the file permissions...<br />
+If I run my code without the file specified in g.path.to opened, everything works file. If I run the code with the file specified in g.path.to opened, the execution stops after the second seq.open.<br />
+Here's my code (used to append the information specified in g.path.from in rtf format):<br />
+<br />
+main()<br />
+{<br />
+    g.lfn.from = seq.open(g.path.from, &quot;r&quot;)<br />
+    if g.lfn.from &gt; 0 then<br />
+	seq.gets(g.line.org, REPGEN_WIDTH, g.lfn.from)<br />
+    else<br />
+	| Message if seq.open failed<br />
+	mess(&quot;ttadvs00101&quot;, 1, strip$(g.path.from), g.lfn.from)<br />
+    endif<br />
+<br />
+     e = file.chmod(g.path.to, S_IRWXU + S_IRWXG + S_IROTH)<br />
+     g.lfn.to = seq.open(g.path.to, &quot;at+&quot;)<br />
+     if g.lfn.to &lt;= 0 then<br />
+	mess(&quot;ttstpconv2&quot;, 1, g.path.to)<br />
+	g.error.found = true<br />
+	return(FALSE)<br />
+     endif<br />
+<br />
+     convert.to.rtf()<br />
+<br />
+     g.return = seq.close(g.lfn.from)<br />
+     g.return = seq.close(g.lfn.to)<br />
+     e = file.chmod(g.path.to, S_IRWXU + S_IRWXG + S_IROTH)<br />
+}<br />
+<br />
+function convert.to.rtf()<br />
+{<br />
+	long	l.index<br />
+	long	l.length<br />
+	long	l.char.asc2<br />
+	long	l.spaces<br />
+	long	l.underlined_on<br />
+	long	l.bold_on<br />
+	string	l.char.tmp(4)	mb<br />
+	string	l.char.exp(4)	mb<br />
+<br />
+	l.underlined_on = false<br />
+	l.bold_on = false<br />
+<br />
+	l.index = 99999<br />
+	<br />
+	repeat<br />
+		if l.index &gt; l.length then<br />
+			g.return = seq.flush(g.lfn.to)<br />
+			if l.index &lt;&gt; 99999 then<br />
+				g.returns = seq.putc$(EOL, g.lfn.to)<br />
+			endif<br />
+<br />
+			if seq.gets(g.line.org, REPGEN_WIDTH, g.lfn.from)<br />
+			   = 0 then<br />
+				itttxt0009.tab.to.string(g.line.org, 0)<br />
+			else<br />
+				g.returns = seq.putc$(&quot;}&quot;, g.lfn.to)<br />
+				g.returns = seq.putc$(&quot;}&quot;, g.lfn.to)<br />
+				return<br />
+			endif<br />
+			l.length = len(g.line.org)<br />
+			l.index  = 1<br />
+			g.return = seq.write(&quot;\par &quot;, 5, g.lfn.to)<br />
+		endif<br />
+		<br />
+		l.char.tmp = g.line.org(l.index;1)<br />
+		<br />
+		g.char.asc = asc(l.char.tmp)<br />
+		l.index = l.index + 1<br />
+		<br />
+		if g.char.asc &gt;= 32  and	| standard ascii characters<br />
+		   g.char.asc &lt;= 126 then<br />
+			g.char.column = g.char.column + 1<br />
+			if g.char.asc = 92 or | Special character for RTF \{}<br />
+			   g.char.asc = 123 or<br />
+			   g.char.asc = 125 then<br />
+				g.returns = seq.putc$(&quot;\&quot;, g.lfn.to)<br />
+			endif<br />
+			g.returns = seq.putc$(l.char.tmp, g.lfn.to)<br />
+			continue<br />
+		endif<br />
+<br />
+		if g.char.asc &gt;= CF0 and	| effects<br />
+		   g.char.asc &lt;= CF15 then<br />
+		   	on case g.char.asc<br />
+		   	case CF0:<br />
+		   		if l.bold_on then<br />
+					g.return = seq.write(&quot;\b0 &quot;, 4,<br />
+						     g.lfn.to)<br />
+					l.bold_on = false<br />
+				endif<br />
+				if l.underlined_on then<br />
+				    	g.return = seq.write(&quot;\ul0 &quot;, 5,<br />
+						     g.lfn.to)<br />
+					l.underlined_on = false<br />
+				endif<br />
+				break<br />
+			case CF1:<br />
+			case CF3:<br />
+			case CF5:<br />
+			case CF7:<br />
+				g.return = seq.write(&quot;\b &quot;, 3, g.lfn.to)<br />
+				l.bold_on = true<br />
+				break<br />
+			case CF8:<br />
+			case CF10:<br />
+			case CF12:<br />
+			case CF14:<br />
+				g.return = seq.write(&quot;\ul &quot;, 4, g.lfn.to)<br />
+				l.underlined_on = true<br />
+				break<br />
+			case CF9:<br />
+			case CF11:<br />
+			case CF13:<br />
+			case CF15:<br />
+				g.return = seq.write(&quot;\b &quot;, 3, g.lfn.to)<br />
+				g.return = seq.write(&quot;\ul &quot;, 4, g.lfn.to)<br />
+				l.underlined_on = true<br />
+				l.bold_on = true<br />
+				break<br />
+			case CF2: | Blinking not supported<br />
+			case CF4: | Reverse not supported by RTF<br />
+			case CF6: | Blinking and reverse not supported<br />
+				break<br />
+			endcase<br />
+		endif<br />
+<br />
+		if g.char.asc = 9 then	| horizontal tab<br />
+			l.spaces = TAB.SPACES - (g.char.column \ TAB.SPACES)<br />
+			g.return = seq.write(string.set$(&quot; &quot;, l.spaces),<br />
+					     l.spaces, g.lfn.to)<br />
+			g.char.column = g.char.column + l.spaces<br />
+			continue<br />
+		endif<br />
+<br />
+		if g.char.asc = LF then		| line feed<br />
+			g.char.column = 0<br />
+			g.returns = seq.putc$(l.char.tmp, g.lfn.to)<br />
+			continue<br />
+		endif<br />
+<br />
+		if g.char.asc = ESC then	| fonts and ventura codes<br />
+			l.char.asc2 = asc(g.line.org(l.index; 1))<br />
+			if l.char.asc2 = SMALL.D or l.char.asc2 = NAK then<br />
+				l.index = l.index + 1<br />
+				l.char.asc2 = asc(g.line.org(l.index ;1))<br />
+				on case l.char.asc2<br />
+				case 33: |font 1<br />
+					g.return = seq.write(&quot;\f2\fs16 &quot;, 9, g.lfn.to)<br />
+					break	<br />
+				case 34: |font 2<br />
+					g.return = seq.write(&quot;\f8\fs15 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 35: |font 3<br />
+					g.return = seq.write(&quot;\f8\fs20 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 36: |font 4<br />
+					g.return = seq.write(&quot;\f8\fs20 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 37: |font 5<br />
+					g.return = seq.write(&quot;\f8\fs20 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 38: |font 6<br />
+					g.return = seq.write(&quot;\f8\fs20 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 39: |font 7<br />
+					g.return = seq.write(&quot;\f8\fs20 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 40: |font 8<br />
+					g.return = seq.write(&quot;\f8\fs20 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 41: |font 9<br />
+					g.return = seq.write(&quot;\f0\fs15 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 42: |font 10<br />
+					g.return = seq.write(&quot;\f0\fs20 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 43: |font 11<br />
+					g.return = seq.write(&quot;\f0\fs30 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 44: |font 12<br />
+					g.return = seq.write(&quot;\f7\fs15 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 45: |font 13<br />
+					g.return = seq.write(&quot;\f7\fs20 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 46: |font 14<br />
+					g.return = seq.write(&quot;\f7\fs30 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 47: |font 15<br />
+					g.return = seq.write(&quot;\f6\fs15 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 48: |font 16<br />
+					g.return = seq.write(&quot;\f6\fs20 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 49: |font 17<br />
+					g.return = seq.write(&quot;\f6\fs30 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 50: |font 18<br />
+					g.return = seq.write(&quot;\f5\fs15 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 51: |font 19<br />
+					g.return = seq.write(&quot;\f5\fs20 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 52: |font 20<br />
+					g.return = seq.write(&quot;\f5\fs30 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 53: |font 21<br />
+					g.return = seq.write(&quot;\f4\fs15 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 54: |font 22<br />
+					g.return = seq.write(&quot;\f3\fs20 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 55: |font 23<br />
+					g.return = seq.write(&quot;\f3\fs30 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				case 56: |font 24<br />
+					g.return = seq.write(&quot;\f0\fs30 &quot;, 9, g.lfn.to)<br />
+					break<br />
+				endcase<br />
+				l.index = l.index + 1<br />
+			else<br />
+				l.index = l.index + 1<br />
+			endif<br />
+			continue<br />
+		endif<br />
+<br />
+		if g.char.asc &gt;= LBT and	| graphical characters<br />
+		   g.char.asc &lt;= CROSS then<br />
+			g.char.column = g.char.column + 1<br />
+			write.symbol.to.rtf(g.char.asc)<br />
+			continue<br />
+		endif<br />
+<br />
+		if g.char.asc &gt;= NBSP and	| special characters<br />
+		   g.char.asc &lt;= YDIA then<br />
+			if g.char.asc &lt;&gt; HYPH then<br />
+				write.iso.to.rtf(g.char.asc)<br />
+				g.char.column = g.char.column + 1<br />
+				continue<br />
+			endif<br />
+		endif<br />
+<br />
+		if mb.char(g.char.asc) = 2  then | Multi Byte characters<br />
+			g.char.column = g.char.column + mb.width(l.char.tmp)<br />
+			g.return = mb.export$(l.char.exp, l.char.tmp)<br />
+			g.return = seq.write(l.char.exp,<br />
+			       len.in.bytes(l.char.exp), g.lfn.to)<br />
+			continue<br />
+		endif<br />
+	until false<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,138 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to split Baan Application and Baan Database ?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to split Baan Application and Baan Database ? Operating Systems &amp; Databases" />
+	
+	<title>How to split Baan Application and Baan Database ? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; How to split Baan Application and Baan Database ?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">baaniac</div><div class="date">27th June 2003, 09:13</div></div><div class="posttext">Hi,<br />
+<br />
+We have Baan IV C4 on Digital Unix, with Informix at the back-end<br />
+<br />
+Currently, Baan Application and Baan Database are on the same Digital Unix server.<br />
+Over the years, Baan Database has grown and very soon, it would occupy all the disks on the server. We cannot add more disks on the server also.<br />
+<br />
+We have another Digital Unix server. <br />
+<br />
+So can we have configuration like this - Baan Application will continue to reside on the original server, whereas Baan Database will be on the new server or vice-versa.<br />
+<br />
+If possible, what will be the steps involved ?<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">DEVINDER ARORA</div><div class="date">28th June 2003, 08:58</div></div><div class="posttext">Yes, It is possible...<br />
+<br />
+First of all, update ur profile to give u a better answer..<br />
+<br />
+Safer method is to move the application part to new server and let the database reside on existing server. Do user interface and logic installation on new server and then move appliation from existing server to new server. Then depending upon RDBMS being used there are different method available for connectivity from application server to database server.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baaniac</div><div class="date">4th July 2003, 09:23</div></div><div class="posttext">Hi,<br />
+<br />
+Here are some updates on the splitting of Application Server and Database Server. <br />
+<br />
+These two servers are basically additional servers and we are testing splitting of Application and Database.<br />
+Production Server is only one.<br />
+But the configuration of the two new servers - Memory, Kernel Parameters, Number of CPUs etc. is identical to Production <br />
+Server.<br />
+<br />
+1. 1st we tried using iconnect utility of Informix for connecting the two databases and did not use Remote Connectivity setup <br />
+as mentioned in Baan Help. <br />
+Application Server did not have Informix, while Database Server did not have $BSE environment.<br />
+A Service was created on Database Server to take request from Application Server and connect to the database.<br />
+Evenif Informix was not present on APplication Server, we set up, with INFORMIXDIR and INFORMIXSERVER environment variables <br />
+and created a $INFORMIXDIR/etc/sqlhosts file, which would point to the database server and database service running on <br />
+Database Server.<br />
+/etc/services files on Application Server and Database Server both have the same service name, with the same port numbers.<br />
+(I believe, /etc/services and $INFORMIXDIR etc. on Application Server are irrelevant). <br />
+In Baan Application, we created a new database defintion in session &quot;Maintain Database Defintions&quot; (ttaad4110m000), with <br />
+proper parameters of Informix environment. System Name was left blank. Companies were attached to this database and <br />
+everything was converted to Runtime DD. Toolc Company 000 too was pointed to this new database.<br />
+<br />
+When we started Baan APplication and tried testing, some weird problems started occuring.<br />
+Problems are occuring for many tables - tdsls041, tdsls045, tfgld106 etc., which have records in millions. I am just <br />
+elaborating here one table here. <br />
+Our Informix DBAs and Baan DBAs all have given up. <br />
+<br />
+a. When some simple Export Exchange Schemes, which does not have any join, any reference, any where condition, say on table <br />
+tdsls011, which had just 150,000 records, it used to process smoothly upto some 24000 records in around 15 minutes and then,  it used to throw out of Baan Application with message &quot;lost connection with bshell&quot; and generated a Core Dump in the home <br />
+directory of the user.<br />
+No logs were generated at Informix Level (online.log) as well as Baan Level (log.informix, log.bshell etc.).<br />
+<br />
+b. But, we were able to maintain data in this table without any problem in Baan session itself as well as ttaad4100. Insert, <br />
+Update, Delete was also possible. <br />
+Further, we ran an Import Exchange Scheme on this table (without bdbpost, bdbpre), it was going through smoothly, without any problem.<br />
+We were able to create seq. dump of this table, drop it and re-create it using seq. dump.<br />
+This we tried in Baan sessions as well as using bdbpre and bdbpost.<br />
+Import and Export Exchange Schemes using bdbpre and bdbpost too were working successfully.<br />
+<br />
+c. When we built and ran SQL Query in Baan using Easy SQL in Maintain SQL Queries, then also it was failing.<br />
+When SQL Query was built and ran using the same syntax as in Exchange Scheme script, at that time also, it failed, giving the <br />
+same message and core dump.<br />
+<br />
+d. A simple report session when generated on this table, went through without any problem. <br />
+<br />
+e. qptool6.1 utility too did not give any problem.<br />
+<br />
+f. When we run the query at Informix Level directly, then too there is no problem.<br />
+<br />
+g. When the core dump was occurring, we observed that memory utilization was static - 10%, 20% etc., but CPU utilization on <br />
+<br />
+Application Server was growing - intially 10%, then 30%, 40%, 70%, 90%, 100% and then the core dump.<br />
+CPU Utilization on Database Server remained static - some 30%.<br />
+<br />
+h. We tried all above steps using different user IDs, then also the same result.<br />
+<br />
+i. There is no problem of free space on both the servers - $BSE_TMP, /tmp etc. as well as temp dbspace on Database Server. <br />
+<br />
+Free Space in all these is in GBs.<br />
+<br />
+2. We then copied the entire $BSE environment from Application Server to Database Server. We were able to start Baan in <br />
+stand-alone mode on Database Server, with all companies pointing to Informix database on Database Server itself.<br />
+Still, the same problem for all the steps mentioned in step (1).<br />
+<br />
+3. On Database Server itself, we created another database in tbase and assigned table tdsls011 to this tbase. Still, the same <br />
+problem for all the steps mentioned in step (1).<br />
+<br />
+4. Then, we tried sharing, as per Baan Help. Maintain Remote Systems, Maintain Remote User Data to point to the remote system, Maintain a new database, which would reside on the new system, assign table tdsls011 to this database etc. Still the same problem for all the steps mentioned in step (1).<br />
+<br />
+Is there anything else, that needs to be tried ?<br />
+We have tried everything as per iconnect help and Baan help. <br />
+<br />
+(Hope, moderators will not object to such a long post).<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baaniac</div><div class="date">7th July 2003, 08:53</div></div><div class="posttext">Hi,<br />
+<br />
+On Database Server, we copied tools company 000 from Informix to tbase (using bdbpre, bdbpost) and also our target table tdsls011 in tbase.<br />
+<br />
+Still, the same result. Core dump after processing sometime.<br />
+<br />
+There is no sharing with Application Server. Baan is running in stand-alone mode on Database Server.<br />
+<br />
+Is this a problem with some Baan settings or is it a problem with some Kernel related settings on Database Server ?<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pirmatua</div><div class="date">2nd June 2009, 04:48</div></div><div class="posttext">what about if the operating system is windows 2003 and the database server is sql server 2005? can  someone detail the step for splitting the database and the application server  into different machine ?</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Invoke 'start.set' via API Command, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Invoke 'start.set' via API Command AFS/DDC/OLE: Function servers" />
+	
+	<title>Invoke 'start.set' via API Command [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Invoke 'start.set' via API Command</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">9th May 2019, 16:09</div></div><div class="posttext">When calling a session with a type 3 form (tipcf1101m000 - Product Features by Generic Item), I need to add a new record for a Generic Item that initially has no records (in table tipcf100), using an API command.<br />
+<br />
+Using 'stpapi.put.field' to put the relevant values, followed by either 'stpapi.find' or 'stpapi.change.view', the process simply finds the next record in the table.  Hence, when using 'stpapi.insert', an error of 'Record already exists' is encountered.  This is because the API is still focused on the Generic Item that already exists.<br />
+<br />
+Therefore, what I need to do is execute a 'start.set' command via the API and to enter the new Generic Item - or I need to find another method of adding a record for a new Generic Item.<br />
+<br />
+Any ideas as to a solution?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th May 2019, 14:50</div></div><div class="posttext">Are you putting all of the fields including the set fields?  <br />
+<br />
+Couple of samples I know that work in theory I do not even need to do a change view.  I should just be able to do a flat out insert with no find since I do not care if it already exists.<br />
+<br />
+function add.builditem()<br />
+{<br />
+	stpapi.put.field( &quot;tipgc8100m00b&quot;, &quot;tipgc800.cprj&quot;, project )<br />
+	e = stpapi.change.view( &quot;tipgc8100m00b&quot; )<br />
+	stpapi.put.field( &quot;tipgc8100m00b&quot;, &quot;tipgc800.cprj&quot;, project )<br />
+	stpapi.put.field( &quot;tipgc8100m00b&quot;, &quot;tipgc800.butm&quot;, builditem )<br />
+	stpapi.put.field( &quot;tipgc8100m00b&quot;, &quot;tipgc800.dsca&quot;, &quot;Simulation&quot; )	| 20160113 <br />
+	stpapi.insert( &quot;tipgc8100m00b&quot;, 1, errmsg)<br />
+|021902 Skip records already exist.  This means the build item<br />
+| was already added.<br />
+	if(strip$(errmsg)&lt;&gt;&quot;&quot; and pos(errmsg,&quot;Record already exists&quot;)=0) then<br />
+		mess.1= &quot;1.&quot; &amp; builditem &amp; &quot; &quot; &amp; errmsg<br />
+		write.error(mess.1)<br />
+	else<br />
+		mess.1=&quot;1. Build item added. &quot; &amp; builditem<br />
+	endif<br />
+	display(&quot;mess.1&quot;)<br />
+	stpapi.end.session( &quot;tipgc8100m00b&quot; )<br />
+}<br />
+function add.subitem()<br />
+{<br />
+	stpapi.put.field( &quot;tipgc8105m00b&quot;, &quot;tipgc805.cprj&quot;, project )<br />
+	stpapi.put.field( &quot;tipgc8105m00b&quot;, &quot;tipgc805.butm&quot;, builditem )<br />
+	e = stpapi.change.view( &quot;tipgc8105m00b&quot; )<br />
+	stpapi.put.field( &quot;tipgc8105m00b&quot;, &quot;tipgc805.cprj&quot;, project )<br />
+	stpapi.put.field( &quot;tipgc8105m00b&quot;, &quot;tipgc805.butm&quot;, builditem )<br />
+	stpapi.put.field( &quot;tipgc8105m00b&quot;, &quot;tipgc805.sbtm&quot;, subitem )<br />
+	stpapi.put.field( &quot;tipgc8105m00b&quot;, &quot;tipgc805.dsca&quot;, &quot;Simulation&quot; )	| 20160113 <br />
+	stpapi.insert( &quot;tipgc8105m00b&quot;, 1, errmsg )<br />
+<br />
+|021902 Skip records already exist.  This means the sub item<br />
+| was already added.<br />
+	if(strip$(errmsg)&lt;&gt;&quot;&quot; and pos(errmsg,&quot;Record already exists&quot;)=0) then<br />
+		mess.2= &quot;2. &quot;&amp;subitem&amp;&quot; &quot;&amp;errmsg<br />
+		write.error(mess.2)<br />
+	else<br />
+		mess.2=&quot;2. Sub item added. &quot; &amp; subitem<br />
+	endif<br />
+	display(&quot;mess.2&quot;)<br />
+	stpapi.end.session( &quot;tipgc8105m00b&quot; )<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">20th May 2019, 19:25</div></div><div class="posttext">Thanks for your reply, Mark.<br />
+<br />
+The primary index fields are being put before the 'stpapi.insert' command.  I had thought the same as you - that it would not matter whether an existing record already exists for the Generic Item or not.<br />
+<br />
+Here is a snippet of my code:<br />
+	stpapi.put.field(&quot;tipcf1101m000&quot;, &quot;tipcf100.item&quot;, strip$(i.gitm))<br />
+	stpapi.put.field(&quot;tipcf1101m000&quot;, &quot;tipcf100.sern&quot;, str$(i.sern))<br />
+	ret = stpapi.change.view(&quot;tipcf1101m000&quot;, fs.error)<br />
+<br />
+	stpapi.put.field(&quot;tipcf1101m000&quot;, &quot;tipcf100.item&quot;, strip$(i.gitm))<br />
+	stpapi.put.field(&quot;tipcf1101m000&quot;, &quot;tipcf100.sern&quot;, str$(i.sern))<br />
+	stpapi.put.field(&quot;tipcf1101m000&quot;, &quot;tipcf100.cpft&quot;, i.cpft)<br />
+	stpapi.put.field(&quot;tipcf1101m000&quot;, &quot;tipcf100.dsca&quot;, strip$(i.cpft.dsca))<br />
+	stpapi.put.field(&quot;tipcf1101m000&quot;, &quot;tipcf100.indt&quot;, str$(i.cpft.indt))<br />
+	stpapi.put.field(&quot;tipcf1101m000&quot;, &quot;tipcf100.exdt&quot;, str$(i.cpft.exdt))<br />
+	stpapi.put.field(&quot;tipcf1101m000&quot;, &quot;tipcf100.cnsc&quot;, i.cnsc)<br />
+	stpapi.put.field(&quot;tipcf1101m000&quot;, &quot;tipcf100.sopt&quot;, str$(fs.yes))<br />
+	|<br />
+	do.update = 1<br />
+	lret = stpapi.insert(&quot;tipcf1101m000&quot;, do.update, fs.error)<br />
+	|<br />
+	lret = stpapi.save(&quot;tipcf1101m000&quot;, fs.error)<br />
+<br />
+<br />
+A 'Record already exists' error is returned by the function server.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th May 2019, 21:27</div></div><div class="posttext">My system has 2 unique indices on the table.  tipcf100.item and tipcf100.sern is the primary index on the form.  Then there is tipcf100.item and tipcf100.cpft - also unique.  Are you 100% sure the information you are putting to the form for those fields are unique?<br />
+<br />
+Addition to post:  On my system I would only put the item and do a change view.  That is what is the primary field on the form.  The sern would be a variable.  I would always want it to be max+1 for the generic item in question.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">21st May 2019, 19:00</div></div><div class="posttext">Hi again Mark.  Thanks for your thoughts on this.<br />
+<br />
+The table on the system I am working on also has the same index values as yours and yes, the data is unique.<br />
+<br />
+On my system, when putting the item and executing a 'change view', the Generic Item value in User Defaults for the session (for instance, when the session was last closed) is always retrieved.<br />
+<br />
+This is borne out by the following command returning the default item to the variable 'view.gitm':<br />
+stpapi.get.field(&quot;tipcf1101m000&quot;, &quot;tipcf100.item&quot;, view.gitm)<br />
+<br />
+I have worked around this by ensuring that the first instance of inserting a Product Feature by Generic Item is added with db.insert - thereafter, the function server process works fine.<br />
+<br />
+Thanks again for your input!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">22nd May 2019, 15:00</div></div><div class="posttext">That is interesting and a good work around.  I am glad I did not have that issue with the ones I did.  I had to use an actual update in a few cases where fields would not update the the api code - but never a key index field.  I think one of them was like the terms of pmt or delivery on the purchase order header - never could get it to update, so just did a select/find/db.update.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">23rd May 2019, 12:34</div></div><div class="posttext">Thanks for taking the time to think about and respond to this Mark.  Appreciated!</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

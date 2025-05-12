@@ -1,0 +1,174 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to simulate zooming from form fields to sessions using AFS?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to simulate zooming from form fields to sessions using AFS? AFS/DDC/OLE: Function servers" />
+	
+	<title>How to simulate zooming from form fields to sessions using AFS? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; How to simulate zooming from form fields to sessions using AFS?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">iiparrag</div><div class="date">19th May 2010, 12:47</div></div><div class="posttext">Hello.<br />
+<br />
+I'd like to know whether there is a specific way to simulate a zoom from a fomr field to a session using ASF.<br />
+<br />
+I've already read in other (closed) thread that is imposible doing this in the case we want to activate product configurator (tipcf5120s000) from mantaining sales order lines. In this case, we can't use stpapi.zoom.option because tipcf5120s000 doens't appear neither the Special menu nor any choice. It is activated zooming to it once you have entered a generic item code.<br />
+<br />
+I've also read we can create a product variant in other way, but although I haven't tried it yet, how can we do it with any field that has a zoom to a session (or subsession)?<br />
+<br />
+Thanks a lot.<br />
+<br />
+Ione</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">19th May 2010, 15:33</div></div><div class="posttext">Not being familiar with the sessions it is hard to say.  The first thing I would try is putting the generic item using AFS - then followed by a save, an update(with and without do.update set to true) or maybe even continue.  I would see if I could get the session to activate.  If that failed then I would probably try to add the session to the special menu or on the choice command. <br />
+<br />
+Do you own source code? With that you can debug what happens with each command and try various different things.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">iiparrag</div><div class="date">19th May 2010, 16:30</div></div><div class="posttext">Hi mark_h.<br />
+Thanks for your quick reply.<br />
+I was talking about tdsls4102s000 (Maintain sales order lines). <br />
+In section &quot;when.field.changes&quot; for field tdsls041.item there is a zoom (in standard code)to Product configurator (tipcf5120s000) but not for api.mode.<br />
+Anyway, I'll try what you say with debugger to see what happens and will tell you something.<br />
+<br />
+Thanks a lot.<br />
+<br />
+Ione</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">iiparrag</div><div class="date">20th May 2010, 13:41</div></div><div class="posttext">Hi again.<br />
+<br />
+I couldn't exec any SO line saving nor updating since it's mandatory to specify variant (cpva) field that is what I want to get with this process. Not only getting a variant number but also defining it.<br />
+<br />
+I tried doing this in my code to automatically generate a SO line with a generic item, but first of all, I try to generate a variant and defining it:<br />
+<br />
+	select tccom010.nama, tccom010.ccur<br />
+	from tccom010<br />
+	where tccom010._index1={:cuno}<br />
+	selectdo<br />
+	endselect<br />
+<br />
+	stpapi.put.field(&quot;tipcf5101m000&quot;,&quot;tipcf500.dsca&quot;,tccom010.nama)<br />
+	stpapi.put.field(&quot;tipcf5101m000&quot;,&quot;tipcf500.item&quot;, &quot;PRODOGEN&quot;)<br />
+	stpapi.put.field(&quot;tipcf5101m000&quot;,&quot;tipcf500.reft&quot;, str$(tcreft.sls.order))<br />
+	stpapi.put.field(&quot;tipcf5101m000&quot;,&quot;tipcf500.refo&quot;, str$(orden))<br />
+|	stpapi.putfield(&quot;tipcf5101m000&quot;,&quot;tipcf500.refp&quot;, str$(pono))			|Después de generar la línea<br />
+	stpapi.put.field(&quot;tipcf5101m000&quot;,&quot;tipcf500.cuno&quot;, cuno)<br />
+	stpapi.put.field(&quot;tipcf5101m000&quot;,&quot;tipcf500.ccur&quot;,str$(tccom010.ccur))<br />
+	stpapi.put.field(&quot;tipcf5101m000&quot;,&quot;tipcf500.vali&quot;, str$(tcyesno.no))<br />
+	<br />
+	ret = stpapi.insert(&quot;tipcf5101m000&quot;,true,error)<br />
+	if not ret then<br />
+		stpapi.recover(&quot;tipcf5101m000&quot;, error)<br />
+	endif<br />
+	if isspace(error) then<br />
+		stpapi.get.field(&quot;tipcf5101m000&quot;,&quot;tipcf500.cpva&quot;,variante)<br />
+	endif<br />
+			<br />
+	stpapi.continue.process(&quot;tipcf5101m000&quot;, error)<br />
+<br />
+In the last line, when choice.cont.process.is executes in tipci5101m000 it zooms to &quot;Product configurator&quot;. That's ok 'till now. It generates a product variant, but it tipcf5120s000 (Product configurator) hangs because it enters in a loop waiting to a boolean to be set to true, and for this is NECESSARY graphical.mode predefined variable to have TRUE value (but working in api.mode it will be always FALSE.<br />
+<br />
+Would the only way to solve this problem changing tipcf5120s000 session's code to not to check graphical.mode variable?<br />
+<br />
+Thank you so much and sorry because of my english...:(<br />
+<br />
+Ione</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th May 2010, 19:39</div></div><div class="posttext">Yes - you would need to change the code. Maybe you could add not api.mode in some fashion to either get the variable to true or skip the check.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">iiparrag</div><div class="date">21st May 2010, 08:34</div></div><div class="posttext">Ok. I'll try it.<br />
+<br />
+But I still have the same doubt that I had a t the begining. If I'm designing a session A who calls trhough AFS to session B, an this has a form field defined with a zoom to C session. How can I repeat the action  of zooming from field of B session from A? I mean:<br />
+Probably there is a before.zoom and/or an after.zoom in session B's source. So understand that I would have two ways:<br />
+1.- Repeating the code of before.zoom in A; zooming directly to C from A; an d finally repeting the code of after.zoom.<br />
+2.- Using some other AFS function (that I don't know wether it exists or not)<br />
+<br />
+I have this doubt because I know there is a way to simulate choices (you can see it in my code piece) or Especial menu entries. And this case I'm asking about doesn't work with one nor the other.<br />
+<br />
+Thank you.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">21st May 2010, 16:36</div></div><div class="posttext">Maybe I do not understand the question.  But below I wrote session tfoca9120m000 which calls tfoca0120m000 and then I zoom to tfoca0122s000.  What I am doing is ready a table which has my calculated head count. I then call this subroutine for each record in the table.  In my case this is not an automatic zoom - tfoca0122s000 is on the special menu.  This works and is repeatable - I do not have to worry about any baan code.<br />
+<br />
+<br />
+function update.headcnt()<br />
+{<br />
+	stpapi.put.field(&quot;tfoca0120m000&quot;,&quot;tfoca020.base&quot;,str$(basegrp))<br />
+	rc = stpapi.find(&quot;tfoca0120m000&quot;,errmsg)<br />
+	if not isspace(errmsg) or rc&lt;&gt;1 then<br />
+		write.error(&quot;Base Code(&quot; &amp; str$(basegrp) &amp; &quot;) not found.&quot;)<br />
+		stpapi.end.session(&quot;tfoca0120m000&quot;)<br />
+		return<br />
+	endif<br />
+	stpapi.handle.subproc(&quot;tfoca0120m000&quot;, &quot;tfoca0122s000&quot;,&quot;add&quot;)<br />
+	stpapi.zoom.option(&quot;tfoca0120m000&quot;,1,&quot;tfoca0122s000&quot;,errmsg)<br />
+	stpapi.put.field(&quot;tfoca0122s000&quot;,&quot;tfoca022.bdcf&quot;,dims)<br />
+	rc = stpapi.change.view(&quot;tfoca0122s000&quot;,errmsg)<br />
+	if not isspace(errmsg) or rc&lt;&gt;1 then<br />
+		write.error(&quot;Base dimension code(&quot; &amp; str$(basegrp) &amp; &quot; &quot; &amp; dims &amp; &quot;) not found.&quot;)<br />
+	else<br />
+		stpapi.put.field(&quot;tfoca0122s000&quot;, &quot;tfoca022.quan&quot;, str$(headcnt))<br />
+		stpapi.update(&quot;tfoca0122s000&quot;, 1, errmsg)<br />
+		if not isspace(errmsg) then<br />
+			write.error(&quot;Unable to update record.&quot;)<br />
+		endif<br />
+	endif<br />
+	stpapi.end.session(&quot;tfoca0122s000&quot;)<br />
+	stpapi.end.session(&quot;tfoca0120m000&quot;)<br />
+}<br />
+<br />
+<br />
+Now if I understood your case you have a session where if you put an item into the field it would automatically zoom to another session.  Now if I understood correctly when tipcf5120s000 gets executed it never ends.  All you have to do is change the code so it gets out of that loop.  Close tipcf5120s000 and close tipcf5101m000.  Your are done.  Then your AFS code in session A can start it all over again with a new record.<br />
+<br />
+The only thing I see missing in your code is the stpapi.handle.subproc:<br />
+<br />
+stpapi.put.field(&quot;tipcf5101m000&quot;,&quot;tipcf500.dsca&quot;,tccom010.nama)<br />
+stpapi.put.field(&quot;tipcf5101m000&quot;,&quot;tipcf500.item&quot;, &quot;PRODOGEN&quot;)<br />
+stpapi.put.field(&quot;tipcf5101m000&quot;,&quot;tipcf500.reft&quot;, str$(tcreft.sls.order))<br />
+stpapi.put.field(&quot;tipcf5101m000&quot;,&quot;tipcf500.refo&quot;, str$(orden))<br />
+| stpapi.putfield(&quot;tipcf5101m000&quot;,&quot;tipcf500.refp&quot;, str$(pono)) |Después de generar la línea<br />
+stpapi.put.field(&quot;tipcf5101m000&quot;,&quot;tipcf500.cuno&quot;, cuno)<br />
+stpapi.put.field(&quot;tipcf5101m000&quot;,&quot;tipcf500.ccur&quot;,str$(tccom010.ccur))<br />
+stpapi.put.field(&quot;tipcf5101m000&quot;,&quot;tipcf500.vali&quot;, str$(tcyesno.no))<br />
+<br />
+ret = stpapi.insert(&quot;tipcf5101m000&quot;,true,error)<br />
+if not ret then<br />
+stpapi.recover(&quot;tipcf5101m000&quot;, error)<br />
+endif<br />
+if isspace(error) then<br />
+stpapi.get.field(&quot;tipcf5101m000&quot;,&quot;tipcf500.cpva&quot;,variante)<br />
+endif<br />
+stpapi.handle.subproc(&quot;tipcf5101m000&quot;, &quot;tipcf5120s000&quot;,&quot;add&quot;)<br />
+stpapi.continue.process(&quot;tipcf5101m000&quot;, error) <br />
+stpapi.end.session(&quot;tipcf5120s000&quot;)<br />
+stpapi.end.session(&quot;tipcf5101m000&quot;)<br />
+<br />
+Now if tipcf5120s000 hangs in that loop then you just need to break it.  Then the above code should work.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">iiparrag</div><div class="date">25th May 2010, 11:41</div></div><div class="posttext">Hi Mark<br />
+<br />
+Thank you. As you said in your example, you call to a session in the Special menu. And I know that to do this I must use stpapi.handle.subproc. And maybe you can also use this in a zoom that appears in the Special menu. But when the zoom is programmed after changing the value of an input field, I supose it should be executed automatically as soon as you put a value through AFS in that field using stpapi.put.field. That was my doubt. The example it didn't work was:<br />
+When I put a value in the item field into the tdsls4102s000 I couldn't start tipcf5120s000 (it's zoomed to in when.field.changes section in tdsls4102s000).<br />
+<br />
+About the product configurator (tipcf5120s000), I decided not to touch its code because it's functionality stands on that loop I wans't able to come out from, so I created tipcf500 register through tipcf5101m000 (using AFS calls), and manually the registers in tipcf510 and tipcf520. <br />
+<br />
+Thanks a lot.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

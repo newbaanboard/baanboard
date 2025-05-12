@@ -1,0 +1,172 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="EAN-128 Barcodes - Problem (?), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] EAN-128 Barcodes - Problem (?) Tools Development" />
+	
+	<title>EAN-128 Barcodes - Problem (?) [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; EAN-128 Barcodes - Problem (?)</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">fmorais</div><div class="date">16th December 2004, 17:52</div></div><div class="posttext">Hi.<br />
+<br />
+I am creating a report for printing labels for shipping using EAN-128 barcode specification.<br />
+<br />
+Was able to print the barcodes and they come out on the report.<br />
+However, when reading them, the pistol does not seem to read the parentesis.<br />
+<br />
+Example:<br />
+(02)05410687012862(37)05(15)050417(3102)007500<br />
+comes out as:<br />
+02054106870128623705150504173102007500<br />
+In the reading.<br />
+<br />
+However, the characters bellow the barcode have parentesis.<br />
+Also, I tested with the same pistol and a barcode with parentesis not printed from Baan and the parentesis are read OK.<br />
+<br />
+The string above is constructed with the following code:<br />
+barcodeout = chr$(27) &amp; chr$(22) &amp; &quot;+'N&quot; &amp; ....<br />
+<br />
+I have all the reasons to believe the code is not coming out OK from Baan. <br />
+Did anyone have the same problem before? Can someone share some thoughts on this matter?<br />
+<br />
+<br />
+<br />
+Thanks<br />
+Fred<br />
+ <br />
+P.S.: I am using BIVc4 / SQL2000. / Windows 2000.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">16th December 2004, 18:39</div></div><div class="posttext">I do not know about EAN barcodes, but using extend barcode 3 of 9 I had to do this for the parts that contain /'s or +'s:<br />
+<br />
+<br />
+	for i = 1 to barcode.length-1<br />
+		if barcode.item(i;1) = &quot;/&quot; then<br />
+			<br />
+			barcode.item = barcode.item(1;i) &amp; &quot;O&quot; &amp; barcode.item(i+1;barcode.length)<br />
+		endif<br />
+		if barcode.item(i;1) = &quot;+&quot; then<br />
+			barcode.item = barcode.item(1;i-1) &amp; &quot;/K&quot; &amp; barcode.item(i+1;barcode.length)<br />
+		endif<br />
+	endfor<br />
+<br />
+<br />
+So the /'s become /O's and the +'s become /K's.  This generates a readable barcode. So you probably need to find out what ('s and )'s are in EAN 128 and do something  like I did.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fmorais</div><div class="date">16th December 2004, 20:41</div></div><div class="posttext">Mark,<br />
+<br />
+Following your idea, I read some more stuff and it seems the string you have to give to generate the EAN-128 barcode does not include parentesis.<br />
+<br />
+Instead of (02) you have to give [something]02 when constructing the string variable. The question is: what is the [something]. I already tried chr$(203) with no luck...<br />
+<br />
+Can someone bring light to the subject?<br />
+<br />
+Thanks<br />
+Fred</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">16th December 2004, 23:39</div></div><div class="posttext">There are three Versions of EAN 128 (or CODE128 what is nearly the same). Some are limited to some chars . CODE128 B has no limits (if I remember correctly). And yes, you have to change some character. <br />
+<br />
+This is a part of a EAN 128 translation prgram:<br />
+<br />
+    case &quot;EAN128&quot;:                                                                  <br />
+        ean128.refzeichen = &quot;!&quot; &amp; chr$(34) &amp; &quot;#$%&amp;'()*+,-./0123456789:;&lt;=&gt;?§ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}ß&quot;<br />
+        <br />
+        value.in = strip$(shiftl$(value.in))<br />
+<br />
+        value.out = &quot;ë&quot;          | chr$(137)<br />
+        ean128.check.sum = 104<br />
+<br />
+        for i = 1 to len(value.in) <br />
+            | compute output<br />
+            <br />
+            if value.in(i;1) = &quot; &quot;<br />
+            then<br />
+                ean128.check.sum = ean128.check.sum + 0<br />
+                <br />
+                value.out = value.out &amp; &quot; &quot;<br />
+            else<br />
+                ean128.ref.value = pos(ean128.refzeichen, value.in(i;1))<br />
+                ean128.check.sum = ean128.check.sum + (i * ean128.ref.value)<br />
+                <br />
+                value.out = value.out &amp; chr$(ean128.ref.value + 33)<br />
+            endif<br />
+        endfor            <br />
+<br />
+        | Prüfziffer berechnen/compute checksum<br />
+        ean128.check.sum = ean128.check.sum \ 103<br />
+        value.out = value.out &amp; chr$(ean128.check.sum + 33) &amp; &quot;ï&quot;              | chr$(139)<br />
+<br />
+        value.out = pc$(7) &amp; str$(size) &amp; &quot;vsb11000T&quot; &amp; value.out<br />
+        break<br />
+<br />
+Sorry for the bad formatting, but it's only a &quot;snapshot&quot;. <br />
+<br />
+Hope this help's.<br />
+<br />
+Regards<br />
+csesgn</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fmorais</div><div class="date">17th December 2004, 00:11</div></div><div class="posttext">What you posted is very usefull but, I still have the question of what to put in the value.in variable to produce the <br />
+<br />
+(02)05410687012862(37)05(15)050417(3102)007500<br />
+<br />
+when reading the code with the pistol.<br />
+<br />
+(02) - EAN Item code<br />
+(37) - Number of volumes<br />
+(15) - Valid until date<br />
+(3102) - Net weight<br />
+<br />
+Please help me just one bit more.<br />
+Thanks a lot<br />
+<br />
+Fred</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">17th December 2004, 11:33</div></div><div class="posttext">I've written the reply late at the evening... . The value.in is the string you wan't to get as a barcode. The last line with value.out = pc$(7)... is for adding control codes for the printer (font selection.  We are using HP printers directly on Unix with fonts&amp;more cartridges).<br />
+<br />
+But there is another question: What printer or what kind of barcode muodules you are using for barcodeprinting? This program was originally written for the fonts&amp;more modules from HP (no intelligence, just the fonts). With the more intelligent modules you don't need any translation of characters or to compute the checksum. <br />
+<br />
+Regards<br />
+csecgn</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fmorais</div><div class="date">17th December 2004, 11:56</div></div><div class="posttext">I am using BWPrint. It takes care of the Barcode printing.<br />
+The barcode already comes out. The problem is that I don't know what string to send into the report field. I know that if you build a string like:<br />
+<br />
+(02)05410687012862(37)05(15)050417(3102)007500<br />
+<br />
+And send it to the report, the barcode comes out without the parentesis. I already read somewhere that you need to send some character, instead of the parentesis (chr$(203) or chr$(204) or something). The parentesis are just used to represent the human readable form of the barcode. I already tried:<br />
+<br />
+chr$(204)0205410687012862chr$(204)3705chr$(204)15050417chr$(204)3102007500<br />
+<br />
+and the barcode does not ged read so, the problem remains.<br />
+<br />
+Thanks<br />
+Fred</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">17th December 2004, 13:46</div></div><div class="posttext">I'm not so familiar with BW print. Did you try code 128 instead of EAN 128? Maybe this could be a solution. I'v read that CODE 128 accepts ACII 1 to ASCII 134. You need ASCII 40 and 41.<br />
+<br />
+regards<br />
+Christof</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

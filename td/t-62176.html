@@ -1,0 +1,153 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Report script not executing (I think), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Report script not executing (I think) Tools Development" />
+	
+	<title>Report script not executing (I think) [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Report script not executing (I think)</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">camste</div><div class="date">5th April 2012, 11:48</div></div><div class="posttext">Hi everybody,<br />
+I'm having a problem with a report I'm making. There are two sessions calling this same report, but based on different items. Because of this I wanted some of the linked data to be fetched in the report instead of in the session scripts to avoid copying and pasting the code (or making a function for this small logic).<br />
+<br />
+In one of my sessions I then have this (the other one is based on the rows in warehouse receipts though, so the fetching is done with a different query, but it still gives the item):<br />
+<br />
+function read.main.table()<br />
+{<br />
+        select  tcibd001.*<br />
+        from    tcibd001<br />
+        where   tcibd001._index1 inrange {:item.f}<br />
+                                     and {:item.t}<br />
+        order by tcibd001._index1<br />
+        selectdo<br />
+                rprt_send()<br />
+        endselect<br />
+}<br />
+<br />
+Simple enough right?<br />
+<br />
+In the report script:<br />
+declaration:<br />
+        table ttcibd003<br />
+        table ttdisa001<br />
+        table ttcmcs001<br />
+        table ttcibd001<br />
+        <br />
+        extern domain cddev.str16       item.short<br />
+<br />
+before.program:<br />
+        item.short = &quot;test&quot;<br />
+        <br />
+Detail.1:        <br />
+before.layout:<br />
+        if isspace(tcibd001.item) then<br />
+                item.short = &quot;No!&quot;<br />
+        else<br />
+                select  tcibd003.*, tdisa001.*, tcmcs001.*<br />
+                from    tcibd003, tdisa001, tcmcs001<br />
+                where   tcibd003._index1 = {:tcibd001.item,tdisa001.cuqs}<br />
+                  and   tdisa001._index1 = {:tcibd001.item}<br />
+                  and   tcibd003.unit refers to tcmcs001<br />
+                selectdo<br />
+                        item.short=&quot;Found&quot;<br />
+                selectempty<br />
+                        tcibd003.conv = 1<br />
+                endselect<br />
+                item.short = &quot;Yes!&quot; | tcibd001.item(10;16)<br />
+        endif<br />
+I've just been trying to debug using this item.short variable, but it seems like it doesn't call my report script at all! Item.short always appears as empty in the report results, even though the item has been fetched. The description is shown. I've tried compiling the report script in debug mode, but it never enters into debug. <br />
+<br />
+Report layout fields:<br />
+item.short, tcibd001.dsca, tdisa001.cwar, tdisa001.cuqs, tcibd003.conv and tcibd001.cuni<br />
+<br />
+Input fields:<br />
+item.short, num.labels, tcibd001.item, tcibd001.dsca, tdisqa001.cwar, tdisa001.cuqs, tcibd003.conv and tcibd001.cuni<br />
+The report shows values for the two fields from tcibd001, but not for the other ones which should be computed.<br />
+<br />
+Why isn't it called?? I've tried looking at other scripts in Baan, but it all seems similar, and it doesn't look like like there's anything missing.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">5th April 2012, 17:35</div></div><div class="posttext">function read.main.table()<br />
+{<br />
+        select  tcibd001.*<br />
+        from    tcibd001<br />
+        where   tcibd001._index1 inrange {:item.f}<br />
+                                     and {:item.t}<br />
+        order by tcibd001._index1<br />
+        selectdo<br />
+                rprt_send()<br />
+        endselect<br />
+}<br />
+<br />
+Simple enough right?<br />
+<br />
+In the report script:<br />
+declaration:<br />
+        table ttcibd003<br />
+        table ttdisa001<br />
+        table ttcmcs001<br />
+        table ttcibd001<br />
+        <br />
+        extern domain cddev.str16       item.short<br />
+<br />
+before.program:<br />
+        item.short = &quot;test&quot;<br />
+        <br />
+Detail.1:        <br />
+before.layout:<br />
+|put tcibd001.item in detail.1<br />
+<br />
+        if isspace(tcibd001.item) then<br />
+                item.short = &quot;No!&quot;<br />
+        else<br />
+                select  tcibd003.*, tdisa001.*, tcmcs001.*<br />
+                from    tcibd003, tdisa001, tcmcs001<br />
+                where   tcibd003._index1 = {:tcibd001.item,tdisa001.cuqs}<br />
+                  and   tdisa001._index1 = {:tcibd001.item}<br />
+                  and   tcibd003.unit refers to tcmcs001<br />
+                selectdo<br />
+                        item.short=&quot;Found&quot;<br />
+                selectempty<br />
+                        tcibd003.conv = 1<br />
+                endselect<br />
+                item.short = &quot;Yes!&quot; | tcibd001.item(10;16)<br />
+        endif<br />
+<br />
+        lattr.print = false<br />
+<br />
+detail.2:<br />
+before.layout:<br />
+<br />
+|put the expected fields in layout 2 !<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">6th April 2012, 19:35</div></div><div class="posttext">Hi everybody,<br />
+Why isn't it called?? I've tried looking at other scripts in Baan, but it all seems similar, and it doesn't look like like there's anything missing.<br />
+<br />
+Probably because layout details.1 does not exist or  it has print condition always returning false.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">steveauckly</div><div class="date">6th April 2012, 23:32</div></div><div class="posttext">If it never enters debug mode, then you probably have an instance of the report running and it will not load the debug version.  Check your processes.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ulrich.fuchs</div><div class="date">7th April 2012, 11:19</div></div><div class="posttext">If the report doesn't enter debug mode, then that's the problem you need to solve. Obviously your code and what's in the compiled object is not the same. Try to become more sure about that: Put a before.report layout it, and type some text in that layout (&quot;blabla&quot; will do). Compile, execute. Does it print? If not, one reason could be that you have the report again in a higher package VRC that hides your object. Can you find it in the &quot;Reports&quot; Session? No? Go and check on the file system ($BSE/application), that's what counts in the end, might be, that something is hanging around there, that is not in the data dictionary any longer,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">camste</div><div class="date">7th April 2012, 15:42</div></div><div class="posttext">My office mate was able to debug it in the end. He was logged in as bsp. I have no idea if that was the reason he could debug it. I don't believe this report was running anywhere else before since I was developing it by myself. And it didn't exist in any other vrc than the one I was developing in. But there he found that the query didn't return any values. Changing the query made the report show the right values. (But I think it's strange that it didn't show these test values in the item.short variable at least, since they didn't depend on the data.) Afterwards I saw that I needed to log out and in again to see the new values though. I don't know if there might be some caching going on somewhere. I had tried logging in over again several times while I was developing though, so I have no idea what happened. It works now at least. But thank you everybody.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

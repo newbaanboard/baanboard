@@ -1,0 +1,239 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="do.all.occ() ?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] do.all.occ() ? Tools Development" />
+	
+	<title>do.all.occ() ? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; do.all.occ() ?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">23rd January 2008, 17:53</div></div><div class="posttext">Hello everyone,<br />
+<br />
+I need to update several records in a session the same way as do.all.occ() does it but, not only for the records that are &quot;displayed on the session&quot;, I need go all the way down till the very last record regardless if it is displayed or not.<br />
+<br />
+Is there a function that does that already? or any idea is welcome.<br />
+<br />
+Thank you <br />
+<br />
+Carlos Gonzalez</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd January 2008, 21:38</div></div><div class="posttext">Well typically the way I do that is by putting a button on the session.  When the user clicks the button it runs a subroutine that find the records and updates all of them. So for example - on a maintain multi-occurance session that has the primary index of Order and position.  The view field is order - when the user clicks the button it calls a function like Update.all.positions().  I just do a normal select update transaction.  Actually I use sessions like this all the time for my function servers.  The user can preview the record, click the button to process, those that process goes to a history table, those that don't get an error message.  Not sure if that is what you are asking or not.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">24th January 2008, 07:56</div></div><div class="posttext">Probably this function can help u .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">24th January 2008, 20:18</div></div><div class="posttext">Hello Mark,<br />
+<br />
+The button is a good idea the only thing is that I need to do the updating after updating a particular occ, I need immediately go down and update the related occ to the one was updated without the user interaction. I am adding the updating procedure on the after.rewrite secction; I thought that I could open the main table for update but when doing that system says that &quot;a transaction is going on&quot; and doesn't allow me to update the other records.<br />
+<br />
+I have tried the on.main.table as well. same result.<br />
+<br />
+I'll try some other ways and if you have another idea, I'll really appreciate it.<br />
+<br />
+Thanks in advance</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th January 2008, 21:06</div></div><div class="posttext">Have you tried execute(update.db) before calling the routine?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">24th January 2008, 21:10</div></div><div class="posttext">You can use a standard select statement on the main table to update the field(s) if you put it in the right place.  Putting the select statement with db.update() can be placed in the 'main.table.io' section, after.rewrite (or also after.write if you want the records updated after an insert) to update all other records in the main table.  You can limit the records updated in the 'where' clause, and even hit other companies with '._compnr'.<br />
+<br />
+When adding it here, the database insert or update is done, but the commit isn't.  Therefore, don't put 'db.retry.point' before the select statement and don't do a commit.  The standard form functions will take care of the commit.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">28th January 2008, 16:56</div></div><div class="posttext">Hi BaaninOhio,<br />
+<br />
+Something isn't letting me do this.<br />
+<br />
+I have opened the table (from tdsls045 for update) for update, I have put also the db.updte(ttdsls045). I removed the db.retry.point()(and all code related to it) as you suggested and I just can't update the table. <br />
+<br />
+here is my code, any idea what could be the problem? or if you have a sample code, I'll appreciate it.<br />
+<br />
+Thanks in advance<br />
+<br />
+<br />
+<br />
+after.rewrite:<br />
+update.refered.lines(tdsls045.pono,tdsls045.pmsk(stno.4120;1), tdsls045.pino) <br />
+........<br />
+<br />
+function update.refered.lines(domain tcpono i.pono,domain tcmcs.str1 i.status, domain tcpino i.pino)<br />
+{<br />
+|        do.all.occ(update.all.occurrences,i.pono,i.status,i.pino)<br />
+|        on.main.table(update.all.occurrences,i.pono,i.status,i.pino)   <br />
+        update.all.occurrences(i.pono,i.status,i.pino)<br />
+}                                                                     <br />
+<br />
+                   <br />
+function update.all.occurrences(domain tcpono i.pono,domain tcmcs.str1 i.status, domain tcpino i.pino)<br />
+{<br />
+        select tdsls041.*<br />
+        from   tdsls041<br />
+        where  tdsls041._index1 = {:tdsls045.orno} and<br />
+               tdsls041.refp.cmc = :i.pono and<br />
+               tdsls041.oqua = 0.0<br />
+        selectdo<br />
+                select tdsls045.*<br />
+                from   tdsls045  |for update<br />
+                where  tdsls045._index1 = {:tdsls041.orno,:tdsls041.pono}<br />
+                selectdo                                                <br />
+                        tdsls045.ddat = date.num()<br />
+                        tdsls045.pino = i.pino<br />
+                        tdsls045.pmsk(stno.4120;1) = i.status<br />
+|                        db.update(ttdsls045)   <br />
+|                        commit.transaction()<br />
+                endselect                                               <br />
+        endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">28th January 2008, 17:33</div></div><div class="posttext">Hi cherokee.<br />
+<br />
+Maybe you should have a look at the section main.table.io / after.update.db.commit; here you can use db.retry.point() ... commit.transaction() as usual, because there is no retry point set by the standard program.<br />
+<br />
+In the sections main.table.io / before.write, after.write, before.rewrite, after.rewrite and so on, you have to be very careful with (I guess you should use) db.retry.point() and commit.transaction().<br />
+<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">28th January 2008, 18:41</div></div><div class="posttext">Gunter,<br />
+<br />
+Yes, this works. On the down side of this is that I miss the occ(s) that were updated. Which is a key point in my process here.<br />
+<br />
+I do not think there is a way to do it while updating an occ and run an update for the rest of the table that aren't displayed. Because to get the rest of the occ on memory you have to do a select statement and this changes the whole thing in the standard program.<br />
+<br />
+Thanks again, really appreciated your input.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">28th January 2008, 21:45</div></div><div class="posttext">Hi BaaninOhio,<br />
+<br />
+Something isn't letting me do this.<br />
+<br />
+I have opened the table (from tdsls045 for update) for update, I have put also the db.updte(ttdsls045). I removed the db.retry.point()(and all code related to it) as you suggested and I just can't update the table. <br />
+<br />
+here is my code, any idea what could be the problem? or if you have a sample code, I'll appreciate it.<br />
+<br />
+Thanks in advance<br />
+<br />
+<br />
+<br />
+after.rewrite:<br />
+update.refered.lines(tdsls045.pono,tdsls045.pmsk(stno.4120;1), tdsls045.pino) <br />
+........<br />
+<br />
+function update.refered.lines(domain tcpono i.pono,domain tcmcs.str1 i.status, domain tcpino i.pino)<br />
+{<br />
+|        do.all.occ(update.all.occurrences,i.pono,i.status,i.pino)<br />
+|        on.main.table(update.all.occurrences,i.pono,i.status,i.pino)   <br />
+        update.all.occurrences(i.pono,i.status,i.pino)<br />
+}                                                                     <br />
+<br />
+                   <br />
+function update.all.occurrences(domain tcpono i.pono,domain tcmcs.str1 i.status, domain tcpino i.pino)<br />
+{<br />
+        select tdsls041.*<br />
+        from   tdsls041<br />
+        where  tdsls041._index1 = {:tdsls045.orno} and<br />
+               tdsls041.refp.cmc = :i.pono and<br />
+               tdsls041.oqua = 0.0<br />
+        selectdo<br />
+                select tdsls045.*<br />
+                from   tdsls045  |for update<br />
+                where  tdsls045._index1 = {:tdsls041.orno,:tdsls041.pono}<br />
+                selectdo                                                <br />
+                        tdsls045.ddat = date.num()<br />
+                        tdsls045.pino = i.pino<br />
+                        tdsls045.pmsk(stno.4120;1) = i.status<br />
+|                        db.update(ttdsls045)   <br />
+|                        commit.transaction()<br />
+                endselect                                               <br />
+        endselect<br />
+}                                                                       <br />
+<br />
+<br />
+That should work, except that you can't do the commit.transaction here since the session hasn't done its commit yet.  Being 'after.rewrite' should let you do the 'select for update' and 'db.update' without an issue.<br />
+<br />
+A previous post mentioned the 'after.update.db.commit' which would let you change anything using the commit.transaction, since a transaction is not currently &quot;on&quot; after commit.<br />
+<br />
+I used something like this to capture the fields:<br />
+<br />
+<br />
+| Main table is 'tcxxx999'<br />
+| form is type 2<br />
+<br />
+main.table.io:<br />
+after.rewrite:<br />
+      select  tcxxx999.*<br />
+      from    tcxxx999 for update<br />
+      where  tcxxx999._index1 = {:i..orno, :i.pono}<br />
+      selectdo<br />
+                tcxxx999.fldn = new.field<br />
+<br />
+                db.status = 0<br />
+                db.status = db.update(ttcxxx999, db.retry, db.return.error)<br />
+                if (db.status &lt;&gt; 0) then<br />
+                    message(&quot;Error = %d, updating other lines&quot;, db.status)<br />
+               endif<br />
+      endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">29th January 2008, 07:34</div></div><div class="posttext">... you have to do a select statement and this changes the whole thing in the standard program.<br />
+<br />
+To avoid changes on the record buffer and the standard program, you could use on.main.table( &lt;your own function that changes the main table&gt; ).<br />
+<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">30th January 2008, 21:53</div></div><div class="posttext">Thanks to all of you!<br />
+<br />
+It works as in the sample of table tcxxx999.<br />
+<br />
+Thanks again.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">karas3d</div><div class="date">15th December 2011, 11:29</div></div><div class="posttext">Hi all!<br />
+I solved this problem, example:<br />
+<br />
+execute(first.set)<br />
+last.position = -1<br />
+while last.position&lt;&gt;current.position<br />
+	do.all.occ(my.func,last.position)<br />
+	execute(next.set)<br />
+endwhile<br />
+<br />
+...<br />
+<br />
+function my.func(ref long i.position){<br />
+	if i.position&lt;current.position then<br />
+		return	|* for break duplicated entering on last set<br />
+	ebdif<br />
+<br />
+	i.position = current.position<br />
+	...<br />
+	...<br />
+	...<br />
+}<br />
+<br />
+where:<br />
+current.position - field on main table<br />
+last.position 	 - global variable<br />
+<br />
+P.S.<br />
+Yes, i'm archaeologist (this topic at 2008 year) but this sample may be useful =)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

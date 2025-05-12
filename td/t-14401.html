@@ -1,0 +1,354 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Trying to make code more efficient, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Trying to make code more efficient Tools Development" />
+	
+	<title>Trying to make code more efficient [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Trying to make code more efficient</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">5th February 2004, 16:51</div></div><div class="posttext">Hello<br />
+<br />
+Given the following code, I want to select all standard items with &quot;SYSTEM&quot; as the first 6 digits of the &quot;search key 1&quot; field, and all sales orders for those paticular items.  <br />
+<br />
+Anybody have any ideas on tightening the code to make it run faster?<br />
+<br />
+Originally when I wrote the script I selected projects &quot;&quot; to &quot;&quot; (null to null), so that only non project associated standard items would be selected.   <br />
+<br />
+When it was in this form it ran quite fast, about 3 minutes total.<br />
+<br />
+Then I found out sometimes we have project associated standard items that needed to be selected.  When I changed the code to as follows, it takes about 1.5 - 2 hours depending on system activity that day.<br />
+<br />
+Any ideas would be appreciated.<br />
+<br />
+Thanks.<br />
+<br />
+<br />
+select	tiitm001.*, tccom001.*<br />
+from	tiitm001, tccom001<br />
+where   tiitm001._index4 inrange<br />
+	{&quot;SYSTEM&quot;, :item.f}<br />
+and 	{&quot;SYSTEMZZZZZZZZZZ&quot;, :item.t}<br />
+and	tiitm001.cplb refers to tccom001<br />
+selectdo	<br />
+	select	tdsls041.*, tdsls040.*, tcmcs013.*<br />
+	from	tdsls041, tdsls040, tcmcs013<br />
+	where	tdsls041._index2 inrange<br />
+		{:cprj.f, :tiitm001.item}<br />
+	and	{:cprj.t, :tiitm001.item}<br />
+	and	tdsls041.odat between :odat.f and :odat.t<br />
+	and	tdsls041.orno refers to tdsls040<br />
+	and	tdsls040.cpay refers to tcmcs013<br />
+	selectdo<br />
+		sales.amount = 0<br />
+		if not isspace(tdsls040.cdel) then<br />
+			select	tccom013.namc:cuno.namc<br />
+			from	tccom013<br />
+			where	tccom013._index1 =<br />
+				{:tdsls040.cuno, :tdsls040.cdel}<br />
+			selectdo<br />
+			endselect<br />
+		else<br />
+			select	tdsls042.namc:cuno.namc<br />
+			from	tdsls042<br />
+			where	tdsls042._index1 = <br />
+				{:tdsls040.orno, 0}<br />
+			selectdo<br />
+			endselect<br />
+		endif<br />
+		select	tdsls041.*<br />
+		from	tdsls041<br />
+		where	tdsls041._index1 =<br />
+			{:tdsls040.orno}<br />
+		and	tdsls041.citg &lt;&gt; &quot;CST&quot;<br />
+		and	tdsls041.item &lt;&gt; &quot;FREIGHT&quot;<br />
+		and	tdsls041.item &lt;&gt; &quot;CSTACP&quot;<br />
+		selectdo<br />
+			sales.amount = sales.amount +<br />
+				tdsls041.amta<br />
+		endselect<br />
+		rprt_send()<br />
+	endselect<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">LittleJohn</div><div class="date">5th February 2004, 19:10</div></div><div class="posttext">do you have the item # present in tiitm001 also present in tipcs021 ?? (with the same code) ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">5th February 2004, 19:20</div></div><div class="posttext">minhaaj<br />
+<br />
+no, I don't have the item code present it tipcs021, although I realized that one of the things I could probably do to speed up this process is select where tdsls040.opol = tcittc.standard...<br />
+<br />
+Thanks for asking.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">nneilitz</div><div class="date">5th February 2004, 19:44</div></div><div class="posttext">There are 3 possible suggestions I have <br />
+<br />
+<br />
+(1)  (Somewhat risky)   Just add another index (custom) on tdsls041 solely by item.    I try to avoid adding indexes on standard BaaN tables because I have had them mess up performance in a standard session in one case (heaven knows why) and it increase admin during upgrades.<br />
+<br />
+<br />
+(2)   Assuming you can't use the project/item index you are better of simply do a full table scan on the sale order lines once and then filter out the data. Otherwise you are performing a full table scan once per each item you pull.   Better to take one big hit then<br />
+filter.   The item check will be quick since its indexed.<br />
+ <br />
+In general<br />
+select	tdsls041.*, tdsls040.*, tcmcs013.*<br />
+	from	tdsls041, tdsls040, tcmcs013<br />
+	where	tdsls041._index2 inrange<br />
+		{:cprj.f, :tiitm001.item}<br />
+	and	{:cprj.t, :tiitm001.item}<br />
+	and	tdsls041.odat between :odat.f and :odat.t<br />
+	and	tdsls041.orno refers to tdsls040<br />
+	and	tdsls040.cpay refers to tcmcs013<br />
+	selectdo     <br />
+<br />
+                if check.item( function to query on the item and check<br />
+                    if search key 2 is out of the range range )           then<br />
+                    continue<br />
+               endif<br />
+                            ... reset of logic<br />
+<br />
+function long check.item( domain tcitem check.item)<br />
+{<br />
+<br />
+     do your query here and return appropriate value<br />
+<br />
+}<br />
+<br />
+(3)  Run 1 query and populate in a &quot;temporay table*&quot; all the      relevant project/item combinations.    Note this will only work well<br />
+if you have a quick easy way to create a item project combination table.  Otherwise #2 makes more sense. If is a possiblity than let me know and I will expand on how to do this.   Unfortunately I don't think it will be.<br />
+<br />
+*By temporary table I mean create   your own custom table that stores item/project (we use a generic table that hold the first key value as the type of data   stored) but you can use a table explicit built for your purpose.  You would need to clear and refresh this table each time you ran it.  It is also good to use a user id for one of keys.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">5th February 2004, 19:47</div></div><div class="posttext">nneilitz,<br />
+<br />
+Thanks, your right, I guess I wasn't thinking - It's probably better to select the sales table ONCE and filter out the items I need, then select the table for each item I need.<br />
+<br />
+option #2 it is.<br />
+<br />
+Thanks again.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">6th February 2004, 17:54</div></div><div class="posttext">Alright, so changing the code to the following works amazingly fast considering, when running the session directly.  <br />
+<br />
+When putting it into a job it seems to take about the same amount of time as it did before.<br />
+<br />
+(it takes about 10 minutes to run directly, in a job it had been taking about 1 hour, and still is, even with these changes)<br />
+<br />
+Any ideas?<br />
+<br />
+(I've tweaked the code a tad to match narrow the amount of times tiitm001 is called by the record set returned from tdsls041)<br />
+<br />
+select	tdsls041.*<br />
+from	tdsls041<br />
+where	tdsls041.odat between :odat.f and :odat.t<br />
+and	tdsls041.opol = tcittc.standard<br />
+and	tdsls041.citg &lt;&gt; &quot;CST&quot;<br />
+selectdo<br />
+	select	tiitm001.*<br />
+	from	tiitm001<br />
+	where   tiitm001._index1 =<br />
+		{:tdsls041.item}<br />
+	and	tiitm001.seak between &quot;SYSTEM&quot; and &quot;SYSTEMZZZZZZZZZZ&quot;<br />
+	selectdo<br />
+		select	tdsls040.*, tcmcs013.*<br />
+		from	tdsls040, tcmcs013<br />
+		where	tdsls040._index1 =<br />
+			{:tdsls041.orno}<br />
+		and	tdsls040.cpay refers to tcmcs013<br />
+		selectdo<br />
+		endselect<br />
+<br />
+		sales.amount = 0<br />
+		if not isspace(tdsls040.cdel) then<br />
+			select	tccom013.namc:cuno.namc<br />
+			from	tccom013<br />
+			where	tccom013._index1 =<br />
+				{:tdsls040.cuno, :tdsls040.cdel}<br />
+			selectdo<br />
+			endselect<br />
+		else<br />
+			select	tdsls042.namc:cuno.namc<br />
+			from	tdsls042<br />
+			where	tdsls042._index1 = <br />
+				{:tdsls040.orno, 0}<br />
+			selectdo<br />
+			endselect<br />
+		endif<br />
+		select	tdsls041.*<br />
+		from	tdsls041<br />
+		where	tdsls041._index1 =<br />
+			{:tdsls040.orno}<br />
+		and	tdsls041.citg &lt;&gt; &quot;CST&quot;<br />
+		selectdo<br />
+			sales.amount = sales.amount +<br />
+				tdsls041.amta<br />
+		endselect<br />
+		select	tccom001.*<br />
+		from	tccom001<br />
+		where	tccom001._index1 =<br />
+			{:tiitm001.cplb}<br />
+		selectdo<br />
+		        rprt_send()<br />
+		selectempty<br />
+		        tccom001.nama = &quot;&quot;<br />
+		        rprt_send()<br />
+		endselect<br />
+	endselect<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">avpatil</div><div class="date">6th February 2004, 18:21</div></div><div class="posttext">Hi,<br />
+You dont; experience problem in the code,as I see tdsls041 being selected twice and there no aliases. And I am curioos why are you not selecting in one select tdsls041, tiitm001.<br />
+<br />
+I haven't read the entire reqmt.<br />
+Thanks<br />
+<br />
+Arvind</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">6th February 2004, 19:08</div></div><div class="posttext">Yes, do use aliases when trying to reselect from at table:<br />
+<br />
+<br />
+		select	tdsls041.amta:calc.amta<br />
+		from	tdsls041<br />
+		where	tdsls041._index1 =<br />
+			{:tdsls040.orno}<br />
+		and	tdsls041.citg &lt;&gt; &quot;CST&quot;<br />
+		selectdo<br />
+			sales.amount = sales.amount +<br />
+				calc.amta<br />
+		endselect<br />
+<br />
+<br />
+Also, if it's only slow as a Job still, sometimes the darn jobs hold the old code.  Not an administrator, but this does happen.   Maybe someone here can explain why, but try stopping / starting the job daemon or if there are any shared memory issues stopping and starting that.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mgakhar</div><div class="date">6th February 2004, 19:13</div></div><div class="posttext">- U can use &quot;as set with 1 rows&quot; for the Item Select as it will always return just 1 record.<br />
+- Use index instead of tiitm001.seak.<br />
+- Try selecting specific fields instead of tiitm001.* and tdsls041.* etc.<br />
+- Why are you querying tdsls041 again within the tiitm001 select ?<br />
+<br />
+<br />
+just my 2c.<br />
+<br />
+MG.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">6th February 2004, 19:36</div></div><div class="posttext">Hi All, Thanks for the replies!<br />
+<br />
+In answer to your questions:<br />
+<br />
+I'm querying the tdsls041 table again to get the total dollar amount of goods of the order.  (not just that one line)<br />
+<br />
+I originally had the tiitm001 item selection using index4 (:seak, :item), however, since I already know the exact item number from the sales order line, I felt it was be faster to select the item using index1, and filter out any non &quot;SYSTEM&quot; items.<br />
+<br />
+For example: <br />
+<br />
+where tiitm001._index1 = {:tdsls041.item}<br />
+and tiitm001.seak between &quot;SYSTEM&quot; and &quot;SYSTEMZZZZZZZZZZ&quot; <br />
+<br />
+would be faster then<br />
+<br />
+where tiitm001._index4 inrange<br />
+{&quot;SYSTEM&quot;, :tdsls041.item} and {&quot;SYSTEMZZZZZZZZZ&quot;, :tdsls041.item}<br />
+<br />
+correct?<br />
+<br />
+Using &quot;as set with 1 rows&quot; to select on tiitm001._index1 isn't really neccessary, is it? We already know the exact part number from the sales order line, and index1 of tiitm001 is singular so it should only return one row to begin with.  <br />
+<br />
+I will try converting the alias for the second instance of selecting tdsls041.  Thanks for the suggestion.<br />
+<br />
+I believe the performance slowdown is mainly in the first loop of tdsls041.  I've noticed that through debugging after making the changes to the second revision seen in today's post.  It was still quite fast when ran directly by me, but adding it into a job still takes forever!!!<br />
+<br />
+The purpose is to select any standard items that exist on a sales order where the description has &quot;SYSTEM&quot; is the first 6 characters.  <br />
+<br />
+As I said in the original post, I've found out that sometimes these standard items have a project number associated to them through the sales order line and therefore table tipcs021 wouldn't work for me.<br />
+<br />
+Regarding the job holding on to the old code, I thought the same thing.  So I canceled that job, deleted the session from the job, re-added it, and restarted that job.  Same problem.  <br />
+<br />
+The only thing I *didn't* do, was stop &amp; restart the job daemon. (trying that now)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">6th February 2004, 19:46</div></div><div class="posttext">As set with 1 rows is officially listed as a performance enhancing statement, even if only 1 row is expected and the index you are using is unique.<br />
+<br />
+Why??  I don't know, it's not logical, but surely some problem with the index differences between Baan and the many databases it runs on.   It may even only enhance calls to certain db's, but it's Baan developements position that it enhances. <br />
+<br />
+It's probably a very small enhancement, and your problem is the tdsls041 table without index.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">6th February 2004, 19:56</div></div><div class="posttext">I just can't leave that alone eh.   Other statements you have can be combined, but that tdsls041 read is the big slow down.<br />
+<br />
+One more suggestion:<br />
+<br />
+Keep in mind that while entering the sales order lines, it is possible that the operator will change the value of the order date.   If they do, you will not catch it if you run this daily for your range.  <br />
+<br />
+Not sure of all your uses, and if running by transaction date range would make sense for your needs, but if so, you can start on the Sales Order Lines History table (tdsls051).  This has a transaction date index that should speed this up greatly.   You can then use the tdsls051 to read back to tdsls041 by index and speed through that initial statement.  <br />
+<br />
+You may need the actual order date in your range though, not transaction date, and then this would not work for you.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rmarles</div><div class="date">6th February 2004, 20:17</div></div><div class="posttext">Sucess!!<br />
+<br />
+I stopped &amp; started the job daemon and the whole thing took 10 minutes.  <br />
+<br />
+There is two other sessions in the job and three other segments of code similar to this segment of code, in the same session, but for dealing with the various custom items of type &quot;SYSTEM&quot; on sales orders...   <br />
+<br />
+And the whole thing took about 10 minutes, which is exactly what I was looking for.<br />
+<br />
+Thanks everyone!<br />
+<br />
+Lisa:<br />
+<br />
+Thanks for the tip on the transaction date - our use is to dump a &quot;rolling&quot; amount of data to a side system throughout the day - I can't remember the original intentions (what the side system is doing) other then that as it was set up about 2 years ago.<br />
+<br />
+The change made recently to include standard items that were project associated through the sales order signifigantly decreased the processing time from 10 minutes to more then an hour... Lately it's been upwards of 2 or more - or worse, it's been crashing the job daemon.<br />
+<br />
+I will keep the transaction date thing in mind for future reference should the owner request more changes.  I hadn't thought about it as I was trying to emulate other sections of code that dealt with customized items very very quick, using a similiar structure... <br />
+I might suggest revisiting the project &amp; examining redoing the whole thing using the transaction date.  <br />
+<br />
+Thanks again.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tomlbacon</div><div class="date">7th February 2004, 00:19</div></div><div class="posttext">I would select tdsls040 (Order Header) information based upon the Header Order Date that way you have less records to start with.  This would let you select the Order Lines (tdsls041) only once.  <br />
+<br />
+The only problem I believe this may cause is if they add Order Lines way after the Header.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">just_fro</div><div class="date">7th February 2004, 18:50</div></div><div class="posttext">little extra:<br />
+<br />
+range and 'in between' ask more performance than <br />
+tiitm001.seak(1;6)=&quot;SYSTEM&quot;<br />
+<br />
+Because &quot;carthesion products&quot; are made, put the smallest table in front (in the where clause) so sls040 before sls041<br />
+<br />
+use as many indexes as possible<br />
+<br />
+all bits might help....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">p.cole</div><div class="date">9th February 2004, 03:10</div></div><div class="posttext">Further info: select &quot;as with 1 rows&quot; increases performance when a level 1 driver is used.  This is because in cases of<br />
+<br />
+select tiitm001.*<br />
+from tiitm001<br />
+where tiitm001._index1 between {:item.f } and {:item.t}<br />
+<br />
+a level 1 database driver will get batches of records, as definied by the rds_full and ssts_set_rows parameters in ${BSE}/lib/defaults.<br />
+<br />
+By using &quot;as with 1 rows&quot; causes the database driver to only get one record from the database and not attempt to cache the next few records.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

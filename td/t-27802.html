@@ -1,0 +1,124 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Doubts on Index Usage, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Doubts on Index Usage Tools Development" />
+	
+	<title>Doubts on Index Usage [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Doubts on Index Usage</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">bigjack</div><div class="date">7th August 2006, 06:19</div></div><div class="posttext">Hi,<br />
+<br />
+I thought it would be better to start a new thread so here are doubts on using index w.r.t. performance issues,<br />
+<br />
+Consider following code,<br />
+<br />
+Code 1:<br />
+<br />
+Select	tiitm001.*<br />
+from	tiitm001 for update<br />
+where	tiitm001._index1 inrange {:item.f} and {:item.t}<br />
+selectdo<br />
+	|update code<br />
+endselect<br />
+<br />
+where item.f is blank and item.t is &quot;ZZZZZZZZZZZZZZZZ&quot;<br />
+<br />
+Code 2:<br />
+<br />
+Select	tiitm001.*<br />
+from	tiitm001 for update<br />
+selectdo<br />
+	|update code<br />
+endselect<br />
+<br />
+I would like to know whether usage of first code offers any performance boost since the index is <br />
+<br />
+mapped for full range or on other hand would it downgrade the performance due to unnecessary <br />
+<br />
+computation of index values.<br />
+<br />
+Also consider a case wherein a table(taxyz999) has three fields in index1, a1 , a2 , a3.<br />
+<br />
+Code 3:<br />
+<br />
+select	taxyz999.*<br />
+from	taxyz999<br />
+where	taxyz._index1 inrange {:a1.f , &quot;   &quot;,:a3.f} and {:a1.t , &quot;ZZZ&quot;,:a3.t}<br />
+selectdo<br />
+endselect<br />
+<br />
+Code 4:<br />
+<br />
+select	taxyz999.*<br />
+from	taxyz999<br />
+where	taxyz._index1 inrange {:a1.f} and {:a1.t}<br />
+	and taxyz999.a3 inrange :a3.f and :a3.t<br />
+selectdo<br />
+endselect<br />
+<br />
+I would like to know which of the above two &quot;where&quot; clauses is advisable?<br />
+<br />
+Kindly guide me on the same.<br />
+<br />
+Cya</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th August 2006, 06:45</div></div><div class="posttext">Okay - my personal preference is (1).  Not because it might slow down the search because it looks like something I use for reporting.  I also think both generate a full table scan so I think they would be the same.  Hey have you tried writing a simple program with start time, the query and the end time? Might not tell you much, but it is a thought.<br />
+<br />
+As for the second question I would use (4).  But in cases where the second key (like pcs project on some of our tables) I would use (3) if the from and too range for the second element was always blank.  Something like {:a1.f , &quot;   &quot;,:a3.f} and {:a1.t , &quot;   &quot;,:a3.t} - I have done that.<br />
+<br />
+Not sure if I answered your question, but it will be interesting to see what others say.  Lets hear from others!!!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">7th August 2006, 10:26</div></div><div class="posttext">Code 1 vs. Code 2<br />
+<br />
+If you have many items and many users on your system I would prefer <br />
+a 2.1 variant.<br />
+<br />
+code 2.1<br />
+<br />
+select	tiitm001.*<br />
+from	tiitm001 <br />
+order by tiitm001._index1     | Just for ordering<br />
+selectdo<br />
+          select	tiitm001.*<br />
+          from	tiitm001 for update<br />
+          where        tiitm001._index1 = {:tiitm001.item}<br />
+          selectdo<br />
+  	            |update code<br />
+          endselect<br />
+endselect<br />
+<br />
+<br />
+In my opinion this code is faster because of smaller transactions and smaller redo logs/rollback segments. Too large transactions with a large, completely locked table can crash your rollback segments or slow down your system dramatically (for my experience...). Especially if the table like tiitm001 becomes updated from many users very often.<br />
+<br />
+Code 3 vs. Code 4<br />
+<br />
+I don't think that there is a big difference in the performance. <br />
+<br />
+Like Mark, I also would look at what I need. And maybe add an additional index with a1, a3, a2 for better performance. But if ever possible with duplicate = no. Index with duplicate can give much trouble if you use it in a form or with ttaad4100/ttaad4500 and try to go back... . On a really large table (40.000.000 records) it can need hours. An index without duplicate allowed needs less than a second.<br />
+<br />
+Regards<br />
+csecgn</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">7th August 2006, 13:40</div></div><div class="posttext">Code 1 is slightly slower than code 2, but I see some other problems that can pop up. Please read attached doc.<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

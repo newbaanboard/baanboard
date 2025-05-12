@@ -1,0 +1,163 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="copying record from one table to another, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] copying record from one table to another Tools Development" />
+	
+	<title>copying record from one table to another [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; copying record from one table to another</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">VishalMistry</div><div class="date">8th April 2016, 14:28</div></div><div class="posttext">Hi all,<br />
+<br />
+i have two tables with similar structures. what i want is when data is inserted into one table, the record should be inserted into another table also.<br />
+<br />
+I know it can be done by assigning field values from source to target table and performing db.insert followed by commit.transaction.<br />
+<br />
+Anybody can guide if can we copy the record directly without individual field assignment ?<br />
+<br />
+I have a little bit idea about record buffers but do not know how to use it practically.  <br />
+<br />
+Please guide.<br />
+Vishal</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th April 2016, 15:55</div></div><div class="posttext">Not sure this will help - but assuming the records for the two tables are correct. Basically I am writing into the same table.  I store off the record buf, modify a few fields and insert.  You can do the same thing with different tables.  For example I will copy a baan table and then add fields to the bottom.  In that case I can do something like rcd.mytable(like tpppc999) = rcd.baantable(like tpppc270).  Then I just set the additional fields and do an insert.  Of course it is all predicated on the similarity of the two tables. May or may not work for you.<br />
+<br />
+<br />
+	string		record.buf(1)	based<br />
+<br />
+			db.set.to.default(ttpppc270)<br />
+			rcd.ttpppc270 = record.buf<br />
+			tpppc270.cprj = tppro603.nprj<br />
+			tpppc270.sern = get.next.tpppc270.sern(tppro603.nprj)<br />
+			tpppc270.cspa = tppro603.csp1<br />
+			tpppc270.quan = total.quan * somemultiplier	| Quantity<br />
+			tpppc270.amoc = total.amoc * somemultiplier	| Total Amount<br />
+			tpppc270.loco = somelogin<br />
+			db.insert(ttpppc270,db.retry)<br />
+			commit.transaction()<br />
+			break<br />
+<br />
+function store.tpppc270.record.buffer()<br />
+{<br />
+	if not record.len then<br />
+		db.row.length(ttpppc270, record.len)<br />
+		alloc.mem(record.buf, record.len)<br />
+	endif<br />
+	record.buf = rcd.ttpppc270<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">8th April 2016, 19:44</div></div><div class="posttext">What you can do is<br />
+<br />
+For example if tdsls912 is the table in which the record is created and tdsls812 is the table in which you need to create a similar record. You select tdsls912 and then bind a long id to the recordset, copy it to the default record buffer of tdsls912 and then select tdsls812 for update, copy the record buffer of tdsls912 to tdsls812 and then copy the record buffer to fields.<br />
+<br />
+This entire operation can be performed in the after.save.object section of tdsls912.<br />
+<br />
+PS: I havent tried it but you can give it a try.<br />
+<br />
+<br />
+<br />
+function extern long after.save.object(long mode)<br />
+{<br />
+<br />
+long tdsls912_id,tdsls812_id,ret.val<br />
+string rcd.tdsls912,rcd.tdsls812<br />
+<br />
+select tdsls912.*<br />
+from tdsls912<br />
+where tdsls912._index1 = {:hold.orno}<br />
+selectdo <br />
+            tdsls912_id = db.bind(&quot;ttdsls912&quot;)<br />
+            db.columns.to.record(tdsls912_id)<br />
+            select tdsls812.*<br />
+            from tdsls812 for update<br />
+            where tdsls912._index1 = {:hold.orno}<br />
+            selectempty<br />
+                              tdsls812_id = db.bind(&quot;ttdsls812&quot;)<br />
+                              rcd.tdsls812 = rcd.tdsls912<br />
+                              db.record.to.columns(tdsls812_id)<br />
+                              dal.new(&quot;tdsls812&quot;,ttdsls812,ret.val,db.retry,TRUE)<br />
+            endselect<br />
+endselect<br />
+if ret.val = 0 then<br />
+  commit.transaction()<br />
+endif                <br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sam291091</div><div class="date">9th April 2016, 06:16</div></div><div class="posttext">Hi Ajesh,<br />
+                Can you please explain me how value comes in rcd.tdsls912 Variable. As per your code you did not assign value in Variable rcd.tdsls912 and you just direct assign value in  rcd.tdsls812( rcd.tdsls812 = rcd.tdsls912 ).<br />
+<br />
+Can you please explain me your code?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">9th April 2016, 07:13</div></div><div class="posttext">Hi Ajesh,<br />
+                Can you please explain me how value comes in rcd.tdsls912 Variable. As per your code you did not assign value in Variable rcd.tdsls912 and you just direct assign value in  rcd.tdsls812( rcd.tdsls812 = rcd.tdsls912 ).<br />
+<br />
+Can you please explain me your code?<br />
+<br />
+rcd.tppmmmccc (i mentioned rcd.ppmmmccc by mistake) is the default string buffer for any Table. You need not mention it in the db.bind. But if you want a different string buffer or a specific string buffer, you need to mention it in db.bind.<br />
+<br />
+<br />
+db.bind()<br />
+Syntax:<br />
+function long  db.bind  (string table_name(9) [, ref string buffer(.)] [, long comp_nr])<br />
+<br />
+Description<br />
+<br />
+This creates a pointer to a specified table. It returns a table ID that you use in other database calls to identify the table. The pointer is to a table with a particular company number and record buffer. You can create additional pointers to the same table by calling the function with a different company number and/or record buffer. <br />
+<br />
+<br />
+Arguments<br />
+string table_name(9) The table name.<br />
+ <br />
+[ref string buffer(.)]  This optional argument specifies the record buffer to be used for the table. If you omit this argument, or if you specify an empty string, the default record buffer is used (that is, rcd.tppmmmxxx). <br />
+ <br />
+[long comp_nr]  This optional argument specifies a company number for the table. The default company is the company of the user. If you include this argument, you must also include the buffer argument. So, if you want to specify a company other than the default company but want to use the default record buffer, specify the default buffer or an empty string in the buffer argument. <br />
+ <br />
+ <br />
+Return values<br />
+0 Error. <br />
+&gt;0 Success; pointer is returned. <br />
+ <br />
+Context<br />
+This function is implemented in the porting set and can be used in all script types. <br />
+<br />
+Note<br />
+When you create more than one pointer to a table, you must use a different record buffer for each one. <br />
+<br />
+Example<br />
+long tcmcs001_id<br />
+<br />
+if (switch.to.company(200) &gt; 0) then<br />
+                tcmcs001_id = db.bind(&quot;ttcmcs001&quot;)<br />
+                db.first(ttcmcs001_id)<br />
+endif<br />
+                ...<br />
+db.first(ttcmcs001)<br />
+<br />
+<br />
+<br />
+<br />
+So it should be rcd.ttdsls912 or rcd.ttdsls812 instead of rcd.tdsls912 or rcd.tdsls812.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sam291091</div><div class="date">9th April 2016, 07:25</div></div><div class="posttext">Hi Ajesh,<br />
+                 I got it and thanks for explanation</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

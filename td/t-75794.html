@@ -1,0 +1,82 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="to.key() of session (dynamic) or table index, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] to.key() of session (dynamic) or table index Tools Development" />
+	
+	<title>to.key() of session (dynamic) or table index [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; to.key() of session (dynamic) or table index</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">16th May 2023, 12:44</div></div><div class="posttext">to.key() is giving odd results.  <br />
+<br />
+MMT session.  One of the satellites loses focus after update.db.   I found that to.key(2) is the cause.<br />
+<br />
+So here goes the big question.  In Dynamic session/forms, one can specify applicable indices and even give them a different numbering sequence (opposed to table index #).  I have read all the programmers manuals (online/local on PC) and nowhere.  <br />
+<br />
+Does to.key(2) pick <br />
+--- table index #2  or <br />
+--- key of dynamic session index #2 as specified in session ttadv2101s000 &quot;available indices by session&quot;<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">16th May 2023, 17:35</div></div><div class="posttext">to.key() is giving odd results.<br />
+Known issue indeed, in aMMT session.  One of the satellites loses focus after update.db.   I found that to.key(2) is the cause.In your driver (main session) did you use in the after.form.read:<br />
+	add.sync.fields.nokey(&quot;satellite1&quot;, &quot;field.driver1&quot;, &quot;field.satellite1&quot;, ..., &quot;field.driverX&quot;, &quot;field.satelliteX&quot;) to link and sync fields? For all satellites? In the group.1:<br />
+init.group:<br />
+enable.satellite(&quot;satellite1&quot;) ... for all satellites? Also I used after.display:<br />
+synchronize.satellite() and make.current<br />
+So here goes the big question.  In Dynamic session/forms, one can specify applicable indices and even give them a different numbering sequence (opposed to table index #).  I have read all the programmers manuals (online/local on PC) and nowhere. <br />
+<br />
+Does to.key(2) pick <br />
+--- table index #2  or <br />
+--- key of dynamic session index #2 as specified in session ttadv2101s000 &quot;available indices by session&quot;<br />
+Thanks<br />
+The to.key picks the key as defined in the sessions so your second option.<br />
+<br />
+What I did do in a similar case where I did a lot with key and satellite sessions, was adding these comments in the choice.update.db:<br />
+before.choice:<br />
+	update.occ()		| Trigger 4GL to perform update action.<br />
+	| 4GL sets db.retry.point just after the before.choice<br />
+	| Prepare updates in the &quot;normal&quot; flow and execute them in the<br />
+	| after.choice section without extra retry points and commits. Just call<br />
+	| execute(update.db)<br />
+after.choice:<br />
+	| All additional update actions must be initiated through functions here<br />
+	if g.do.update = 1 then		| records from the driver and satellite session current<br />
+		warn.outside.transaction = &quot;&quot;<br />
+		on.main.table(actualize.driver.maintable, keyfield1, keyfield2)<br />
+		g.do.update = 0<br />
+	endif<br />
+	| 4GL will perform the commit transaction after this section.<br />
+<br />
+after.update.db.commit:<br />
+	| now the STP commit has been done. New transactions must have their own<br />
+	| db.retry.point() and commit.transaction().<br />
+	| To avoid warning to extend the transaction time it is shown outside<br />
+	if not isspace(warn.outside.transaction) then<br />
+		mess(&quot;tcgenstring&quot;, 1, warn.outside.transaction)<br />
+		if pos(warn.outside.transaction, &quot;RESTART&quot;) &lt;&gt; 0 then<br />
+			exit(&quot;RESTART&quot;)<br />
+		endif<br />
+		warn.outside.transaction = &quot;&quot;<br />
+	endif<br />
+	clean.mess()</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">19th May 2023, 08:32</div></div><div class="posttext">Thanks for the clear information OmeLuuk.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

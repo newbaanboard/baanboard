@@ -1,0 +1,165 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Concatenating text out of text manager (tttxt010), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Concatenating text out of text manager (tttxt010) Tools Development" />
+	
+	<title>Concatenating text out of text manager (tttxt010) [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Concatenating text out of text manager (tttxt010)</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">BaBernd</div><div class="date">29th June 2017, 11:14</div></div><div class="posttext">Hello to All,<br />
+I’ve a problem with concatenating text.<br />
+I have a table tdsls100 (Sales Quotation) with 3 text fields (domain tctxtn = data typ “text”). These 3 fields I’d like to concatenate.<br />
+<br />
+<br />
+Extern domain tctext 	v1.text, v2.text, v3.text, v.all.text<br />
+<br />
+V1.text = get.text(tdsls100.txt1.c)<br />
+v2.text = get.text(tdsls100.txt2.c)<br />
+v2.text = get.text(tdsls100.txt3.c)<br />
+<br />
+v.all.text = trim$(v1.text) &amp; trim$(v2.text) &amp; trim$(v3.text)<br />
+<br />
+<br />
+<br />
+The text out of these fields I’ve get with a function get.text()<br />
+<br />
+<br />
+Function string get.text(domain tctxtn itxtnr)<br />
+{<br />
+string buffer.line(1024)<br />
+buffer.line = “”<br />
+select tttxt010.*<br />
+from tttxt010<br />
+where tttxt010._index1 = {:i.txtnr}<br />
+selectdo<br />
+	buffer.line = buffer.line &amp; tttxt010.text<br />
+endselect<br />
+return(buffer.line)<br />
+}<br />
+<br />
+<br />
+The combined text I will show in a report with the variable v.all.text (domain tctext).<br />
+When I’m running the report only the first part will be shown (here v1.text)<br />
+When I call the value during runtime with Message(v.all.text) there will shown the whole concatenated value.<br />
+<br />
+So I’d have a look a the values in the debugger. Here I’ve found the text value shown as:<br />
+<br />
+v.all.text = “v1.txt \r\n v2.text \r\n v2.text\r\n”<br />
+<br />
+So I think the reason why in the normal report run the concatenated value will not shown in full length is the control sign \r\n.<br />
+Question 1: how can I delete these control signs \r\n during concatenating the text.<br />
+Question 2: domain tctext is a multibyte string. So how is the maximum length for this field type?<br />
+And how can I fill it with the full amount of 3 text files of type tctxtn?<br />
+<br />
+Thanks in advance for reading this long thread ;-)<br />
+<br />
+Best Regards<br />
+Bernd</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">29th June 2017, 11:44</div></div><div class="posttext">You can use text.to.buf() instead of reading tttxt010 and assigning the value. Use the following code - <br />
+<br />
+V1.text = get.text(&quot;tdsls100.txt1.c&quot;)<br />
+v2.text = get.text(&quot;tdsls100.txt2.c&quot;)<br />
+v2.text = get.text(&quot;tdsls100.txt3.c&quot;)<br />
+v.all.text = trim$(v1.text) &amp; trim$(v2.text) &amp; trim$(v3.text)<br />
+<br />
+<br />
+<br />
+Function string get.text(string i.field(20))<br />
+{<br />
+     string final.text(1024)<br />
+     string btext(500)<br />
+     string bbuf(80,40)<br />
+     long b<br />
+<br />
+     btext = &quot;&quot;<br />
+<br />
+     for b = 1 to<br />
+           text.to.buf(trim$(i.field), language$, 2, bbuf) |# Use number of lines based on the requirement<br />
+           btext = trim$(btext) &amp; &quot; &quot; &amp; trim$(bbuf(1,b))<br />
+     endfor<br />
+<br />
+     final.text = btext<br />
+<br />
+     return(final.text)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaBernd</div><div class="date">29th June 2017, 15:10</div></div><div class="posttext">Hi Bhushan,<br />
+<br />
+thanks a lot. It' running fine. <br />
+<br />
+An additional problem is:<br />
+I've defined the layout field in the report layout once as string and second as multibyte string domain (for the variable v.all.text). But only the number of signs will be shown as the layout field is declared. <br />
+Is there a sort of endless layout field available or how can I solve the problem to show all the text.<br />
+<br />
+Best Regards<br />
+Bernd</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">29th June 2017, 15:38</div></div><div class="posttext">Hi,<br />
+<br />
+You can use something like this - <br />
+<br />
+v.all.text(1;50)<br />
+v.all.text(51;50)<br />
+v.all.text(101;50)<br />
+...<br />
+<br />
+This will split your text into parts of 50 characters. Also, create a separate layout for each of them and in their print condition write- <br />
+<br />
+<br />
+not isspace(v.all.text(51;50))<br />
+not isspace(v.all.text(101;50))<br />
+...<br />
+<br />
+So that, the layout will be skipped if the string is blank.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaBernd</div><div class="date">29th June 2017, 15:48</div></div><div class="posttext">Hi Bhushan,<br />
+<br />
+:o very good idea! :)<br />
+<br />
+I will check how I can implement it.<br />
+Thanks a lot and for fast reply.<br />
+<br />
+Best Regards Bernd</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaBernd</div><div class="date">11th July 2017, 09:16</div></div><div class="posttext">Check done. <br />
+Solution works fine.<br />
+<br />
+Thanks a lot!<br />
+<br />
+Best Regards<br />
+Bernd</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rahul ingale</div><div class="date">11th July 2017, 20:47</div></div><div class="posttext">FYI.<br />
+TEXT_CONTENT macro can be used to get value in ln 10.5.<br />
+e.g<br />
+<br />
+string text_data(999)<br />
+select TEXT_CONTENT(tccom100.text):text.data<br />
+from tccom100<br />
+<br />
+Here all data linked text to get assigned to text.data.<br />
+<br />
+cons:we have to give fixed size variable.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Copy Baan oracle schema from one server to another, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Copy Baan oracle schema from one server to another Operating Systems &amp; Databases" />
+	
+	<title>Copy Baan oracle schema from one server to another [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Copy Baan oracle schema from one server to another</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">pjohns</div><div class="date">8th May 2008, 17:17</div></div><div class="posttext">Hello,<br />
+<br />
+We have two Baan servers, one production and the other pre-production. To keep the pre-production server up to date with production data we currently perform an offline backup of the production system and then use this backup to perform a restore on the pre-prod server.<br />
+<br />
+I am looking for a quicker/easier way to do this data copy and I'm hoping somebody here may have a better solution for me.<br />
+<br />
+I have looked at using transportable tablespaces but I believe you still need to run import/export for metadata? <br />
+<br />
+What I want is to have a job set-up that overnight will replicate the production system on to our pre-prod server.<br />
+<br />
+I would be grateful for any suggestions you may have.<br />
+<br />
+Thanks<br />
+<br />
+PJ</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">8th May 2008, 17:33</div></div><div class="posttext">We've been working on the same thing and I would be interested in seeing other responses to this.<br />
+<br />
+What we are looking at doing is using RMAN to create and maintain a standby database. Look in Oracle's support site and RMAN documentation for the ways to do this. If you have Oracle Data Guard (part of the Enterpirse edition), use that. If not, you can create a more manual process with RMAN. <br />
+<br />
+With this process, you first create a database duplicate. Once this is initialized, use RMAN to copy the archivelogs from production to pre-production to keep the two databases in sync. You need to be using archivelog mode, or course. The archivelogs copy only the changes made since the last sync.<br />
+<br />
+If that is no good, we have found using bdbpre and bdbpost much faster than using Oracle's expdp and impdp tools. I have not looked into why this is. In one test, impdp took about 6hrs to restore the database, bdbpost took less than 2hr. The files created by bdbpre are also much smaller and more compressible than expdp's, if that is an issue. <br />
+<br />
+As I said, we are still trying to find our own way to doing this. This is just what we are thinking of so far.<br />
+<br />
+Rob</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">8th May 2008, 20:35</div></div><div class="posttext">first - the datapump should blow bdbpre/bdbpost away. so i'd spend some time looking into that.<br />
+<br />
+<br />
+The best solution i've ever seen is is purely a hardware solution.<br />
+<br />
+Using a SAN - <br />
+<br />
+Triple mirror your HDs for your datafiles in prod<br />
+<br />
+1. Throw the Prod DB into hot backup<br />
+2. Break the 3rd mirror.<br />
+3. Take Prod DB out of hot backup.<br />
+4. Shutdown pre-prod<br />
+5. Take that set of disks and link it to a set of disks sitting on pre-prod<br />
+6. Force a 1 way mirror (overwriting the old disks with the new disks)<br />
+7. Once they are synced, break that mirror and re-mirror with prod (forcing prod to over-write the new set)<br />
+8. Start up pre-prod<br />
+9. Take Pre-prod out of hotbackup mode.<br />
+<br />
+On my EMC array 10 years ago this entire process took 5 minutes for 120G of DB.. <br />
+<br />
+There are a couple of variations you can use by not re-syncing up the disks until later in the day (instant recovery/rollback is one of them, or taking those disks and attaching them to some other device for the nightly backup so that prod isn't impacted)<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">9th May 2008, 13:21</div></div><div class="posttext">I have been able to do it by cloning the oracle database. Disadvantage of this is that your db must be down.<br />
+Only this can be done by making a backup with rman. The export can be used to rebuild your test database.<br />
+<br />
+Transportable TS can only be used in an enterprise edition.<br />
+<br />
+Regarding using the archived logs: I think you need a enterprise edition as well.<br />
+<br />
+Regards,<br />
+Han</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">9th May 2008, 15:26</div></div><div class="posttext">The SAN solution looks like a good one, if it is available. In our case, the second server is also a DR server, so it is in another location, in another country. So we need something that works over the WAN. <br />
+<br />
+If you use RMAN to backup the database, you can create a clone of it from the RMAN backups. You have to copy the backup files to the other server. Follow the instructions here: http://www.orafusion.com/art_rman3.htm. This worked perfectly with our Baan database. <br />
+<br />
+But this would be kind of hard to do over the WAN every night. So we are looking at using the archivelogs or incremental backups to keep the data current, and according to what I've read, RMAN can do this and it does not need the enterprise edition.<br />
+<br />
+See the Oracle Advance Backup and Recovery Guide: http://download.oracle.com/docs/cd/B19306_01/backup.102/b14191/title.htm#BEGIN<br />
+<br />
+See especially part 3. While getting the link, I notice there is a chapter on using RMAN to create a Transportable TS, which lets you leave the database running while you do it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bobdoss</div><div class="date">19th June 2008, 21:37</div></div><div class="posttext">In a past life, I used DataMirror (now an IBM product) for this purpose (www.datamirror.com). <br />
+<br />
+We cost-justified it by providing a near-realtime (~ 15 minutes) backup copy of the production database for failover purposes. <br />
+<br />
+The ability to keep a development database current in near-realtime was icing on the cake.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">SujithKumar</div><div class="date">20th June 2008, 07:01</div></div><div class="posttext">In SQl server there is an option to move transactions logs to another server to keep the two servers in sync. Basically what this will do is move the net changes in the data base to other server. This could be automated.<br />
+I would think oracle will have something like this<br />
+<br />
+To go with database you wil have to sync up $BSE as well. This could be done through a batch job to copy the changed files..<br />
+<br />
+By the way we at our company synch up our test machine with production, by restoring the backup and copying $BSE as you mentioned in your post<br />
+<br />
+(Sujith)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">eppesuiG</div><div class="date">3rd July 2008, 17:14</div></div><div class="posttext">Hi pjohns,<br />
+since you are running on linux you could use rsync.<br />
+What I do, nightly:<br />
+<br />
+0. rsync $BSE<br />
+1. rsync the complete $ORACLE_HOME and all datafiles, redofiles, tempfiles,  from the production machine to the pre-production. Be carefull to set rsync block size (for crc) equal to oracle block size.<br />
+2. put all oracle tablespace in &quot;begin backup&quot;;<br />
+3. sync again oracle files (this sync will be quite fast, probably about 30 minutes)<br />
+4. put all oracle tablespace in &quot;end backup&quot;.<br />
+<br />
+I seem to remember that when you will start oracle in pre-prod you need a quick recorver because tablespace are in backup mode.<br />
+<br />
+Bye,<br />
+Giuseppe</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">GeraintJones</div><div class="date">4th July 2008, 08:06</div></div><div class="posttext">what i do when creating/refreshing our test env is the following<br />
+<br />
+<br />
+mount -o rw,bg,intr,hard,timeo=600,wsize=32768,rsize=32768,tcp live-db:/backup /backup<br />
+mount -o rw,bg,intr,hard,timeo=600,wsize=32768,rsize=32768,tcp live-db:/u02/archive on /u02/archive<br />
+<br />
+export ORACLE_SID=baandup (this is the SID for the test/dev oracle instance)<br />
+$ORACLE_HOME/bin/rman TARGET sys/password@tns_name_for_live_box AUXILIARY /<br />
+<br />
+<br />
+then run this script : <br />
+<br />
+<br />
+run {<br />
+ allocate auxiliary channel dupdb1 type disk;<br />
+ duplicate target database to baandup NOFILENAMECHECK;<br />
+ }<br />
+<br />
+<br />
+and about 20 - 25mins later i have a perfect copy of the live system</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

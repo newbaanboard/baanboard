@@ -1,0 +1,132 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Job name in a Baan session, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Job name in a Baan session Tools Administration &amp; Installation" />
+	
+	<title>Job name in a Baan session [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Job name in a Baan session</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">lsatenstein</div><div class="date">4th November 2005, 01:36</div></div><div class="posttext">Can you show your code to retrieve the Unix job name for use in a Baan 4c4 session.<br />
+<br />
+We have Baan jobs that run often, and are critical. We want to send a message from the script when a problem is detected. We do not want to wait for a postmortem.<br />
+<br />
+That problem would result in a page being sent to several employes on duty.<br />
+<br />
+I will post my solution a little later on, but I was wondering if there was an elegant solution that is better than mine.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Han Brinkman</div><div class="date">4th November 2005, 14:31</div></div><div class="posttext">The startjob script on my windhoze box contains:<br />
+<br />
+start f:\baan5c\bin\bw.exe f:\baan5c\lib\user\job800.bwc -- -set BSH_JOB=%1 -set BSH_JOBOK=&quot;%2&quot; -set BSH_FRSES=&quot;%3&quot; ttaad5203m000<br />
+<br />
+I expect that the environment variable BSH_JOB does contain the name of the job, probably is not much different on *nix.<br />
+<br />
+Regards,<br />
+Han</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lsatenstein</div><div class="date">4th November 2005, 20:14</div></div><div class="posttext">Yes, <br />
+I have the following code snippet:<br />
+In the before.program.... and the after.program:<br />
+<br />
+What I will do is set an application lock with a !! as the first two characters followed by the job name. I am not using the application lock as a lock, but as a flag. <br />
+<br />
+From another source, I will query the application lock, at certain times and verify that the session has completed without blowing up. (If it blows up, the after.program event would not have cleared the application lock flag.<br />
+<br />
+<br />
+<br />
+<br />
+before.program:<br />
+        jobflag(1)<br />
+<br />
+after.program:<br />
+      jobflag(0)<br />
+<br />
+<br />
+<br />
+function   jobflag(domain tcmcs.long option)          |Sn.<br />
+{<br />
+|*****************************************************************************<br />
+|** ... 05/10/29 07:17  ******************************************************<br />
+|***DESCRIPTION **************************************************************<br />
+|*  job.flag: Used to ...<br />
+|*   set,clear application lock<br />
+|*****************************************************************************<br />
+        static  string          lockstr(32)              |as per baan docs. It is a string of 32<br />
+        static  domain  tcmcs.str6 jobname               |<br />
+        long                    ret.val                  | code de retour<br />
+<br />
+        if option = 1  then<br />
+           if job.process  then<br />
+             jobname = getenv$(&quot;BSH_JOB&quot;)<br />
+             lockstr=&quot;!!&quot; &amp; jobname<br />
+             ret.val = appl.set(lockstr,APPL.WRITE)<br />
+             if ret.val &lt;&gt; 0 then<br />
+               if ret.val = -1 then<br />
+                  message(&quot;application-wide lock present&quot;)<br />
+               endif<br />
+               if ret.val = -3 then<br />
+                   message(&quot;internal error&quot;)<br />
+               endif<br />
+               if ret.val &gt; 0 then<br />
+                  message(&quot;application lock already present&quot; &amp; str$(ret.val))<br />
+               endif<br />
+             endif<br />
+           endif<br />
+<br />
+        else<br />
+          ret.val =appl.delete(lockstr)                                                   |n.1038<br />
+        endif<br />
+<br />
+}                                       | end function jobflag()</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dnnslbrwn</div><div class="date">7th November 2005, 22:22</div></div><div class="posttext">Les,<br />
+<br />
+I have one job that I have been burned on many times when it does not run hourly.  In the rc.startjob script delivered by BAAN, there is the option to add a second parameter where an error/status file is written out.  The only change I make to the delivered script is to remove the &quot;&amp;&quot; at the end of the ba6.1 call so that it does not get processed in the backgroud.  <br />
+<br />
+The UNIX shell script that calls this job is as follows:<br />
+<br />
+#${BSE}/scripts/rc.startjob SALES   |Now called with 2nd parameter<br />
+${BSE}/scripts/rc.startjob SALES ${BSE}/tmp/350_SALES_$$<br />
+<br />
+if [ `grep -c &quot;jsta:OK&quot; ${BSE}/tmp/350_SALES_$$` -eq 0 ]<br />
+then<br />
+	mailx -s &quot;350 SALES job DID NOT RUN&quot; 			\<br />
+			dennisb@xxxxxxxxx.com 			\<br />
+					&lt; ${BSE}/tmp/350_SALES_$$<br />
+#else                                 |Echo for testing purposes only<br />
+#	echo &quot;Ran!&quot;<br />
+fi<br />
+<br />
+rm ${BSE}/tmp/350_SALES_$$ 2&gt;/dev/null<br />
+<br />
+<br />
+Hope this helps.<br />
+<br />
+Cheers,<br />
+<br />
+-Dennis</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">yerramsetti</div><div class="date">18th April 2008, 15:36</div></div><div class="posttext">I am new to LN6.1.  If any one knows how to run jobs <br />
+on this plz help me.And send me the docs or links related to it.<br />
+ <br />
+Thanks in Advance:)<br />
+yerramsetti</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

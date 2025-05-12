@@ -1,0 +1,186 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Extension - Execute when an object finishes initialization, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Extension - Execute when an object finishes initialization Tools Development" />
+	
+	<title>Extension - Execute when an object finishes initialization [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Extension - Execute when an object finishes initialization</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">4th September 2018, 14:21</div></div><div class="posttext">Hi,<br />
+<br />
+I created an extension type Table for tisfc001. I want it to execute some functions when a new record is created. Sounds easy, right?<br />
+Yes. I then implemented on After Save hook with the condition &quot;mode = DAL_NEW&quot;. As a result, the functions inside the condition get executed as expected. However, the functions need to use some data that is related to the table, which is Material. The tough part comes when I realized that the data that link to the table is generated after a new Production Order is created. Therefore, my functions inside the Extension cannot perform correctly because the data is not there in time.<br />
+<br />
+To make it easier to understand, let me visualize it this way. It now flows like this:<br />
+1. Create new record<br />
+2. After Save hook is executed<br />
+3. The related data is generated according to the newly created order<br />
+<br />
+The desired flow:<br />
+1. Create new record<br />
+2. The related data is generated according to the newly created order<br />
+3. **a way to execute the functions here**<br />
+<br />
+The generated data often have many records.<br />
+The After Save hook triggers in total of 3 times like this:<br />
+1. DAL_NEW<br />
+2. DAL_UPDATE<br />
+3. DAL_UPDATE<br />
+at the point of 2. and 3. are the only moment that the functions can perform correctly since the required data is not generated in the step 1.<br />
+<br />
+I tried using CDF in this table to act as a flag.<br />
+When an order is created, the flag is initialized to 0, and when the After Save hook gets executed, it will check if this CDF is 0, which means it was just created then it will perform the functions and then update the CDF to other value such as 1 in order to trigger it only once.<br />
+The problem is that updating in the same table as the table in the After Save here is not allowed because it will cause a recursion. So, this method is not valid.<br />
+<br />
+In case who wants to see the code, it's as simple as this:<br />
+function extern long after.save.object(long mode)<br />
+{<br />
+	if mode = DAL_UPDATE then<br />
+	        some.functions.to.run() |* Gets executed 2 times on creating new record<br />
+	endif<br />
+	return (0)<br />
+}<br />
+<br />
+Please help.<br />
+<br />
+Regards,<br />
+Thana</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">4th September 2018, 17:19</div></div><div class="posttext">You mean to say you want some  data in some other related table than tisfc001 ? But that data is not coming at the time of after.save.object.<br />
+<br />
+Why dont you try writing in db dll? specifically in db.after.update() Hook,worth a try...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">5th September 2018, 06:57</div></div><div class="posttext">You mean to say you want some  data in some other related table than tisfc001 ? But that data is not coming at the time of after.save.object.<br />
+<br />
+Yes, I think you understand most of it.<br />
+<br />
+Why dont you try writing in db dll? specifically in db.after.update() Hook,worth a try...<br />
+<br />
+I have never tried db dll. Could you please give me more details about what it is and how to start using it?<br />
+<br />
+By the way, I have changed the method of achieving the goal to use another hook that is somehow acceptable; so, this case is not urgent anymore but solving it will lead to a knowledge that one might find it useful in the future.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">5th September 2018, 09:57</div></div><div class="posttext">db dll wouldnt work because after its execution after.save.object will be called.<br />
+<br />
+At this point i could think of scrapping the extension altogether and write a User Exit dll, In the after.after.save.object hook of User Exit.<br />
+<br />
+Other option is in the Session Extension of that session and including New Record and after.command of that new Record you can write your logic. But it depends whether you want your logic to execute every time at a New Record creation or only through entering of that session. In the First case writing a Session Extension wouldnt work...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">5th September 2018, 13:45</div></div><div class="posttext">I would do it the other way round: In the table extension of the Material table you can update tisfc001...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">6th September 2018, 04:46</div></div><div class="posttext">When a Production Order is created, Materials will be generated accordingly and there are a lot of them. I was thinking of a way to run only when the last Material is generated but I don't know how to check for the conditions. Moreover, I don't know if this will impact any other part of the system, like if a Material is created separately (I don't know if it is possible) then the extension will trigger, which it is not supposed to.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">6th September 2018, 15:47</div></div><div class="posttext">What do you mean by Materials will be generated? Which Table you are talking about?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">7th September 2018, 04:47</div></div><div class="posttext">What do you mean by Materials will be generated? Which Table you are talking about?<br />
+<br />
+Materials are data in table ticst001. They will be automatically created from some conditions after a Production Order is created.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">giggty</div><div class="date">17th September 2018, 14:50</div></div><div class="posttext">... why not just declare a global flag variable and use it like you were trying to use CDF? it should retain its value between hook calls.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">20th September 2018, 09:14</div></div><div class="posttext">The point is that the hook is not firing in the needed timing.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">giggty</div><div class="date">20th September 2018, 12:02</div></div><div class="posttext">But your original post states that after.save hook gets called 3 times, 2nd and 3rd being the eligible ones. How so?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">21st September 2018, 04:41</div></div><div class="posttext">because they are in DAL_UPDATE step, which is not exactly where I wanted to have my functions executed. I want it to execute the functions when a new record is created, which should be DAL_NEW but it just doesn't do at the right moment for me.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">giggty</div><div class="date">21st September 2018, 09:12</div></div><div class="posttext">But afer.save hook with mode=DAL_UPDATE is called right after the materials are created. This is exactly what you need, no?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">21st September 2018, 13:51</div></div><div class="posttext">For that particular event, yes. But it needs to do only once after the creation. Now that if I use on DAL_UPDATE it will be executed every time the record is modified not only by users but it will be triggered even from the system itself too when it does something that affects the table. Moreover, it triggers twice in the first place.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">21st September 2018, 14:06</div></div><div class="posttext">What you are trying to accomplish is simply not possible. When the record is inserted in tisfc001 the mode is DAL_NEW. Whatever happens after that on tisfc001 for that production order will never be with mode DAL_NEW again. <br />
+In your first post you said you tried with a CDF. That can be a good approach. Initialize on 0 and update to 1 as soon as the after.save.hook() did the work using the materials. That recursion problem is probably caused by the fact that you did an update yourself on the table record. If you would move your code to the before.save.hook() and assign just the value 1 to the CDF will work, I suppose.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">giggty</div><div class="date">21st September 2018, 14:20</div></div><div class="posttext">Yes, seems we are getting close :)<br />
+Consider this:<br />
+<br />
+|global declaration<br />
+boolean do.we.have.a.new.order<br />
+boolean are.we.done.with.it<br />
+<br />
+function extern long after.save.object(long mode)<br />
+{<br />
+	on case mode<br />
+	case DAL_NEW:<br />
+		do.we.have.a.new.order = true<br />
+		break<br />
+	case DAL_UPDATE:<br />
+		if do.we.have.a.new.order then<br />
+			if not are.we.done.with.it then<br />
+				some.functions.to.run()<br />
+				are.we.done.with.it = true<br />
+			endif<br />
+			do.we.have.a.new.order = false<br />
+		endif<br />
+		break<br />
+	endcase<br />
+	return (0)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">26th September 2018, 14:59</div></div><div class="posttext">The created production order must be released sometime!<br />
+Can you carry out your function at that time?<br />
+<br />
+if yes then do something like this:<br />
+<br />
+	domain	tcosta	old.osta<br />
+<br />
+function extern long after.save.object(long mode)<br />
+{<br />
+	...<br />
+	on case mode<br />
+	case DAL_UPDATE:<br />
+		with.old.object.values.do(get.old.values)<br />
+	...<br />
+}<br />
+<br />
+function extern long after.save.object(long mode)<br />
+{<br />
+	on case mode<br />
+		...<br />
+	case DAL_UPDATE:<br />
+		...<br />
+		if tisfc001.osta = tcosta.in.prod then<br />
+			if old.osta &lt; tcosta.in.prod then<br />
+				|Production order has just been released!<br />
+				call.my.function()<br />
+			endif<br />
+		endif<br />
+	...<br />
+}<br />
+<br />
+function get.old.values()<br />
+{	<br />
+	old.osta = tisfc001.osta<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

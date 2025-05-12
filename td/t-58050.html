@@ -1,0 +1,437 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Dal, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Dal Tools Development" />
+	
+	<title>Dal [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Dal</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">king1980</div><div class="date">17th March 2010, 07:23</div></div><div class="posttext">Hi ,<br />
+I am new to dal.<br />
+<br />
+I want to use DAL in my session for create the Outbound advice .<br />
+<br />
+Now how i can call the session and it's form commands using DAL .<br />
+<br />
+Regards<br />
+king1980</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ARijke</div><div class="date">17th March 2010, 13:11</div></div><div class="posttext">Hi,<br />
+<br />
+A DAL is 1 tot 1 related to a table. For outbound advice there is already a DAL, whinh225.<br />
+Do you have a new table and do you want to build a new DAL for that table? Start with the general info http://www.baanboard.com/programmers_manual_baanerp_help_functions_dal_overview <br />
+<br />
+Or do you have a session/DLL from where you want to create outbound advice records in whinh225 via the DAL of whinh225? Start here:http://www.baanboard.com/programmers_manual_baanerp_help_functions_dal_dam<br />
+<br />
+regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">king1980</div><div class="date">17th March 2010, 14:01</div></div><div class="posttext">Hi ,<br />
+<br />
+I want use std table whinh225, but i want to create the outbound advice as we are generating using AFS.<br />
+<br />
+So how i can write code to ceraete outbound advice and then relese the advice?<br />
+<br />
+Regards<br />
+king1980</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">17th March 2010, 14:29</div></div><div class="posttext">Hi,<br />
+<br />
+to enter outbound advice I use something like:<br />
+<br />
+	select	whinh220.*, tcibd001.*<br />
+	from	whinh220 for update, tcibd001<br />
+	where	whinh220.oorg = :i.oorg<br />
+	and	whinh220.orno = :i.orno<br />
+	and	whinh220.oset = :i.oset<br />
+	and	whinh220.pono = :i.pono<br />
+	and	whinh220.seqn = :i.seqn<br />
+	and	whinh220.item refers to tcibd001<br />
+	selectdo<br />
+		if whinh220.lsta &lt;&gt; whinh.lstb.open then<br />
+			|Position is done!!<br />
+			break<br />
+		endif<br />
+<br />
+		select	max(sern):last.sern<br />
+		from	whinh225<br />
+		where	oorg = :i.oorg<br />
+		and	orno = :i.orno<br />
+		and	oset = :i.oset<br />
+		and	pono = :i.pono<br />
+		and	seqn = :i.seqn<br />
+		selectdo<br />
+		endselect<br />
+		rep.dqua = i.quan<br />
+		dal.new.object(&quot;whinh225&quot;)<br />
+		dal.set.field(&quot;whinh225.oorg&quot;, whinh220.oorg)<br />
+		dal.set.field(&quot;whinh225.orno&quot;, whinh220.orno)<br />
+		dal.set.field(&quot;whinh225.oset&quot;, whinh220.oset)<br />
+		dal.set.field(&quot;whinh225.pono&quot;, whinh220.pono)<br />
+		dal.set.field(&quot;whinh225.seqn&quot;, whinh220.seqn)<br />
+		dal.set.field(&quot;whinh225.sern&quot;, last.sern + 1)<br />
+		dal.set.field(&quot;whinh225.cwar&quot;, whinh220.cwar)<br />
+		dal.set.field(&quot;whinh225.locf&quot;, i.loca)<br />
+		dal.set.field(&quot;whinh225.item&quot;, whinh220.item)<br />
+		dal.set.field(&quot;whinh225.cuni&quot;, tcibd001.cuni)<br />
+		dal.set.field(&quot;whinh225.runn&quot;, &quot;A1&quot;)<br />
+		dal.set.field(&quot;whinh225.time&quot;, utc.num())<br />
+		dal.set.field(&quot;whinh225.qadv&quot;, i.quan)<br />
+		dal.set.field(&quot;whinh225.qads&quot;, whinh225.qadv)<br />
+		dal.set.field(&quot;whinh225.mtim&quot;, mtime())<br />
+		if whinh225.mtim = 0 then<br />
+			|* try to prevent duplicates<br />
+			dal.set.field(&quot;whinh225.mtim&quot;, utc.num())<br />
+		endif<br />
+		ret = dal.save.object(&quot;whinh225&quot;, db.return.dupl)<br />
+		if ret = 0 then<br />
+			db.update(twhinh220, db.retry)		<br />
+			e = whinh.dll4000.notify.automatic.outbound.process.run(<br />
+					&quot;A1&quot;,<br />
+					array.element.added)<br />
+		else<br />
+			|show.dal.messages()<br />
+			dal.get.error.message(o.emsg)<br />
+			if isspace(o.emsg)then<br />
+				o.emsg = &quot;Error generating outbound advice!&quot;<br />
+			endif<br />
+			err.mess = o.emsg<br />
+			rprt_send()<br />
+		endif<br />
+           endselect<br />
+<br />
+<br />
+I release generated oiutbound advice using standard function:<br />
+         whinh.dll4200.process.outbound(...)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ARijke</div><div class="date">17th March 2010, 14:41</div></div><div class="posttext">When using AFS then you need not to worry about DAL. You are executing the session logic. Whether the session is using the DAL is not of importance for you.<br />
+<br />
+Instead of using AFS you could use a function like described by Vahdani.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">king1980</div><div class="date">17th March 2010, 16:11</div></div><div class="posttext">Hi vahdani<br />
+<br />
+What value i need to pass for array.element.added in the dll function.<br />
+<br />
+Also where i can get the list of functions which are  avilable in dll?<br />
+<br />
+<br />
+Regards<br />
+king1980</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">19th March 2010, 13:10</div></div><div class="posttext">Hi,<br />
+<br />
+even if you do not have access to source codes, you can always use bic_info6.2 (http://www.baanboard.com/programmers_manual_baanerp_help_dynamic_link_libraries_object_information_tool) (in $BSE/bin) to get further information regarding any external functions and documentations (Information between dllusage and enddllusage if any) of any baan object. Here I used following:<br />
+<br />
+ bic_info6.2 -eu /baan/ln1/bse/application/whB61U_a_stnd/owhinh/oinhdll4200 &gt; out.txt<br />
+<br />
+to get this:<br />
+<br />
+<br />
+---------------------------DLL PROTOTYPES-------------------------------<br />
+function extern boolean whinh.dll4200.direct.release.requested(<br />
+	 domain whinh.oorg i.order.origin,<br />
+	 domain tcorno i.order.number,<br />
+	 domain tcsern i.order.set,<br />
+	 domain tcpono i.order.line,<br />
+	 domain tcpono i.order.sequence,<br />
+	 boolean i.back.flush.procedure,<br />
+	 domain whinh.outb i.action,<br />
+	 boolean i.advice.created )<br />
+<br />
+	Expl.:	This function determines whether the &quot;release&quot; activity must be<br />
+		executed automatically.<br />
+	Pre:	Line activities are already created<br />
+	Post:<br />
+	Input:	i.order.origin		- Order Origin<br />
+		i.order.number		- Order Number<br />
+		i.order.set		- Order Set<br />
+		i.order.line		- Order Line<br />
+		i.order.sequence	- Order Line Sequence<br />
+		i.back.flush.procedure	- Backflush Procedure Y/N<br />
+		i.action		- Current Activity<br />
+		i.advice.created	- Advice already present. If so, then<br />
+					  line activities are present as well.<br />
+	Output:	n.a.<br />
+	Return:	true	if the activity must be executed automatically.<br />
+		false	if the activity must not be executed automatically.<br />
+	<br />
+function extern long whinh.dll4200.fill.skip.orders.for.shipping.constraint(<br />
+	 domain whinh.oorg i.order.origin,<br />
+	 domain tcorno i.order,<br />
+	 domain tcsern i.order.set,<br />
+	 domain tcpono i.order.line,<br />
+	 domain tcpono i.order.sequence,<br />
+	 domain tcscon i.shipping.constraint,<br />
+	 domain tcqiv1 i.shortage.quantity,<br />
+	 boolean i.back.flush.procedure,<br />
+	 domain whinh.outb i.action,<br />
+	 ref domain tcmcs.long io.skip.orders.allocated,<br />
+	 ref domain tcorno io.skip.order.array() fixed,<br />
+	 ref domain tcwset io.skip.order.set.array(),<br />
+	 ref domain tcscon io.shipping.constraint.array(),<br />
+	 ref domain tcyesno o.new.order.notified )<br />
+<br />
+	Expl.:	This function determines whether an order line has a<br />
+		shortage that blocks the release of the whole order<br />
+		or the whole order set.<br />
+		This blocking can be caused by the shipping constraint.<br />
+		This blocking is only applicable if shipping constraint must be<br />
+		checked during release advice and the relase advice is executed<br />
+		automatically.<br />
+	Pre:	Line activities are already created<br />
+	Post:<br />
+	Input:	i.order.origin		- Order Origin<br />
+		i.order			- Order Number<br />
+		i.order.set		- Order Set<br />
+		i.order.line		- Order Line<br />
+		i.order.sequence	- Order Line Sequence<br />
+		i.shipping.constraint	- Shipping Constraint<br />
+		i.shortage.quantity	- Shortage Quantity<br />
+		i.back.flush.procedure	- Backflush Procedure Y/N<br />
+		i.action		- Current Activity<br />
+	Output:	io.skip.orders.allocated- number of orders / sets in array<br />
+		io.skip.order.array	- Array of orders that must be skipped<br />
+					  because of shipping constraint<br />
+		io.skip.order.set.array	- Array of order sets / sales order sets<br />
+		io.shipping.constraint.array	- Array of shipping constraints<br />
+		o.<br />
+	Return:	0/DALHOOKERROR<br />
+	<br />
+function extern long whinh.dll4200.process.outbound(<br />
+	 domain whinh.outb i.action,<br />
+	 domain tcyesno i.use.default.reports,<br />
+	 domain tcmcs.long i.advice.report,<br />
+	 domain tcmcs.long i.shortage.report,<br />
+	 domain whinh.oorg i.order.origin,<br />
+	 domain tcorno i.order.number,<br />
+	 domain tcwset i.order.set,<br />
+	 domain tcpono i.order.line,<br />
+	 domain tcpono i.order.sequence,<br />
+	 domain tcpono i.advice,<br />
+	 domain tcpono i.bom.line,<br />
+	 domain tcqiv1 i.qty.planned,<br />
+	 domain whinh.btno i.run fixed,<br />
+	 domain whhuid i.handling.unit,<br />
+	 domain tcdate i.shipping.date.from,<br />
+	 domain tcdate i.shipping.date.to,<br />
+	 boolean i.read.for.update,<br />
+	 domain whinh.oalg i.advice.log,<br />
+	 boolean i.mask,<br />
+	 boolean i.xdock,<br />
+	 domain whinh.load i.load,<br />
+	 domain whinh.shpm i.shipment,<br />
+	 domain whloca i.location,<br />
+	 domain tcyesno i.print.ownership,<br />
+	 domain tcyesno i.print.item.storage.conditions,<br />
+	 domain tcyesno i.print.location.storage.conditions,<br />
+	 boolean i.check.manual.process.allowed,<br />
+	 ref domain tcqiv1 o.qty.shortage )<br />
+<br />
+	Expl:	General function for processing outbound advice. Outbound Advice<br />
+		can be generated, released or undone, depending on the<br />
+		input action:<br />
+		- empty		The next action according to the order type<br />
+		- advise	Generate the advise records. The inventory is<br />
+				allocated on warehouse and location level.<br />
+		- release	Release the advise records for further<br />
+				processing.<br />
+		- direct	Generate and directly release the advise.<br />
+		- undo		Released advise lines which are not yet<br />
+				picked and not released advise lines are<br />
+				removed.<br />
+		- undo.release	Released advise lines which are not yet<br />
+				picked are put back on not released. The<br />
+				advise is not removed.<br />
+		- undo.advise	Not released advise lines are removed.<br />
+<br />
+		Note: In case the outbound order line is read for update,<br />
+		no commits are occuring<br />
+		Only for items with status equal to active<br />
+		(whwmd210.iwhs = whwmd.iwhs.active) an outbound advice<br />
+		may be generated.<br />
+		If the status is equal to tentative, a message must be printed<br />
+		to the Shortage Report, stating the item is tentative and<br />
+		cannot be issued.<br />
+		NOTE: in case the warehouse on the outbound order line is<br />
+		WMS controlled, this DLL will not do anything.<br />
+		The 'Max Planned delivery date&quot; is filled with the selection<br />
+		field dldt.t of whinh420[0,1]m000. If selection field is<br />
+		not enabled then the maximum time of today is taken.<br />
+	Pre: 	db.retry.point must be set<br />
+		The Outbound Order Line (whinh220) must be current when the<br />
+		function is called with read for update (i.read.for.update' has<br />
+		value TRUE).<br />
+	Post:	According to the input action<br />
+		In case read for update is true, the outbound order line<br />
+		(whinh220) should be updated after calling this dll and a<br />
+		commit or abort has to follow.<br />
+		In case read for update is false, the outbound order line is<br />
+		updated within this dll, where also the commit and abort takes<br />
+		place.<br />
+		For action = create.advice also the commit or abort transaction<br />
+		must be done by the calling program.<br />
+	Input:	- i.action	: input action:<br />
+					- advice<br />
+					- advice.only<br />
+					- direct.outbound<br />
+					- release<br />
+					- direct<br />
+					- undo<br />
+					- undo.advise<br />
+					- undo.release<br />
+					- backflush<br />
+					- create.advice<br />
+					- pick<br />
+					- empty<br />
+		- i.use.default.reporst	: use default reports<br />
+		- i.advice.report	: advice report ID<br />
+		- i.shortage.report	: shortage report ID<br />
+		- i.origin	: order origin<br />
+		- i.order	: order number<br />
+		- i.order.set	: order set<br />
+		- i.order.line	: line number<br />
+		- i.sequence	: sequence number<br />
+		- i.advice	: advice - filled if release is requested for a<br />
+				  specific advice<br />
+		- i.bom.line	: Bom Line - filled if generate advice is<br />
+				  requested for a single BOM Line<br />
+		- i.qty.planned	: planned quantity to advise;<br />
+				  must only be filled when part of the<br />
+				  ordered qty must be advised<br />
+		- i.run	: runnumber<br />
+		- i.handling.unit: handling unit to process (release or pick)<br />
+		- i.shipping.date.from:	Minimum date to select lines<br />
+						of fulfillment plan<br />
+		- i.shipping.date.to:	Maximum date to select lines<br />
+						of fulfillment plan.<br />
+		- i.read.for.update<br />
+				: true,  the warehousing order line is already<br />
+					 read for update and must be updated<br />
+					 outside this dll.<br />
+				  false, the warehousing order line is not read<br />
+					 for update<br />
+		- i.advice.log	: advice log<br />
+		- i.mask	: true,  if procedure must be followed<br />
+					 according the procedure-mask<br />
+				  false, advise/release and picking of inventory<br />
+					 (inclusive shipments) is done<br />
+					 automatically<br />
+		- i.xdock	: create X (cross) dock order for shortage<br />
+		- i.load	: the load to attache to the generated advice<br />
+		- i.shipment	: the shipment to attache to the generated<br />
+				  advice<br />
+		- i.location	: the location attached to the generated advice<br />
+		- i.print.ownership :	Print the ownership records Yes/No/empty<br />
+		- i.print.item.storage.conditions: Print item storage conditions<br />
+						   yes/no<br />
+		- i.print.location.storage.conditions: Print location storage<br />
+						       conditions yes/no<br />
+				If 'empty' is passed for one of the print.fields<br />
+				then default values are determined.<br />
+		- i.check.manual.process.allowed :<br />
+				 - must be true when called from UI-scripts<br />
+				 - can be set to true for specific situations<br />
+				 - must be set to false otherwise.<br />
+	Output: - o.qty.shortage	: shortage quantity<br />
+	Returns:0,	Process Outbound OK<br />
+		DALHOOKERROR, Process Outbound resulted in an error<br />
+	<br />
+function extern long whinh.dll4200.search.inventory.structure.for.locations(<br />
+	 boolean i.initialize,<br />
+	 domain tccwar i.warehouse,<br />
+	 domain tcitem i.item,<br />
+	 domain tcclot i.lot,<br />
+	 domain tcibd.sern i.serial,<br />
+	 domain tccuni i.ordered.unit,<br />
+	 domain tcqst1 i.ordered.quantity,<br />
+	 domain whhuid i.handling.unit,<br />
+	 domain tcowns i.ownership,<br />
+	 domain tccom.bpid i.owner,<br />
+	 ref domain whloca o.found.location,<br />
+	 ref domain tcdate o.found.inventory.date,<br />
+	 ref domain whwmd.pkdf o.found.package.def,<br />
+	 ref domain tccuni o.found.unit,<br />
+	 ref domain tcqst1 o.found.quantity )<br />
+<br />
+	Expl:	This function searches for Locations where inventory is<br />
+		present for the Item and Warehouse (also based on the other<br />
+		input arguments). The functionality is similar to the outbound<br />
+		advice action (see function search.inventory.structure).<br />
+		Each time a stockpoint is found, the output is returned.<br />
+		Note that whinh110 already has allocated whwmd250, so<br />
+		whinr.dll2000 must skip the whwmd250 check.<br />
+	Pre: 	-<br />
+	Post:	-<br />
+	Input:	i.initialize		true for first call, else false<br />
+		i.warehouse		Warehouse<br />
+		i.item			Item<br />
+		i.lot			Lot Code<br />
+		i.serial		Serial Number<br />
+		i.ordered.unit		The unit of the ordered quantity<br />
+		i.ordered.quantity	Ordered quantity<br />
+		i.handling.unit		Handling Unit<br />
+		i.ownership		Ownership (Customer Owned / Consigned)<br />
+		i.owner			Owner<br />
+	Output: o.found.location	Location<br />
+		o.found.inventory.date	Inventory Date<br />
+		o.found.package.def	Package Definition<br />
+		o.found.unit		Unit<br />
+		o.found.quantity	Quantity<br />
+	Returns:0 / DALHOOKERROR<br />
+	<br />
+function extern boolean whinh.dll4200.skip.line.for.shipping.constraint(<br />
+	 domain whinh.oorg i.order.origin,<br />
+	 domain tcorno i.order,<br />
+	 boolean i.set.order.set,<br />
+	 domain tcwset i.order.set,<br />
+	 domain tcpono i.order.line,<br />
+	 domain tcpono i.sequence,<br />
+	 domain tcmcs.long i.skip.orders.allocated,<br />
+	 const domain tcorno i.skip.order.array() fixed,<br />
+	 const domain tcwset i.skip.order.set.array(),<br />
+	 const domain tcscon i.shipping.constraint.array() )<br />
+<br />
+	Expl.:	This function checks whether an order line must be skippped<br />
+		because of shipping constraints.<br />
+		If Shipping Constraint = Ship Order Complete then check whether<br />
+		current order is in skip.order array<br />
+		If Shipping Constraint = Ship Order Set Complete then check<br />
+		whether order and set are in &quot;skip arrays&quot;<br />
+	Pre:<br />
+	Post:<br />
+	Input:	i.order.origin		- Order Origin<br />
+		i.order			- Order Number<br />
+		i.set.order.set		- Indication whether order.set is filled<br />
+		i.order.set		- Order Set<br />
+		i.order.line		- Order Line<br />
+		i.sequence		- Order Line Sequence<br />
+		i.skip.orders.allocated	- Number of orders / sets in array<br />
+		i.skip.order.array	- Array of orders that must be skipped<br />
+					  because of shipping constraint<br />
+		i.skip.order.set.array	- Array of order sets<br />
+		i.shipping.constraint.array	- Array of shipping constraints<br />
+						  to be able to check order or<br />
+						  order and set.<br />
+	Output:	NA<br />
+	Return:	0/DALHOOKERROR</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

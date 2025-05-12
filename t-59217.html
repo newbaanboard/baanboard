@@ -1,0 +1,358 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="File Browse Server, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] File Browse Server Code &amp; Utilities" />
+	
+	<title>File Browse Server [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Code &amp; Utilities</a> &gt; File Browse Server</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ArokLair</div><div class="date">17th September 2010, 00:42</div></div><div class="posttext">This is a library i was developed in Baan IV<br />
+<br />
+<br />
+|******************************************************************************<br />
+|* tudllfilebrows  0  VRC B40c c2 baan<br />
+|* File Browser<br />
+|* ArokLair<br />
+|* 24/08/10 [16:42]<br />
+|******************************************************************************<br />
+|* Script Type: Library<br />
+|******************************************************************************<br />
+#define     COMMAND.ACEPTAR     101<br />
+#define     COMMAND.CANCELAR    111<br />
+#define		SIZE.STRING			250<br />
+<br />
+long     toplevel, listbox, image,label<br />
+string path(SIZE.STRING)<br />
+long listitems(200)<br />
+string retorno(SIZE.STRING)<br />
+<br />
+function extern select.file(string  ruta_servidor(SIZE.STRING), ref string archivo_seleccionado()){<br />
+	<br />
+	if not isspace(ruta_servidor) then <br />
+		path=ruta_servidor<br />
+	else<br />
+		path=&quot;/home/&quot;&amp;getenv$(&quot;LOGNAME&quot;)&amp;&quot;/&quot;<br />
+	endif<br />
+	main_1()<br />
+	archivo_seleccionado=retorno<br />
+}<br />
+<br />
+function main_1(){<br />
+	image = 0<br />
+	show.mwindow()<br />
+	fill.work.area()<br />
+	update.gwindow()<br />
+	handle.event.loop()<br />
+}<br />
+function write.menu.entry(ref string menudata(), ref long size,<br />
+      long level, long id, const string name(), long flags)<br />
+{<br />
+      store.long(level, menudata(size))<br />
+      size = size + 4<br />
+      store.long(id, menudata(size))<br />
+      size = size + 4<br />
+      menudata(size) = name<br />
+      size = size + len(name)<br />
+      store.byte(0, menudata(size))   | terminate string with 0 char.<br />
+      size = size + 1<br />
+      store.long(flags, menudata(size))<br />
+      size = size + 4<br />
+}<br />
+function long create.pulldown.menu(long mwin)<br />
+{<br />
+      long barmenu, size<br />
+      string menudata(1) based<br />
+      alloc.mem(menudata, 3000)<br />
+      size = 1<br />
+      | write header info to buffer<br />
+      store.long(1, menudata(size))      | version is 1<br />
+      size = size + 4<br />
+      store.long(8, menudata(size))      | menu contains 8 entries<br />
+      size = size + 4<br />
+      | create the File submenu<br />
+      write.menu.entry(menudata, size, 1, 0, &quot;&amp;Archivo&quot;, 0)<br />
+		write.menu.entry(menudata, size, 2, -1, &quot;-&quot;, 0)      | separator<br />
+      write.menu.entry(menudata, size, 2, COMMAND.CANCELAR, &quot;S&amp;alir  Alt+F4&quot;, 0)<br />
+      barmenu = create.object(DsCbarMenu, mwin,<br />
+                  DsNmenuData,   menudata, size-1,<br />
+                  DsNsetState,   DSRAISE)<br />
+       return(barmenu)<br />
+}<br />
+function show.mwindow(){<br />
+	long barmenu<br />
+	|message(str$(get.pgrp(pid)))<br />
+	toplevel = create.object(	DsCmwindow, 0,<br />
+								DsNtitle,         &quot;File Explorer Baan 1.0 ArokLair &quot;,<br />
+								DsNprocessgroup,  get.pgrp(pid),<br />
+								|DsNprocessgroup,current.mwindow(),<br />
+								DsNmode,         DSPIXELBASED,<br />
+								DsNdialog,1,<br />
+								DsNmodal,		1,<br />
+								DsNminWidth,      400,<br />
+								DsNmaxWidth,      800,<br />
+								DsNminHeight,     400,<br />
+								DsNmaxHeight,     800)<br />
+	barmenu = create.pulldown.menu(toplevel)<br />
+	change.object(toplevel, DsNbarMenu, barmenu)<br />
+	update.object(toplevel)<br />
+}<br />
+function fill.work.area(){<br />
+		long        rowcol,rowcol2<br />
+		rowcol = create.object(DsCrowColumn, toplevel,<br />
+                DsNvspace,        10,<br />
+                DsNhspace,        10,<br />
+                DsNnumColumns,     1,<br />
+				DsNfixedDimension, DSHORIZONTAL )<br />
+		create.object(DsClabel,  rowcol,<br />
+							DsNstring, &quot;Seleccione el Archivo a Examinar...&quot;)<br />
+		label=create.object(DsClabel,  rowcol,<br />
+							DsNstring, path)<br />
+		listbox=create.object(DsClistBox,rowcol,<br />
+							DsNminWidth,350,<br />
+							DsNminHeight,15,<br />
+							DsNheight,250,<br />
+							DsNselectedId,1)<br />
+		rowcol2 = create.object(DsCrowColumn, rowcol,<br />
+                DsNvspace,        10,<br />
+                DsNhspace,        10,<br />
+                DsNnumColumns,     2,<br />
+                DsNfixedDimension, DSHORIZONTAL )<br />
+		create.object(DsCpushButton,  rowcol2,<br />
+				DsNstring,        &quot;Aceptar&quot;,<br />
+				DsNwidth,			100,<br />
+				DsNreturnValue,   COMMAND.ACEPTAR)<br />
+		create.object(DsCpushButton,  rowcol2,<br />
+				DsNstring,        &quot;Cancelar&quot;,<br />
+				DsNwidth,			100,<br />
+				DsNreturnValue,   COMMAND.CANCELAR)<br />
+		update.object(toplevel)<br />
+		|update.object(gwin)<br />
+}<br />
+function update.gwindow(){<br />
+	| Leer los archivos del directorio<br />
+	long fd,rt, size, mode,cont,posno,fc<br />
+	string	fname(SIZE.STRING)<br />
+	string home(SIZE.STRING)<br />
+	cont=1<br />
+	<br />
+	home = path<br />
+	|destroy.sub.object(listbox,)<br />
+	|cargar la Raiz<br />
+	listitems(1)=create.sub.object(listbox,1,<br />
+							DsNitemAttr,1,<br />
+							DsNselected,1,<br />
+							DsNstring,&quot;..&quot;)<br />
+	| Recorrer Directorios<br />
+	fd=dir.open(home)<br />
+	fname = dir.entry(fd, TDIR, rt, size, mode)<br />
+	<br />
+	while (not isspace(fname))<br />
+		posno=pos(fname,&quot;.&quot;)<br />
+		|message(str$(posno))<br />
+		if not posno=1 then<br />
+			cont=cont+1<br />
+			listitems(cont)=create.sub.object(listbox,1,<br />
+										DsNitemAttr,cont,<br />
+										DsNselected,0,<br />
+										DsNstring,fname&amp;&quot;/&quot;)<br />
+		endif<br />
+		fname=dir.entry(fd, TDIR, rt, size, mode)<br />
+	endwhile<br />
+	fc=dir.close(fd)<br />
+	| Recorrer Archivos<br />
+	fd=dir.open(home)<br />
+	fname = dir.entry(fd, TFILE, rt, size, mode)<br />
+	<br />
+	while (not isspace(fname))<br />
+		posno=pos(fname,&quot;.&quot;)<br />
+		|message(str$(posno))<br />
+		if not posno=1 then<br />
+			cont=cont+1<br />
+			listitems(cont)=create.sub.object(listbox,1,<br />
+										DsNitemAttr,cont,<br />
+										DsNselected,0,<br />
+										DsNstring,fname)<br />
+		endif<br />
+		fname=dir.entry(fd, TFILE, rt, size, mode)<br />
+	endwhile<br />
+	<br />
+	update.object(toplevel)<br />
+}<br />
+function doble_clic(string ruta(SIZE.STRING)){<br />
+	|Elimar Items <br />
+	long i<br />
+	|message(&quot;Entro&quot;)<br />
+	for i = 1 to 200 step 1<br />
+		if(listitems(i)&lt;&gt;0) then <br />
+			destroy.sub.object(listbox, listitems(i))<br />
+		endif<br />
+	endfor<br />
+	path=ruta<br />
+	|update.object(toplevel)<br />
+	update.gwindow()<br />
+}<br />
+function long isDir(string ruta(SIZE.STRING)){<br />
+	long    ret,loc<br />
+	long    size, mode, inode, dev, uid, gid, nlink, ctime, atime, mtimel<br />
+	string file_name(SIZE.STRING)<br />
+	loc=0<br />
+	file_name = ruta<br />
+	ret = stat.info(file_name,<br />
+					size,<br />
+					mode,<br />
+					inode,<br />
+					dev,<br />
+					uid,<br />
+					gid,<br />
+					nlink,<br />
+					ctime,<br />
+					mtimel,<br />
+					atime )<br />
+	if ret then<br />
+                | stat.info failed, probably file not found<br />
+	endif<br />
+	if ( S_ISDIR( mode ) ) then<br />
+		loc=1<br />
+	endif<br />
+<br />
+	return (loc)<br />
+}<br />
+function string get.parent(string ruta(SIZE.STRING)){<br />
+	long rposno<br />
+	ruta=ruta(1;len(ruta)-1)<br />
+	rposno=rpos(ruta,&quot;/&quot;)<br />
+	return (ruta(1;rposno))<br />
+}<br />
+function handle.event.loop(){<br />
+ long item,tim.id,click.count,direc<br />
+<br />
+ string fnamel(SIZE.STRING)<br />
+<br />
+ click.count=0<br />
+ direc=0<br />
+ tim.id = set.timer(1000)<br />
+ long event(EVTMAXSIZE)<br />
+      while TRUE<br />
+            next.event(event)<br />
+            on case evt.type(event)<br />
+            case EVTMENUSELECT:<br />
+					on case evt.menu.return(event)<br />
+					<br />
+					case COMMAND.CANCELAR:<br />
+                        return<br />
+					<br />
+                  endcase<br />
+                  break<br />
+            case EVTPUSHBUTTON:<br />
+					if (evt.button.return(event) = COMMAND.CANCELAR ) then<br />
+                         return<br />
+					endif<br />
+					if (evt.button.return(event) = COMMAND.ACEPTAR ) then<br />
+						get.object(label,DsNstring,fnamel)<br />
+						|message(fnamel)<br />
+						retorno=fnamel<br />
+						return<br />
+					endif<br />
+					break<br />
+			case EVTLISTBOXSELECT:<br />
+						if (evt.listbox.item_id(event)=item) then <br />
+							if(click.count=1 ) then <br />
+								get.object(label,DsNstring,fnamel)<br />
+								direc=isDir(fnamel)<br />
+								if  direc= 1 then<br />
+									doble_clic(fnamel)<br />
+								endif<br />
+								break<br />
+							endif<br />
+						endif<br />
+						if (evt.listbox.item_id(event)=listitems(1)) then<br />
+							if(click.count=1 ) then <br />
+								change.object(label,DsNstring,get.parent(path))<br />
+								doble_clic(get.parent(path))<br />
+							endif<br />
+						else<br />
+							get.object(listbox,DsNselectedId,item)<br />
+							get.sub.object(listbox,item,DsNstring,fnamel)<br />
+							change.object(label,DsNstring,path&amp;fnamel)<br />
+						endif<br />
+						<br />
+						update.object(label)					<br />
+						click.count=1<br />
+						<br />
+					break<br />
+			case EVTTIMEREVENT:<br />
+				click.count=0<br />
+                break<br />
+			default:<br />
+                  break<br />
+            endcase<br />
+      endwhile<br />
+}<br />
+<br />
+<br />
+Subsession to launch file explorer 3GL<br />
+<br />
+<br />
+#pragma used dll otudllfilebrows<br />
+string retorno(500)<br />
+string tccom9599.path(500)<br />
+string tccom9599.field(500)<br />
+function main(){<br />
+	import(&quot;tccom9599.path&quot;,tccom9599.path)<br />
+	import(&quot;tccom9599.field&quot;,tccom9599.field)<br />
+	|message(tccom9599.field)<br />
+	|message(field)<br />
+	<br />
+	select.file(tccom9599.path,retorno)<br />
+	<br />
+	export(tccom9599.field,retorno)<br />
+	<br />
+}<br />
+<br />
+<br />
+How use in session 4GL<br />
+<br />
+declaration:<br />
+	extern string tccom9599.path(500)<br />
+	extern string tccom9599.field(500)<br />
+|****************************** form section **********************************<br />
+form.1:<br />
+	init.form:<br />
+		tccom9599.path = &quot;/home/user1/&quot;<br />
+		export(&quot;tccom9599.path&quot;,tccom9599.path)<br />
+<br />
+choice.user.1:<br />
+	on.choice:<br />
+		tccom9599.field=&quot;campo.ruta&quot;<br />
+		export(&quot;tccom9599.field&quot;,tccom9599.field)<br />
+		zoom.to$(&quot;tccom9599m000&quot;, Z.SESSION, &quot;tccur2105m000&quot;, &quot;&quot;, 0)<br />
+		message(campo.ruta)<br />
+		display.all()</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">6th April 2011, 11:33</div></div><div class="posttext">This is cool ...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Joy Conner</div><div class="date">1st August 2014, 16:48</div></div><div class="posttext">Am I reading this right - this creates a UI with windows explore?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ArokLair</div><div class="date">23rd April 2015, 06:18</div></div><div class="posttext">Yes this create UI from objects in baan no winows API only Baan Interface.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ArokLair</div><div class="date">23rd April 2015, 06:21</div></div><div class="posttext">Thank You... ¿One Quuestion its posible install BaanIV c2 into Red Hat Linux Server? Actually have in AIX 6.1.  And its possible virtualization this Baan version??</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

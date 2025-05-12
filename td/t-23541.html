@@ -1,0 +1,133 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Control Codes and Reports, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Control Codes and Reports Tools Development" />
+	
+	<title>Control Codes and Reports [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Control Codes and Reports</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th March 2005, 00:11</div></div><div class="posttext">I have a test report that I am sending to a test printer.  The report prints one string field - this is all testing.  In the report script I set the string field like this:<br />
+<br />
+	testinfo = &quot;[)&gt;&quot; &amp; chr$(30) &amp; &quot;06&quot; &amp; chr$(29) &amp;&quot;17V064S4&quot; &amp; <br />
+chr$(29) &amp; &quot;1PSA2829712&quot; &amp; chr$(29) &amp; &quot;S0000001&quot; &amp; chr$(30) &amp; chr$(4)<br />
+<br />
+<br />
+Yet when I view the output file it will only have this in it:<br />
+[)&gt;0617V064S41PSA2829712S0000001<br />
+<br />
+When I debug the report everything looks okay.  The string field contains the control characters.  My question is what is stripping out the control characters?  The print device I am using is set-up with the PS device driver.  I would prefer to use my current printers and the drivers associated with them.<br />
+<br />
+I have a couple of different work arounds, but would prefer to use the printers and the drivers already in use in production. I am going to play with a print driver tomorrow - I think I can set one up to do what I need.  I can also write directly to a file, but that requires more coding than I want to do. So I have plenty of options, but was wondering if I was missing something in using the report.<br />
+<br />
+thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th March 2005, 00:15</div></div><div class="posttext">Oops forgot to mention that I have a sample where instead of chr$(30) I used ^^ and ^] for char$(29).  This may also work - this is for creating 2d matrix tags.  I won't be able to scan my test tags until tomorrow - so far to the naked eye the tag where I used ^^ looks the same as the one where I used vi to add the control codes in.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">29th March 2005, 17:41</div></div><div class="posttext">Hi Mark,<br />
+<br />
+I strongly believe that your problem comes from filter6.1 which is invoked automatically to &quot;transform&quot; files from $BSE/tmp/... into the &quot;real&quot; data sent to the printer.<br />
+<br />
+Some time ago I also played with the problem &quot;How can I add complete Postscript Documents into the data stream?&quot; Re-printing had to be possible as well.<br />
+<br />
+Solution: Baan's barcode functionality!<br />
+<br />
+Within the report, add something like<br />
+<br />
+  string buf(100)<br />
+  buf = bc$(20, 10, &quot;some data&quot;) | int type, int len, string barcode(.)<br />
+  spool.buf(buf, len(buf))<br />
+<br />
+<br />
+In the directory $BSE/lib/barcode/hp_lj4 (e.g.; have a look at $BSE/lib/printinf files and their entry barcode_dir=...), you need to create a shell script called &quot;type20&quot; (because of the first argument 20 in the example above). When you print to a printer of the appropriate type, this script gets called automatically; $1 is the string e.g. &quot;some data&quot;, $2 is the length (I think it is 10 in the example above).<br />
+<br />
+What I'm  not shure is how you could/should pass your data a) clear text including all printable characters? b) coded say \xxx for non-printables.<br />
+<br />
+Btw. In the latest ERP Programming manual I found a version of the Baan ASCII table that mentions that characters 139 to 152 (decimal) are cf$(0) to cf$(15).<br />
+<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">30th March 2005, 08:34</div></div><div class="posttext">Gunther , <br />
+<br />
+I am using cf$ and pf $ functions to change the making characters bold and changing fonts  in a Baan text (using lattr.textexpand) . I use cf$(0) and pf$(spool.fontnumber)  to return to normal mode.<br />
+<br />
+But it does not work . Entire text is printed bold and in the same changed font .  Underlining the characters work perfectly . <br />
+<br />
+Any clue .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">günther</div><div class="date">30th March 2005, 09:22</div></div><div class="posttext">Hitesh,<br />
+<br />
+I just took a report of my own and added some test code for your purposes. I could not find any problems, everything works fine!<br />
+<br />
+Here is my report code:<br />
+<br />
+declaration:<br />
+  extern string cf0(10) | maybe less characters<br />
+  ...<br />
+  extern string cf15(10)<br />
+<br />
+  extern string pf0(10) | upto 24 I guess<br />
+  ...<br />
+  extern string pf3(10)<br />
+<br />
+before.program:<br />
+  lattr.textexpand = true<br />
+<br />
+  cf0 = cf$(0)<br />
+  ...<br />
+  cf15 = cf$(15)<br />
+<br />
+  pf0 = pf$(0)<br />
+  ...<br />
+  pf3 = pf$(3)<br />
+<br />
+<br />
+and here is my text:<br />
+<br />
+  $cf1 bold $cf0 back to normal<br />
+  $cf4 reverse $cf0  back to normal<br />
+  $cf4 bold reverse $cf0  back to normal<br />
+  $cf8 underlined $cf0  back to normal<br />
+  $cf12 underlined reverse $cf0  back to normal<br />
+<br />
+  $pf0 large $pf1 small $pf2 middle<br />
+<br />
+<br />
+which looks about:<br />
+<br />
+   bold  back to normal<br />
+   #reverse#   back to normal<br />
+   #bold reverse#   back to normal<br />
+    underlined     back to normal<br />
+   #underlined reverse#   back to normal<br />
+<br />
+    large  small  middle<br />
+<br />
+Can you check this?<br />
+<br />
+Günther</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">30th March 2005, 13:28</div></div><div class="posttext">Hi Gunther,<br />
+<br />
+Thanks for the help. It worked perfect. We had declared variable for cf$(0) and  pf$(spool.fontnumber ) with a length of 2  instead of 10 used by u (domain tcmcs.str2) . We changed the domain to tccs.str10 .<br />
+And the entire code worked excellently .Once again thanks for the hint .</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,425 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Good Practice for storing 'external' source code in BAAN, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Good Practice for storing 'external' source code in BAAN Code &amp; Utilities" />
+	
+	<title>Good Practice for storing 'external' source code in BAAN [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Code &amp; Utilities</a> &gt; Good Practice for storing 'external' source code in BAAN</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">14th December 2007, 23:41</div></div><div class="posttext">This refers to the thread I started by the same name in Tools.<br />
+<br />
+In case this helps anybody, here is the concept of how I manage the 'external' source scripts within BAAN:<br />
+<br />
+This is also an example of how to read a table in an external database and populate a corresponding BAAN table, so that the data can be used for further processing in BAAN.<br />
+<br />
+The purpose was to read an external table and pull in the data into a table defined in BAAN, so that it can then be processed further more efficiently (than using views).<br />
+<br />
+[This approach works for ORACLE backend. I am not sure if it will work for other Database environments.]<br />
+<br />
+- First, define the BAAN Table as usual<br />
+<br />
+- Next generate a new session of type 'Update' with the new table as its main table. Let us say the session is ppmmm9299m00c<br />
+<br />
+- Next, create two new reports by getting into Maintain Reports<br />
+  -- The first report is named ppmmm9299.sh<br />
+  -- The second report is named ppmm9299.sql<br />
+  Both these reports do NOT have any fields, layouts etc. etc. We are just going to use the Edit Script option to put in our scripts. The script (obviously) will never be compiled. The reason for using Reports is because it allows us to define multiple scripts. <br />
+<br />
+- Attach the reports to the session. Thereafter, we can do everything using the Maintain Session as the 'console'.  The other advantage is that when we export the session, our 'report scripts' will follow the session (depending on how the export is done - I usually do it by session).<br />
+<br />
+- Next, the Program Script itself<br />
+  This will basically call the shell script. It needs to obtain the TABLESPACE information from the ora_storage file and pass it on to the shell script (along with a few other arguments, like Company Number).<br />
+<br />
+- Then, in Maintain Reports/ Edit Script for the first report, create the shell script. This script is required to create an environment for SQLPlus - this assumes that the /etc/profile is set up by the unix admin is such a way that when executed, it will create an environment suitable to start SQLPlus.) After that, it simply calls SQLPlus with the name of second report script, which contains the SQLPlus commands.<br />
+<br />
+- Then, finally, in Maintain Reports/ Edit Script for the second report, create the SQLPlus commands to pull in the data from the external table.<br />
+<br />
+That's it. The whole setup runs as a BAAN Session.<br />
+<br />
+Now for some more details:<br />
+<br />
+The main program script is quite simple - just calls the shell script defined in the first report:<br />
+<br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+<br />
+        table   tppmmm999       |* Not really required - just mnemonic<br />
+<br />
+                domain  tcncmp          p.ncmp.c        |* Company Number<br />
+                        string          p.unx.cmnd.c(4000)<br />
+        extern  domain  tcstr.128.c     p.ksh.flnm.c<br />
+        extern  domain  tcstr.128.c     p.sql.flnm.c<br />
+<br />
+        extern  domain  tcmcs.st80      p.dat.tablespace.c<br />
+        extern  domain  tcmcs.st80      p.idx.tablespace.c<br />
+<br />
+|****************************** form section **********************************<br />
+<br />
+form.1:<br />
+init.form:<br />
+        get.screen.defaults()<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.cont.process:<br />
+before.choice:<br />
+        ppmmmdllnnnn.get.tablespace.names(<br />
+                                main.table$(2),<br />
+                                p.dat.tablespace.c,<br />
+                                p.idx.tablespace.c)<br />
+        if  isspace(p.dat.tablespace.c)<br />
+        then<br />
+            mess(&quot;tigens9009.c&quot;, 1, main.table$)<br />
+            |* Data tablespace not defined in ora_storage for %s<br />
+            choice.again()<br />
+        endif<br />
+        if  isspace(p.idx.tablespace.c)<br />
+        then<br />
+            mess(&quot;tigens9010.c&quot;, 1, main.table$)<br />
+            |* Index tablespace not defined in ora_storage for %s<br />
+            choice.again()<br />
+        endif<br />
+        if pathname(&quot;rppmmm9299.sh&quot;, &quot;P&quot;, p.ksh.flnm.c)<br />
+        then<br />
+            mess(&quot;tigens9008.c&quot;, 1, p.ksh.flnm.c)<br />
+            |* File not found: %s<br />
+            choice.again()<br />
+        else<br />
+            display(&quot;p.ksh.flnm.c&quot;)<br />
+            refresh()<br />
+        endif<br />
+        if pathname(&quot;rppmmm9299.sql&quot;, &quot;P&quot;, p.sql.flnm.c)<br />
+        then<br />
+            mess(&quot;tigens9008.c&quot;, 1, p.sql.flnm.c)<br />
+            |* File not found: %s<br />
+            choice.again()<br />
+        else<br />
+            display(&quot;p.sql.flnm.c&quot;)<br />
+            refresh()<br />
+        endif<br />
+on.choice:<br />
+        process.refresh()<br />
+<br />
+<br />
+|****************************** field section *********************************<br />
+<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function process.refresh()<br />
+{<br />
+        p.ncmp.c = get.compnr()<br />
+<br />
+        p.unx.cmnd.c = &quot;/bin/ksh &quot;<br />
+                     &amp; strip$(p.ksh.flnm.c)                     |* $0<br />
+                     &amp; &quot; &quot;<br />
+                     &amp; strip$(&quot;/tmp/&quot; &amp; prog.name$ &amp; &quot;.log&quot;)    |* $1<br />
+                     &amp; &quot; &quot;<br />
+                     &amp; strip$(p.sql.flnm.c)                     |* $2<br />
+                     &amp; &quot; &quot;<br />
+                     &amp; strip$(&quot;/tmp/&quot; &amp; prog.name$ &amp; &quot;.out&quot;)    |* $3<br />
+                     &amp; &quot; &quot;<br />
+                     &amp; str$(p.ncmp.c)                           |* $4<br />
+                     &amp; &quot; &quot;<br />
+                     &amp; strip$(p.dat.tablespace.c)               |* $5<br />
+                     &amp; &quot; &quot;<br />
+                     &amp; strip$(p.idx.tablespace.c)               |* $6<br />
+        shell(p.unx.cmnd.c, 0)<br />
+}<br />
+|******* End of Source Code *******<br />
+<br />
+<br />
+Next- the first report that holds the shell script which looks as follows:<br />
+<br />
+#!/bin/ksh<br />
+#******************************************************************************<br />
+#* ppmmm9299.sh   VRC B40C c3 tst<br />
+#* Shell Script to fire ppmmm9299.sql<br />
+#*<br />
+#* This report script is actually SHELL script.<br />
+#* DO NOT COMPILE the report.<br />
+#*<br />
+#* Conventions:<br />
+#* - $0 = this script's full file name<br />
+#* - S1 = this script's log file name<br />
+#* - $2 = the SQLPlus script's full file name<br />
+#* - S3 = SQLPlus script's spool/output file name [need not be used]<br />
+#* - S4 = SQLPlus script's Company Number<br />
+#* - S5 = SQLPlus script's Data Tablespace<br />
+#* - S6 = SQLPlus script's Index Tablespace<br />
+#* - $7 ... = maybe more arguments to be passed on to the SQLPlus script<br />
+#******************************************************************************<br />
+<br />
+. /etc/profile<br />
+LOG_FILE=$1<br />
+<br />
+echo Start Time: `date` &gt; $LOG_FILE<br />
+<br />
+# Start: for debugging.<br />
+# Can be commented out when production-ready.<br />
+echo $0 &gt;&gt;  $LOG_FILE<br />
+echo $1 &gt;&gt;  $LOG_FILE<br />
+echo $2 &gt;&gt;  $LOG_FILE<br />
+echo $3 &gt;&gt;  $LOG_FILE<br />
+echo $4 &gt;&gt;  $LOG_FILE<br />
+echo $5 &gt;&gt;  $LOG_FILE<br />
+echo $6 &gt;&gt;  $LOG_FILE<br />
+# End: for debugging.<br />
+<br />
+# Following approach for calling the SQLPlus script makes<br />
+# for the SAME MAPPING of the $n arguments in this script<br />
+# as well as the SQLPlus script, meaning $3 here is<br />
+# the same as $3 or &amp;3 in the SQLPlus script<br />
+# The SQLPlus script or its wrapping shell scrip<br />
+# does not need to use the arguments if it does not need to.<br />
+<br />
+sqlplus baan/passwordforbaan &lt;&lt;EOF<br />
+@$2 $*<br />
+quit<br />
+EOF<br />
+<br />
+echo End Time: `date` &gt;&gt; $LOG_FILE<br />
+#exit<br />
+<br />
+<br />
+Then we have the SQLPlus commands in the second report:<br />
+<br />
+--******************************************************************************<br />
+--* ppmmm9299.sql   VRC B40C c3 tst<br />
+--* SQLPlus Script:Refresh ppmmm999 from Table SCHEMA.TABLE<br />
+--*<br />
+--* This report script is actually a SQLPlus script.<br />
+--* DO NOT COMPILE the report.<br />
+--*<br />
+--* Argument Mapping:<br />
+--*<br />
+--* - $3 or &amp;3 = Spool/Output File Name<br />
+--* - $4 or &amp;4 = Company Number<br />
+--* - $5 or &amp;5 = Data Tablespace<br />
+--* - $6 or &amp;6 = Index Tablespace<br />
+--******************************************************************************<br />
+<br />
+set autocommit 1000<br />
+<br />
+spool &amp;3.<br />
+<br />
+drop TABLE BAAN.Tppmmm999&amp;4.<br />
+/<br />
+<br />
+CREATE TABLE BAAN.Tppmmm999&amp;4.<br />
+(<br />
+  T$FLD1     CHAR(3 BYTE)                       NOT NULL,<br />
+  T$FLD2     CHAR(2 BYTE)                       NOT NULL,<br />
+  T$FLD3     CHAR(7 BYTE)                       NOT NULL,<br />
+  T$FLD4     CHAR(32 BYTE)                      NOT NULL,<br />
+  T$REFCNTD  NUMBER                             NOT NULL,<br />
+  T$REFCNTU  NUMBER                             NOT NULL<br />
+)<br />
+TABLESPACE &amp;5.<br />
+STORAGE    (<br />
+            PCTINCREASE      0<br />
+           )<br />
+LOGGING<br />
+NOCOMPRESS<br />
+NOCACHE<br />
+NOPARALLEL<br />
+NOMONITORING<br />
+/<br />
+<br />
+insert into BAAN.Tppmmm999&amp;4.<br />
+(T$FLD1, T$FLD2, T$FLD3, T$FLD4, T$REFCNTD, T$REFCNTU)<br />
+(select<br />
+cast(nvl(fld1, '   ') as char(3))                               t$fld1,<br />
+cast(nvl(fld2, '  ') as char(2))                                t$fld2,<br />
+cast(nvl(fld3, '       ') as char(7))                           t$fld3,<br />
+cast(substr(nvl(fld4, rpad(' ', 32, ' ')), 1, 32)  as char(32)) t$fld4,<br />
+0 t$refcntd,<br />
+0 t$refcntu<br />
+from externalschema.external_table@external_connection_link)<br />
+/<br />
+<br />
+CREATE UNIQUE INDEX BAAN.Tppmmm999&amp;4.$IDX1 ON BAAN.Tppmmm999&amp;4.<br />
+(T$FLD1, T$FLD2, T$FLD3)<br />
+LOGGING<br />
+TABLESPACE &amp;6.<br />
+STORAGE    (<br />
+            PCTINCREASE      0<br />
+           )<br />
+NOPARALLEL<br />
+/<br />
+<br />
+CREATE UNIQUE INDEX BAAN.Tppmmm999&amp;4.$IDX2 ON BAAN.Tppmmm999&amp;4.<br />
+(T$FLD2, T$FLD1, T$FLD3)<br />
+LOGGING<br />
+TABLESPACE &amp;6.<br />
+STORAGE    (<br />
+            PCTINCREASE      0<br />
+           )<br />
+NOPARALLEL<br />
+/<br />
+<br />
+GRANT DELETE, INSERT, SELECT, UPDATE ON  BAAN.Tppmmm999&amp;4. TO R_BAAN<br />
+/<br />
+<br />
+<br />
+spool off<br />
+<br />
+<br />
+That completes the objects that belong to the session. The form is just a blank screen with the &lt;Continue&gt; Button.<br />
+<br />
+Finally, the work of obtaining the TABLESPACE information is delegated to the library:<br />
+<br />
+|******************************************************************************<br />
+|* ppmmmdll9999  0  VRC B40C c3 tst<br />
+|* ORA_STORAGE Parsing<br />
+|******************************************************************************<br />
+|* Script Type: Library<br />
+|******************************************************************************<br />
+<br />
+<br />
+#define TEXTMODE        1       |* For Text Input (any non-zero number)<br />
+#define READ.MODE       &quot;r&quot;<br />
+#define MAX.RECORD.LENGTH               2048<br />
+<br />
+function extern ppmmmdll9999.get.tablespace.names(<br />
+                domain  tcmcs.st20      i.tablename.c,<br />
+        ref     domain  tcmcs.st80      o.dat.tablespace.c,<br />
+        ref     domain  tcmcs.st80      o.idx.tablespace.c)<br />
+{<br />
+        |* This function is used to parse ORA_STORAGE records in order<br />
+        |* to get the tablespace names for the data and index tables.<br />
+        |* First, it is attempted to get the table specific entry<br />
+        |* from the ORA_STORAGE file. If that is not found, then<br />
+        |* the 'fall through' ORA_STORAGE entry is located.<br />
+<br />
+        |* Get DATA Tablespace<br />
+        o.dat.tablespace.c = ppmmmdll9999.get.tablespace( i.tablename.c, &quot;T&quot;)<br />
+        if  isspace(o.dat.tablespace.c)<br />
+        then<br />
+            |* Get the default<br />
+            o.dat.tablespace.c = ppmmmdll9999.get.tablespace( &quot;*&quot;, &quot;T&quot;)<br />
+        endif<br />
+<br />
+        |* Get INDEX Tablespace<br />
+        o.idx.tablespace.c = ppmmmdll9999.get.tablespace( i.tablename.c, &quot;I&quot;)<br />
+        if  isspace(o.idx.tablespace.c)<br />
+        then<br />
+            |* Get the default<br />
+            o.idx.tablespace.c = ppmmmdll9999.get.tablespace( &quot;*&quot;, &quot;I&quot;)<br />
+        endif<br />
+}<br />
+<br />
+<br />
+function extern domain tcmcs.st80 ppmmmdll9999.get.tablespace(<br />
+                domain  tcmcs.st20      i.tablename.c,<br />
+                domain  tcmcs.str1      i.tabletype.c)<br />
+{<br />
+        |* Here are examples of ORA_STORAGE entries:<br />
+        |* Even though multiple lines are shown for the first two records,<br />
+        |* in the ora_storage file, these are a single record.<br />
+        |       tiitm001:999:T:group:0214:5:PCTFREE 5<br />
+        |               TABLESPACE cnnn_dat15<br />
+        |               INITRANS 3 storage(pctincrease 0 initial 4m next 4m)<br />
+        |       tiitm001:999:I:group:0214:5:PCTFREE 5<br />
+        |               TABLESPACE cnnn_idx15<br />
+        |               INITRANS 3 storage(pctincrease 0 initial 4m next 4m)<br />
+        |       *:999:T:group:0214:5:PCTFREE 5 TABLESPACE cnnn_dat01<br />
+        |       *:999:I:group:0214:5:PCTFREE 5 TABLESPACE cnnn_idx01<br />
+<br />
+                domain  tcncmp          p.ncmp.c        |* Company Number<br />
+                        string          p.unx.cmnd.c(4000)<br />
+                domain  tcstr.300       p.input.record.c<br />
+<br />
+                domain  tcmcs.st80      p.tmp.tablespace.c<br />
+<br />
+                domain  tcstr.128.c     p.unix.tmp.flnm.c<br />
+                domain  tcmcs.long      p.unix.tmp.FD.c |* File Descriptor<br />
+<br />
+        p.tmp.tablespace.c = &quot;&quot;<br />
+        p.ncmp.c = get.compnr()<br />
+        p.unix.tmp.flnm.c = creat.tmp.file$(BSE.TMP.DIR$())<br />
+<br />
+        p.unx.cmnd.c = &quot;/bin/grep &quot;<br />
+                     &amp; &quot;'&quot;<br />
+                     &amp; strip$(i.tablename.c)    |* Tablename<br />
+                     &amp; &quot;:&quot;<br />
+                     &amp; strip$(shiftl$(edit$(p.ncmp.c, &quot;999&quot;)))  |* Company Nmber<br />
+                     &amp; &quot;:&quot;<br />
+                     &amp; &quot;[&quot;<br />
+                     &amp; tolower$(i.tabletype.c) &amp; toupper$(i.tabletype.c)<br />
+                     &amp; &quot;]&quot;<br />
+                     &amp; &quot;' &quot;<br />
+                     &amp; strip$(BSE.DIR$() &amp; &quot;/lib/ora/ora_storage&quot;)<br />
+                     &amp; &quot; | &quot;<br />
+                     &amp; &quot; /bin/sed &quot;<br />
+                     &amp; &quot;'&quot;<br />
+                     &amp; &quot;s/^.* [tT][aA][bB][lL][eE][sS][pP][aA][cC][eE]&quot;<br />
+                     &amp; &quot;/TABLESPACE/&quot;<br />
+                     &amp; &quot;'&quot;<br />
+                     &amp; &quot; | /bin/cut -d ' ' -f 2&quot;<br />
+                     &amp; &quot; &gt; &quot;<br />
+                     &amp; strip$(p.unix.tmp.flnm.c)<br />
+        shell(p.unx.cmnd.c, 0)<br />
+<br />
+        p.input.record.c = &quot;&quot;<br />
+        p.unix.tmp.FD.c = seq.open(p.unix.tmp.flnm.c, READ.MODE)<br />
+        if  p.unix.tmp.FD.c &gt; 0<br />
+        then<br />
+            seq.gets(p.input.record.c,<br />
+                     MAX.RECORD.LENGTH,<br />
+                     p.unix.tmp.FD.c)<br />
+            if  not seq.error(p.unix.tmp.FD.c)<br />
+            then<br />
+                p.tmp.tablespace.c = p.input.record.c<br />
+            endif<br />
+        endif<br />
+<br />
+        seq.close(p.unix.tmp.FD.c)<br />
+        seq.unlink(p.unix.tmp.flnm.c)<br />
+        return(p.tmp.tablespace.c)<br />
+}<br />
+|******* End of Source Code *******</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">30th July 2008, 23:02</div></div><div class="posttext">A small tweak to the file ppmmm9299.sh:<br />
+<br />
+Right after the line <br />
+<br />
+LOG_FILE=$1<br />
+<br />
+<br />
+add:<br />
+<br />
+SPOOL_FILE=$3<br />
+<br />
+<br />
+and just before the bottom line<br />
+<br />
+#exit<br />
+<br />
+<br />
+add:<br />
+<br />
+chmod 666 $LOG_FILE<br />
+chmod 666 $SPOOL_FILE<br />
+<br />
+<br />
+This is to take care of installations where the files created in /tmp do not have sufficient over-write permissions by default.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

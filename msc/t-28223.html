@@ -1,0 +1,142 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="MRP Horizon, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] MRP Horizon Manufacturing &amp; Supply Chain" />
+	
+	<title>MRP Horizon [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Manufacturing &amp; Supply Chain</a> &gt; MRP Horizon</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">22nd September 2006, 17:02</div></div><div class="posttext">Hello everyone,<br />
+<br />
+Our MRP process is crashing giving the following error message.<br />
+<br />
+Planning horizon of 3000 days exceeded for Item xyz; please increase parameter.<br />
+<br />
+Why shall we increase at this time the &quot;Length MRP Time Horizon in Days&quot; ( we have it to 2000 since 1999) at this point in time?<br />
+<br />
+We've been running MRP for over 7 years and never had this error.<br />
+<br />
+I'll appreciate any help and thanks in advance.<br />
+<br />
+Carlos</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">just_fro</div><div class="date">23rd September 2006, 01:00</div></div><div class="posttext">Hi Cherokee,<br />
+<br />
+Horizon of 2000 days seems quite ok.<br />
+<br />
+What parameters are used?<br />
+for the item: orderquantity, leadtime, first allowed orderdate<br />
+MRP: no of orders per day ?<br />
+<br />
+Sounds like a combination of small orderquantity, 1 order per day and a huge demand don't fit in 2000 days.......<br />
+<br />
+Instead of enlarging the horizon I would think that the item properties are off</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">EdHubbard</div><div class="date">25th September 2006, 11:31</div></div><div class="posttext">The other area to check for the item would be in its routing if it is a manufactured item. Check the run time etc. are not strangely large.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Timothy Clinton</div><div class="date">25th September 2006, 15:51</div></div><div class="posttext">Hi<br />
+<br />
+Check your patch level or if a patch or service pack has been applied recently. I know Guido Meijers, previously of Baan PMG/PEG  did a patch around this issue which may have changed the behavior from what you are use to. The other suggestions were also good because an item/routing my also be out of range.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">25th September 2006, 15:52</div></div><div class="posttext">Hello again,<br />
+<br />
+I found that the EOQ is set to 1 and Minimum Order Qty is 95. EOQ field help reads that EOC should be &gt;= Min Ord. Qty. Baan gives a warning but lets save the item with this settings. Also I noticed that we've been having this always, we have over 6000 items with this type of set up.<br />
+<br />
+This item is purchase Item and has no routing.<br />
+<br />
+We have not added any patch lately. I think this problem is related to data.<br />
+<br />
+Also, it is the second time this happen to us. Coincidently, three weeks ago, people here started to use MPS for certain Items ( before we had not MPS items). I wonder if this could cause this problem or has something to do with it.<br />
+<br />
+Carlos</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">25th September 2006, 22:10</div></div><div class="posttext">Hello everyone,<br />
+<br />
+After further investigation this is what I have found.<br />
+<br />
+If I have a MRP firm-planned order with not dates, No Fix Order Date, No Fixed Delivery Date, before I run MRP engine (Plan Order Date and Plan Delivery Date must be calulated by BaaN). When the MRP engine runs, BaaN creates an internal date table starting on the earliest date which is 0, caused by the order with no dates up to 3000 days. So 3000 days are created and overflown the planning horizon but it isn't even close to today's date. This only happen while generating the Reschedule Messages. So BaaN aborts and finishes the MRP engine process.<br />
+<br />
+It also creates Plan MRP Inventory transactions for the item in question with no transaction dates in table tirmp010! This is not good!<br />
+<br />
+The tisfc.dll0200.backward(....) function returns 0 as plan.stdt if input dates to this function are 0 from the MRP Plan Order.<br />
+<br />
+Does anyone know if this is a bug? Or why BaaN let you save a MRP firm-plan order with none of these dates, if can cause this problem?<br />
+<br />
+<br />
+while not abort.mrp and  date.table(max.stoc.table.i) &lt; timrp010.date<br />
+	increase.max.stock.table.index.o2b1a1()<br />
+	if not abort.mrp then<br />
+		date.table(max.stoc.table.i) = startdate<br />
+	endif<br />
+	startdate = startdate + 1<br />
+endwhile<br />
+....<br />
+<br />
+function increase.max.stock.table.index.o2b1a1()<br />
+{<br />
+	max.stoc.table.i = max.stoc.table.i + 1<br />
+	if max.stoc.table.i &gt; max.horiz.table.i then<br />
+		abort.transaction()<br />
+		display.item.llcd()<br />
+		if tccom.dll0200.server.running() then<br />
+			error.message = sprintf$(strip$(text.tab(1,1)),<br />
+					max.horiz.table.i, cmrp.item)<br />
+			print.error.message()<br />
+		else<br />
+			| Internal MRP table overflow for item %s; MRP process<br />
+			| aborted<br />
+			mess(&quot;timrp12103&quot;,1, max.horiz.table.i, cmrp.item)<br />
+			| Planning horizon of %d days exceeded for item %s.<br />
+			| Increase the parameter<br />
+		endif<br />
+		abort.mrp = true<br />
+	endif<br />
+}<br />
+<br />
+<br />
+Thanks in advance.<br />
+<br />
+<br />
+Carlos<br />
+:eek:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">25th September 2006, 23:11</div></div><div class="posttext">Indeed there is a solution for this problem...(Planning horizon of 3000 days exceeded for item...)<br />
+<br />
+SolutionID<br />
+117837<br />
+<br />
+<br />
+Thanks and hope this help someone else<br />
+<br />
+Carlos<br />
+:cool:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">just_fro</div><div class="date">25th September 2006, 23:26</div></div><div class="posttext">Hi<br />
+<br />
+Check your patch level or if a patch or service pack has been applied recently. I know Guido Meijers, previously of Baan PMG/PEG  did a patch around this issue which may have changed the behavior from what you are use to. The other suggestions were also good because an item/routing my also be out of range.<br />
+<br />
+<br />
+Yes Tim, I did a fix on the horizon when MPS items where involved which have a different planhorizon then the predefinied MRP horizon.......but I guess Carloss has found that patch ;)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

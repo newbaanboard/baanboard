@@ -1,0 +1,178 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Progress Bar, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Progress Bar Tools Development" />
+	
+	<title>Progress Bar [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Progress Bar</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">7th December 2014, 10:56</div></div><div class="posttext">Dear,<br />
+<br />
+I want to add Progress Bar to my report.<br />
+<br />
+Below is the script.<br />
+How can I edit the above script?<br />
+<br />
+<br />
+declaration:<br />
+<br />
+  table   twhwmd215 | Item Inventory by Warehouse<br />
+  table   twhwmd215 | Item Inventory by Warehouse<br />
+  table	  ttcibd001 | Item Master<br />
+  table   ttcibd003 | Unit Master<br />
+  table   ttdsfl108 | Unit Master<br />
+  table   ttcmcs003<br />
+  table   ttcmcs015<br />
+<br />
+   extern  domain  tccwar           cwar.f    fixed<br />
+   extern  domain  tccwar           cwar.t    fixed<br />
+   extern  domain  tcitem           item.f    fixed<br />
+   extern  domain  tcitem           item.t    fixed<br />
+   extern  domain  tcamnt          inv.str.unit <br />
+   extern  domain  tccuni          unit.unit <br />
+<br />
+	extern domain tccuni tcibd001.cdf_suni mb| This should be done for CDF<br />
+	extern domain tcyesno tcibd001.cdf_nswi <br />
+	extern domain tccuni tcibd001.cdf_nswu <br />
+<br />
+<br />
+|****************************** program section ********************************<br />
+<br />
+<br />
+|****************************** group section **********************************<br />
+<br />
+group.1:<br />
+init.group:<br />
+   get.screen.defaults()<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+  execute(print.data)<br />
+<br />
+choice.print.data:<br />
+on.choice:<br />
+   if rprt_open() then<br />
+       read.main.table()<br />
+       rprt_close()<br />
+   else<br />
+       choice.again()<br />
+   endif<br />
+<br />
+<br />
+<br />
+|****************************** field section *********************************<br />
+<br />
+field.cwar.f:<br />
+when.field.changes:<br />
+   cwar.t = cwar.f<br />
+<br />
+field.item.f:<br />
+when.field.changes:<br />
+   item.t = item.f<br />
+<br />
+<br />
+|****************************** function section ******************************<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{<br />
+	select whwmd215.*<br />
+	from whwmd215<br />
+	where   whwmd215._index1 inrange {:cwar.f, :item.f}<br />
+                                    and {:cwar.t, :item.t}<br />
+	order by whwmd215._index1<br />
+	selectdo<br />
+		if whwmd215.qhnd &gt; 0.0 then<br />
+			read.tcibd001()<br />
+			if tcibd001.cdf_nswi = tcyesno.yes then <br />
+				read.tdsfl108()<br />
+				unit.unit = tcibd001.cdf_nswu<br />
+			else<br />
+				get.conv()<br />
+			endif<br />
+			wrh.dsca()<br />
+			<br />
+			rprt_send()<br />
+		endif<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">7th December 2014, 11:12</div></div><div class="posttext">Hello,<br />
+<br />
+search the forum with &quot;progress&quot; and you'll get a lot of hints.<br />
+<br />
+Regards<br />
+<br />
+From dev-guide :<br />
+<br />
+Progress indicators sample program<br />
+#include &lt;bic_dam&gt;<br />
+<br />
+function process.elements()<br />
+{<br />
+        long    i<br />
+        long    n<br />
+        long    ret<br />
+<br />
+        | Create a progress indicator<br />
+        ret = create.progress.indicator( form.text$(&quot;tdsls1100.01&quot; ),<br />
+                PROGRESS.BAR + PROGRESS.STOP + PROGRESS.NOAUTODESTROY )  <br />
+        | We do not want any delay in this case<br />
+        change.progress.delay(0)<br />
+        | Display an initializing message<br />
+        ret = change.progress.indicator( 0, form.text$(&quot;tdsls1100.02&quot;) )<br />
+        |* Initializing...<br />
+        <br />
+        | Now determine the number of elements to process<br />
+        n = count.elements()<br />
+<br />
+        | Process the elements<br />
+        for i = 1 to n<br />
+                if change.progress.indicator( (i * 100) / n ) &lt;&gt; 0 then<br />
+                        abort.transaction()<br />
+                        break<br />
+                endif<br />
+                | Process element i<br />
+        endfor<br />
+        <br />
+        destroy.progress.indicator()<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">7th December 2014, 11:39</div></div><div class="posttext">But how can I integrate this code in above report</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">8th December 2014, 13:24</div></div><div class="posttext">Hi,<br />
+<br />
+First you need to count the total number of records present in table whwmd215 for your given selection range and assign that to one of the variable e.g. total.no.of.rec<br />
+<br />
+Then, in your current selection do this<br />
+<br />
+select ...<br />
+selectdo<br />
+perc = perc + 1<br />
+change.progress.indicator((perc*100)/total.no.of.rec,&quot;Processing&quot;)<br />
+endselect<br />
+destroy.progress.indicator()<br />
+<br />
+Refer Thread (http://www.baanboard.com/baanboard/showthread.php?t=66837)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

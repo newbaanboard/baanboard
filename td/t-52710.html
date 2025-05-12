@@ -1,0 +1,124 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="initialisation problem, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] initialisation problem Tools Development" />
+	
+	<title>initialisation problem [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; initialisation problem</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">11th June 2008, 11:54</div></div><div class="posttext">Dear Gurus,<br />
+ <br />
+I am facing an initialisation problem in program flow. The program works perfectly if the order date is given of different range but fails to get the correct data if order date is of same range. I had tried very much to solve but the problem still exists. Does anyone have any ideas for fixing this?<br />
+ Here is my code(Script)<br />
+<br />
+functions:<br />
+function read.main.table()<br />
+{	dramnt=0.0<br />
+	ddat=date.num()<br />
+	if etol(reg) = 1 then<br />
+	cuno.f = &quot; CG401&quot;<br />
+	cuno.t = &quot; CG499&quot;<br />
+		 <br />
+		select tdsls041.*<br />
+		from tdsls041<br />
+		 where   tdsls041.odat between :ddat.f and :ddat.t<br />
+		and tdsls041.cuno between :cuno.f and :cuno.t<br />
+		|and tdsls041.odat between :ddat.f and :ddat.t<br />
+		|order by tdsls041.odat,tdsls041.cuno														<br />
+		selectdo<br />
+		 <br />
+		select tdsls040.*<br />
+		from tdsls040<br />
+		where tdsls040.orno = :tdsls041.orno<br />
+		and tdsls040.odat = :tdsls041.odat<br />
+		|and tdsls045.cuno = :tdsls040.cuno<br />
+		selectdo<br />
+			<br />
+			 cuno = tdsls041.cuno<br />
+  	 	<br />
+			 if ddat  = tdsls040.odat then	<br />
+			 <br />
+			   dramnt = dramnt+ tdsls041.amta<br />
+			 else<br />
+			  dramnt = 0.0<br />
+			   endif<br />
+			 ddat = tdsls041.odat<br />
+<br />
+			select tccom010.*<br />
+			from tccom010<br />
+			where tccom010.cuno = :tdsls041.cuno<br />
+			selectdo<br />
+			endselect<br />
+			 <br />
+			rprt_send()<br />
+		 endselect<br />
+		endselect<br />
+	 	endif <br />
+		<br />
+		}<br />
+<br />
+<br />
+<br />
+Suhaib</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th June 2008, 20:07</div></div><div class="posttext">Use inrange instead of between.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">14th June 2008, 08:58</div></div><div class="posttext">Dear Mark,<br />
+<br />
+It didn't solve the problem for me</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">14th June 2008, 12:52</div></div><div class="posttext">inrange and between instructions acts in different way only if they refers to combined fields, otherwise they act in the same way....<br />
+<br />
+In the script, you don't use any order by. This means that the tdsls041 is read in random way (the db driver choose an index and use it to give you records in that order, maybe index1), and you do some sum based on a date (ddat), and the date starts on today but is changed in the select.<br />
+So, the data could be not read in the order you expect...<br />
+Why don't use order by (and maybe do only one select with refers to tdsls040 and tccom010  instead of nested select, that are very poor performants)? <br />
+Even the total dramnt could be calculated by the report instead of do this in the script. <br />
+The result will be a more short and performant script even more easy to debug.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">14th June 2008, 14:37</div></div><div class="posttext">Dear Zardoz,<br />
+<br />
+No,it didn't solve the problem</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">16th June 2008, 14:48</div></div><div class="posttext">Zardoz is correct and yes at one point I had to change a query on a date field.  So I had to change inrange to (table.date&gt;= :date.f and table.date&lt;=:date.t).  I can not remember why I had to do that.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">16th June 2008, 15:52</div></div><div class="posttext">Dear Mark,<br />
+<br />
+I had tried this method earlier and got the same result</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">16th June 2008, 16:06</div></div><div class="posttext">Okay then it has to be in this code<br />
+<br />
+cuno = tdsls041.cuno<br />
+if ddat  = tdsls040.odat then	<br />
+	dramnt = dramnt+ tdsls041.amta<br />
+else<br />
+	dramnt = 0.0<br />
+endif<br />
+ddat = tdsls041.odat<br />
+<br />
+With a different sequence of orders from tdsls041 I can see where ddat would change and thus the value that goes in dramnt. You should debug it and step thru this code making sure you get the same sequence of records for both the date ranges.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">16th June 2008, 16:46</div></div><div class="posttext">Sorry, it didn't help me out.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

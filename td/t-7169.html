@@ -1,0 +1,197 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Kill Baan Session (ksh), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Kill Baan Session (ksh) Tools Development" />
+	
+	<title>Kill Baan Session (ksh) [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Kill Baan Session (ksh)</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Francesco</div><div class="date">15th October 2002, 00:10</div></div><div class="posttext">The question on how to properly kill a session (or user) in Baan returns quite frequently on the board.<br />
+<br />
+Here is a script that I use when all else fails, courtesy of Mike King.<br />
+<br />
+Please note that this is written for Solaris and tools6.2.<br />
+It will work on nearly any system/Baan configuration, but some modifications might be required.<br />
+<br />
+<br />
+#!/bin/ksh<br />
+# **************************************************************************<br />
+# * File      : killbaansess.ksh<br />
+# * Usage     : killbaansess.ksh &lt;pid of bshell6.2&gt;<br />
+# * Purpose   : This script is designed to kill all processes for a given<br />
+# *             bshell pid, which is passed as the first parameter.<br />
+# *<br />
+# *             The script first confirms that the provided PID is indeed<br />
+# *             a bshell process.  Once this is confirmed, it will locate<br />
+# *             the parent id (should be bshell?????6.2).  It will then<br />
+# *             locate all the children of this process, so as to be<br />
+# *             able to kill any orphaned processes<br />
+# *<br />
+# *             We first try to kill it with the bshcmd6.2 command (Baan<br />
+# *             provided utility).  If this is successful in shutting<br />
+# *             down the process, we are done.<br />
+# *<br />
+# *             If it does not die, we must then kill each of the child<br />
+# *             processes.  We try with a kill -15, and then if that fails<br />
+# *             we follow up with a kill -9.<br />
+# *<br />
+# * Author    : Michael King<br />
+# * Date      : 2001/05/10<br />
+# *<br />
+# * Mods      : 2002/01/12 Francesco Frentrop - modified bshcmd command<br />
+# **************************************************************************<br />
+if [ $# -ne 1 ] ;then<br />
+        echo '*********************************************'<br />
+        echo ' Usage killbaansess &lt;bshell pid&gt;'<br />
+        echo '*********************************************'<br />
+        exit<br />
+fi<br />
+<br />
+BSHELL_PID=${1}<br />
+<br />
+# **************************************************************************<br />
+# * Confirm that this is indeed the bshell6.2 process<br />
+# **************************************************************************<br />
+if [ -z &quot;$(ps -f -o args -p ${BSHELL_PID}| grep bshell6\.2)&quot; ] ;then<br />
+        echo '****************************************************************'<br />
+        echo &quot; PID ${BSHELL_PID} is not a bshell6.2 process&quot;<br />
+        echo '****************************************************************'<br />
+        exit<br />
+fi<br />
+<br />
+# **************************************************************************<br />
+# * Get the parent and grand-parent (in case of a ba6.2 as grandparent<br />
+# **************************************************************************<br />
+PPID=$(ps -f -o ppid -p ${BSHELL_PID}|grep -v PID)<br />
+gpid=$(ps -f -o ppid -p ${PPID}| grep -v PID)<br />
+if [ -z &quot;$(ps -f -o args -p ${gpid}| grep ba6\.2)&quot; ] ;then<br />
+        GRANDPARENT=&quot;&quot;<br />
+else<br />
+        GRANDPARENT=$(ps -f -o ppid -p ${PPID}| grep -v PID)<br />
+fi<br />
+<br />
+# **************************************************************************<br />
+# * Build a list of processes<br />
+# **************************************************************************<br />
+ps -ef -o pid -o ppid -o args &gt; /tmp/$$.fulllist.dat<br />
+ps -ef -o pid -o ppid -o args| grep sh_server | grep -v grep  &gt; /tmp/$$.sh_server.dat<br />
+ps -ef -o pid -o ppid -o args| grep oracle8  | grep -v grep &gt; /tmp/$$.oracle8.dat<br />
+<br />
+# **************************************************************************<br />
+# * Find all of the related processes<br />
+# **************************************************************************<br />
+SH_PID=&quot;&quot;<br />
+while read da_pid da_ppid args<br />
+do<br />
+        if [ $da_ppid -eq ${BSHELL_PID} ] ;then<br />
+                SH_PID=$da_pid<br />
+        fi<br />
+done &lt; /tmp/$$.sh_server.dat<br />
+<br />
+SH_KIDS=&quot;&quot;<br />
+if [ -n &quot;$SH_PID&quot; ] ;then<br />
+        while read da_pid da_ppid args<br />
+        do<br />
+                if [ $da_ppid -eq ${SH_PID} ] ;then<br />
+                        SH_KIDS=&quot;$da_pid $SH_KIDS&quot;<br />
+                fi<br />
+        done &lt; /tmp/$$.fulllist.dat<br />
+fi<br />
+<br />
+ORA8_PID=&quot;&quot;<br />
+while read da_pid da_ppid args<br />
+do<br />
+        if [ $da_ppid -eq ${BSHELL_PID} ] ;then<br />
+                ORA8_PID=$da_pid<br />
+        fi<br />
+done &lt; /tmp/$$.oracle8.dat<br />
+<br />
+ORA8_KIDS=&quot;&quot;<br />
+if [ -n &quot;$ORA8_PID&quot; ] ;then<br />
+        while read da_pid da_ppid args<br />
+        do<br />
+                if [ $da_ppid -eq ${ORA8_PID} ] ;then<br />
+                        ORA8_KIDS=&quot;$da_pid $ORA8_KIDS&quot;<br />
+                fi<br />
+        done &lt; /tmp/$$.fulllist.dat<br />
+fi<br />
+<br />
+#echo '****************************************************************'<br />
+#echo Processes found<br />
+#echo BSHELL_PID=$BSHELL_PID<br />
+#echo PPID=$PPID<br />
+#echo GRANDPARENT=$GRANDPARENT<br />
+#echo SH_PID=$SH_PID<br />
+#echo SH_KIDS=$SH_KIDS<br />
+#echo ORA8_PID=$ORA8_PID<br />
+#echo ORA8_KIDS=$ORA8_KIDS<br />
+rm /tmp/$$.*.dat<br />
+<br />
+# **************************************************************************<br />
+# * Let's try to kill it with bshcmd6.2<br />
+# **************************************************************************<br />
+echo '****************************************************************'<br />
+echo Sending message to the bshell<br />
+bshcmd6.2 -e -u10 -w10 $BSHELL_PID<br />
+echo '****************************************************************'<br />
+echo Waiting 15 seconds to see if it dies<br />
+sleep 15<br />
+<br />
+# **************************************************************************<br />
+# * Let's check if the bshell is still around<br />
+# **************************************************************************<br />
+if [ -z &quot;$(ps -f -o args -p ${BSHELL_PID}| grep bshell6\.2)&quot; ] ;then<br />
+        echo '****************************************************************'<br />
+        echo &quot;The session has been successfully terminated&quot;<br />
+else<br />
+        # **************************************************************************<br />
+        # * Now for the nasty stuff, lets do some kills<br />
+        # **************************************************************************<br />
+        echo '****************************************************************'<br />
+        echo &quot;The session did not terminate... Will now use kill -15&quot;<br />
+        kill -15 $BSHELL_PID<br />
+        echo '****************************************************************'<br />
+        echo Waiting 5 seconds to see if it dies<br />
+        sleep 5<br />
+<br />
+        if [ -z &quot;$(ps -f -o args -p ${BSHELL_PID}| grep bshell6\.2)&quot; ] ;then<br />
+                echo '****************************************************************'<br />
+                echo &quot;The session has been successfully terminated&quot;<br />
+        else<br />
+                echo '****************************************************************'<br />
+                echo &quot;The session did not terminate... Will now use kill -9&quot;<br />
+                kill -9 $BSHELL_PID<br />
+                echo '****************************************************************'<br />
+                echo Waiting 5 seconds to see if it dies<br />
+                sleep 5<br />
+        fi<br />
+fi<br />
+<br />
+echo '****************************************************************'<br />
+echo &quot;Making sure that all relevant processes also terminated&quot;<br />
+for i in $PPID $GRANDPARENT $SH_PID $SH_KIDS $ORA8_PID $ORA8_KIDS<br />
+do<br />
+        if [ -n &quot;$(ps -f -p $i|grep -v PID)&quot; ] ;then<br />
+                kill -15 $i<br />
+                sleep 2<br />
+                if [ -n &quot;$(ps -f -p $i|grep -v PID)&quot; ] ;then<br />
+                        kill -9 $i<br />
+                fi<br />
+        fi<br />
+done</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

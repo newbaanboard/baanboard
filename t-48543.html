@@ -1,0 +1,124 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS for 1121s000, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS for 1121s000 AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS for 1121s000 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS for 1121s000</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">abby13</div><div class="date">22nd February 2008, 13:20</div></div><div class="posttext">Hi I am doing an Inventory Adjustment using AFS calls for tdilc1120m000 and tdilc1121s000. Now my requirement is that if any of the inserts in tdilc1121s000<br />
+fails,  all my previous inserts should get undone.However I am not able to find an API to aceive this. Can anybody help me please?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">george7a</div><div class="date">22nd February 2008, 13:52</div></div><div class="posttext">Hi,<br />
+<br />
+I have done a similar project before. I have been askedto &quot;Check&quot; if the given data will get into Baan successfully or not. They gave me a spec with many conditions and just if the data passed all the conditions I used AFS to insert it. When the AFS fails, they were stuck and they needed to insert the data manually and after that to to add more and more conditions to the spec.<br />
+<br />
+I don't think that this is the best way (a long spec of conditions), but it did work at the end.<br />
+<br />
+I hope it helps,<br />
+<br />
+- George</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">22nd February 2008, 15:18</div></div><div class="posttext">There is a way to do this, but I do agree with George.  I am not sure if this will work for you or not - what I do for an error in tdilc1121s000 is end session tdilc1121s000.  It then falls back to tdilc1120m000, this leaves the transaction open.  I then do a stpapi.delete on the open transaction. You can tell this is one of the first function servers I did because I still used the libraries created from ttstpcreatdll.  Endpoint gets set based on the session that had the error (we are on A&amp;D so we have three session to complete with the last one for pegging information)<br />
+<br />
+function cleanup.processes(long end.point)<br />
+{<br />
+| Do not worry about delete messages errors above indicate the<br />
+| part will need to be reviewed.<br />
+<br />
+| Variables.<br />
+	string  err(120)<br />
+<br />
+| End.point 0 then problem with main session. No records to cleanup.<br />
+	if(end.point = 0) then<br />
+		tdilcf1120m000.end()<br />
+		return<br />
+	endif<br />
+<br />
+| End.point 1 then not second session record to cleanup<br />
+	if(end.point = 1) then<br />
+		tdilcf1121s000.end()<br />
+|Return to main process and delete record.<br />
+		tdilcf1120m000.delete(1,err)<br />
+		tdilcf1120m000.end()<br />
+		return<br />
+	endif<br />
+<br />
+| Error on third session.<br />
+	f1101s10b.end()<br />
+<br />
+	stpapi.recover(&quot;tdilc1121s000&quot;,err)<br />
+	tdilcf1121s000.end()<br />
+|<br />
+|| Delete main transaction record<br />
+	tdilcf1120m000.delete(1,err)<br />
+	tdilcf1120m000.end()<br />
+	return<br />
+}<br />
+<br />
+<br />
+Now what this will not do is let you sucessfully complete other transactions in tdilc1120m000. Once they are completed there you need to do another tdilc1120m000 transaction reversing the first.  This is a completely different beast to tackle.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">abby13</div><div class="date">25th February 2008, 06:27</div></div><div class="posttext">Thanks George and Mark, I deleted the record in tdilc1120m000 if i encountered a failed insert in tdilc1121s000 and it worked.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">abby13</div><div class="date">25th February 2008, 06:29</div></div><div class="posttext">Also one more question from my side...<br />
+<br />
+which is the better approach<br />
+1 . to give direct api calls . Or <br />
+2. to generate dll that handles the api calls.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th February 2008, 16:02</div></div><div class="posttext">Me - I use direct calls at this point in time.  I find it better to see the actual command that is being executed.  There is nothing wrong with the libraries, but originally I generated the libraries and used them.  I switched a few years back because I got tired of opening the library to see what the call was - plus using the code it makes it easier to cut and paste.  Just my opinion.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">abby13</div><div class="date">3rd March 2008, 11:23</div></div><div class="posttext">Hi Mark and George,<br />
+<br />
+Earlier i thought that the solution to deleted records in subsession and the main session was working but during testing i found that, in tdilc1121s000 if the third record that i insert failed then only the 2nd record is deleted and not the first one.I am posting the code for your reference.<br />
+<br />
+Regards,<br />
+<br />
+Abhijit</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd March 2008, 14:45</div></div><div class="posttext">When falling back to tdilc1120m000 and doing a delete - doesn't that delete all the tdilc1121s000 records?  If not then what you will have to do is use stpapi.browse commands to delete all the records.  So for example you could do first.set, delete - then repeat until all the records are gone.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">abby13</div><div class="date">5th March 2008, 10:30</div></div><div class="posttext">Hi,<br />
+<br />
+Consider this scenario:<br />
+<br />
+I have inserted two lines in the session tdilc1121s000 through AFS. Now before inserting the third line (running it in the debug mode) I block the location(say A001).Now it gives an error &quot;Location blocked&quot; and that record is not inserted. <br />
+<br />
+Now when I try to do browse and delete by using first .view and then by ext.view then if the locations in the previous inserts is also A001. Then it does not allow to delete them.How to tackle this situation?<br />
+<br />
+Thanking in advance<br />
+<br />
+abby13</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th March 2008, 15:31</div></div><div class="posttext">Are you saying - that you insert two records successfully with A001 and then when you go to do the third record A001 is blocked?  If this is correct the only thing I can think of is to lock the location record so that nobody can block it until you are through with transactions for that record.  What are the odds of this happening when processing records in tdilc1121s000?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th March 2008, 15:52</div></div><div class="posttext">I did think of something else - make it so 1 transaction results in 1 tdilc1121s000 records.  That is how I do the transactions.  Then the worst that happens is one transaction does not get posted and you do not have to worry about 3 transactions down running into an error.  So for example if the total adjustment is 10 and you are not putting in 5 adjustments of 2.  Treat each as a single adjustment.  So my users know that if I am adjusting off 10 of a part from 5 locations the file holds 5 transactions.  1 complete transaction per location.  The worst that happens is one transaction may not get processed - but I do check for blocked locations and cycle count orders first.<br />
+<br />
+We actually use a session with a table to load the transactions.  So the user gives us a file, we load it into the session, click process. This processes and archives the transactions.  If it errors the session displays the errors.  At that point we can fix the error(unblock location, etc.) and reprocess the transaction.  In reality what happens is the user processes these manually.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

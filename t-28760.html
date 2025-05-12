@@ -1,0 +1,219 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Subsession FS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Subsession FS AFS/DDC/OLE: Function servers" />
+	
+	<title>Subsession FS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Subsession FS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">24th November 2006, 15:46</div></div><div class="posttext">Hello everyone,<br />
+<br />
+I have a session X that calls session Y on a before input field section of X session as follow: <br />
+<br />
+<br />
+field.A:<br />
+before.input:<br />
+		zoom.to.y()<br />
+.....<br />
+<br />
+function zoom.to.y()<br />
+{<br />
+               if not process.1 then<br />
+		process.1 = activate(&quot;Y&quot;)<br />
+		#pragma used session Y<br />
+......<br />
+}<br />
+<br />
+<br />
+I cann't start session Y  trought X session's FS. I can successfully call X's FS no problem but how do I do to call/controll session Y?<br />
+<br />
+I have tried this to weak up Y but doesn't work.<br />
+<br />
+....<br />
+stpapi.handle.subproc(&quot;X&quot;,&quot;Y&quot;,&quot;add&quot;)<br />
+stpapi.put.field(&quot;X&quot;,&quot;A&quot;,&quot;ABC&quot;)<br />
+.....<br />
+<br />
+<br />
+<br />
+Thanks in advance,<br />
+<br />
+Carlos<br />
+:confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th November 2006, 17:55</div></div><div class="posttext">I am not 100% sure, but I think before.input is one of those sections that does not get executed during AFS routine.  Is there a reason you have to call session Y?  I mean can't you just put the value you need?  Are these home grown sessions or standard baan sessions?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">24th November 2006, 19:42</div></div><div class="posttext">Mark,<br />
+<br />
+It is a standard BaaN session. I can't change it. It is Mantain Approvals tdpur4121m000 calls tdilc4123s000.<br />
+<br />
+Carlos</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th November 2006, 14:48</div></div><div class="posttext">Sorry it took so long - nice long weekend.<br />
+<br />
+Here is what I do:<br />
+<br />
+| 20050509.st	<br />
+	rc = stpapi.enum.answer(&quot;tdpur4121m000&quot;,&quot;tdilc41230&quot;,tcyesno.yes)	| 20050509.end<br />
+	rc = stpapi.enum.answer(&quot;tdpur4121m000&quot;,&quot;tdilc41231&quot;,tcyesno.yes)<br />
+	stpapi.put.field(&quot;tdpur4121m000&quot;,&quot;tdpur045.reno&quot;,str$(receipt.number))<br />
+	stpapi.put.field(&quot;tdpur4121m000&quot;,&quot;tdpur045.orno&quot;,str$(purchase.order))<br />
+	stpapi.put.field(&quot;tdpur4121m000&quot;,&quot;tdpur045.pono&quot;,str$(purchase.pono))<br />
+	rc = stpapi.find(&quot;tdpur4121m000&quot;,msg)<br />
+	if not isspace(msg) or rc&lt;&gt;1 then<br />
+		stpapi.end.session(&quot;tdpur4121m000&quot;)<br />
+		return<br />
+	endif<br />
+	<br />
+	<br />
+	stpapi.handle.subproc(&quot;tdpur4121m000&quot;,&quot;tcmcs9551s00b&quot;,&quot;add&quot;)<br />
+| 072704 Use the purchase order line unit.<br />
+	if tiitm001.kltc = tckltc.batch or conversion.factor&lt;&gt; 1.0 or purchase.unit &lt;&gt; tiitm001.stgu then<br />
+		stpapi.handle.subproc(&quot;tdpur4121m000&quot;,&quot;tdilc4123s000&quot;,&quot;add&quot;)<br />
+		stpapi.put.field(&quot;tdpur4121m000&quot;,&quot;tdpur045.quap&quot;,str$(appr.qty))<br />
+		rc = stpapi.update(&quot;tdpur4121m000&quot;,1,msg)<br />
+<br />
+		stpapi.put.field(&quot;tdilc4123s000&quot;,&quot;tdilc111.stra&quot;,str$(appr.qty))<br />
+| 20050615.st	Use reject not back order qty.<br />
+		|stpapi.put.field(&quot;tdilc4123s000&quot;,&quot;tdilc111.strd&quot;,str$(backorder.qty))<br />
+		stpapi.put.field(&quot;tdilc4123s000&quot;,&quot;tdilc111.strd&quot;,str$(rej.qty))	|20050615.end<br />
+		stpapi.put.field(&quot;tdilc4123s000&quot;,&quot;tdilc111.stka&quot;,str$(appr.qty))<br />
+| 20050615.st		<br />
+|		stpapi.put.field(&quot;tdilc4123s000&quot;,&quot;tdilc111.stkd&quot;,str$(backorder.qty))<br />
+		stpapi.put.field(&quot;tdilc4123s000&quot;,&quot;tdilc111.stkd&quot;,str$(rej.qty))	|20050615.end<br />
+		rc = stpapi.update(&quot;tdilc4123s000&quot;,1,msg)<br />
+	else<br />
+             ............<br />
+	endif<br />
+<br />
+No promises this will work for you, but this is what I do to handle tdilc4123m00.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">28th November 2006, 19:53</div></div><div class="posttext">Mark,<br />
+<br />
+thanks again. I tried and yes, session tdilc4123s000 opens but when I try the update it, it returns an error message &quot;Session not available&quot; the ret value is 0. Below here is my test code. So, the subsession does not get updated.<br />
+<br />
+<br />
+        <br />
+        stpapi.put.field(&quot;tdpur4121m000&quot;,&quot;tdpur045.reno&quot;,str$(709911))<br />
+        stpapi.put.field(&quot;tdpur4121m000&quot;,&quot;tdpur045.orno&quot;,str$(170374))<br />
+        stpapi.put.field(&quot;tdpur4121m000&quot;,&quot;tdpur045.pono&quot;,str$(12))<br />
+        if stpapi.find(&quot;tdpur4121m000&quot;) = 1 then<br />
+                stpapi.handle.subproc(&quot;tdpur4121m000&quot;,&quot;tdilc4123s000&quot;,&quot;add&quot;)<br />
+                stpapi.get.field(&quot;tdpur4121m000&quot;,&quot;tdpur045.dqua&quot;,acc.qty)<br />
+                stpapi.put.field(&quot;tdpur4121m000&quot;,&quot;tdpur045.quap&quot;,acc.qty)<br />
+                ret = stpapi.update(&quot;tdpur4121m000&quot;,1,error.mess)<br />
+                if isspace(error.mess) then<br />
+                        stpapi.put.field(&quot;tdilc4123s000&quot;,&quot;tdilc111.stra&quot;,acc.qty)<br />
+                        stpapi.put.field(&quot;tdilc4123s000&quot;,&quot;tdilc111.strd&quot;,&quot;0&quot;)<br />
+                        stpapi.put.field(&quot;tdilc4123s000&quot;,&quot;tdilc111.stka&quot;,acc.qty)<br />
+                        stpapi.put.field(&quot;tdilc4123s000&quot;,&quot;tdilc111.stkd&quot;,&quot;0&quot;)<br />
+                        ret = stpapi.update(&quot;tdpur4123s000&quot;,1,error.mess) |&lt;- returns error message &quot;session not available&quot;<br />
+                        if not isspace(error.mess) then .....<br />
+<br />
+<br />
+<br />
+thanks in advance again.<br />
+<br />
+Carlos</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">29th November 2006, 15:03</div></div><div class="posttext">You might need new objects.  I designed this in 4c3 and migrated it to 4c4.  I know I did this in tdpur4121m000 using qkey for lot controlled items.<br />
+<br />
+<br />
+field.tdpur045.quap:<br />
+before.input:<br />
+| 20050617.st - Make sure records are exported<br />
+	if api.mode then<br />
+		export(&quot;rcd.ttccom000&quot;, rcd.ttccom000)<br />
+		export(&quot;rcd.ttdpur040&quot;, rcd.ttdpur040)<br />
+		export(&quot;rcd.ttdpur041&quot;, rcd.ttdpur041)<br />
+		export(&quot;rcd.ttdpur045&quot;, rcd.ttdpur045)<br />
+		export(&quot;rcd.ttcmcs042&quot;, rcd.ttcmcs042)<br />
+	endif		| 20050617.end<br />
+	|#call<br />
+	|#pobj added by QKEY 3.70<br />
+	_pobj_exe1(&quot;before.input.tdpur045.quap&quot;)<br />
+	|#end add by QKEY</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">crdeshpande</div><div class="date">1st December 2006, 05:22</div></div><div class="posttext">You can try<br />
+<br />
+ 	boi.call = &quot;tdboidll500013.create&quot;<br />
+	export(&quot;boi.call&quot;,boi.call)<br />
+<br />
+but again this may not work for you , there is small glitch in session tdilc4123s00 , script problem is processnr.pur4121 does not import correct PID of parent in api mode , and there are some variable based which will not get imported correctly from paraent session in FS. This is the reason afs for tdilc4123s000 always fail.<br />
+<br />
+Hope this clarifies.<br />
+<br />
+all the best , Cheers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">cherokee</div><div class="date">5th December 2006, 17:13</div></div><div class="posttext">Mark, <br />
+<br />
+I have tried with this..<br />
+ <br />
+field.tdpur045.quap:<br />
+before.input:<br />
+      if api.mode then<br />
+		export(&quot;rcd.ttccom000&quot;, rcd.ttccom000)<br />
+		export(&quot;rcd.ttdpur040&quot;, rcd.ttdpur040)<br />
+		export(&quot;rcd.ttdpur041&quot;, rcd.ttdpur041)<br />
+		export(&quot;rcd.ttdpur045&quot;, rcd.ttdpur045)<br />
+		export(&quot;rcd.ttcmcs042&quot;, rcd.ttcmcs042)<br />
+	endif		| 20050617<br />
+<br />
+<br />
+does not work. The session still returning the same error &quot;Session not Available&quot;.<br />
+<br />
+crdeshpande, <br />
+<br />
+what this code will do? where should I put it. Before calling the api functions?<br />
+<br />
+boi.call = &quot;tdboidll500013.create&quot;<br />
+export(&quot;boi.call&quot;,boi.call)<br />
+<br />
+<br />
+Thanks,<br />
+<br />
+Carlos</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th December 2006, 17:33</div></div><div class="posttext">You do the boi.call before the calls to the sessions.  I actually do this boi.call = &quot;tdboidll0011.Create&quot; before the code I posted above.  Different versions I think require different calls.  When we put in service pack 18(or 19) of 4c4 some of the calls were different.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">5th December 2006, 17:40</div></div><div class="posttext">MY bad - that call I use was actually is used before tdpur4120m000 not tdpur4121m000.<br />
+<br />
+Can you put tdpur4121m000 and tdpur4123s000 in debug mode to see if the rc = stpapi.update(&quot;tdpur4121m000&quot;,1,msg) actually launches tdpur4123s000?  <br />
+<br />
+In your case have you tried rc = stpapi.update(&quot;tdpur4121m000&quot;,0,msg) with a save afterwards?  Sometimes a different set of calls does what you are looking for.  Just a thought.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kokchuan</div><div class="date">21st June 2007, 04:57</div></div><div class="posttext">Hi  Cherokee<br />
+<br />
+Do you get the solution? actually the infor have identify this issue in solution 208376 and 202758. <br />
+<br />
+but if you have only lower service pack install then you will have problem to install other pre-requisition patch or solution.<br />
+<br />
+Anyone have idea how to address it?<br />
+<br />
+thx</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

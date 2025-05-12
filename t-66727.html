@@ -1,0 +1,112 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS for Purchase Invoice Transaction to Material Costs session failing, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS for Purchase Invoice Transaction to Material Costs session failing AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS for Purchase Invoice Transaction to Material Costs session failing [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS for Purchase Invoice Transaction to Material Costs session failing</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">kruyoupatel</div><div class="date">13th August 2014, 14:15</div></div><div class="posttext">Hello All,<br />
+<br />
+Can anybody help to get correct AFS to execute &quot;tpppc2511m000&quot; session from &quot;tfacp1120s000&quot; session.<br />
+<br />
+I did tried to write AFS but nothing works properly.<br />
+<br />
+I did RnD and was amused to see that standard script calls &quot;tpppc2511m000&quot; session using 3gl.<br />
+<br />
+What actually happens is &quot;tfacp1120s000&quot; session calls tpppc2811m000 through dll using start.session command and this &quot;tpppc2811m000&quot; session has 3gl attached to it which executes &quot;tpppc2511m000&quot; session.<br />
+<br />
+As there is an 3GL intermediate session i am unable to have &quot;stpapi.subproc AFS&quot; call on &quot;tpppc2511m000&quot; session, it opens the session as front end process instead of backend process.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th August 2014, 16:24</div></div><div class="posttext">This is 4c4 code and I do not have source code to look at.  This was one of the tougher ones for me to solve - while not the same sessions you mention it does launch tpppc2811m000 to get to 2111m000.  This is just a piece of the code - there is a couple of what they call ZRC and AP5 transactions.  You will notice that the call to tuddc9120m000 is actually running code to kill a background process, because an actual stpapi.end hangs.  Second or third time I had to use this type of kill in some code.  Hopefully this gives you some ideas on getting yours running.<br />
+<br />
+<br />
+function create.zrcb1()<br />
+{<br />
+	errmsg = &quot;&quot;<br />
+	errmsg1= &quot;&quot;<br />
+	| 1.  tfgld1100m000 (Maintain Transactions) <br />
+	| 1.0 Input Batch data<br />
+<br />
+	stpapi.put.field(&quot;tfgld1100m000&quot;, &quot;tfgld100.year&quot;, str$(c.yyyy)) <br />
+	stpapi.put.field(&quot;tfgld1100m000&quot;, &quot;tfgld100.btno&quot;, str$(s.btno))<br />
+	rc = stpapi.find(&quot;tfgld1100m000&quot;, errmsg) <br />
+	| Start Session tfgld1101s000 ... Insert CTR transaction holder<br />
+	stpapi.handle.subproc(&quot;tfgld1100m000&quot;, &quot;tfgld1101s000&quot;, &quot;add&quot;)<br />
+	stpapi.continue.process(&quot;tfgld1100m000&quot;,errmsg)<br />
+	stpapi.put.field(&quot;tfgld1101s000&quot;, &quot;tfgld101.year&quot;, str$(c.yyyy)) <br />
+	stpapi.put.field(&quot;tfgld1101s000&quot;, &quot;tfgld101.btno&quot;, str$(s.btno))<br />
+	stpapi.put.field(&quot;tfgld1101s000&quot;, &quot;tfgld101.ttyp&quot;, &quot;ZRC&quot;)<br />
+	rc = stpapi.find(&quot;tfgld1101s000&quot;, errmsg) <br />
+	if rc&lt;&gt;1 then<br />
+		errmsg1 = &quot;9.&quot; &amp; &quot;ZRC not found&quot;<br />
+		stpapi.end.session(&quot;tfgld1101s000&quot;) <br />
+		stpapi.end.session(&quot;tfgld1100m000&quot;) 	<br />
+		return<br />
+	endif<br />
+	stpapi.handle.subproc(&quot;tfgld1101s000&quot;, &quot;tfacp1110s000&quot;, &quot;add&quot;)<br />
+	stpapi.continue.process(&quot;tfgld1101s000&quot;, errmsg)<br />
+	stpapi.save(&quot;tfacp1110s000&quot;,errmsg)<br />
+<br />
+	stpapi.handle.subproc(&quot;tfacp1110s000&quot;, &quot;tfacp1130s000&quot;, &quot;add&quot;)	<br />
+	stpapi.continue.process(&quot;tfacp1110s000&quot;, errmsg) | should start 1130 and 1131s<br />
+	stpapi.end.session(&quot;tfacp1131s000&quot;,errmsg)<br />
+	stpapi.handle.subproc(&quot;tfacp1130s000&quot;, &quot;tfacp1140s000&quot;, &quot;add&quot;)		<br />
+	stpapi.application.option( &quot;tfacp1130s000&quot;, 1, 0, errmsg )	| Approve button<br />
+	| Now 1133 is running.<br />
+	stpapi.put.field(&quot;tfacp1133s000&quot;,&quot;tfacp101.leac&quot;, &quot;CCN&quot;)<br />
+	stpapi.handle.subproc(&quot;tfacp1133s000&quot;, &quot;tpppc2811m000&quot;, &quot;add&quot;)		<br />
+	stpapi.insert(&quot;tfacp1133s000&quot;,1, errmsg)<br />
+	select	tdpur951.*, tipgc820.cspa<br />
+	from	tdpur951, tipgc820				<br />
+	where   tdpur951._index1 = {:tdudi050.orno,<br />
+				    :tdudi050.line}  and	<br />
+		tipgc820.cprj = tdpur951.cprj and		<br />
+		tipgc820.butm = tdpur951.butm and<br />
+		tipgc820.sbtm = tdpur951.sbtm and<br />
+		tipgc820.prog = tdpur951.prog and<br />
+		tipgc820.eser = tdpur951.eser and<br />
+		tipgc820.unfr &lt;= tdpur951.eseq and<br />
+		tipgc820.unto &gt;= tdpur951.eseq<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	endselect<br />
+	stpapi.put.field(&quot;tpppc2111m000&quot;,&quot;tpppc211.cprj&quot;, tdpur951.cprj)<br />
+	stpapi.put.field(&quot;tpppc2111m000&quot;,&quot;tpppc211.item&quot;, &quot;MISC MATL&quot;)<br />
+	stpapi.put.field(&quot;tpppc2111m000&quot;,&quot;tpppc211.cspa&quot;, tipgc820.cspa)<br />
+	stpapi.put.field(&quot;tpppc2111m000&quot;,&quot;tpppc211.ccco&quot;, &quot;287&quot;)<br />
+	stpapi.put.field(&quot;tpppc2111m000&quot;,&quot;reasoncode&quot;, &quot;BUY&quot;)<br />
+	stpapi.insert(&quot;tpppc2111m000&quot;,1, errmsg)<br />
+	if not isspace(errmsg) then	<br />
+		errmsg1 = &quot;9a&quot; &amp; errmsg<br />
+	endif<br />
+	baan.sess = &quot;tpppc2811m000&quot;<br />
+	export(&quot;ppid&quot;,ppid)<br />
+	export(&quot;baan.sess&quot;,baan.sess)<br />
+	rc = activate(&quot;tuddc9120m000&quot;)	<br />
+	stpapi.end.session(&quot;tpppc2811m000&quot;,errmsg)<br />
+	stpapi.end.session(&quot;tfacp1133s000&quot;,errmsg)<br />
+	stpapi.end.session(&quot;tfacp1140s000&quot;,errmsg)<br />
+	stpapi.end.session(&quot;tfacp1130s000&quot;,errmsg)<br />
+	stpapi.end.session(&quot;tfacp1110s000&quot;,errmsg)<br />
+	stpapi.end.session(&quot;tfgld1101s000&quot;,errmsg)<br />
+	stpapi.end.session(&quot;tfgld1100m000&quot;,errmsg)<br />
+	<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

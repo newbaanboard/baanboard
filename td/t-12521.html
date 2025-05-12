@@ -1,0 +1,190 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Slow report, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Slow report Tools Development" />
+	
+	<title>Slow report [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Slow report</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">karlovac</div><div class="date">7th August 2003, 14:16</div></div><div class="posttext">I need report which connects lot with materials used on project (production orders), so I have to take sam data from two tables without direct reference. Tables are tdinv700 Inventory transactions by item and tdltc102 Lot transaction for lot tracking.<br />
+<br />
+My session script looks like this and it is sooo, sooo slow:<br />
+<br />
+functions:<br />
+<br />
+function read.main.table()<br />
+{<br />
+	select	tdinv700.*, tiitm001.*, tiitm100.*, tcmcs003.*, <br />
+		tipcs020.*, tdltc102.* <br />
+	from	tdinv700, tiitm001, tiitm100, tcmcs003, tipcs020, tdltc102<br />
+	where 	tdinv700.cprj between :cprj.f and :cprj.t<br />
+	and	tdinv700.orno between :orno.f and :orno.t<br />
+	and	tdinv700.item refers to tiitm001<br />
+	and	tdinv700.cmba refers to tiitm100<br />
+	and	tdinv700.cwar refers to tcmcs003<br />
+	and	tdinv700.cprj refers to tipcs020<br />
+| dodo dudo<br />
+	and 	tdinv700.orno = tdltc102.orno<br />
+	and	tdinv700.pono = tdltc102.pono<br />
+	and 	tdinv700.trdt = tdltc102.trdt	<br />
+	order by tdinv700.cprj, tdinv700.orno, tdinv700.pono, tdinv700.item<br />
+	selectdo<br />
+	rprt_send()<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+How to make it faster in this case when there is no direct connection between tables.<br />
+<br />
+ Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">karlovac</div><div class="date">7th August 2003, 14:41</div></div><div class="posttext">Of course, I will throw out all the stars * from select which I don't need ...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rupertb</div><div class="date">7th August 2003, 15:05</div></div><div class="posttext">Firstly you are not using indices... so the result is full table scans. Change your select statement's where clause to:<br />
+<br />
+<br />
+where   tdinv700._index2 inrange {tckost.prd.mat.issue,:Orno.f}<br />
+                         and     {tckost.prd.mat.issue,:Orno.t}<br />
+and       tdinv700.cprj inrange :cprj.f and :cprj.t<br />
+ <br />
+<br />
+and then add on all your refers to clauses<br />
+<br />
+and then lets see what the result is...<br />
+<br />
+Regards,<br />
+Rupert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">karlovac</div><div class="date">7th August 2003, 15:56</div></div><div class="posttext">Thanks,<br />
+but I didn't get much with index_2 cause, my first form field (which people need as information) is Project (.cprj) which is not in index fields. (Not in index_1 too.)<br />
+<br />
+Any other suggestion?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rupertb</div><div class="date">7th August 2003, 16:18</div></div><div class="posttext">1. Solution using tdilc301<br />
+Are you logging ilc history (table tdilc301)? Find this out by looking at parameter tdilc000.logt. If it's yes then we should look at using tdilc301 as our main table.<br />
+<br />
+2. Solution using tdinv700<br />
+Also what you can do is nest the select on tdltc102. (this is a good idea as we can then see which query is taking the most time)<br />
+<br />
+ <br />
+where   tdinv700._index2 inrange {tckost.prd.mat.issue,:Orno.f}<br />
+                         and     {tckost.prd.mat.issue,:Orno.t}<br />
+and       tdinv700.cprj inrange :cprj.f and :cprj.t<br />
+and       tdinv700.item refers to tiitm001<br />
+and       tdinv700.cmba refers to tiitm100<br />
+and       tdinv700.cwar refers to tcmcs003<br />
+and       tdinv700.cprj refers to tipcs020<br />
+|order by tdinv700.cprj, tdinv700.orno, tdinv700.pono, |tdinv700.item<br />
+selectdo<br />
+             select tdltc102.*<br />
+             from   tdltc102<br />
+             where tdltc102._index5 = {tdltc.tord.prod.rm, :tdinv700.orno, :tdinv700.pono}<br />
+             and tdltc102.trdt = :tdinv700.trdt <br />
+             selectdo<br />
+                        rprt_send()<br />
+              endselect<br />
+endselect<br />
+ <br />
+<br />
+P.S. try with/without the order by - that might have an effect on the query execution and use the report input fields for sorting instead... and try compiling in debug mode and then stepping through the nested query - where is the most time spent?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th August 2003, 17:07</div></div><div class="posttext">I am including an attachment and link that might help when others run into something like this.  I am attaching the Performance Optimization guide which may help you see when queries should be broken down like Rupert suggested.  Here is a link (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=7665&amp;highlight=Performance) with another document that I just found.  hope this helps.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">karlovac</div><div class="date">8th August 2003, 10:09</div></div><div class="posttext">1. solution:<br />
+<br />
+tdilc000.logt in ILC parameter table is yes, but there is no data in table tdilc301 which  I need and get thrue &quot;slow script&quot; ?!<br />
+<br />
+<br />
+2. solution:<br />
+<br />
+Nested SQL query was something I started from ....<br />
+It was too slow so I had to kill my report after 10-15 minutes.<br />
+I'll try your code, cause there are some differences ...<br />
+<br />
+:( <br />
+I waited so long - I had to kill report again. <br />
+<br />
+I'll try to debug to see where is the catch - <br />
+Trace said that there is endless loop in nested SQL.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rupertb</div><div class="date">8th August 2003, 10:41</div></div><div class="posttext">Regarding point one of my previous post are you maybe running 'tdilc3211m000' in a job somewhere with the 'delete' option set? This would explain the empty table. We use tdilc301 exclusively for queries like yours because of the availability of all the data  from the various modules on one table.<br />
+Our philosophy is: If it moves - measure it.<br />
+Before turning it on make sure you can afford the disk space!<br />
+<br />
+P.S. what hardware are you running on?<br />
+<br />
+Regards,<br />
+Rupert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">karlovac</div><div class="date">8th August 2003, 11:28</div></div><div class="posttext">No, we don't delete archive - not in job nor directly. In table tdilc301 I have some records, but not for items that are issued on projects.<br />
+<br />
+P.S. We are on AIX RS6000 box with cluster and mirror with lots of space and much more resources  then our Bisam needs.<br />
+<br />
+Thanks a lot for all the help <br />
+;)<br />
+<br />
+Best regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">isimeon</div><div class="date">8th August 2003, 18:35</div></div><div class="posttext">Did you consider the table tdltc104? There are the project, production order and item.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">karlovac</div><div class="date">11th August 2003, 09:52</div></div><div class="posttext">But, I need Lot tracking for project.<br />
+Table tdltc104 will be just another table in query.<br />
+But, maybe you are right - if it will be my main table and if I catch lot from 102, maybe it will be faster !<br />
+<br />
+I'll try and post results.<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kamaljit</div><div class="date">11th August 2003, 11:46</div></div><div class="posttext">Try this:<br />
+1. Remove ALL refers to and use the field names<br />
+2. Nest the query related to tiitm001 and tiitm100 seperately<br />
+<br />
+Also use the PROF functionality in baan to find out which query and which table takes the maximum time.<br />
+<br />
+Hope this helps</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">karlovac</div><div class="date">11th August 2003, 13:43</div></div><div class="posttext">Sorry, <br />
+PROF functionality - what do you mean by that?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kamaljit</div><div class="date">11th August 2003, 14:50</div></div><div class="posttext">Sorry<br />
+What I mean't was as follows:<br />
+Informix/ SQL server has this variable called INFPROF/SQLPROF.<br />
+<br />
+One can set this variable for example as -- -set MSQLPROF=0.001 -keeplog -logfile &lt;name&gt; &lt;sessionname&gt;<br />
+<br />
+The above will create a log file and display all the queries being fired table wise and the time taken for the same where the query took more than 0.001 second in the above case.<br />
+<br />
+Quite a few reports have been optimised by me using this - also certain baan reports not optimised have been reported to PEG.<br />
+<br />
+Hope this will help</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

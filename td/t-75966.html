@@ -1,0 +1,180 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Public Interface Assistance, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Public Interface Assistance Tools Development" />
+	
+	<title>Public Interface Assistance [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Public Interface Assistance</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">15th September 2023, 16:32</div></div><div class="posttext">Looking for a little guidance.  I used to program in Baan, but we have moved to LNCE and during that project I had other responsibilities.  I am now getting back into the development side once again (a little rusty).  I am attempting to make a Public Interface function call using PlannedPeggingRelations.FindSupplyForOrder().  The code compiles fine.  If I run the session without debugging it completes, but no values are returned.  If I debug while running the session my entire connection to LNCE bombs out with Java errors so I'm having great difficulty tracing down what the issue is.  I expect it is my code but am not sure what is wrong.  I'm hoping someone with a little more experience may be able to be a second set of eyes.  I have hardcoded the function with values in an attempt to limit the possibility of errors.<br />
+<br />
+I've also created a debug bshell and from what I can see (not an expert) there is nothing that sticks out to indicate a problem.<br />
+<br />
+Any direction or guidance would be appreciated.  For reference the documentation for this specific public interface is attached.<br />
+<br />
+I'm expecting that the array values will be filled once the function is called.<br />
+<br />
+Here is my code:<br />
+<br />
+function get.pegged.order()<br />
+{<br />
+	#pragma used dll &quot;ocpextrrpapi&quot;<br />
+	#pragma used dll otcextextapi<br />
+	<br />
+	domain 	cpcom.plnc	iPlanningScenario<br />
+	domain 	tckoor		iOrderType<br />
+	domain	c****o		iOrderNumber<br />
+	domain	tcpono		iOrderLine<br />
+	domain	tcpono		iSequence<br />
+	domain	tcpono		iMaterialPosition<br />
+	domain	tccom.long	oParentTransactionArray(100)<br />
+	domain	tcncmp		oParentCompanyArray(100)<br />
+	domain	cpcom.plnc	oParentScenarioArray(100) fixed	<br />
+	domain	tccom.long	oChildTransactionArray(100)<br />
+	domain	tcncmp		oChildCompanyArray(100)<br />
+	domain	cpcom.plnc	oChildScenarioArray(100) fixed<br />
+	domain	tcmcs.s999m	oExceptionMessage mb<br />
+		long		oExceptionID<br />
+	<br />
+	iPlanningScenario = &quot;ACT&quot;<br />
+	iOrderType = tckoor.act.sls<br />
+	iOrderNumber = 	&quot;SL0012216&quot;	|	r.orno<br />
+	iOrderLine = 	10		|	r.pono<br />
+	iSequence = 	0		|	r.sqnb<br />
+	iMaterialPosition = 0<br />
+		<br />
+	if PlannedPeggingRelations.FindSupplyForOrder(<br />
+		iPlanningScenario, <br />
+		iOrderType,	<br />
+		iOrderNumber,<br />
+		iOrderLine,<br />
+		ISequence,<br />
+		iMaterialPosition,<br />
+		oParentTransactionArray,<br />
+		oParentCompanyArray,<br />
+		oParentScenarioArray,<br />
+		oChildTransactionArray,<br />
+		oChildCompanyArray,<br />
+		oChildScenarioArray,<br />
+		oExceptionMessage,<br />
+		oExceptionID) &lt;&gt; 0 then<br />
+		<br />
+		Exception.Delete(oExceptionID)<br />
+		message(oExceptionMessage)<br />
+	else<br />
+		message(&quot;TEST&quot;)<br />
+	endif	<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">15th September 2023, 17:43</div></div><div class="posttext">Just a note the domain for iOrderNumber is being replaced by *** I'm guessing due to some sort of censoring.  The domain is c/p/o/r/n/o.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">15th September 2023, 21:18</div></div><div class="posttext">May be you can post the debug bshell log. <br />
+should you be using a based output variables ?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RieseUSA</div><div class="date">16th September 2023, 03:45</div></div><div class="posttext">As Vamsi pointed out, the problem is possibly that you are not using 'based' variables for the array as documented in the Public Interface guide:<br />
+&quot;...<br />
+technical: Output arrays must be defined as based arrays.<br />
+...&quot;<br />
+<br />
+The logic of the PlannedPeggingRelations.FindSupplyForOrder() function will try to allocate memory to those arguments, but if they are not 'based', it will not work.<br />
+<br />
+I believe that it needs to be like this:<br />
+	domain tccom.long oParentTransactionArray(1)	based<br />
+	domain tcncmp oParentCompanyArray(1)		based<br />
+	domain cpcom.plnc oParentScenarioArray(1)	based<br />
+	domain tccom.long oChildTransactionArray(1)	based<br />
+	domain tcncmp oChildCompanyArray(1)		based<br />
+	domain cpcom.plnc oChildScenarioArray(1)	based<br />
+<br />
+Another remark, public interface functions can return several messages.  Your logic would currently only return the last one, which might not provide the key information to an error.<br />
+<br />
+Sample Public Interface call:<br />
+ #pragma used dll &quot;otcextextapi&quot;<br />
+ #pragma used dll &quot;otcextemmapi&quot;<br />
+ long exception.id, i<br />
+ domain tcmcs.s999m exception.message<br />
+ if Common.ConvertAmount(..., exception.message, exception.id) &lt;&gt; 0 then<br />
+ |* Exception(s) found.<br />
+ for i = 1 to Exception.NumberOfMessages(exception.id)<br />
+ dal.set.error.message(&quot;@&quot;&amp; Exception.GetMessage(i))<br />
+ endfor<br />
+ Exception.Delete(exception.id)<br />
+ return(DALHOOKERROR)<br />
+ else<br />
+ |* Call was successful. Exception messages could exist!<br />
+ Exception.Delete(exception.id)<br />
+ endif<br />
+<br />
+We are unfortunately not using the cp functionality and I cannot test this Public Interface myself.<br />
+<br />
+Yours,<br />
+Stephan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">19th September 2023, 11:30</div></div><div class="posttext">Apart from the based variables (which makes sense) which you can allocate before your public interface call, like so (do not forget the release.mem afterwards)    |discount matrices allocation<br />
+    alloc.mem(ps.Rate, 3)<br />
+    alloc.mem(ps.RateFactor, 3)<br />
+    alloc.mem(ps.DiscountMatrixType, 11)<br />
+    alloc.mem(ps.DiscountOrigin, 11)<br />
+    alloc.mem(ps.DiscountMatrixDefinition, 9, 11)<br />
+    alloc.mem(ps.DiscountMatrixSequence, 11)<br />
+    alloc.mem(ps.DiscountPercentage, 11)<br />
+    alloc.mem(ps.DiscountAmount, 11)<br />
+    alloc.mem(ps.DiscountCode, 3, 11)<br />
+    alloc.mem(ps.DiscountMethod, 11)<br />
+    alloc.mem(ps.DiscountSchedule, 9, 11)NOTE: These are public arguments for the PriceSimulator Public Interface Function, you can derive dimensions you need from your function description (argument list).<br />
+I found something strange with this construction:<br />
+From the extension of the pricebook table (tdpcg031) via an &quot;ITEM-BOD&quot; call the public interface of the pricesimulator (Pricing.SimulateSalesPrice) is called. But this call changed the current actual record of the pricebook table, so after the ITEM-BOD was called it continued with a wrong record causing all kind of strange errors.<br />
+<br />
+I was able to resolve that by using this construction:    if in.focus.pricebook() and<br />
+       (mode=DAL_NEW or some.change()) then<br />
+        if rdi.table(&quot;tdpcg031&quot;,duml,duml,len.ttdalt031,len.ttdalt031.real)=0 then<br />
+                alloc.mem(rcd.ttdalt031, len.ttdalt031)<br />
+                tbl.ttdalt031 = db.bind(&quot;ttdpcg031&quot;, rcd.ttdalt031)<br />
+                rcd.ttdalt031 = rcd.ttdpcg031<br />
+        ret.val=tcint.dlltcbod.publish.item.master.common.replace(tdpcg031.item)<br />
+                db.record.to.columns(tbl.ttdalt031)<br />
+                db.unbind(tbl.ttdalt031)<br />
+                free.mem(rcd.ttdalt031)<br />
+        endif<br />
+    endif<br />
+In plain text: copy the recordbuffer of the current record into a buffer and restore the record state based on this flash copy to the previous state afterwards. Now the public interface can mess up record pointer but we will continue where we were as if no messing around happened.<br />
+<br />
+So: see if your record state of the current record remains unchanged after calling the public interface. If it changes, it may also yield unpredictable results.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">19th September 2023, 12:13</div></div><div class="posttext">... Now the public interface can mess up record pointer but we will continue where we were as if no messing around happened.Where my doubt still is: what about the &quot;state&quot; of the record in terms of STP. The exact data content is restored but what about an update flag or retry variables around this record? &quot;you can reconstruct, but you cannot turn back time&quot;</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">21st September 2023, 23:11</div></div><div class="posttext">I apologize for the late response; I've been pulled in many different directions this week.<br />
+<br />
+This is a wealth of information!  I appreciate this very much!  I will review this over the next few days and let you know how it goes.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">23rd September 2023, 22:18</div></div><div class="posttext">I apologize for the late response; I've been pulled in many different directions this week.<br />
+<br />
+This is a wealth of information!  I appreciate this very much!  I will review this over the next few days and let you know how it goes.Probably defining the argument list (and reading the error messages stack as mentioned by others) will help you to get things running. My addition was a side track that I wanted to have documented here as well, because it took some time to figure out the reason and &quot;solution&quot; (sooner: work around).</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Eddie Monster</div><div class="date">4th October 2023, 13:58</div></div><div class="posttext">Just wanted to provide a quick update.  Your suggestions for the 'based' variables fixed the majority of my issues.  So far, the rest of the issues I've encountered are simply related to my being 'rusty' on Baan/LN development.  So a big Thank You for your help.<br />
+<br />
+One clarification I do have... would the error handling be a little different when using extensibiltiy vs. LN Studio?  My understanding is that the DAL related syntax would be used in conjunction with extensions.  For this session I'm using LN studio.  Would the error handling change with this session?</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

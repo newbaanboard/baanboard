@@ -1,0 +1,321 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Login and Password Control - 3gl Solution, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Login and Password Control - 3gl Solution Code &amp; Utilities" />
+	
+	<title>Login and Password Control - 3gl Solution [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Code &amp; Utilities</a> &gt; Login and Password Control - 3gl Solution</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ahulikavi</div><div class="date">24th February 2005, 07:51</div></div><div class="posttext">Hi,<br />
+<br />
+Have developed a 3gl solution for password ageing and controlling no of logins.<br />
+<br />
+Purpose : <br />
+1. Enforce Password change after policy number of days (30 in our case)<br />
+2. Restrict multiple logins as per policy<br />
+3. Quickly list out logged in users in client instead of using licmon etc<br />
+<br />
+Method :<br />
+1. create 2 tables one for password policy and max logins allowed per user and another to store current logins<br />
+2. create 3 gl session and add it in BMS as startup boot session.<br />
+3. Session check user status as per password policy and max logins allowed and takes neccessary action i.e. allow/dissallow login, force password change.<br />
+<br />
+We use it on IVc4 with BW / Worktop on Sun Solaris 2.6.  You may need to change certain OS specific commands for this to work at your end.<br />
+<br />
+<br />
+Now for the code ...Hope this helps, let me know any suggestions for improvement <br />
+<br />
+<br />
+||******************************************************************************<br />
+|* tdtcdmsg	: VRC B40C Live		<br />
+|* Title	: Login and Password Control<br />
+|* Author	: Akshay Hulikavi<br />
+|* Date		: 2004-02-09 [09:17]<br />
+|******************************************************************************<br />
+|* License	:<br />
+|* Copyright 2004 by Akshay Hulikavi<br />
+|* <br />
+|* All Rights Reserved <br />
+|* <br />
+|* Permission to use, copy, modify, and distribute this software and its<br />
+|* documentation for any purpose and without fee is hereby granted,<br />
+|* provided that the above copyright notice appear in all copies and that<br />
+|* both that copyright notice and this permission notice appear in<br />
+|* supporting documentation. <br />
+|* <br />
+|* Akshay Hulikavi DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS<br />
+|* SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY<br />
+|* AND FITNESS, IN NO EVENT SHALL Vamsi Potluru BE LIABLE FOR ANY<br />
+|* SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES <br />
+|* WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, <br />
+|* WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER <br />
+|* TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE<br />
+|* OR PERFORMANCE OF THIS SOFTWARE.<br />
+|******************************************************************************<br />
+	<br />
+	table	ttdtcd991	| User login info<br />
+	table	ttdtcd990	| Current logins<br />
+<br />
+	string 			date.str(10), bucket(50), progname(512)<br />
+	long     		procid, proclist(100), i, j, user.bshell.pid, ret, no.of.logins<br />
+	long     		info(PSMAXSIZE)<br />
+<br />
+<br />
+function main()<br />
+{<br />
+if logname$ &lt;&gt; &quot;root&quot; or logname$ &lt;&gt; &quot;smis1&quot; then  | Not for super user<br />
+user.bshell.pid = bshell.pid()<br />
+remove.user.from.990.if.disconnected()<br />
+<br />
+db.retry.point() <br />
+	no.of.logins = 0 <br />
+	<br />
+	select tdtcd991.*<br />
+	from tdtcd991 for update<br />
+	where tdtcd991._compnr = 010	| Only applicable for live company<br />
+	and user = :logname$<br />
+	selectdo<br />
+		select count(tdtcd990.user):no.of.logins<br />
+		from	tdtcd990<br />
+		where	tdtcd990.user = :logname$<br />
+		selectdo			<br />
+		endselect<br />
+		if no.of.logins &gt;= tdtcd991.maxl then	| logins exceed maximum allowed for user ?<br />
+			kill.and.exit()<br />
+			exit(0)<br />
+		else<br />
+			tdtcd990.pid = user.bshell.pid<br />
+			tdtcd990.user = logname$<br />
+			tdtcd990.serv = hostname$()<br />
+			tdtcd990.date = sprintf$(&quot;%D(%02d/%02m/%04Y)&quot;, date.num())<br />
+			tdtcd990.comp = get.compnr()<br />
+			db.insert(ttdtcd990, db.retry)		<br />
+		endif	<br />
+		<br />
+		date.str = sprintf$(&quot;%D(%02d/%02m/%04Y)&quot;, tdtcd991.lldt)<br />
+		<br />
+		| tdtcd991.npwc = tdtcd991.lpwc + 30  | Add next pwc date<br />
+		message( &quot;Welcome &quot;&amp;logname$&amp;&quot;, This is your login no &quot;&amp;str$(no.of.logins + 1)&amp;&quot; you are allowed max &quot;&amp;str$(tdtcd991.maxl)&amp;&quot; logins&quot;)<br />
+		<br />
+		if date.num() &gt;= tdtcd991.npwc then    			|time to Change password<br />
+			ret = shell( &quot;passwd&quot;,SHELL_CONFIRM)<br />
+			if ret = 0 then					|Password successfully changed<br />
+				tdtcd991.lpwc = date.num()		|Capture password change date<br />
+				tdtcd991.npwc = tdtcd991.lpwc + 30  	|Next change on<br />
+			endif	<br />
+		endif	<br />
+		tdtcd991.lldt = date.num()				| Last Login date<br />
+		tdtcd991.lltm = time.num()				| Last login Time<br />
+		tdtcd991.nolg = tdtcd991.nolg + 1			| Number of logins till date<br />
+		db.update(ttdtcd991, db.retry)		<br />
+	selectempty<br />
+		message( &quot;Welcome &quot;&amp;logname$&amp;&quot;, This is your login no &quot;&amp;str$(no.of.logins + 1)&amp;&quot; you are allowed max &quot;&amp;str$(tdtcd991.maxl)&amp;&quot; logins&quot;)<br />
+		tdtcd991.user = logname$<br />
+		tdtcd991.lpwc = date.num()		| Assume today as lastpw change if first time login		<br />
+		tdtcd991.npwc = tdtcd991.lpwc + 30  	| Add next pwc date<br />
+		tdtcd991.lldt = date.num()		| Last Login Date<br />
+		tdtcd991.lltm = time.num()      	| Last Login Time<br />
+		tdtcd991.nolg = tdtcd991.nolg + 1	| no of logins till date<br />
+		tdtcd991.maxl = 1			| Default Only 1 login allowed<br />
+		db.insert(ttdtcd991, db.retry)			<br />
+	endselect<br />
+commit.transaction()<br />
+<br />
+<br />
+<br />
+ bms.add.mask(&quot;bms.shutdown&quot;)	| to detect the shutdown event which is sent by the system<br />
+ while true<br />
+	bucket = bms.receive$()<br />
+	if bucket = &quot;bms.shutdown&quot; then<br />
+		remove.user.from.990()<br />
+		exit(0)	<br />
+	endif<br />
+ endwhile	<br />
+<br />
+endif<br />
+}<br />
+<br />
+function remove.user.from.990()<br />
+{<br />
+	select  tdtcd990.*<br />
+	from	tdtcd990 for update<br />
+	where	tdtcd990.user = :logname$<br />
+	and	tdtcd990.pid  = :user.bshell.pid<br />
+	selectdo			<br />
+		db.delete(ttdtcd990, db.retry)<br />
+	endselect<br />
+commit.transaction()<br />
+}<br />
+<br />
+function kill.and.exit()<br />
+{<br />
+i = 1<br />
+procid = -1<br />
+procid = pstat(procid, progname, info )<br />
+<br />
+	while procid &gt; 0<br />
+		proclist(i) = procid<br />
+		i = i + 1<br />
+		procid = pstat( procid, progname, info )<br />
+	endwhile<br />
+	<br />
+	for j = i to 1 step -1<br />
+		if proclist(j) &lt;&gt; pid then	| Keep current process active so that we can remove everything and then<br />
+			kill(proclist(j)) 	| display message<br />
+		endif	<br />
+	endfor<br />
+	<br />
+	message( &quot; *** LOGIN DISSALLOWED : &quot;&amp;logname$&amp;&quot;, you have already logged in &quot;&amp;str$(no.of.logins)&amp;&quot; times, you are allowed max &quot;&amp;str$(tdtcd991.maxl)&amp;&quot; logins&quot;)<br />
+	kill(pid)<br />
+}<br />
+<br />
+function remove.user.from.990.if.disconnected()<br />
+{<br />
+	select  tdtcd990.*<br />
+	from	tdtcd990 for update<br />
+	where	tdtcd990.user = :logname$<br />
+	selectdo			<br />
+		ret = shell( &quot;ps -p &quot;&amp;str$(tdtcd990.pid),SHELL_NO_OUTPUT)	| Check if process active at OS level<br />
+		if ret &lt;&gt; 0 then		| Process does not exist at OS Level, probably killed or disconnected<br />
+			db.delete(ttdtcd990, db.retry)	| Delete from ligins table if bshell pid not found<br />
+		endif	<br />
+	endselect<br />
+commit.transaction()<br />
+}<br />
+<br />
+<br />
+ <br />
+<br />
+Note : When you need a situation when no one should log into baan just change tdtcd991.maxl field to 0 for all users except yourself ;-), this will not allow anybody else to login.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manojsharma</div><div class="date">24th February 2005, 08:36</div></div><div class="posttext">seems good. Please paste the structure of tables also</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">24th February 2005, 20:22</div></div><div class="posttext">Akshay,<br />
+<br />
+There is a small bug in the program -<br />
+<br />
+ret = shell( &quot;passwd&quot;,SHELL_CONFIRM)<br />
+if ret = 0 then					|Password successfully changed<br />
+	tdtcd991.lpwc = date.num()		|Capture password change date<br />
+	tdtcd991.npwc = tdtcd991.lpwc + 30  	|Next change on<br />
+endif	<br />
+<br />
+The shell() takes me to change password and I press Control-C to abort/cancel the password change process and I get a return value of 0 and the table is updated that I have changed the password.<br />
+I think Dave's program looks at the Unix System's Last Password change info.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ahulikavi</div><div class="date">25th February 2005, 11:57</div></div><div class="posttext">Thanks Prashant,<br />
+<br />
+Point taken, incidently we have also set pw policy at OS, so if user does not change passwords, then login is dissallowed by OS itself.<br />
+<br />
+Another point is setting of resource variable ds_timeout_detect, if this is not set then bshell process stays active at OS in case of connection loss, say due to lan/wan link failure.  <br />
+<br />
+In such case till the bshell process is terminated - determined by ds_timeout_detect ( default 30 mins) above 3GL will find user already logged in and not allow further logins.<br />
+<br />
+In our case we have set ds_timeout_detect to 1 minute to handle this.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">veyant</div><div class="date">6th August 2005, 13:52</div></div><div class="posttext">Hi, <br />
+<br />
+As per you <br />
+<br />
+create 3 gl session and add it in BMS as startup boot session.<br />
+<br />
+what do you mean by BMS startup boot session. are you refering to bms_mask file in $BSE/lib.<br />
+<br />
+what entry whould be made to fulfill the requested activity of adding it in BMS startup Boot.<br />
+<br />
+thanks<br />
+Sandeep</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manojsharma</div><div class="date">8th August 2005, 08:08</div></div><div class="posttext">Hi Sandeep,<br />
+<br />
+BMS marks are used while sending bucket messages. If a process sends a bucket message (to all processes within the same bshell) with the given mask and no processes have this mask on. the specified session or object will be started.<br />
+<br />
+Use session no.ttadv4188m000 (Main BMS Mask Data). <br />
+<br />
+<br />
+To activate the changes, use the &quot;continue&quot; option to convert the data to runtime. The information will be stored in the file &quot;$BSE/lib/bms_mask&quot;.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ganesh_kapase</div><div class="date">29th October 2005, 01:45</div></div><div class="posttext">Hi Manoj<br />
+<br />
+You mean to say by adding the above session developed by Mr.Akshay in the ttadv4188m000 it will start working immediately all the functions used in the session.<br />
+<br />
+If I am wrong please correct me.<br />
+<br />
+<br />
+Ganesh</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">manojsharma</div><div class="date">29th October 2005, 09:17</div></div><div class="posttext">Yes Ganesh, The program will activate automatically when a user logged in.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">k_d_mahajan</div><div class="date">12th March 2008, 06:47</div></div><div class="posttext">Hello Akshay,<br />
+Its really a nice 3GL you have developed.<br />
+Can you give me details of Table definations <br />
+1) ttdtcd991	| User login info &amp;<br />
+2) ttdtcd990	| Current logins</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baan_tools_IV</div><div class="date">3rd April 2008, 14:48</div></div><div class="posttext">Hello Akshay,<br />
+<br />
+can please post the table structure:<br />
+1) ttdtcd991 | User login info &amp;<br />
+2) ttdtcd990 | Current logins<br />
+<br />
+<br />
+Baan_tools_IV<br />
+sandara@rediffmail.com</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">simplerosy</div><div class="date">24th June 2008, 09:52</div></div><div class="posttext">Hi,<br />
+Can you send me updated script and Table Definations please.<br />
+-Rosy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jbaanm</div><div class="date">17th July 2008, 00:39</div></div><div class="posttext">My script failing with some error<br />
+If I debug, its getting stuck at<br />
+ bms.add.mask(&quot;bms.shutdown&quot;)	| to detect the shutdown event which is sent by the system<br />
+ while true<br />
+	bucket = bms.receive$()<br />
+	if bucket = &quot;bms.shutdown&quot; then<br />
+		remove.user.from.990()<br />
+		exit(0)	<br />
+	endif<br />
+ endwhile	<br />
+<br />
+<br />
+Is there any other way you can run a session like this immediately after login</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jbaanm</div><div class="date">6th January 2009, 02:57</div></div><div class="posttext">The following script part is running in the background till the user is logged out. That is taking lots of CPU time and slowing the down the server.<br />
+Whats the alternative to this? This part is need only to delete a entry after logout.<br />
+<br />
+ bms.add.mask(&quot;bms.shutdown&quot;)	| to detect the shutdown event which is sent by the system<br />
+ while true<br />
+	bucket = bms.receive$()<br />
+	if bucket = &quot;bms.shutdown&quot; then<br />
+		remove.user.from.990()<br />
+		exit(0)	<br />
+	endif<br />
+ endwhile</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

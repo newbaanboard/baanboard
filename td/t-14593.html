@@ -1,0 +1,137 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Performance dedgradation reading many files, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Performance dedgradation reading many files Tools Development" />
+	
+	<title>Performance dedgradation reading many files [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Performance dedgradation reading many files</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Thomasm</div><div class="date">25th February 2004, 21:14</div></div><div class="posttext">I am developing an integration to a 3:rd party system that requires data communication via XML files. For the purpose I have developed a simple XML parser that works ver nicely, but when going into system testing I am getting problems.<br />
+<br />
+The communication between the systems is quite heavy with _many_ files in short time. 2000 files at the same time will be a real world scenario. The problem is that the performance degrades by each file read and you can notice a difference already after 50 files. We are talking about hours or processing before 2000 files are processed. The first file is only a few seconds but the performance curve is steep.<br />
+<br />
+I am closing the file after it is processed, so that would not be the issue? I have been looking for functions to purge memory or something, but I have not found anything.<br />
+<br />
+Greatful for any help<br />
+ -- Thomas Martensson</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th February 2004, 23:24</div></div><div class="posttext">Are you talking system performance or session performance?  From reading this post it looks like this session is consuming all available CPU.  Is that correct?  If so maybe just building in a slight delay in the session would allow other things into the CPU.  Sigh if only you could setup scheduling like the old HP3000 MPEX boxes.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">25th February 2004, 23:50</div></div><div class="posttext">Also, what are you doing with the data?  I only ask because of your other AFS post - are you calling the AFS code for each record of the 2000 you are wanting to read at any given time?  That's a big slow down...<br />
+Maybe post the code so we can get a better idea of the problem...(can change names to protect the innocent or leave out parts that do not apply to the problem)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Thomasm</div><div class="date">26th February 2004, 00:18</div></div><div class="posttext">Hi!<br />
+<br />
+Thanks for your replies. <br />
+<br />
+The performance is the session only. OK, I have not been monitoring the system while running the session but I am sure other users would have reacted. Also, the 2 post are not related, so this is not an afs issue.<br />
+<br />
+What the session does is basically open a directory and for each of the files with a matching name: open the file, read it line by line into a string, parse this string for data (it is XML) and store this data on local variables until 1 complete record have been picked up. for each record picked up insert that into the database and go read the next record. When the whole file is read then close it, move it to the 'processed' directory and open the next one and go on until all files are read.<br />
+<br />
+Here is the code that is doing the low level file handling. I have cut it short where it starts the actual parsing as it does not add any information to the problem, I think.<br />
+<br />
+(Sorry, not sure how to format the code)<br />
+<br />
+Function init.file.opening()<br />
+{<br />
+	cur.elem = &quot;&quot; | init<br />
+	prev.elem = &quot;&quot; | init<br />
+	_xml.buffer = &quot;&quot;<br />
+	_cur.pos = 0<br />
+	_EOF = false<br />
+}<br />
+<br />
+<br />
+|* Check return for errors<br />
+Function long open.import.file( string _import.file(1024) )<br />
+{<br />
+	init.file.opening()<br />
+	_import.file.pointer = seq.open( strip$(shiftl$(_import.file)), &quot;rt&quot;)            <br />
+	return( _import.file.pointer )	<br />
+}<br />
+<br />
+|* Check return for errors<br />
+Function long close.import.file()<br />
+{<br />
+	_seq.OK = seq.close( _import.file.pointer )<br />
+	<br />
+| should move the file to the history directory	<br />
+	<br />
+	return( _seq.OK = 0 )	<br />
+}<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+| After opening the file this is the entry point to read it.<br />
+function long nextElement()<br />
+{<br />
+	long res<br />
+	long start.pos, end.pos, full.end.pos, start.end.tag.pos, comment.start.pos, spec.start.pos<br />
+	long space.pos<br />
+	long next.start.pos<br />
+	<br />
+	res = true<br />
+	<br />
+	| Read more into the buffer if there is room<br />
+	while ( (len(_xml.buffer) - _cur.pos) &lt; _READ.SIZE ) and not _EOF<br />
+		| move the buffer<br />
+		_xml.buffer = _xml.buffer( (_cur.pos+1); len(_xml.buffer)-_cur.pos)<br />
+		_cur.pos = 0 | reset<br />
+			res = readNextLine()<br />
+	endwhile<br />
+<br />
+      | Now do the parsing...<br />
+}<br />
+<br />
+<br />
+function long readNextLine()<br />
+{<br />
+	string local.buffer(_READ.SIZE)<br />
+	<br />
+	local.buffer = &quot;&quot;<br />
+	<br />
+	_seq.OK = seq.gets( local.buffer, _READ.SIZE, _import.file.pointer, GETS_ALL_CHARS ) <br />
+	<br />
+	if ( _seq.OK &lt;&gt; 0 and _EOF ) then<br />
+		| reading again while we have reached EOF<br />
+		set.error(&quot;The XML Parser function readNextLine() was called after reaching EOF&quot;)<br />
+		return(false)<br />
+	endif<br />
+	<br />
+	if ( _seq.OK &lt;&gt; 0 ) then<br />
+		_EOF = true<br />
+	endif<br />
+	<br />
+	_xml.buffer = _xml.buffer &amp; &quot; &quot; &amp; strip$(shiftl$(whiteSpaceToSpace(local.buffer)))<br />
+	<br />
+	return(true) | OK if we are here<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">29th February 2004, 21:03</div></div><div class="posttext">Where at in the code do you notice degradation?  In the reading or the parsing?  Maybe if you attach all the code someone may see something.  Is part of the parsing running an API function server?  If so then that could be part of the problem.  Sometimes I think function servers leave things hanging for the parent process.<br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

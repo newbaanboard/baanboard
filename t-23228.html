@@ -1,0 +1,363 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Entries in multi occurance session through AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Entries in multi occurance session through AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>Entries in multi occurance session through AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Entries in multi occurance session through AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jatin_sanghi</div><div class="date">19th February 2005, 16:41</div></div><div class="posttext">Hi All,<br />
+<br />
+is it possible to have multiple entries in a multi occurance form through AFS.<br />
+<br />
+for example....i have to make an AFS script for warehouse adjustmants through &quot;tdilc1120m000&quot;, here for -ve value of quantity, i have to search through lots for session tdilc1121s000.<br />
+<br />
+Now the problem i'am facing is it enters one lot value and carries out the calculation, but the next lot is not picked if required.<br />
+<br />
+please let me know..if it is possible....and please give me some clues..regarding that..<br />
+<br />
+regards,<br />
+Jatin..</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th February 2005, 02:08</div></div><div class="posttext">I have never tried multiple lots for an adjustment.  It should work - post your code and maybe someone will see something you can try.  Usually I just limit my adjustment to one lot at a time, but I see no reason you could not insert two lots and then process both.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gettoritesh</div><div class="date">20th February 2005, 14:41</div></div><div class="posttext">Hi..<br />
+<br />
+Thanx Mark for ur reply..<br />
+<br />
+I'am attaching myscript ..actually i got this script from Baanboard only..<br />
+<br />
+Plz..if anybody has some idea regarding this plz..let me know..<br />
+<br />
+Jatin<br />
+<br />
+<br />
+	string				error.msg1(100), error.msg2(100), err.msg(100), error.msg<br />
+	extern  domain  tcdate          curr.dt<br />
+	long    			ret, a, strlen<br />
+	extern  domain  tcqiv1		stoc, stoc.diff<br />
+	extern	domain	tcmcs.long	stockpoints, cur.stock.point, no.of.inserts, neg.corr,pos.corr<br />
+	extern	domain	tcqiv1		cum.stock, corrected.stock<br />
+	extern	domain	tcqiv1		strs(1000),stks(1000)<br />
+	extern	domain	tdltc.clot	clot(1000)<br />
+	extern	domain	tcdate		date(1000),sdat(15),idat, first.date.allowed<br />
+	extern	domain	tccuni		stun(1000)<br />
+<br />
+|****************************** form section **********************************<br />
+|form.1:<br />
+|init.form:<br />
+|	get.screen.defaults()<br />
+<br />
+|****************************** choice section ********************************<br />
+<br />
+choice.cont.process:<br />
+on.choice:<br />
+	read.main.table()<br />
+<br />
+|****************************** field section *********************************<br />
+|****************************** function section ******************************<br />
+<br />
+<br />
+<br />
+functions:<br />
+function read.main.table()<br />
+{<br />
+	db.clear.table(ttdjub930)<br />
+	curr.dt = date.num()<br />
+	mfile = &quot;c:\stockdata\&quot;&amp;file.f<br />
+	ret = client2server(mfile, &quot;d:\tools\stock&quot;&amp;file.f , 1)<br />
+ 	a = seq.open(&quot;d:\tools\stock&quot;&amp;file.f,&quot;r+&quot;)<br />
+	<br />
+	select tdjub929.*<br />
+	from tdjub929<br />
+	where tdjub929.file.f = :file.f<br />
+	selectdo<br />
+	endselect<br />
+	<br />
+	if a &gt;= 1 then<br />
+		seq.gets(data.str,2000,a)<br />
+		insert.table()<br />
+		while not seq.eof(a)<br />
+			seq.gets(data.str,2000,a)<br />
+			strlen = len(data.str)<br />
+			insert.table()<br />
+		endwhile<br />
+	endif<br />
+<br />
+	seq.close(a)<br />
+<br />
+	select tdjub930.*<br />
+	from tdjub930<br />
+	where tdjub930._index1 = {:file.f, :curr.dt}<br />
+	and   tdjub930.user   = :logname$<br />
+	selectdo<br />
+	<br />
+		select tdinv001.stoc<br />
+		from tdinv001<br />
+		where tdinv001._index1 = {:tdjub930.cwar, :tdjub930.item}<br />
+		as set with 1 rows<br />
+		selectdo<br />
+			stoc.diff = tdjub930.stoc - tdinv001.stoc<br />
+		endselect<br />
+		<br />
+		select ticpr300.*<br />
+		from ticpr300<br />
+		where ticpr300._index1 inrange {:tdjub930.item, &quot;&quot;, 0} and {:tdjub930.item, &quot;ZZZ&quot;, :tdjub930.date}<br />
+		as set with 1 rows<br />
+		selectdo<br />
+			if stoc.diff &lt;&gt; 0 then	<br />
+				insert.stoc.corr()	<br />
+			endif<br />
+		endselect<br />
+	endselect<br />
+<br />
+}<br />
+<br />
+function insert.table()<br />
+{<br />
+	if not isspace (data.str(1;17)) then<br />
+		tdjub930.file.f = file.f<br />
+		tdjub930.date = curr.dt<br />
+		tdjub930.item = data.str(2;17)<br />
+		tdjub930.cwar = tdjub929.cwar<br />
+		tdjub930.grno = tdjub929.grno<br />
+		tdjub930.user = logname$<br />
+		mstoc = data.str(23;41)<br />
+		tdjub930.stoc = val(mstoc)<br />
+		<br />
+		db.insert(ttdjub930, db.retry, db.skip.dupl)<br />
+		commit.transaction()<br />
+	endif <br />
+}<br />
+<br />
+<br />
+function	insert.stoc.corr()<br />
+{<br />
+	if insert.warehouse.header() then<br />
+		if insert.lines.corr() then<br />
+			stpapi.end.session(&quot;tdilc1121s000&quot;)<br />
+		else<br />
+			stpapi.end.session(&quot;tdilc1121s000&quot;)<br />
+			delete.header.corr() <br />
+		endif<br />
+	endif<br />
+<br />
+	stpapi.end.session(&quot;tdilc1120m000&quot;)<br />
+}<br />
+<br />
+<br />
+function domain	tcmcs.long 	insert.warehouse.header()<br />
+{<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.cprj&quot;, &quot;      &quot;)<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.item&quot;, tdjub930.item)<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.cntr&quot;, &quot;   &quot;)<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.cwar&quot;, tdjub930.cwar)<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.idat&quot;, str$(curr.dt))<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.kowt&quot;, str$(etol(tckowt.stc.correction)))<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.recd&quot;, &quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.comp&quot;, &quot;999&quot;)<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.odat&quot;, str$(tdjub930.date))<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.pdat&quot;, str$(tdjub930.date))<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.trdt&quot;, str$(tdjub930.date))<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;, &quot;tdinv100.pqan&quot;, str$(stoc.diff))<br />
+<br />
+	ret = stpapi.insert(&quot;tdilc1120m000&quot;,true,error.msg)<br />
+	if not ret then<br />
+		stpapi.recover(&quot;tdilc1120m000&quot;,error.msg)<br />
+	else<br />
+		stpapi.get.field(&quot;tdilc1120m000&quot;,&quot;tdinv100.wrho&quot;,morno)<br />
+	endif<br />
+|	stpapi.end.session(&quot;tdilc1120m000&quot;)<br />
+		<br />
+	return(ret)<br />
+<br />
+}<br />
+<br />
+<br />
+<br />
+function	domain	tcmcs.long	delete.header.corr()<br />
+{<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;,&quot;tdinv100.wrho&quot;,morno)<br />
+	stpapi.find(&quot;tdilc1120m000&quot;,err.msg)<br />
+	ret = stpapi.delete(&quot;tdilc1120m000&quot;,true, error.msg)<br />
+	if not ret then<br />
+		stpapi.recover(&quot;tdilc1120m000&quot;,error.msg)<br />
+	endif<br />
+	return(ret)<br />
+}<br />
+<br />
+<br />
+<br />
+function domain	tcmcs.long	insert.lines.corr()<br />
+{<br />
+	no.of.inserts = 0<br />
+	corrected.stock = 0<br />
+	stpapi.put.field(&quot;tdilc1120m000&quot;,&quot;tdinv100.wrho&quot;,morno)<br />
+	stpapi.find(&quot;tdilc1120m000&quot;,error.msg1)<br />
+	stpapi.handle.subproc(&quot;tdilc1120m000&quot;,&quot;tdilc1121s000&quot;,&quot;add&quot;)<br />
+	stpapi.continue.process(&quot;tdilc1120m000&quot;,error.msg2)<br />
+	if not isspace(error.msg1) or not isspace(error.msg2) then<br />
+		return(false)<br />
+	endif<br />
+	if stoc.diff &lt; 0 then<br />
+		count.stock.points(abs(stoc.diff))<br />
+		no.of.inserts = 0<br />
+		for cur.stock.point = 1 to stockpoints<br />
+|			stpapi.put.field(&quot;tdilc1120m000&quot;,&quot;tdinv100.wrho&quot;,morno)<br />
+|			stpapi.find(&quot;tdilc1120m000&quot;,error.msg1)<br />
+|			stpapi.handle.subproc(&quot;tdilc1120m000&quot;,&quot;tdilc1121s000&quot;,&quot;add&quot;)<br />
+|			stpapi.continue.process(&quot;tdilc1120m000&quot;,error.msg2)<br />
+|			if not isspace(error.msg1) or not isspace(error.msg2) then<br />
+|				return(false)<br />
+|			endif<br />
+			stpapi.put.field(&quot;tdilc1121s000&quot;,&quot;tdilc102.date&quot;,str$(date(cur.stock.point)))<br />
+			stpapi.put.field(&quot;tdilc1121s000&quot;,&quot;tdilc102.stun&quot;,stun(1,cur.stock.point))<br />
+			stpapi.put.field(&quot;tdilc1121s000&quot;,&quot;tdilc102.qstr&quot;,str$(-1*strs(cur.stock.point)))<br />
+			stpapi.put.field(&quot;tdilc1121s000&quot;,&quot;tdilc102.qstk&quot;,str$(-1*stks(cur.stock.point)))<br />
+			stpapi.insert(&quot;tdilc1121s000&quot;,true,err.msg)<br />
+			if not isspace(err.msg) then<br />
+				stpapi.recover(&quot;tdilc1121s000&quot;,err.msg)<br />
+				break<br />
+			else<br />
+				no.of.inserts = no.of.inserts + 1<br />
+			endif<br />
+		<br />
+			stpapi.continue.process(&quot;tdilc1121s000&quot;, error.msg2)<br />
+			<br />
+|			stpapi.end.session(&quot;tdilc1121s000&quot;)<br />
+|			stpapi.end.session(&quot;tdilc1120m000&quot;)<br />
+		endfor<br />
+	endif<br />
+	if stoc.diff &gt; 0 then<br />
+|		stpapi.put.field(&quot;tdilc1120m000&quot;,&quot;tdinv100.wrho&quot;,morno)<br />
+|		stpapi.find(&quot;tdilc1120m000&quot;,error.msg1)<br />
+|		stpapi.handle.subproc(&quot;tdilc1120m000&quot;,&quot;tdilc1121s000&quot;,&quot;add&quot;)<br />
+|		stpapi.continue.process(&quot;tdilc1120m000&quot;,error.msg2)<br />
+|		if not isspace(error.msg1) or not isspace(error.msg2) then<br />
+|			return(false)<br />
+|		endif<br />
+		stpapi.put.field(&quot;tdilc1121s000&quot;, &quot;tdilc102.date&quot;, str$(curr.dt))<br />
+		stpapi.put.field(&quot;tdilc1121s000&quot;, &quot;tdilc102.qstr&quot;, str$(stoc.diff))<br />
+		stpapi.put.field(&quot;tdilc1121s000&quot;, &quot;tdilc102.qstk&quot;, str$(stoc.diff))<br />
+		ret = stpapi.insert(&quot;tdilc1121s000&quot;,true,err.msg)<br />
+		if not ret then<br />
+			stpapi.recover(&quot;tdilc1121s000&quot;,err.msg)<br />
+		else<br />
+			no.of.inserts = no.of.inserts + 1<br />
+		endif<br />
+	endif<br />
+<br />
+	return(no.of.inserts)<br />
+}<br />
+<br />
+<br />
+function	count.stock.points(domain	tcqiv1	quan)<br />
+{<br />
+	cum.stock = 0<br />
+	stockpoints = 0<br />
+	select	tdilc101.*<br />
+	from	tdilc101<br />
+	where	tdilc101._index4 inrange {:tdjub930.cwar,&quot;&quot;,:tdjub930.item}<br />
+		and {:tdjub930.cwar, &quot;ZZZZZZ&quot;, :tdjub930.item}<br />
+	order by tdilc101._index4 asc<br />
+	selectdo<br />
+		<br />
+		if quan &gt;= tdilc101.strs then		<br />
+			stockpoints = stockpoints + 1<br />
+			load.stock.point.in.internal.table(stockpoints,tdilc101.strs)<br />
+			if cum.stock = quan then	<br />
+				break<br />
+			endif<br />
+			quan = quan - tdilc101.strs<br />
+		else<br />
+			stockpoints = stockpoints + 1<br />
+			load.stock.point.in.internal.table(stockpoints, quan)<br />
+			break<br />
+		endif<br />
+<br />
+|		if tdilc101.strs =&gt; quan then<br />
+|			stockpoints = 1<br />
+|			load.stock.point.in.internal.table(stockpoints, quan)<br />
+|			break<br />
+|		else<br />
+|			stockpoints = 1<br />
+|			if cum.stock &lt; tdilc101.strs then<br />
+|				cum.stock = tdilc101.strs<br />
+|				load.stock.point.in.internal.table(stockpoints, cum.stock)<br />
+|			endif<br />
+|			<br />
+|		endif	<br />
+	endselect<br />
+}<br />
+<br />
+function	load.stock.point.in.internal.table(domain	tcmcs.long	rec,domain	tcqiv1	new.quan)<br />
+{<br />
+	clot(1,rec) = tdilc101.clot<br />
+	date(rec) = tdilc101.date<br />
+	stun(1,rec) = tdilc101.stun<br />
+	strs(rec) = new.quan<br />
+	stks(rec) = new.quan<br />
+}<br />
+<br />
+function	domain	tcdate	get.stock.point.date()<br />
+{<br />
+	select	tdilc101.*<br />
+	from	tdilc101<br />
+	where	tdilc101._index4 inrange {:tdjub930.cwar,&quot;&quot;,:tdjub930.item}<br />
+			and {:tdjub930.cwar, &quot;ZZZZZZ&quot;, :tdjub930.item}<br />
+	order by tdilc101._index4 asc<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		return(tdilc101.date)<br />
+	endselect<br />
+	<br />
+	return(date.num())<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kbartelds</div><div class="date">21st February 2005, 11:34</div></div><div class="posttext">Hi,<br />
+<br />
+I'm very pleased to see my script for stock adjustments is being used. The problem with this script is that it was not intended to be used for items with lot control, however it can be changed so lot control can be used, as you did.<br />
+<br />
+In the function insert.lines.corr() I think you have to add the lot field to the api statements, else it might not get any value. You could also check if all stockpoints for the item are found.<br />
+<br />
+Regards,<br />
+Klaas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jatin_sanghi</div><div class="date">21st February 2005, 14:10</div></div><div class="posttext">Hi Klaas,<br />
+<br />
+Thanx for ur reply....<br />
+and of course for the help i got from ur script.<br />
+<br />
+I have been ablr to successfully fill multiple entries in the tdilc1121s000 form.<br />
+I just added one more AFS ststement<br />
+<br />
+stpapi.continue.process(&quot;tdilc1121s000&quot;, error.msg)<br />
+<br />
+just b'fore  the end of &quot;if&quot; condition  stock.diff &lt; 1...<br />
+<br />
+Thanx for ur help..<br />
+<br />
+regards,<br />
+Jatin</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

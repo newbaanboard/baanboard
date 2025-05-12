@@ -1,0 +1,169 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Manipulating Sales Orders in LN6 ?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Manipulating Sales Orders in LN6 ? AFS/DDC/OLE: Function servers" />
+	
+	<title>Manipulating Sales Orders in LN6 ? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Manipulating Sales Orders in LN6 ?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Trisli</div><div class="date">14th October 2005, 17:39</div></div><div class="posttext">Hi all,<br />
+<br />
+In LN6 I have been trying to make a rather simple script to update a sales order using AFS.<br />
+<br />
+Despite a lot of efforts I have still not reached any working result. Does anybody have positive experiences with this or similar sessions in LN6 (or maybe in BaanERP - the method may be the same...)<br />
+<br />
+I have attached my sample function. If I run the first version (the basic attempt) the system hangs when the &quot;stpapi.synchronize.dialog&quot; is issued. I suppose the problem is that tdsls4100m900 is not a multi-occ session.<br />
+<br />
+If I Try to go the normal &quot;user dialog&quot; way through (the &quot;Alternative try&quot;), I open tdsls4100m000, synchronize it (starting tdsls4100m900) and activate form option: &quot;open.sales.order&quot; (starting tdsls4100m000 in single.occ mode) I receive an error message: &quot;Editable synchronized dialog not started&quot;. I suppose this is due to the reason that tdsls4100m000 is started twice, and AFS tries to access the wrong instance.<br />
+<br />
+Finally I have tried to start tdsls4100m900 directly and from there activate the above form option without synchronizing. When updating is this scenario, I receive a: &quot;...use the synchronized dialog&quot;.<br />
+<br />
+Does any of you folks know how to break this problem?<br />
+<br />
+<br />
+Thanks!<br />
+ :confused:<br />
+<br />
+<br />
+  table ttdsls400       | Sales Orders<br />
+<br />
+  domain tcmcs.long  afs.ret<br />
+  domain tcmcs.long  afs.ret.rec<br />
+  domain tcmcs.str16 afs.value<br />
+<br />
+  domain tcmcs.str80  recover.mess<br />
+<br />
+  #pragma used dll ottstpapihand<br />
+<br />
+  #pragma used session tdsls4100m900<br />
+  #pragma used session tdsls4100m000<br />
+<br />
+<br />
+function update.sales.order(     domain tcncmp      i.ncmp,  |* Company<br />
+                                 domain tcorno      i.orno,<br />
+<br />
+                                 domain tcdate      i.ddat,  |* Pln. Delv Date<br />
+                                 domain tcrefa      i.refa,  |* Your ref<br />
+                                 domain tcrefb      i.refb,  |* Our ref<br />
+                                 domain tcemno      i.crep,  |* Internal Sales rep<br />
+                                 domain tccpay      i.cpay,  |* Terms of Payment<br />
+<br />
+                             ref domain tcmcs.str80 o.mess)<br />
+{<br />
+  o.mess = &quot;&quot;<br />
+<br />
+  stpapi.put.field(&quot;tdsls4100m900&quot;,&quot;tdsls400.orno&quot;, strip$(shiftl$(i.orno)) )<br />
+  afs.ret = stpapi.find(&quot;tdsls4100m900&quot;, o.mess)<br />
+<br />
+  if afs.ret &lt;&gt; 1 then<br />
+    o.mess = sprintf$(&quot;Cannot find sales order: %s in session tdsls4100m900&quot;, i.orno)<br />
+   else<br />
+<br />
+    afs.ret = stpapi.synchronize.dialog(&quot;tdsls4100m900&quot;, &quot;modify&quot;, o.mess)   |* Causes the program to hang<br />
+    if afs.ret = 1 then<br />
+<br />
+    stpapi.form.command(&quot;tdsls4100m900&quot;, 5, &quot;open.sales.order&quot;, o.mess)<br />
+    |* *** starts synchronized session session tdsls4100m000 as a child process ***<br />
+<br />
+|   |* *** as sessions are not synchronized in AFS, ...<br />
+|   stpapi.put.field(&quot;tdsls4100m000&quot;,&quot;tdsls400.orno&quot;, strip$(shiftl$(i.orno)) )<br />
+|   afs.ret = stpapi.find(&quot;tdsls4100m000&quot;, o.mess)<br />
+|<br />
+|   if afs.ret &lt;&gt; 1 then<br />
+|     o.mess = sprintf$(&quot;Cannot find sales order: %s in session tdsls4100m000&quot;, i.orno)<br />
+|    else<br />
+      stpapi.put.field(&quot;tdsls4100m000&quot;,&quot;tdsls400.ddat&quot;, str$(i.ddat))<br />
+<br />
+      stpapi.put.field(&quot;tdsls4100m000&quot;,&quot;tdsls400.refa&quot;, strip$(shiftl$(i.refa)))<br />
+      stpapi.put.field(&quot;tdsls4100m000&quot;,&quot;tdsls400.refb&quot;, strip$(shiftl$(i.refb)))<br />
+<br />
+      stpapi.put.field(&quot;tdsls4100m000&quot;,&quot;tdsls400.crep&quot;, strip$(shiftl$(i.crep)))<br />
+      stpapi.put.field(&quot;tdsls4100m000&quot;,&quot;tdsls400.cpay&quot;, strip$(shiftl$(i.cpay)))<br />
+<br />
+      afs.ret = stpapi.update(&quot;tdsls4100m900&quot;, true, o.mess)<br />
+<br />
+      if afs.ret &lt;&gt; 1 then<br />
+        afs.ret.rec = stpapi.recover(&quot;tdsls4100m000&quot;, recover.mess)<br />
+<br />
+        if isspace(o.mess) then<br />
+          o.mess = sprintf$(&quot;Error during update of sales order: %s&quot;, i.orno)<br />
+        endif<br />
+      endif<br />
+|   endif<br />
+  endif<br />
+<br />
+  stpapi.end.session(&quot;tdsls4100m000&quot;)<br />
+<br />
+  return(afs.ret = 1)<br />
+}<br />
+<br />
+   Alternative try:   <br />
+<br />
+    stpapi.put.field(&quot;tdsls4100m000&quot;,&quot;tdsls400.orno&quot;, strip$(shiftl$(i.orno)) )<br />
+    afs.ret = stpapi.find(&quot;tdsls4100m000&quot;, o.mess)<br />
+<br />
+    if afs.ret &lt;&gt; 1 then<br />
+      o.mess = sprintf$(&quot;Cannot find sales order: %s in session tdsls4100m900&quot;, i.orno)<br />
+     else<br />
+      afs.ret = stpapi.synchronize.dialog(&quot;tdsls4100m000&quot;, &quot;modify&quot;, o.mess)   |* Causes the program to hang<br />
+      if afs.ret = 1 then<br />
+<br />
+        stpapi.form.command(&quot;tdsls4100m900&quot;, 5, &quot;open.sales.order&quot;, o.mess)<br />
+        |* *** starts synchronized session session tdsls4100m000 as a child process ***<br />
+<br />
+        stpapi.put.field(&quot;tdsls4100m000&quot;,&quot;tdsls400.orno&quot;, strip$(shiftl$(i.orno)) )<br />
+        afs.ret = stpapi.find(&quot;tdsls4100m000&quot;, o.mess)<br />
+<br />
+        if afs.ret &lt;&gt; 1 then<br />
+          o.mess = sprintf$(&quot;Cannot find sales order: %s in session tdsls4100m000&quot;, i.orno)<br />
+         else<br />
+          stpapi.put.field(&quot;tdsls4100m000&quot;,&quot;tdsls400.ddat&quot;, str$(i.ddat))<br />
+<br />
+          stpapi.put.field(&quot;tdsls4100m000&quot;,&quot;tdsls400.refa&quot;, strip$(shiftl$(i.refa)))<br />
+          stpapi.put.field(&quot;tdsls4100m000&quot;,&quot;tdsls400.refb&quot;, strip$(shiftl$(i.refb)))<br />
+<br />
+          stpapi.put.field(&quot;tdsls4100m000&quot;,&quot;tdsls400.crep&quot;, strip$(shiftl$(i.crep)))<br />
+          stpapi.put.field(&quot;tdsls4100m000&quot;,&quot;tdsls400.cpay&quot;, strip$(shiftl$(i.cpay)))<br />
+<br />
+          afs.ret = stpapi.update(&quot;tdsls4100m900&quot;, true, o.mess)<br />
+<br />
+          if afs.ret &lt;&gt; 1 then<br />
+            afs.ret.rec = stpapi.recover(&quot;tdsls4100m000&quot;, recover.mess)<br />
+<br />
+            if isspace(o.mess) then<br />
+              o.mess = sprintf$(&quot;Error during update of sales order: %s&quot;, i.orno)<br />
+            endif<br />
+          endif<br />
+        endif<br />
+      endif<br />
+    endif<br />
+<br />
+|* **** end of source ****</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patvdv</div><div class="date">15th October 2005, 17:13</div></div><div class="posttext">Thread opened and *bumped*</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th October 2005, 16:18</div></div><div class="posttext">Just a wild guess while I was reading this - what happens in the first case if you delete the afs.ret = stpapi.synchronize.dialog(&quot;tdsls4100m900&quot;, &quot;modify&quot;, o.mess)  line? Just wondering if tdsls4101m000 would launch okay.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">22nd October 2005, 15:12</div></div><div class="posttext">Maybe give tdslsdlll1234 a look. AFAIK this dll is the way SSA adds Sales orders. Maybe there is also a way to manipulate them with the dll.<br />
+<br />
+Regards <br />
+csecgn</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

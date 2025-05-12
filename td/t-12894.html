@@ -1,0 +1,101 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Purchase order report problem, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Purchase order report problem Tools Development" />
+	
+	<title>Purchase order report problem [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Purchase order report problem</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">justone</div><div class="date">9th September 2003, 12:41</div></div><div class="posttext">I have serious problem with printing customized Purchase order. Somehow it seems that it uses wrong page length (it is set to -1, the printer driver is set to 66 lines, the page is A4) since every new page is started approx. 10 lines lower. I've compared section settings, extra lines, page setup, etc. with another Purchase order (also customized) which works OK, but I see no real difference. I use a skip.to(spool.pg.length-12) in after.orco.45 (this section contains 11 lines long footer of the report) to determine whether there is enough space on one page.<br />
+<br />
+The problem exists on display, BWprint preview and on paper. <br />
+<br />
+Any ideas?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">9th September 2003, 15:42</div></div><div class="posttext">Have you tried it without the skip.to?<br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">justone</div><div class="date">9th September 2003, 15:51</div></div><div class="posttext">Just tested your suggestion, the top of the page 2 is still moved down as it was before, the only difference is in the after.orco.45<br />
+section (it represents footer of the report), which is now printed in the middle of the page 2 not at the end. Skip.to only refers to above mentioned sectin and it seem to work OK.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">9th September 2003, 20:23</div></div><div class="posttext">I was hoping it was the skip.to, maybe causing the Purchase order to loose what line it was on.  I have seen something like this before, but was years ago.  I know I went through all of the devices at my site and made sure that form feed was on, and all the device drivers(printinf directory) initialized the printers with 66 lines per page.  We do printing from a UNIX print server.  Haven't had the problem since.<br />
+<br />
+Can you compare the report scripts between the two customized reports?  It sounds like something in the report is causing the problem.  This is assuming the other customized report prints okay to the printer and the display.  Could there still possibly be something set on the layouts of the new report that is different from the other customized reports?  Maybe in debug mode you can check the spool variables along the way to see what maybe happening.  <br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">justone</div><div class="date">10th September 2003, 11:37</div></div><div class="posttext">I found the source of the problem. It only happens when tdpur020.txta (Item description by supplier) is used on the report. Even if description is for example ABCD it adds one extra line to the report, which is not counted by Baan.<br />
+<br />
+I attached the problematic part of the script nad the problem lies in the select  from tdpur020  section <br />
+<br />
+UPDATE The original field in the table tttxt010 is defined as string length 240, how to cut it down to 80.<br />
+<br />
+I hope someone has a solution for that.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th September 2003, 15:40</div></div><div class="posttext">How is the variable opis declared?  What is it like on the layout?  Do they match.  Just wondering if this code is causing the problem:<br />
+<br />
+<br />
+	select tttxt010.*<br />
+	from tttxt010<br />
+	where tttxt010.ctxt = :tdpur020.txta<br />
+	selectdo    <br />
+		opis=tttxt010.text   |dobaviteljev naziv<br />
+	endselect<br />
+<br />
+<br />
+Just wondering if opis has some line feeds or control characters in it.  Rather than a select maybe you could use text.to.buf to get the last line of text.<br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">justone</div><div class="date">10th September 2003, 15:47</div></div><div class="posttext">The problem is in that part of code.<br />
+<br />
+I originally assigned OPIS as string(80), then i tried to force domain tctext, which is also string of 80 characters, but obviously it doesn't help. I also tried to use trim$ and strip$ commands, but the problem still exists.<br />
+<br />
+The original field in the table tttxt010 is defined as string length 240, how to cut it down to 80.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th September 2003, 16:09</div></div><div class="posttext">You can try this, but I am still not sure it will work:<br />
+<br />
+<br />
+    extern domain  tcmcs.str80  opis<br />
+           domain  tcmcs.str80  text.data(999)<br />
+                   long         number.lines<br />
+<br />
+    number.lines = text.to.buf(&quot;tdpur020.txta&quot;,&quot;2&quot;,999,text.data)<br />
+    opis = text.data(number.lines)<br />
+<br />
+<br />
+Notice I use &quot;2&quot; for english for the language.  Also you want to make sure that if you print opis on the layout it is the same domain.  You can play with the size of text.data - in our code it looks like 132 is used for the length.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th September 2003, 16:11</div></div><div class="posttext">I forgot to mention that the two lines of code replace the select on tttxt010 table.<br />
+<br />
+Mark</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

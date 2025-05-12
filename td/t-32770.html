@@ -1,0 +1,94 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="BaaN SQL Help needed, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] BaaN SQL Help needed Tools Development" />
+	
+	<title>BaaN SQL Help needed [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; BaaN SQL Help needed</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Joy Conner</div><div class="date">15th March 2007, 16:57</div></div><div class="posttext">I am having an intermitant problem and would appreciate some advise.<br />
+<br />
+I am running QKEY, BaaN IVc4 using Informix level 2 drivers on a unix system.  We have significant customizations to the order entry program and this is where I am encountering a problem.<br />
+<br />
+During the OE program, in <br />
+<br />
+main.table.io:<br />
+before write:<br />
+tdsls041.myfield = myvariable<br />
+<br />
+before rewrite:<br />
+tdsls041.myfield = myvariable<br />
+<br />
+after.update.db.commit:<br />
+In this section a call is made to a library which puts data into one of our custom tables.  Two input parameters are tdsls041.orno, tdsls041.pono.<br />
+If not myvariable then<br />
+     send message to user about this problem<br />
+else<br />
+     dll.call(input.orno, input.pono)<br />
+endif<br />
+function.dll.call()<br />
+select tdsls041.*<br />
+from tdsls041<br />
+where tdsls041._index1 = {:input.orno, :input.pono}<br />
+selectdo<br />
+endselect<br />
+mytable.myfield = tdsls041.myfield  &lt;&lt;&lt;&lt;&lt; This is a mandatory field reference.<br />
+db.insert(mytable)<br />
+commit.transaction()<br />
+<br />
+This is a simplification of the process but should serve to illustrate the problem.  Sometimes, an error is reported in log.informix.  The error states that the reference does not exist, so the new record is not inserted.:confused:<br />
+<br />
+In the library, I'm expecting to be able to read the sales order line record and retrieve the content of some fields.  What am I doing wrong?:confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">15th March 2007, 18:29</div></div><div class="posttext">If you look for matching error messages in log.bshell, they should tell you exactly which reference is missing, and maybe point in direction of a solution.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">15th March 2007, 19:16</div></div><div class="posttext">I would move this:<br />
+<br />
+mytable.myfield = tdsls041.myfield &lt;&lt;&lt;&lt;&lt; This is a mandatory field reference.<br />
+db.insert(mytable)<br />
+commit.transaction()<br />
+<br />
+Inside this select statement:<br />
+<br />
+select tdsls041.*<br />
+from tdsls041<br />
+where tdsls041._index1 = {:input.orno, :input.pono}<br />
+selectdo<br />
+endselect<br />
+<br />
+The reason I would do this is because something could be happening to where you are not finding a tdsls041 record which would cause your problem.  And might not be related to the reference field.  The question is - why would there not be a tdsls041 record?  Could the session and the table be getting confused on the tdsls041 table items.  You could eliminate this by just using an alias for the select in the dll.  Can you duplicate the problem or is it just random?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Joy Conner</div><div class="date">15th March 2007, 19:47</div></div><div class="posttext">The error frequency is once a week and no I have not been able to replicate this.<br />
+<br />
+Given the process, could it be possible that the disk write of the tdsls041 record is not complete when I call for a read of that record?  Seems that way to me.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">15th March 2007, 20:12</div></div><div class="posttext">I think it could be, but I can not think of a way to prove it out.  I have had to use the suspend command on some sessions that wrote and read reports. This gave the report time to finish and close the files.  In debug mode it always worked - but when not in debug the file might be empty.<br />
+<br />
+I think you can try to trap the error - then maybe also retry the query, but I have not tried it for this type error.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">19th March 2007, 15:11</div></div><div class="posttext">As after.updat.db.commit is called after successful commit on main table , the possibility of not being able to insert in disk looks remote , when function.dll.call is activated . <br />
+<br />
+Have u explored following possibility .<br />
+1. input.orno / pono  set to 0 in a peculiar condition . Suppose u already verified log.bshell or event viewer to check the values for reference error .<br />
+2. Informix driver / Informix itself  may have some  problem in ur porting set / informix version . Upgrading to latest porting set or latest informix version may help . Porting set release notes may be of some help .</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

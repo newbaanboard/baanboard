@@ -1,0 +1,166 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Field will not update on Maintenance Session, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Field will not update on Maintenance Session Tools Development" />
+	
+	<title>Field will not update on Maintenance Session [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Field will not update on Maintenance Session</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jcook331</div><div class="date">3rd February 2006, 19:54</div></div><div class="posttext">I have a maintenance session where I'm updating a field through a function.  The function does a check and then updates a date field progammatically.  When the function runs the date displays in the field, but is not written to the table on save.  I think I have seen this before but don't remember what I did to fix it.  Any ideas?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">3rd February 2006, 19:58</div></div><div class="posttext">Call update.occ() after your changes. This should help.<br />
+<br />
+Regards<br />
+csecgn</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jcook331</div><div class="date">3rd February 2006, 20:05</div></div><div class="posttext">I tried the update.occ() and it still did not work.  Thanks, though.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">3rd February 2006, 21:02</div></div><div class="posttext">:confused:  Did you try like:<br />
+<br />
+<br />
+update.occ()               | a field has changed without user interaction<br />
+execute(update.db)      | Update database<br />
+execute(interrupt)        |refresh display<br />
+<br />
+<br />
+hth<br />
+<br />
+Regards<br />
+csecgn</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jcook331</div><div class="date">3rd February 2006, 22:02</div></div><div class="posttext">I had not done that, but when I tried that it still did not work.  Here is the part of the code where I'm trying to update the table field.<br />
+<br />
+<br />
+    if lflfa360.rvav = 0 then<br />
+         lflfa360.rvav = date.num()<br />
+         update.occ()          <br />
+         execute(update.db)<br />
+         execute(interrupt)    <br />
+         display(&quot;lflfa360.rvav&quot;)<br />
+         message(&quot;File Verified&quot;)			<br />
+    endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">3rd February 2006, 23:09</div></div><div class="posttext">Could you please post what sections the update call is made from?  How you handle commits vs. update occ. can depend on what standard section you are calling the update from....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jcook331</div><div class="date">3rd February 2006, 23:39</div></div><div class="posttext">I am calling the function that updates the field from choice.user.4 (a button on the form).  I found an old post that had a solution for this that works.  Code is:<br />
+<br />
+<br />
+choice.user.4:<br />
+     after.choice:<br />
+     do.all.occ(check.for.file)<br />
+<br />
+....<br />
+<br />
+function check.for.file()<br />
+{<br />
+     domain tcmcs.str100	pnam357<br />
+     domain tcmcs.str15       cprj357<br />
+	  string		network.path(210)<br />
+	  long	 	num.bytes<br />
+	  long		app.id<br />
+<br />
+...<br />
+<br />
+     if lflfa360.rvav = 0 then<br />
+          update.occ()<br />
+          lflfa360.rvav = date.num()<br />
+          execute(update.db)<br />
+          display(&quot;lflfa360.rvav&quot;)<br />
+          message(&quot;File Verified&quot;)<br />
+     endif<br />
+<br />
+...<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd February 2006, 23:58</div></div><div class="posttext">Shouldn't these two lines be reversed or is it a typo:<br />
+          update.occ() <br />
+          lflfa360.rvav = date.num()</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">csecgn</div><div class="date">4th February 2006, 12:43</div></div><div class="posttext">Like Mark wrote: You are writing the update.occ before you update the field.Update.occ acts like db.update(...). I also think thats the problem.<br />
+<br />
+... <br />
+<br />
+     if lflfa360.rvav = 0 then <br />
+         lflfa360.rvav = date.num() <br />
+          update.occ()<br />
+          execute(update.db) <br />
+          display(&quot;lflfa360.rvav&quot;) <br />
+          message(&quot;File Verified&quot;) <br />
+     endif <br />
+<br />
+... <br />
+<br />
+In your case you also have another opportunity: Select the table with the record where you are for update and write after the commit an execute(interrupt). This should also work.<br />
+<br />
+...<br />
+db.retry.point()<br />
+select lflfa360.*<br />
+from lflfa360 for update<br />
+where lflfa360._index1 = {:lflfa360.&lt;keyfield1&gt;,...}<br />
+selectdo<br />
+    lflfa360.rvav = date.num()<br />
+    db.update(tlflfa360, db.retry)<br />
+endselect<br />
+commit.transaction()<br />
+<br />
+execute(interrupt)<br />
+...<br />
+<br />
+Another note: The do.all.occ works only for the visible records on your form. With this you cannot update the whole or a limited range of your maintable if it is not on the actual view. <br />
+<br />
+hth<br />
+<br />
+Regards<br />
+csecgn</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">toolswizard</div><div class="date">6th February 2006, 20:42</div></div><div class="posttext">Try changing the order.<br />
+Assign the field a value.<br />
+Display the field on the form.<br />
+Update the occurance.<br />
+Call the DB update.<br />
+<br />
+You might be rereading the form value and it is resetting to the original value.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">10th December 2019, 11:36</div></div><div class="posttext">I just had an issue similar to this.<br />
+I can confirm that using<br />
+<br />
+update.occ()<br />
+execute(update.db)<br />
+<br />
+works.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">10th December 2019, 15:03</div></div><div class="posttext">I don't think the question in this case was update.occ() and execute(update.db) not working, but I think it was the order the commands were being called while setting values.  So set you field values, then call update.occ and then the execute.  Don't call the update.occ, then set variables then call execute. :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">10th December 2019, 15:22</div></div><div class="posttext">choice.user.4:<br />
+     after.choice:<br />
+     do.all.occ(check.for.file)<br />
+Ehm, the choice.user sections...<br />
+I thought these sections are not executed in the 4GL transaction? IN that case you will need to start your own transaction (so in the before.choice: add db.retry.point() and after the do.all.occ() add a commit.transaction?</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

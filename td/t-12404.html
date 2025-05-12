@@ -1,0 +1,138 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="text.delete(), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] text.delete() Tools Development" />
+	
+	<title>text.delete() [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; text.delete()</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">28th July 2003, 18:43</div></div><div class="posttext">I did the following:<br />
+<br />
+- created a new text<br />
+- add this text as item text to an item (in Baan ERP)<br />
+- then I tried a text.delete(), to see, if it is possible to delete a text, which is in use. Used the following code:<br />
+<br />
+<br />
+<br />
+|*** Function Call ***<br />
+diagnose = absstdll0010.delete.text(3272860)		<br />
+message(str$(diagnose))<br />
+commit.transaction()<br />
+<br />
+<br />
+<br />
+|*** The function in a DLL ***<br />
+function extern long absstdll0010.delete.text(domain tcmcs.long i.txt)<br />
+{<br />
+long	ret<br />
+<br />
+ret = -2<br />
+	<br />
+select	tttxt001.*<br />
+from	tttxt001<br />
+where	tttxt001._index1 = {:i.txt}<br />
+selectdo<br />
+	ret = text.delete(&quot;tttxt001.ctxt&quot;, &quot;&quot;) |delete Text in all Langages<br />
+	if ret &gt;= 0 then<br />
+		select	absst230.*<br />
+		from	absst230 for update<br />
+		where	absst230._index2 = {:tttxt001.ctxt}<br />
+		selectdo<br />
+			db.delete(tabsst230, db.retry)<br />
+			endselect<br />
+	endif<br />
+endselect<br />
+return( ret )<br />
+}<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+This code retrurns me a &quot;-1&quot; what means error.<br />
+If I now open the text editor from the item maintenance, I see an empty text. <br />
+After closing the the text editor, just closing, do nothing, I can run my little programm and it returns a &quot;0&quot; what means success.<br />
+<br />
+So &quot;text.delete&quot; deleted a text which is used. But more strange, it needs to tries to do that.<br />
+<br />
+Between all that a checked the tables tttxt001, tttxt002 and tttxt010:<br />
+- after the first try to delete the text I found the textnumber deleted in tttxt002 and tttxt010. <br />
+- after I opend / closed the texteditor, tried my little programm the second time, also tttxt001 was empty. <br />
+<br />
+<br />
+Spartacus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">28th July 2003, 19:33</div></div><div class="posttext">The text field in your table absst230 creates the reference to tttxt001.  That's probably the reason why this record is not deleted immediately.  Try the following sequence:<br />
+<br />
+<br />
+db.retry.point()<br />
+select  absst320.*<br />
+from    absst320 for update<br />
+where   absst320._index2 = {:i.txt}<br />
+selectdo<br />
+  db.delete(tabsst320, db.retry)<br />
+endselect<br />
+commit.transaction()<br />
+<br />
+select  tttxt001.*<br />
+from    tttxt001<br />
+where   tttxt001._index1 = {:i.txt}<br />
+selectdo<br />
+  ret = text.delete(&quot;tttxt001.ctxt&quot;, &quot;&quot;)<br />
+endselect<br />
+return( ret )</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">28th July 2003, 20:44</div></div><div class="posttext">Hi Nico<br />
+<br />
+absst230 stores only a long just for textnumber. It is not a txtn domain or something.<br />
+<br />
+But there is for sure a real referenz, because I added as item text. Sence of the test was to see, if text.delete() takes care about such things. But that seems not to be the case.<br />
+<br />
+Spartaucs</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NvanBeest</div><div class="date">28th July 2003, 21:24</div></div><div class="posttext">If the field in absst320 is a long only, there can be a possible logical reference, but if it is not declared as such in the database, then there is no &quot;real&quot; reference.  Try to make the field a tctxtn field, and create the text with text.create(&quot;absst320.xxxx&quot;,...), and a physical reference will exist.  Then deleting it from the text tables will probably work the way you want.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spartacus</div><div class="date">29th July 2003, 11:03</div></div><div class="posttext">absst230 contains no textfields. It is just a protokoll of used text -NUMBERS, and it shouldn't be a text field.<br />
+<br />
+The problem occurs undependent from absst230 (I tried that to be sure)<br />
+<br />
+The problem is, that text.delete() deletes used texts. Lets say a text is used in tcibd001.txta. <br />
+Then text.delete() returns a &quot;-1&quot;, BUT in fact, after commmit.transaction() the text is deleted from tttxt010 and tttxt002. After you open the the in item maintenance and close again. You can use text.delete() once more, and now it returns &quot;0&quot;, and  also the text in tttxt001 is deleted.<br />
+<br />
+<br />
+Spartacus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">31st July 2003, 11:08</div></div><div class="posttext">Spartacus,<br />
+<br />
+Could you update us on the progress of this problem? We got kind of interested... <br />
+<br />
+I have seen some strange things happening with references on texts and text deletion in the past. Texts that were deleted when they were supposed to be used, texts that were not deleted in spite of them not being used, etc.<br />
+<br />
+Would be nice to hear what you saw happening with the reference counter...<br />
+<br />
+If you have a scenario where text records got cleared although used, you may want to run the scenario with -- -set DBSLOG=410 to see if the reference counters have the correct value:<br />
+Bind 13  : Refcntd : long    : &lt;0&gt;<br />
+Bind 14  : Refcntu : long    : &lt;0&gt;<br />
+<br />
+We are looking forward.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

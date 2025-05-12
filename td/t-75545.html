@@ -1,0 +1,112 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Communicate Between MMT Satellite sessions, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Communicate Between MMT Satellite sessions Tools Development" />
+	
+	<title>Communicate Between MMT Satellite sessions [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Communicate Between MMT Satellite sessions</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">12th January 2023, 14:42</div></div><div class="posttext">We currently have 3 custom tables: <br />
+A - grand parent <br />
+B - parent<br />
+C - child<br />
+<br />
+Main session (based on A) has 2 satellite sessions - List of B and List of C<br />
+Not every B has C.   B could have multiple C.<br />
+<br />
+[      A similar example is baan4 purchase/sales orders.  A - Sales Order  B - Positions (per A),  C - Deliveries (per B)        ]<br />
+<br />
+The satellite sessions work fine listing ALL B and C separately.  But, if user has selected a record in SAT B, then I would like to apply a filter in SAT C (based on selected record).<br />
+<br />
+[     In the example of sales orders (A) , if user has selected position 30 (in SAT B) and then clicks SAT C, the displayed deliveries should be filtered according selected SO Pos 30    ]<br />
+<br />
+I'm not [yet] familiar with advanced MMT handling, so clear instructions and/or example would be appreciated.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">12th January 2023, 15:49</div></div><div class="posttext">I think what you want is possible, but you will have to work with import/export variables to the driver (session based on A).<br />
+I have a situation where one session handles two sets of data depending on session name (use same script). In before program you can set correct query.extends based on imported variables. Satellite C can have something like<br />
+before.program:<br />
+	query.extend.select(&quot;tableA.*, tableB.* &quot;)<br />
+	query.extend.from(&quot;tableA, tableB &quot;)<br />
+	if is.mmt.satellite() then<br />
+		import(&quot;tableA.fld1&quot;, tableA.fld1)<br />
+		import(&quot;tableB.fld2&quot;, tableB.fld2)<br />
+	endif<br />
+	if prog.name$ = &quot;driveC&quot; then<br />
+	    if not isspace(tableB.fld2) then		| mmt mode<br />
+		query.extend.where(&quot;tableC.fld1=tableA.fld1 and tableC.fld2=tableB.fld2&quot;)<br />
+	    else					| stand alone mode<br />
+		query.extend.where(&quot;tableC.fld1=tableA.fld1&quot;)<br />
+	    endif<br />
+	endif<br />
+On changes you in DriverB you can update the variable in the parent, and when switching to DriverC again import the variables, perform a rebuild.query with the new values and execute a FindFirst.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th January 2023, 17:25</div></div><div class="posttext">Like Omeluuk said it is possible.  In 4c4 I recall in one place what we did on something like this was create a new session and attach it to like b.  Then while in B you could highlight a line do tools zoom and see a filtered list based off order and line.  Just a matter of getting all the components setup and passing variables in 4c4.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th January 2023, 17:26</div></div><div class="posttext">Of course now that I posted my solution might not be too good for LN and MMT type sessions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">12th January 2023, 18:46</div></div><div class="posttext">Thanks Omeluuk and Mark_h<br />
+<br />
+The problem is a bit more complex now.  Keeping it simple.  When MMT session   &quot;A&quot;   is started, the 2 SAT sessions are automatically started.  <br />
+<br />
+Now that they are started, I actually have 2 situations:<br />
+1 - As described above, user selects record in SAT B.  Clicks the form SAT C.  It is initialized.  Here I can add the import as you said (I think - not sure if comms between SATS are even possible..  a bit lost here) to the before program.  But, now if user clicks back to SAT B, selects a different record, then clicks back to SAT C....   how to reinitialize SAT C?  Using satellites seems way to awkward.  If these were forms, then I'd have the option to use before/after form sections.   I wish there were similar sections before/after satellite<br />
+2 - [Solved - See below] Here is an even more simple situation.  In  SAT C user makes a change which causes an update to table B.  However, when user clicks back to SAT B, the records have not been refreshed automatically, so old values are still displayed.  Again, what's missing is 4gl sections for handling clicking between SAT's.<br />
+<br />
+Do you have any further input on this?  <br />
+<br />
+Thanks again.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">12th January 2023, 19:13</div></div><div class="posttext">FYI, I'd rather not consider BMS (and prcm.XXXXXXX)  solutions/functions.  Just too complex.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">RobertP</div><div class="date">12th January 2023, 19:28</div></div><div class="posttext">I have an update on #2 - refreshing SAT B when changes made on SAT C.  <br />
+<br />
+In SAT C session I added the following code.  <br />
+<br />
+choice.update.db:<br />
+after.choice:<br />
+	synchronize.satellite()<br />
+	refresh.parent(-1)<br />
+<br />
+Parent session A is updated and SAT B is also refreshed automatically.  this is progress.  <br />
+<br />
+Situation #1 is still pending.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">18th January 2023, 17:10</div></div><div class="posttext">Situation #1 is still pending.Did you check for the maintable:after.form.read:<br />
+	add.sync.fields.nokey(session.child1, field.here, field.there, field.here, field.there)<br />
+	add.sync.fields.nokey(session.child2, field.here, field.there, field.here, field.there)<br />
+After a field changed in MMT:after.display:<br />
+synchronize.satellite()In the satellite I use something like choice.find.data:<br />
+before.choice:<br />
+if prog.name$ = satellite and ppmmmyyy.key1 &lt;&gt; key.variable and is.mmt.satellite() then <br />
+  query.extend.where(&quot;ppmmmyyy.key1=:key.variable&quot;)<br />
+  rebuild.query()<br />
+  choice.again()<br />
+endifand in the zoom.from.all:<br />
+on.entry:<br />
+if import(&quot;var1&quot;, var1) = 1 and import(&quot;var1&quot;, var1) = 1 then<br />
+  use.vars.to.do.something()<br />
+  execute(find.data)<br />
+endif Then try debugging and see what is happening when switching from sattellite 1 to 2 and back. I think you will go pass the zoom.from.all section where you can also fix the query by executing the find data section.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

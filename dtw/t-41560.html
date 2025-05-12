@@ -1,0 +1,140 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Error: Conversion factor not found for this unit, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Error: Conversion factor not found for this unit Distribution, Transportation &amp; Warehousing" />
+	
+	<title>Error: Conversion factor not found for this unit [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Distribution, Transportation &amp; Warehousing</a> &gt; Error: Conversion factor not found for this unit</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">countnikon</div><div class="date">11th September 2007, 18:34</div></div><div class="posttext">Good morning Everybody,<br />
+<br />
+I am having a problem with the following:<br />
+<br />
+I have a session that allows a user to create a temporary part # to insert into a purchase order.  However, when I go to add the temporary part # to the purchase order, it tells me &quot;Conversion factor not found for this unit.&quot;  Any help would be greatly appreciated. Below is the code that I am using to create this part #.<br />
+<br />
+<br />
+function create.npr(domain tcitem hold.titm, domain tcdate hold.date)<br />
+{<br />
+	string  temp.file(1024),cmd(1024),msg(1024),serverfilename(1024),localfilename(1024)<br />
+        long    status,f1 <br />
+	domain	tcdate	tmp.date<br />
+<br />
+	tmp.date = date.num()<br />
+	<br />
+	|*--------------------------------------------------------------------------------------------<br />
+	|* Creating TMP Part<br />
+	|*--------------------------------------------------------------------------------------------<br />
+	|message(&quot;Creating Part #&quot;&amp;&quot; Hold.titm &quot;&amp;str$(hold.titm)&amp;&quot; Hold.date &quot;&amp;str$(hold.date))<br />
+	select 	*<br />
+	from 	tiitm920<br />
+	where	tiitm920.titm = :hold.titm<br />
+	and	tiitm920.date = :hold.date<br />
+	selectdo<br />
+		tiitm001.item 	= 	hold.titm<br />
+		tiitm001.reli 	= 	hold.titm<br />
+		tiitm001.dsca 	= 	tiitm920.desc<br />
+		tiitm001.seak 	= 	tiitm920.desc(1;16) <br />
+		tiitm001.seab	=	tiitm920.mitm<br />
+		tiitm001.suno	=	tiitm920.suno	<br />
+		tiitm001.priS	= 	tiitm920.cost	<br />
+		tiitm001.runi	= 	1<br />
+		tiitm001.kitm	= 	tckitm.purchase<br />
+		tiitm001.pris	= 	tiitm920.list<br />
+		tiitm001.prip 	=	tiitm920.cost<br />
+		tiitm001.avpr	= 	tiitm920.cost<br />
+		tiitm001.ltpr	=	tiitm920.cost<br />
+		tiitm001.ccur	=	&quot;USD&quot;<br />
+		tiitm001.cwar 	= 	&quot;AAF&quot;<br />
+		tiitm001.citg	=	&quot;   CPP&quot;<br />
+		tiitm001.cpgp	=	&quot;   CPP&quot;<br />
+		tiitm001.cpgs	=	&quot;   CPP&quot;<br />
+		tiitm001.csgp	=	&quot;   ---&quot;<br />
+		tiitm001.csgs	=	&quot;   ---&quot;<br />
+		tiitm001.cpcp	=	&quot;001&quot;<br />
+		tiitm001.cupp	=	&quot;ea&quot;<br />
+		tiitm001.cups	=	&quot;ea&quot;<br />
+		tiitm001.cuqp	=	&quot;ea&quot;<br />
+		tiitm001.cuqs	=	&quot;ea&quot;<br />
+		tiitm001.uset	=	&quot;   CSI&quot;<br />
+<br />
+<br />
+		db.insert(ttiitm001,db.skip.dupl)<br />
+		commit.transaction()<br />
+<br />
+		tiitm100.item 	= 	tiitm920.titm<br />
+		tiitm100.reli 	= 	tiitm920.titm<br />
+		tiitm100.cntr 	= 	&quot;&quot;<br />
+		db.insert(ttiitm100,db.skip.dupl)<br />
+		commit.transaction()<br />
+	|message(&quot;Done With Inserts&quot;)<br />
+	endselect<br />
+<br />
+	|*--------------------------------------------------------------------------------------------<br />
+	|* Updating NPR<br />
+	|*--------------------------------------------------------------------------------------------	<br />
+	|message(&quot;Updating Part #&quot;&amp;&quot; Hold.titm &quot;&amp;str$(hold.titm)&amp;&quot; Hold.date &quot;&amp;str$(hold.date))<br />
+	db.retry.point()<br />
+	select 	*<br />
+	from 	tiitm920 for update<br />
+	where	tiitm920.titm = :hold.titm<br />
+	and	tiitm920.date = :hold.date<br />
+	selectdo<br />
+		|message(&quot;In Update of TITM: &quot;&amp;hold.titm)<br />
+		|message(str$(tiitm920.orno))<br />
+		tiitm920.status	=	tiitm.nprstat.submit<br />
+	db.update(ttiitm920,db.retry)<br />
+	commit.transaction()<br />
+	endselect<br />
+	|message(&quot;Done With Update&quot;)<br />
+	|*--------------------------------------------------------------------------------------------<br />
+	|* Email<br />
+	|*--------------------------------------------------------------------------------------------<br />
+	| Create temporary file to copy the PC file to<br />
+	msg = &quot;There is a request for a new part #.  The Temp part # is &quot;&amp;hold.titm&amp;&quot;. Please create a part number for it.&quot;<br />
+	serverfilename = &quot;/baan/bse/tmp/partrequest&quot;&amp;str$(tmp.date)&amp;&quot;.rtf&quot;<br />
+	localfilename  = &quot;c:\temp\partrequest&quot;&amp;str$(tmp.date)&amp;&quot;.rtf&quot;<br />
+	message(localfilename)<br />
+        f1 = seq.open(serverfilename,&quot;w&quot;)<br />
+        seq.puts(msg,f1)<br />
+        status = seq.close(f1)<br />
+	email.count = 1<br />
+	email.array(1,1) = &quot;CSIparts_Inbox.compressor-systems.com&quot;<br />
+	start.outlook.parameters(email.count,email.array,localfilename,serverfilename)	<br />
+}<br />
+<br />
+<br />
+Thanks in advance for your help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">11th September 2007, 20:15</div></div><div class="posttext">I don't think I see an entry for tiitm001.cuni here (the inventory unit).<br />
+ <br />
+The unit of measure fields are 3 characters long. Did you try: tiitm001.cuni = &quot;ea &quot; (that is &quot;ea&quot; plus a space)?<br />
+ <br />
+Rob</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">countnikon</div><div class="date">11th September 2007, 21:16</div></div><div class="posttext">Thanks a bunch man.  That did get rid of the error.  Now I'm getting a cost price structure error that it is not present for this date so I have some more digging to do.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">11th September 2007, 21:54</div></div><div class="posttext">Where are you seeing this error? This is normal with new items if you try to do any kind of order or transaction with them. If you enter the item manually, you have to zoom on form 1 of the item master and run the Calculate Cost price session there. There might be a way of scripting that through AFS or something, but I'm not sure.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">countnikon</div><div class="date">11th September 2007, 23:32</div></div><div class="posttext">I'm going to zoom to it and make the user run that session.<br />
+<br />
+Thanks for all the help.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

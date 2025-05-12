@@ -1,0 +1,167 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to modify existing group id as dummy group id to the called session through afs, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to modify existing group id as dummy group id to the called session through afs Tools Development" />
+	
+	<title>How to modify existing group id as dummy group id to the called session through afs [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; How to modify existing group id as dummy group id to the called session through afs</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mathew</div><div class="date">6th August 2019, 20:41</div></div><div class="posttext">Hi friends,<br />
+<br />
+How to modify existing group id  as dummy group id(given by us) to the called maintain po session which is running through afs code in background with another session.<br />
+<br />
+Regards,<br />
+Mathew :confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">6th August 2019, 20:59</div></div><div class="posttext">What are you calling the group id?  Can you give us more information.  I know when I start a process there is a group number (or id) associated with it.  But I am not sure how to change that or why I would need to change it.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mathew</div><div class="date">7th August 2019, 06:46</div></div><div class="posttext">Hi Mark,<br />
+<br />
+stpapi.end.session not ending the mainain po session and getting hang so added code to kill session with afs related group id for po session, but if opening standard session after the afs wrote main session means it is unable to find correctly the afs related po session and wrongly trying to kill the standard po session, also in this point getting hang</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th August 2019, 14:41</div></div><div class="posttext">If the stpapi.end is not closing the maintain po session then there could be something else wrong.  A subsession or something is hanging open. I typically watch the processes in the back ground (using ps on start shell in option dialog) as I step thru my code.  I made sure I account for controlling everything.  Only once in all of my coding did I have to kill a session.  It was the maintain pegging on maintain purchase orders(tcmcs9551s00b). This is part of our A&amp;D extension and I encountered the error when we upgraded to 4c4.  Also you might want to try searching on the sessions on this forum. You might find something that helps you.  I would think killing the session would be your last choice - but below is how I call a session I wrote to do this.  I actually thought I might have to do this more, but only found one place that calls it.<br />
+<br />
+<br />
+| code to call it<br />
+		ppid = pid<br />
+		baan.sess = &quot;tcmcs9551s00b&quot;<br />
+		export(&quot;ppid&quot;,ppid)<br />
+		export(&quot;baan.sess&quot;,baan.sess)<br />
+		rc = activate(&quot;tuddc9120m000&quot;)<br />
+|basic code from tuddc9120m000<br />
+form.1:<br />
+init.form:<br />
+	if background then<br />
+		suspend(5000)<br />
+		execute(cont.process)<br />
+	endif<br />
+<br />
+|****************************** CHOICE      SECTION ***************************<br />
+choice.cont.process:<br />
+on.choice:<br />
+	if not background then<br />
+		check.all.input()<br />
+	else<br />
+		import(&quot;ppid&quot;,ppid)<br />
+		import(&quot;baan.sess&quot;,baan.sess)<br />
+	endif<br />
+	find.a.process()<br />
+	if background then<br />
+		execute(end.program)<br />
+	endif<br />
+<br />
+function find.a.process()<br />
+{<br />
+	long    hold.pno<br />
+	long    pno<br />
+	long    info(256)<br />
+	string  pname(15)<br />
+	<br />
+	sess.found = false<br />
+|	message(&quot;%d&quot;,pid)<br />
+	pno = 0<br />
+	hold.pno = pno<br />
+	pno = pstat (pno, pname, info)<br />
+	while pno &gt; 0 and not sess.found<br />
+		hold.pno = pno<br />
+		pno = pstat (pno, pname, info)<br />
+		if strip$(pname)=strip$(baan.sess) then<br />
+			kill(hold.pno)<br />
+			sess.found = true<br />
+		endif<br />
+	endwhile<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">7th August 2019, 14:42</div></div><div class="posttext">Forgot to mention the code basically traverses the processes and finds the exact session to kill.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mathew</div><div class="date">8th August 2019, 13:49</div></div><div class="posttext">Hi Mark,<br />
+<br />
+I have not understood which pid you are exporting, please give me with screenshot and script in detail. I am using kill.pgrp() to afs tdpur4101m000, when afs is running in the means if i open standard po gui session it getting hanging.<br />
+<br />
+Please give me any clear solution.<br />
+<br />
+Regards,<br />
+Mathew</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th August 2019, 15:07</div></div><div class="posttext">This is one small segment of a very large program. pid is a predefined variable for the current process. All you really need to do is put this in your session.<br />
+<br />
+function kill.a.process()<br />
+{<br />
+	long    hold.pno<br />
+	long    pno<br />
+	long    info(256)<br />
+	string  pname(15)<br />
+	<br />
+	ppid = pid<br />
+	baan.sess = &quot;tcmcs9551s00b&quot;   ||||&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;----------Put your session here.<br />
+<br />
+	sess.found = false<br />
+	pno = 0<br />
+	hold.pno = pno<br />
+	pno = pstat (pno, pname, info)<br />
+	while pno &gt; 0 and not sess.found<br />
+		hold.pno = pno<br />
+		pno = pstat (pno, pname, info)<br />
+		if strip$(pname)=strip$(baan.sess) then<br />
+			kill(hold.pno)<br />
+			sess.found = true<br />
+		endif<br />
+	endwhile<br />
+}<br />
+<br />
+<br />
+PS - I actually have a piece of code in my session that tells them that have to go close certain sessions before you can run my AFS code.<br />
+<br />
+<br />
+form.1:<br />
+init.form:<br />
+	if check.processes() then<br />
+		message(&quot;Please close tdpur4101m000(Maintain Purchase orders) and tdpur4107s000(Maintain Purchase Order Lines, before running this session.&quot;)<br />
+		execute(end.program)<br />
+	endif<br />
+functions:<br />
+function domain tcbool check.processes()<br />
+{<br />
+	long    hold.pno<br />
+	long    pno<br />
+	long    info(256)<br />
+	string  pname(15)<br />
+	<br />
+	pno = 0<br />
+	hold.pno = pno<br />
+	pno = pstat (pno, pname, info)<br />
+	while pno &gt; 0<br />
+		hold.pno = pno<br />
+		pno = pstat (pno, pname, info)<br />
+		if strip$(pname)=&quot;tdpur4101m000&quot; or <br />
+		   strip$(pname)=&quot;tdpur4107s000&quot; or <br />
+		   strip$(pname)=&quot;tdpur4503s000&quot; or <br />
+		   strip$(pname)=&quot;tdpur4107s000&quot; or <br />
+		   strip$(pname)=&quot;tdpur9151s00b&quot;  then<br />
+			return(true)<br />
+		endif<br />
+	endwhile<br />
+	return(false)<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

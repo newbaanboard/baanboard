@@ -1,0 +1,233 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="db.insert not picking up data, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] db.insert not picking up data Tools Development" />
+	
+	<title>db.insert not picking up data [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; db.insert not picking up data</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">17th February 2005, 18:15</div></div><div class="posttext">Trying to load my table with data from another table, in another company specified on my form. I have it inserting the first line, but thats it. Each line created is suppose to increment by one and then insert the data.<br />
+<br />
+This is what I have<br />
+<br />
+function  void sel_max_numb()<br />
+{<br />
+	select max(wtsls100.numb):max_numb<br />
+		from wtsls100<br />
+		where wtsls100.matl= :wtsls100.matl<br />
+		and wtsls100.item = :wtsls100.item<br />
+	selectdo<br />
+		endselect<br />
+<br />
+	for i =1 to filled.occ<br />
+	restore.rcd.main(i)<br />
+		if wtsls100.numb &gt; max_numb<br />
+	then<br />
+	max_numb = wtsls100.numb<br />
+	endif<br />
+	endfor<br />
+<br />
+} <br />
+function get.bom.lines()<br />
+{<br />
+	long count	<br />
+	db.retry.point()<br />
+		select wtsls100.*, tibom010.*<br />
+			from wtsls100 for update, tibom010<br />
+			where tibom010.mitm = :wtsls100.item	<br />
+			and tibom010._compnr = :wtsls100.bomc<br />
+			and wtsls100.item = :wtsls100.item<br />
+			and wtsls100.cuno = :wtsls100.cuno<br />
+			and wtsls100.pono = :wtsls100.pono<br />
+			and wtsls100.cont = :wtsls100.cont<br />
+			order by wtsls100._index1<br />
+		selectdo	<br />
+			sel_max_numb()<br />
+			wtsls100.numb = max_numb <br />
+			wtsls100.matl = tibom010.sitm<br />
+			db.insert(twtsls100,db.retry)<br />
+			commit.transaction()<br />
+				endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th February 2005, 18:59</div></div><div class="posttext">I am confused - are you inserting or updating?  Or maybe there is more code that you did not post.  The reason I ask is that on the insert I see where you are only setting two fields for the wtsls100 table - yet above in the query I see other fields for wtsls100.  So should that be db.insert or should it be db.update?<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">17th February 2005, 20:22</div></div><div class="posttext">The session is a multi occ form. <br />
+The following exist before I choose the update<br />
+wtsls100.cuno, cdel, item, cont, cdel, bomc.<br />
+<br />
+When i use db.update, i get error 206 record is not locked, if a record exists, but if no records exist, nothing gets inserted.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th February 2005, 21:45</div></div><div class="posttext">Not sure why you get the record is not locked, but typically what we do for these type serial numbers is something like below:<br />
+<br />
+function read.serial.number()<br />
+{<br />
+	select	max(tppro603_a.seqn):serial.number<br />
+	from	tppro603 tppro603_a<br />
+	where	tppro603_a._index1 = {:tppro603.cprj, :tppro603.cspa, :tppro603.nprj}<br />
+	selectdo<br />
+	selectempty<br />
+		serial.number = 0<br />
+	endselect<br />
+	return(serial.number)<br />
+}<br />
+function search.last.used.seqn.on.screen()<br />
+{<br />
+	long occ.no<br />
+	<br />
+	for occ.no = 1 to (filled.occ -	1)<br />
+		do.occ(occ.no,check.last.used.sern)<br />
+	endfor<br />
+}<br />
+<br />
+function check.last.used.sern()<br />
+{<br />
+	if tppro603.seqn &gt; serial.number then<br />
+		serial.number =	tppro603.seqn<br />
+	endif<br />
+}<br />
+<br />
+<br />
+Then during the insert of a record we do something like this:<br />
+<br />
+		serial.number = read.serial.number()<br />
+		search.last.used.seqn.on.screen()<br />
+		tppro603.seqn = serial.number + 1<br />
+<br />
+This way as you insert records on the screen you get a new serial number.  In this example at the start of each new record in the form I ran these three lines of code.<br />
+<br />
+As for your query on wtsls100<br />
+<br />
+function get.bom.lines()<br />
+{<br />
+	long count	<br />
+	db.retry.point()<br />
+	select wtsls100.*, tibom010.*<br />
+	from wtsls100 for update, tibom010<br />
+	where tibom010.mitm = :wtsls100.item	<br />
+	and tibom010._compnr = :wtsls100.bomc<br />
+	and wtsls100.item = :wtsls100.item<br />
+	and wtsls100.cuno = :wtsls100.cuno<br />
+	and wtsls100.pono = :wtsls100.pono<br />
+	and wtsls100.cont = :wtsls100.cont<br />
+	order by wtsls100._index1<br />
+	selectdo	<br />
+		sel_max_numb()<br />
+		wtsls100.numb = max_numb + 1<br />
+		wtsls100.matl = tibom010.sitm<br />
+		db.update(twtsls100,db.retry)<br />
+		commit.transaction()<br />
+             selectempty<br />
+                         wtsls100.item = ....<br />
+		wtsls100.numb = max_numb <br />
+		wtsls100.matl = tibom010.sitm<br />
+		db.insert(twtsls100,db.retry)<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+Is there more code that may show exactly what you are trying?  Are you updating one record at a time on wtsls100?  Or are you running a routine that pulls all records from wtsls100 and updates them all at once?<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">18th February 2005, 16:31</div></div><div class="posttext">This is what I am doing:<br />
+I have a maintenance session open, that has my header information inserted <br />
+(cuno, cdel, cont, pono, item, bomc).<br />
+The details in this session need to be filled with the bom lines, and each line inserted is incremented by one.(when selection load bom lines)<br />
+I have attached a screen shot of my session, maybe it will make more sence.<br />
+<br />
+I tried your example, but still no luck.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th February 2005, 17:06</div></div><div class="posttext">I noticed that you joined wtsls100 and tibom010 which means you already expect all of the records to be in wtsls100.  If not found then you want to add them (at least that is what I think).  I just basically separated the queries and modeled it after my outbound session which takes an order and loads the session table.<br />
+<br />
+Mark<br />
+<br />
+<br />
+function  void sel_max_numb()<br />
+{<br />
+	select	max(wtsls100.numb):max_numb<br />
+	from	wtsls100<br />
+	where	wtsls100.matl= :wtsls100.matl<br />
+	and	wtsls100.item = :wtsls100.item<br />
+	selectdo<br />
+	endselect<br />
+<br />
+	for i =1 to filled.occ<br />
+		restore.rcd.main(i)<br />
+		if wtsls100.numb &gt; max_numb then<br />
+			max_numb = wtsls100.numb<br />
+		endif<br />
+	endfor<br />
+<br />
+} <br />
+function get.bom.lines()<br />
+{<br />
+	long count	<br />
+	db.retry.point()<br />
+	| Find bom items<br />
+	select	tibom010.*<br />
+	from	tibom010<br />
+	where	tibom010.mitm = :wtsls100.item	<br />
+	and	tibom010._compnr = :wtsls100.bomc<br />
+	selectdo	<br />
+		select	wtsls100.*<br />
+		from	wtsls100 for update<br />
+		where	wtsls100.item = :tibom010.mitm<br />
+		and	wtsls100.matl = :tibom010.sitm<br />
+		......<br />
+		as set by 1 rows<br />
+		selectdo<br />
+			.....update only the wtsls100 fields that need to be updated...<br />
+			db.update(twtsls100,db.retry)<br />
+		selectempty	| Record not found<br />
+			sel_max_numb()<br />
+			wtsls100.numb = max_numb + 1<br />
+			wtsls100.matl = tibom010.sitm<br />
+			....all other wtsls100 fields get set.........<br />
+			db.insert(twtsls100,db.retry)<br />
+		endselect<br />
+		commit.transaction()<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">19th February 2005, 05:59</div></div><div class="posttext">It loads the lines most of the time, not sure why it hangs sometimes. <br />
+It doesn't seem to work for the update. It only loads a few parts than hangs.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">suhas-mahajan</div><div class="date">19th February 2005, 09:15</div></div><div class="posttext">I would recommend, debug the code instead of compile.<br />
+<br />
+Regards,<br />
+<br />
+-Suhas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">20th February 2005, 02:17</div></div><div class="posttext">Yes - run it in debug mode and check the fields that are being updated.  Make sure during the update none of the primary index fields are being updated - this would cause a duplicate key error. You might want to also post the new version of the code again. <br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ltannous</div><div class="date">21st February 2005, 23:37</div></div><div class="posttext">It seems to be fine now. Thanks for all your help</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,254 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="XML generation, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] XML generation Tools Development" />
+	
+	<title>XML generation [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; XML generation</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">avpatil</div><div class="date">15th October 2020, 19:42</div></div><div class="posttext">Hi,<br />
+I am getting error while generating XML . I used the example given in this forum . The link is posed below.<br />
+<br />
+http://www.baanboard.com/programmers_manual_baanerp_help_functions_xml_example_xml_generation<br />
+<br />
+I am generating XML file on local directory (not on server). The return value of xmlWritePretty is -1 . Are there any includes I need to include.<br />
+<br />
+Regards<br />
+<br />
+Arvind Patil</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">16th October 2020, 09:40</div></div><div class="posttext">Can you post your code? <br />
+How are you opening the file for writing on local? <br />
+If you are opening the file, what is the return value you are getting? <br />
+Is the file being created for writing? <br />
+<br />
+If you don't have any compilation issues, you are good and you don't need any additional includes.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">avpatil</div><div class="date">16th October 2020, 10:11</div></div><div class="posttext">Hi,<br />
+Here is the code.<br />
+The file does get created in local directory but with 0KB.<br />
+The return value of seq.open.local() is positive<br />
+The return value of xmlWritePretry is -1.<br />
+<br />
+<br />
+function test.xml(<br />
+				domain	tcmcs.str300m i.file.name)<br />
+{<br />
+ long    cmfId, identId, recipientsId, fromId, dtdId<br />
+ long    fd, retVal<br />
+|Create the doctype element and populate its contents<br />
+ dtdId = xmlNewNode(&quot;CMF&quot;, XML_DTD)<br />
+ retVal = xmlsetAttribute(dtdId,  &quot;NAMEURL&quot;, &quot;cmf1.dtd&quot;)<br />
+<br />
+ |Create the root element and make it a right sibling of the XML_DTD node.<br />
+ cmfId = xmlNewNode(&quot;CMF&quot; )<br />
+ retVal = xmlAdd(dtdId, cmfId )<br />
+<br />
+ |Create IDENTIFICATION element and add its attributes<br />
+ identId = xmlNewNode(&quot;IDENTIFICATION&quot;, XML_ELEMENT, cmfId)<br />
+<br />
+ retVal = xmlSetAttribute (identId,  &quot;MESSAGE-ID&quot;, &quot;34a98u0erirori&quot; )<br />
+ retVal = xmlSetAttribute(identId,   &quot;CLASS&quot;, &quot;order&quot; )<br />
+ retVal = xmlSetAttribute(identId,   &quot;SUBJECT&quot;, &quot;Subject string&quot; )<br />
+<br />
+ |Create RECIPIENTS element<br />
+ recipientsId = xmlNewNode(&quot;RECIPIENTS&quot;, XML_ELEMENT, cmfId)<br />
+<br />
+ |Create FROM element and add its attributes<br />
+ fromId = xmlNewNode(&quot;FROM&quot;, XML_ELEMENT, recipientsId)<br />
+<br />
+ retVal = xmlSetAttribute(fromId,  &quot;NAME&quot;, &quot;Wiebe Riphagen&quot; )<br />
+ retVal = xmlSetAttribute(fromId,  &quot;TYPE&quot;, &quot;SMTP&quot; )<br />
+ retVal = xmlSetAttribute(fromId,  &quot;ADDRESS&quot;, &quot;wriphagen@baan.nl&quot; )<br />
+<br />
+ |Open a file for write and store the XML document<br />
+ fd = seq.open.local(i.file.name, &quot;w&quot; )<br />
+ retval = xmlWritePretty(fd, dtdId, 0 )<br />
+ seq.close(fd)<br />
+<br />
+ |Free the complete XML object from memory<br />
+ xmlDelete(dtdId, 0)<br />
+ }</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">16th October 2020, 10:52</div></div><div class="posttext">So, looks like there were some issues with your code and with the code in the document.<br />
+<br />
+1. You need to use &quot;wt&quot; for writing in text mode. (for prettifying the content)<br />
+2. You need to use seq.close.local() for closing the file.<br />
+2. writePretty will not work with local file (seq.open(), pipe.open(), ims.openfba() or ims.openvba() refer Prog Manual) so, you will need to use writePrettyToString and then write that string to your file<br />
+3. The document code had xmlAdd which is not right. It should refer parent node while using xmlNewNode for creating&lt;CMF&gt; element.<br />
+<br />
+I've fixed them. Try this code - <br />
+<br />
+	long cmfId, identId, recipientsId, fromId, dtdId<br />
+	long fd, retVal<br />
+	|Create the doctype element and populate its contents<br />
+	dtdId = xmlNewNode(&quot;CMF&quot;, XML_DTD)<br />
+	retVal = xmlsetAttribute(dtdId, &quot;NAMEURL&quot;, &quot;cmf1.dtd&quot;)<br />
+<br />
+	|Create the root element and make it a right sibling of the XML_DTD node.<br />
+        | cmfId = xmlNewNode(&quot;CMF&quot; )              |#BC.so //Invalid Code<br />
+        | retVal = xmlAdd(dtdId, cmfId )          |#BC.eo<br />
+<br />
+	cmfId = xmlNewNode(&quot;CMF&quot;,XML_ELEMENT,dtdId)  |#BC.n //Correct way to create an element<br />
+<br />
+	|Create IDENTIFICATION element and add its attributes<br />
+	identId = xmlNewNode(&quot;IDENTIFICATION&quot;, XML_ELEMENT, cmfId)<br />
+<br />
+	retVal = xmlSetAttribute (identId, &quot;MESSAGE-ID&quot;, &quot;34a98u0erirori&quot; )<br />
+	retVal = xmlSetAttribute(identId, &quot;CLASS&quot;, &quot;order&quot; )<br />
+	retVal = xmlSetAttribute(identId, &quot;SUBJECT&quot;, &quot;Subject string&quot; )<br />
+<br />
+	|Create RECIPIENTS element<br />
+	recipientsId = xmlNewNode(&quot;RECIPIENTS&quot;, XML_ELEMENT, cmfId)<br />
+<br />
+	|Create FROM element and add its attributes<br />
+	fromId = xmlNewNode(&quot;FROM&quot;, XML_ELEMENT, recipientsId)<br />
+<br />
+	retVal = xmlSetAttribute(fromId, &quot;NAME&quot;, &quot;Wiebe Riphagen&quot; )<br />
+	retVal = xmlSetAttribute(fromId, &quot;TYPE&quot;, &quot;SMTP&quot; )<br />
+	retVal = xmlSetAttribute(fromId, &quot;ADDRESS&quot;, &quot;wriphagen@baan.nl&quot; )<br />
+<br />
+	|Open a file for write and store the XML document<br />
+        string buffer(3000)     |#BC.sn<br />
+	fd = seq.open.local(i.file.name, &quot;wt&quot; )<br />
+	retval = xmlWritePrettyToString(buffer,dtdId)<br />
+        seq.write.local(buffer, 3000,fd)<br />
+	seq.close.local(fd)     |#BC.en<br />
+<br />
+	|Free the complete XML object from memory<br />
+	 xmlDelete(dtdId, 0)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">avpatil</div><div class="date">16th October 2020, 11:04</div></div><div class="posttext">Thanks Bhushan. I will try this.<br />
+<br />
+Regards<br />
+<br />
+Arvind</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">avpatil</div><div class="date">16th October 2020, 11:12</div></div><div class="posttext">Hi Bhushan,<br />
+Now I get the file but file contains omy<br />
+<br />
+&lt;?xml version=&quot;1.0&quot;?&gt;<br />
+&lt;!DOCTYPE CMF SYSTEM &quot;cmf1.dtd&quot;&gt;<br />
+<br />
+Regards<br />
+Arvind</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">avpatil</div><div class="date">16th October 2020, 11:18</div></div><div class="posttext">Hi Bhushan,<br />
+It is working now. I missed your other change. Thanks for the help<br />
+<br />
+Regards<br />
+<br />
+Arvind</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">16th October 2020, 11:19</div></div><div class="posttext">Awesome! Glad it worked.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">avpatil</div><div class="date">16th October 2020, 14:29</div></div><div class="posttext">Hi,<br />
+I am getting attached error. Here is the XML<br />
+<br />
+&lt;?xml version=&quot;1.0&quot;?&gt;<br />
+ &lt;!DOCTYPE CMF SYSTEM &quot;cmf1.dtd&quot; [<br />
+<br />
+	&lt;CMF&gt;<br />
+<br />
+         &lt;IDENTIFICATION<br />
+                 MESSAGE-ID=&quot;34a98u0erirori&quot;<br />
+                 CLASS=&quot;order&quot;<br />
+                 SUBJECT=&quot;Subject string&quot;<br />
+         /&gt;<br />
+         &lt;RECIPIENTS&gt;<br />
+                 &lt;FROM<br />
+                         NAME=&quot;Wiebe Riphagen&quot;<br />
+                         TYPE=&quot;SMTP&quot;<br />
+                         ADDRESS=&quot;wriphagen@baan.nl&quot;<br />
+                 /&gt;<br />
+         &lt;/RECIPIENTS&gt;<br />
+ &lt;/CMF&gt;<br />
+  <br />
+]&gt;</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">16th October 2020, 16:20</div></div><div class="posttext">Try this - <br />
+<br />
+|Create the doctype element and populate its contents<br />
+   dtdId = xmlNewNode(&quot;CMF&quot;, XML_DTD)<br />
+   retVal = xmlsetAttribute(dtdId,  &quot;NAMEURL&quot;, &quot;cmf1.dtd&quot;)<br />
+<br />
+   |Create the root element and make it a right sibling of the XML_DTD node.<br />
+   cmfId = xmlNewNode(&quot;CMF&quot; )<br />
+   retVal = xmlAdd(dtdId, cmfId )<br />
+<br />
+   |Create IDENTIFICATION element and add its attributes<br />
+   identId = xmlNewNode(&quot;IDENTIFICATION&quot;, XML_ELEMENT, cmfId)<br />
+<br />
+   retVal = xmlSetAttribute (identId,  &quot;MESSAGE-ID&quot;, &quot;34a98u0erirori&quot; )<br />
+   retVal = xmlSetAttribute(identId,   &quot;CLASS&quot;, &quot;order&quot; )<br />
+   retVal = xmlSetAttribute(identId,   &quot;SUBJECT&quot;, &quot;Subject string&quot; )<br />
+<br />
+   |Create RECIPIENTS element<br />
+   recipientsId = xmlNewNode(&quot;RECIPIENTS&quot;, XML_ELEMENT, cmfId)<br />
+<br />
+   |Create FROM element and add its attributes<br />
+   fromId = xmlNewNode(&quot;FROM&quot;, XML_ELEMENT, recipientsId)<br />
+<br />
+   retVal = xmlSetAttribute(fromId,  &quot;NAME&quot;, &quot;Jan Jansen&quot; )<br />
+   retVal = xmlSetAttribute(fromId,  &quot;TYPE&quot;, &quot;SMTP&quot; )<br />
+   retVal = xmlSetAttribute(fromId,  &quot;ADDRESS&quot;, &quot;jjansen@example.com&quot; )<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+	|Open a file for write and store the XML document<br />
+   string buffer(3000)     |#BC.sn<br />
+	fd = seq.open.local(i.file.name, &quot;wt&quot; )<br />
+   retval = xmlWritePrettyToString(buffer,dtdId)<br />
+   seq.write.local(buffer,len(buffer),fd)<br />
+   retval = xmlWritePrettyToString(buffer,cmfId)<br />
+  |Remove the &lt;?xml version=&quot;1.0&quot;?&gt; part<br />
+   buffer = buffer(23;len(buffer))<br />
+   seq.write.local(buffer,len(buffer),fd)<br />
+	seq.close.local(fd)     |#BC.en<br />
+<br />
+	|Free the complete XML object from memory<br />
+	xmlDelete(dtdId, 0)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">avpatil</div><div class="date">16th October 2020, 17:19</div></div><div class="posttext">Hi Bhushan,<br />
+After this change I noticed the file has this line twide<br />
+&lt;?xml version=&quot;1.0&quot;?&gt;<br />
+What I did was when writing to string buffer second time remove the first 22 charater<br />
+<br />
+fd = seq.open.local(i.file.name, &quot;wt&quot; )<br />
+	retval = xmlWritePrettyToString(buffer,dtdId)<br />
+    seq.write.local(buffer, len(buffer),fd)<br />
+	retval = xmlWritePrettyToString(buffer,cmfId)<br />
+	l.len = len(strip$(buffer))<br />
+	buffer = buffer(22;l.len)<br />
+	seq.write.local(buffer,len(buffer),fd)<br />
+And this works? Is there a better way to do ?<br />
+Arvind</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

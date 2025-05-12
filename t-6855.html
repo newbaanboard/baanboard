@@ -1,0 +1,107 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS - Material To Issue for Production Orders, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS - Material To Issue for Production Orders AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS - Material To Issue for Production Orders [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS - Material To Issue for Production Orders</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">vsevilla</div><div class="date">24th September 2002, 23:30</div></div><div class="posttext">Hi<br />
+I'm trying to make an AFS for session Material To Issue for Production Orders.<br />
+<br />
+The insert doesn't keep the value of sitm and the error message say &quot; Item not Allowed&quot;<br />
+<br />
+I'm in Baan Vc Sp8<br />
+<br />
+Does anyone has an idea on what can be wrong here.<br />
+<br />
+My code is.<br />
+<br />
+<br />
+function run.main.sess()<br />
+{<br />
+|*** This function invokes session tisct1501m000<br />
+	pdno = &quot;T31000046&quot;<br />
+	sitm = string.set$(&quot; &quot;,9) &amp; &quot;COBLE&quot;<br />
+	opno = &quot;20&quot;<br />
+	issu = &quot;400&quot;<br />
+	dris = &quot;2&quot;<br />
+   stpapi.put.field(&quot;ticst1501mc00&quot;, &quot;ticst001.pdno&quot;, pdno)<br />
+   ret.code = stpapi.change.view(&quot;ticst1501mc00&quot;, err)<br />
+<br />
+	if ret.code &lt;&gt; 1 then<br />
+      err = &quot;Error en orden de fabricación&quot;<br />
+		err = err &amp; pdno<br />
+		write.err.record()<br />
+   else<br />
+      run.sub.sess()<br />
+      stpapi.end.session(&quot;ticst1501mc00&quot;)<br />
+	endif<br />
+}<br />
+<br />
+function run.sub.sess()<br />
+{<br />
+|*** This function invokes session tcmcs0503m000<br />
+<br />
+   ret.code = stpapi.synchronize.dialog(&quot;ticst1501mc00&quot;, &quot;add&quot;, err)<br />
+   if ret.code then<br />
+      stpapi.put.field(&quot;ticst0101sc00&quot;, &quot;ticst001.sitm&quot;, sitm)<br />
+      stpapi.get.field(&quot;ticst0101sc00&quot;, &quot;ticst001.sitm&quot;, m.sitm)<br />
+      stpapi.put.field(&quot;ticst0101sc00&quot;, &quot;ticst001.opno&quot;, opno)<br />
+      stpapi.put.field(&quot;ticst0101sc00&quot;, &quot;ticst001.issu&quot;, issu)<br />
+      stpapi.put.field(&quot;ticst0101sc00&quot;, &quot;ticst001.dris&quot;, dris)<br />
+      stpapi.get.field(&quot;ticst0101sc00&quot;, &quot;ticst001.sitm&quot;, m.sitm)<br />
+      ret.code = stpapi.insert(&quot;ticst1501mc00&quot;,false,err)<br />
+      if ret.code then<br />
+         ret.code1 = stpapi.save(&quot;ticst1501mc00&quot;,err)<br />
+      endif<br />
+      if not ret.code or not ret.code1 then<br />
+         ret.code = stpapi.recover(&quot;ticst0101sc00&quot;,err)<br />
+      else<br />
+         stpapi.get.field(&quot;ticst0101sc00&quot;, &quot;next.pono&quot;, pono)<br />
+         stpapi.enum.answer(&quot;ticst0101sc00&quot;, &quot;ticst01011&quot;, tcyesno.yes)<br />
+         stpapi.handle.subproc(&quot;ticst0101sc00&quot;, &quot;tisfc0207m000&quot;, &quot;add&quot;)<br />
+         stpapi.form.command(&quot;ticst0101sc00&quot;,5,&quot;exec.cont.process&quot;, err)<br />
+         stpapi.end.session(&quot;tisfc0207m000&quot;)<br />
+<br />
+         stpapi.handle.subproc(&quot;ticst0101sc00&quot;, &quot;tisfc0207m000&quot;, &quot;kill&quot;)<br />
+      endif<br />
+<br />
+   endif<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dbinderbr</div><div class="date">25th September 2002, 23:07</div></div><div class="posttext">Hello Sevilla,<br />
+<br />
+I had a problem similar to yours. Have you already done sucessfully another sessions using stpapi functions before?<br />
+<br />
+If you dont and you are sure that everything is right (your code appear to be correct), try to install the solution 115279 in your environment. It was what solved my problem.<br />
+<br />
+I think it's the same problem because the message given &quot;Item not allowed&quot; means that the value sent to the item field was invalid and probably blank, as the item field does not accept an empty value, it is mandatory, you got this message.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vsevilla</div><div class="date">3rd October 2002, 15:45</div></div><div class="posttext">Hi<br />
+<br />
+Thanks for your help but the problem was that i'm in Baan V and the domain of the item field is segmented so the correct call was<br />
+<br />
+stpapi.put.field(&quot;session&quot;,&quot;table.item.segment.2&quot;,value)<br />
+<br />
+Thanks again<br />
+<br />
+VSevilla</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

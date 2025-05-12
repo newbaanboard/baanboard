@@ -1,0 +1,258 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS / Production Order, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS / Production Order AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS / Production Order [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS / Production Order</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Sandy Blondino</div><div class="date">13th September 2007, 20:01</div></div><div class="posttext">Hi everybody,<br />
+I have a question regarding AFS and Production Orders.<br />
+I created an AFS session that is supposed to check existing open orders for a particular item, then report operations complete on the order.<br />
+<br />
+I am getting an error message - &quot;Order not yet in production&quot; from the AFS automation. I don't get the error message when I report operations complete manually using the tisfc0102m000 session.<br />
+<br />
+Does anyone have any idea of what is going on?<br />
+Thanks for any help.<br />
+Sandy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">15th September 2007, 21:47</div></div><div class="posttext">Post your code, we might see something.  I can compare to our code on Monday.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">baan.tools</div><div class="date">17th September 2007, 11:37</div></div><div class="posttext">Can you please post the code what you have written....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Sandy Blondino</div><div class="date">17th September 2007, 19:54</div></div><div class="posttext">Hi Guys,<br />
+Here is the code:<br />
+ <br />
+select    tisfc010.*<br />
+from    tisfc010<br />
+where    tisfc010._index1 = {:tdlit419.pdno}<br />
+and    tisfc010.tano = 118<br />
+selectdo<br />
+    stpapi.put.field(&quot;tisfc0102m000&quot;, &quot;tisfc001.pdno&quot;, str$(tdlit419.pdno))<br />
+    stpapi.put.field(&quot;tisfc0102m000&quot;, &quot;tisfc010.opno&quot;, str$(tisfc010.opno))<br />
+    found = stpapi.find(&quot;tisfc0102m000&quot;)<br />
+    if found = 1 then<br />
+        stpapi.put.field(&quot;tisfc0102m000&quot;, &quot;tisfc010.opno&quot;, str$(tisfc010.opno))<br />
+        stpapi.put.field(&quot;tisfc0102m000&quot;, &quot;tisfc010.qcmp&quot;, str$(tisfc010.qpln))<br />
+        stpapi.put.field(&quot;tisfc0102m000&quot;, &quot;tisfc010.comp&quot;, str$(tcyesno.yes))<br />
+        stpapi.update(&quot;tisfc0102m000&quot;, 1, err.msg)<br />
+        stpapi.enum.answer(&quot;tisfc0102m000&quot;, &quot;tisfc01021&quot;, tcyesno.yes)<br />
+    endif                    <br />
+    if not isspace(err.msg) then<br />
+        stpapi.recover(&quot;tisfc0102m000&quot;, err.msg)<br />
+    endif<br />
+    stpapi.end.session(&quot;tisfc0102m000&quot;)<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th September 2007, 20:24</div></div><div class="posttext">First thing I see is that the stpapi.enum.answer must be before the stpapi.update.  Also why are you putting the operation again? If you find the correct order and operation you should not need to put it twice.<br />
+<br />
+I forgot that we developed our own report operations complete. Also make sure you have the current session objects and stpapi libraries.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Sandy Blondino</div><div class="date">17th September 2007, 21:58</div></div><div class="posttext">Hello,<br />
+I made the change that you suggested...moved the update line after the enum.answer line.<br />
+I'm not getting any errors, but it's not updating either.<br />
+<br />
+I'm not sure what's going on.<br />
+I can still report operations complete manually without any errors and it works perfectly.<br />
+<br />
+Thanks for your suggestions.<br />
+Sandy</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th September 2007, 03:17</div></div><div class="posttext">First do you have to put operation complete as tcyesno.yes?  I am curious because I thought when you did it manually all you had to do was put a qty complete and then do a save.  Also what is continue mapped to?  Have you tried stpapi.save versus update?<br />
+<br />
+Do you own source? Then you can debug what is happening.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Thomasm</div><div class="date">18th September 2007, 09:37</div></div><div class="posttext">Sandy,<br />
+<br />
+Haven't really looked at your code but below works for me in Baan IV. You should note that this function always reports the quantity of 1 completed. So if you need it to complete the whole operatoin independant of quantity you need to change it.<br />
+<br />
+You will also notice that there are some specific error handling with pre-defined variables that you probably don't need.<br />
+<br />
+Good luck,<br />
+/Thomas<br />
+<br />
+<br />
+function extern long reportOneOperationComplete( const domain tcpdno production.order,<br />
+		const domain tcopno operation.number,<br />
+		const domain tcyesno do.backflush, const domain tcyesno do.update.preceding, <br />
+		const long end.sess, ref long err.id, ref string err.msg ) <br />
+{<br />
+DLLUSAGE<br />
+	Function to report 1 operation complete using session tisfc0102m000<br />
+	NOTE that the quantity is always one (1) so if there are quantity 2 still to be completed a single call to this function will leave quantity 1 ramaining<br />
+	args: - const domain tcpdno production.order: The production order to update<br />
+	- const domain tcopno operation.number: The operation number to update<br />
+	- const domain tcyesno do.backflush: How to answer the 'Backflush Immediately' question<br />
+	- const domain tcyesno do.update.preceding: How to answer the 'Update Preceding ...' question<br />
+	- const long end.sess: make this true if the session tdinv1101 should be closed after use<br />
+			make this false if otherwise and make it the responsibility of the caller to close the session<br />
+			NOTE: the session will NOT die when the calling session ends!! It will have to be KILLED -9	<br />
+	- ref long err.id: The error code (as defined by Besam) will be returned here (if any)<br />
+	- ref string err.msg: Any error message will be returned here<br />
+	<br />
+	Returns: true if success, false otherwise<br />
+ENDDLLUSAGE<br />
+<br />
+	| stp.api variables<br />
+	long upd, save, recov, enum.answer<br />
+	string update.msg( 150 )<br />
+	string recover.msg( 150 )<br />
+	string save.msg( 150 )<br />
+	string end.msg( 150 )<br />
+	string sess( 13 )<br />
+<br />
+	| session specific variables<br />
+	string already.completed.str(15)<br />
+	long already.completed<br />
+	string planned.quantity.str(15)<br />
+	long planned.quantity<br />
+	string current.backflush.str( 15 )<br />
+	long current.backflush<br />
+	<br />
+	<br />
+	sess = &quot;tisfc0102m000&quot;<br />
+	err.id = 0<br />
+	err.msg = &quot;&quot; | reset<br />
+	<br />
+	<br />
+	<br />
+<br />
+	| find the operation for the production order<br />
+	stpapi.put.field( sess, &quot;tisfc010.pdno&quot;, str$( production.order ) )<br />
+	stpapi.put.field( sess, &quot;tisfc010.opno&quot;, str$( operation.number ) )<br />
+<br />
+	if ( stpapi.find( sess ) = 1 ) then | 1 means found, 2 means session OK but the record not found<br />
+		| get number of planned and number of already completed and number to backflush<br />
+		stpapi.get.field( sess, &quot;tisfc010.qcmp&quot;, already.completed.str )<br />
+		already.completed = lval( already.completed.str )<br />
+		stpapi.get.field( sess, &quot;tisfc010.qpln&quot;, planned.quantity.str )<br />
+		planned.quantity = lval( planned.quantity.str )<br />
+		stpapi.get.field( sess, &quot;tisfc010.qtbf&quot;, current.backflush.str )<br />
+		current.backflush = lval( current.backflush.str )<br />
+<br />
+		| Compare number of completed with number of planned and start input data<br />
+		if planned.quantity &gt; already.completed then | not all planned items are reported<br />
+			| set 1 item completed<br />
+			stpapi.put.field( sess, &quot;tisfc010.qcmp&quot;, str$( already.completed + 1 ) ) | Completed<br />
+			stpapi.put.field( sess, &quot;tisfc010.qrjc&quot;, str$( 0 ) ) | Rejected<br />
+			stpapi.put.field( sess, &quot;tisfc010.qtbf&quot;, str$( current.backflush + 1 ) ) | Backflushing To Do<br />
+<br />
+			| set the operation completed or not<br />
+			if( planned.quantity = already.completed + 1 )then |if all planned now are completed<br />
+				stpapi.put.field( sess, &quot;tisfc010.comp&quot;, str$( tcyesno.yes ) )<br />
+			else<br />
+				stpapi.put.field( sess, &quot;tisfc010.comp&quot;, str$( tcyesno.no ) )<br />
+			endif<br />
+<br />
+			|update, answer questions and save<br />
+			upd = stpapi.update(sess, false, update.msg)<br />
+			if upd then<br />
+				| answer no to question 'Backflush hours/material immediately?'<br />
+				enum.answer = stpapi.enum.answer( sess, &quot;tisfc02023&quot;, do.backflush )<br />
+				<br />
+				|answer the question 'Update all preceding operations?'		<br />
+				| This means that all preceding operations are reported comleted too.<br />
+				enum.answer = stpapi.enum.answer( sess, &quot;tisfc02021&quot;, do.update.preceding )<br />
+				<br />
+				| Everything OK, now save<br />
+				save = stpapi.save(sess, save.msg)			<br />
+			endif<br />
+			<br />
+			| Manage errors in case of not updated or saved<br />
+			if not upd or not save then<br />
+				recov = stpapi.recover( sess, recover.msg)<br />
+				<br />
+				if not upd then | update was the problem<br />
+					err.id = ERR.COULD.NOT.UPDATE<br />
+					err.msg = &quot;Update.msg: &quot; &amp; update.msg &amp; &quot; Recov.msg: &quot; &amp; recover.msg<br />
+				else | save was the problem<br />
+					err.id = ERR.COULD.NOT.SAVE<br />
+					err.msg = &quot;Save.msg: &quot; &amp; save.msg &amp; &quot; Recov.msg: &quot; &amp; recover.msg<br />
+				endif<br />
+<br />
+				| close the session in case of errors<br />
+				stpapi.end.session( sess, end.msg )<br />
+				if not isspace( end.msg ) then<br />
+					err.msg = err.msg &amp; &quot; End.msg: &quot; &amp; end.msg <br />
+				endif<br />
+				| make sure to return failure<br />
+				return( false )<br />
+			endif<br />
+		else<br />
+			err.id = ERR.DATA.INCONSISTENT<br />
+			err.msg = &quot; Already reported all planned number of items&quot;<br />
+			<br />
+			| close the session in case of errors<br />
+			stpapi.end.session( sess, end.msg )<br />
+			if not isspace( end.msg ) then<br />
+				err.msg = err.msg &amp; &quot; End.msg: &quot; &amp; end.msg <br />
+			endif<br />
+			<br />
+			return( false )<br />
+		endif<br />
+	else<br />
+		err.id = ERR.RECORD.NOT.FOUND<br />
+		err.msg = &quot;Record not found&quot;<br />
+		<br />
+		| close the session in case of errors<br />
+		stpapi.end.session( sess, end.msg )<br />
+		if not isspace( end.msg ) then<br />
+			err.msg = err.msg &amp; &quot; End.msg: &quot; &amp; end.msg <br />
+		endif<br />
+		<br />
+		return( false )<br />
+	endif<br />
+<br />
+	| close the session only if the caller requires. Otherwise it is the callers reponsibility <br />
+	| NOTE: the session will NOT die when the calling session ends!!<br />
+	if ( end.sess ) then<br />
+		stpapi.end.session( sess, end.msg )<br />
+		if not isspace( end.msg ) then<br />
+			err.id = ERR.COULD.NOT.END<br />
+			err.msg = err.msg &amp; &quot; End.msg: &quot; &amp; end.msg<br />
+			return( false )<br />
+		endif<br />
+	endif<br />
+<br />
+<br />
+	| OK if we get here	<br />
+	return( true )<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th September 2007, 13:42</div></div><div class="posttext">Sandy,<br />
+<br />
+Notice that the posted code does update with false followed by a save. Thanks for the code Thomas.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Sandy Blondino</div><div class="date">18th September 2007, 14:19</div></div><div class="posttext">Hello,<br />
+We don't own the source code, so I'm not sure what's going on in the background. <br />
+<br />
+I'll try some of the changes you mentioned and see what happens.<br />
+I'll let you know.<br />
+<br />
+Thanks for all your help.<br />
+Sandy</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

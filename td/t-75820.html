@@ -1,0 +1,107 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to take saved value from session report, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to take saved value from session report Tools Development" />
+	
+	<title>How to take saved value from session report [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; How to take saved value from session report</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">radio9001</div><div class="date">1st June 2023, 09:41</div></div><div class="posttext">Hello,<br />
+<br />
+I think I have a very simple problem, in the print session I created a new yes/no field in extension.<br />
+This field is sent to the report ( added in the input fields report) , then the corresponding fields show some section on the report layout.<br />
+<br />
+However, there is a problem with this solution.<br />
+If we save in the personalization of the printing session, marking this field yes/no to yes, the system does not refresh itself what selection this field has and does not send it to the report.<br />
+<br />
+Currently downloading the field I had in the section &quot;when the field changes&quot;<br />
+<br />
+Please give me a hint, on where to put this because I already probed a lot of different options, but it does not work out.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">1st June 2023, 17:33</div></div><div class="posttext">So you are basically saying that your extension fields are not stored in the &quot;Save Defaults&quot; for the session? Not sure if that is the case, others can reply on that.<br />
+<br />
+An - old time - alternative in such cases is the use of a global variable as a form field. This global variable &quot;string procesinfo$(200)&quot; can be used in your case.<br />
+<br />
+Just add a part of this string as a formfield (procesinfo$(1;5)) for the first variable and another part for the second variable (procesinfo$(10;5)).<br />
+<br />
+These (parts of the) variable can be used in the report script or in print conditions.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">radio9001</div><div class="date">5th June 2023, 08:44</div></div><div class="posttext">Hi , <br />
+<br />
+Do you have an example somewhere , how to perform it? <br />
+It needs tcyesno field , to mark it in the printing session.<br />
+Your global variable is a string , so that probably won't help , or do you have a workaround for that ? <br />
+<br />
+BR</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">7th June 2023, 12:44</div></div><div class="posttext">Disclaimer: have not used this in an Ext setting, but in theory should be similar as what I did.<br />
+<br />
+Take standard session whinh3412m000,<br />
+ Added formfield (in at that time dynamic form editor)<br />
+ Field Name: procesinfo$<br />
+{Note: in your case you will need two fields, take enough space for your enums and use the same variable like procesinfo$(1;99) and procesinfo$(100;199)}<br />
+ Field Type: Input<br />
+ Domain: whadd.cost.rec<br />
+<br />
+ In the report script:before.program:<br />
+	import(&quot;procesinfo$&quot;, procesinfo$)<br />
+	if lval(procesinfo$) = etol(whadd.cost.rec.automatic) then<br />
+	    | From the table whsun915 retry all records with a status other than<br />
+	    | processed (thus: failed for some reason before).<br />
+	    main.line = 1<br />
+	    select	whsun915.*, whinh312.*<br />
+	    from	whsun915, whinh312<br />
+	    where	whsun915.stat &lt;&gt; whsun.gig.stat.004.processed<br />
+	    and		whinh312.rcno = whsun915.rcno<br />
+	    and		whinh312.rcln = whsun915.rcln<br />
+	    and		whinh312.item = whsun915.item<br />
+	    order by whsun915._index3<br />
+	    as prepared set<br />
+	    hint use index 3 on whsun915<br />
+	    selectdo<br />
+		if r.this.rcno &lt;&gt; whinh312.rcno then<br />
+		    r.s.before.whinh312.rcno()<br />
+		    r.this.rcno = whinh312.rcno<br />
+		endif<br />
+		r.10.s.detail()<br />
+		r.15.s.detail()<br />
+		r.40.s.detail()<br />
+	    endselect<br />
+	    r.s.after.program()<br />
+	    spool.close()<br />
+	    r.fp = get.pgrp(pid)<br />
+	    kill.pgrp(r.fp)<br />
+	endifWhich added a full automatic retry option to resend failed Receipt Lines to our WMS based on a custom table using this report (specific sections).<br />
+<br />
+But also other things can be done with this parameter like suppress output:before.whinh312.rcno.1:<br />
+before.layout:<br />
+	if lval(procesinfo$) &lt;&gt; etol(whadd.cost.rec.no) then<br />
+	    lattr.print = 0	| or change to 1 to print<br />
+	endif<br />
+In your case it would be likedeclaration:<br />
+	domain	tcyesno	case.1, case.2<br />
+before.program:<br />
+	import(&quot;procesinfo$&quot;, procesinfo$)<br />
+	case.1 = ltoe(lval(procesinfo$(1;99))<br />
+	case.2 = ltoe(lval(procesinfo$(100;199))Hope this still works / works for you.<br />
+<br />
+Oh, and yes, it is a string, but you can put anything in a string right? And interpret it as a long, enum, whichever you want. The session itself uses it with a domain (and stores the long value in the string variable).</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

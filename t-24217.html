@@ -1,0 +1,833 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="general functions for table field manipulations, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] general functions for table field manipulations Code &amp; Utilities" />
+	
+	<title>general functions for table field manipulations [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">Code &amp; Utilities</a> &gt; general functions for table field manipulations</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">4th June 2005, 18:44</div></div><div class="posttext">We have written certain functions which can help one do work on all fields of any table . These functions have helped us extracting certain masters online and generating complete record information in a log based on certain events.<br />
+<br />
+These functions can be encoded in a dll and re-used in any script.<br />
+<br />
+	domain 	tcmcs.st14 	 cdomn<br />
+	long 	coffset,csize,cdept,ctype,cflag,no_key,intlen,reallen,no_col<br />
+	string	cdflt<br />
+	string flddmn(14),oformat,lechar,ilchar,errmess,iformat,clnm(18)<br />
+	long adjust , exprid ,plen , i<br />
+	long flcount<br />
+	long sort_def(1,4)<br />
+	extern string 	recstr(2048)<br />
+	domain tcmcs.str9 ptabl,rtfldr, sptr                    |MBD 281204<br />
+	extern domain tccuno tmpcuno<br />
+	domain tcmcs.st56 tblfl(1) based<br />
+| 	domain	tcmcs.st10 tblarr(1) based	<br />
+	domain	tcbool newtbl<br />
+<br />
+function initialize.recstr.for.current.record()<br />
+{<br />
+|Purpose - This functions extracts the current values of a record  of table<br />
+|   		(for which data dictionary information is loaded in memory  <br />
+|		using function init.table.dd and array tblfl has the appropriate<br />
+|		values of the table) into a string tblrec which can be used to<br />
+|		write to a file straight away .<br />
+|Known Issues - It will create string with the help of separator | . One can have <br />
+|		different separators if one so desires.<br />
+|		Date fields will be written as Baan date numbers as against <br />
+|		normal mmddYYYY format.<br />
+|Pre-requisites - Array tblfl properly initialized with table dd and a record in the same<br />
+|		should be current.<br />
+|Output		-	string recstr will hold the complete record buffer of a table.<br />
+	long i  , fldec<br />
+	string tblrec(3999)<br />
+	recstr = &quot;&quot;<br />
+	tblrec = &quot;&quot;<br />
+	for i = 1 to no_col<br />
+		on case lval(tblfl(30,i;11))<br />
+		case db.string:<br />
+		case db.multibyte:<br />
+			tblrec = tblrec &amp; strip$(tblfl(1,i;18)) &amp; &quot;&amp;&quot;&quot;|&quot;&quot;&amp;&quot; <br />
+			break<br />
+		default:<br />
+			tblrec = tblrec &amp; &quot;str(&quot; &amp; strip$(tblfl(1,i;18)) &amp; &quot;)&amp;&quot;&quot;|&quot;&quot;&amp;&quot;<br />
+		endcase<br />
+	endfor<br />
+	tblrec = tblrec(1;len(tblrec)-1)<br />
+	fldec = expr.compile(tblrec)<br />
+	recstr = s.expr$(fldec)<br />
+	expr.free(fldec)<br />
+}<br />
+<br />
+<br />
+<br />
+function extern long filerec2tablefld(long fp , domain tcmcs.str9 tabl,long recnum)<br />
+{<br />
+|Inputs 	- fp - file pointer for a file opened with seq.open<br />
+|		- tabl - table name of which records are to be read from the file in <br />
+|			tppmmmsss format<br />
+|		- recnum - the number of times the function is called . If it is<br />
+|		  called 1st time , then it initializes table dd in the array, else it uses <br />
+|	          the definition in the buffer<br />
+|output 	- Function returns true when successful in reading the record and transferring the<br />
+|		  the same to  table fields. It  returns false in case of end of file and / or <br />
+|		  record not in pre-defined format.<br />
+|purpose -  The function reads a record from a file (which is in pipe delimited format)<br />
+|	 -  and stores the values from the file to table field .<br />
+|Known issues  - dates are baan dates not in mmddyyyy formats<br />
+|		- Text numbers may need special handling <br />
+|		- File , opening closing tobe  handled outside function<br />
+	string tblrec(3999)<br />
+	long curpos , nextpos<br />
+	string curvl(500)<br />
+	long argnum , i,numelmt,fldec<br />
+	domain tcmcs.st17 idxarg(32)<br />
+	recstr = &quot;&quot;<br />
+	if seq.gets(recstr,2048,fp) &lt; 0 then<br />
+|		message(&quot;File can not be read from ; probably EOF &quot;)<br />
+		return(false)<br />
+	endif<br />
+	curpos = 0 <br />
+	nextpos = 0<br />
+	if recnum = 1 then<br />
+		init.table.dd(tabl,tblfl)<br />
+	endif<br />
+	tblrec = &quot;&quot;<br />
+	for i = 1 to no_col<br />
+		nextpos = pos(recstr(curpos+1),&quot;|&quot;)<br />
+		if nextpos = 0 then<br />
+			if i = no_col then<br />
+				nextpos = len(recstr(curpos))<br />
+			else<br />
+				return(false)<br />
+			endif<br />
+		endif<br />
+		curvl = recstr(curpos+1;nextpos-1)<br />
+		on case lval(tblfl(30,i;11))<br />
+		case db.string:<br />
+		case db.multibyte:<br />
+			put.var(pid,strip$(tblfl(1,i;18)),curvl)<br />
+			break<br />
+		case db.float:<br />
+		case db.double:<br />
+			put.var(pid,strip$(tblfl(1,i;18)),val(curvl))<br />
+			break<br />
+		case db.text:<br />
+			put.var(pid,strip$(tblfl(1,i;18)),0)<br />
+			break<br />
+		default:<br />
+			put.var(pid,strip$(tblfl(1,i;18)),lval(curvl))<br />
+			break<br />
+		endcase<br />
+		curpos = nextpos+curpos<br />
+	endfor<br />
+	return(true)<br />
+<br />
+}<br />
+<br />
+<br />
+function init.table.dd(domain tcmcs.str9 tabl , ref domain tcmcs.st56 tblfl() )<br />
+{<br />
+|Purpose - This function is required only at the time of doing operations with <br />
+|	all physical fields of a table . And it is desired that such table can be <br />
+|	any table . Combined fields are to be excluded for such purpose.<br />
+<br />
+|Input 	-	tblfl  - array manipulated dynamically to store table field attributes<br />
+|		tabl   - Any baan table tppmmmsss format.<br />
+|Output	-	Array tblfl will have complete table definition in the array<br />
+<br />
+	rdi.table(tabl(2) ,no_key,no_col,intlen,reallen)<br />
+	flcount = 0<br />
+	for i = 5 to  no_col <br />
+		rdi.table.column(tabl(2),i,<br />
+		clnm,flddmn,coffset,csize,cdept,ctype,cflag,cdflt)<br />
+		if  ctype &lt;&gt; db.combined then<br />
+			flcount = flcount + 1<br />
+			if alloc.mem(tblfl,56,flcount) &lt; 0 then<br />
+				mess(&quot;tudll00014&quot;,1)<br />
+				|(&quot;Error allocating memory&quot;)<br />
+				free.mem(tblfl)<br />
+			endif<br />
+			tblfl(1,flcount) = clnm<br />
+			tblfl(19,flcount) = edit$(coffset,string.set$(&quot;9&quot;,11))<br />
+			tblfl(30,flcount) = edit$(ctype,string.set$(&quot;9&quot;,11))<br />
+			tblfl(41,flcount) = flddmn<br />
+		endif<br />
+	endfor <br />
+	qss.start(sort_def,1,19)<br />
+	qss.type(sort_def,1,db.string)<br />
+	qss.length(sort_def,1,11)<br />
+	qss.way(sort_def,1,qss.up)<br />
+	e = qss.sort(tblfl,sort_def)<br />
+	no_col = flcount<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kingsto88</div><div class="date">7th October 2005, 06:44</div></div><div class="posttext">Hi Hitesh,<br />
+<br />
+Could you please explain how to use your functions.<br />
+<br />
+I am looking for ways to migrate the supplier table from Baan4 to Baan5. Can I use these functions and how?<br />
+<br />
+Thanks and regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">7th October 2005, 17:25</div></div><div class="posttext">Usage of this functions for migrating to 5 may not help bcos the table structures in V would be entriely different. For such purpose complete database / baan export maybe a good thing .Best thing u should refer baan migration guides for such purpose.<br />
+<br />
+These functions can help u if u want to export / import complete record/s of a table with fields in the order defined in the dictionary on certain events such as delete , modify , certain exceptions etc for logging or  any other use later on.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vishbaan</div><div class="date">2nd May 2006, 17:40</div></div><div class="posttext">Hi Hitesh,<br />
+<br />
+we want to export item data when ever there is a change or new record inserted.<br />
+<br />
+your posted script seems to export the data, my problem is how to call this code in the event of an Insert / Modify or Delete in the Item Master.<br />
+<br />
+Can you help pls<br />
+<br />
+Thanks<br />
+<br />
+Vish</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">3rd May 2006, 09:06</div></div><div class="posttext">Dear Vish , <br />
+<br />
+Here is the code to extract the values runtime . It is a session with 3 GL program attached to it without form . It is started  automatically when user (updating master) logs in and shuts of automatically when user closes all programs .<br />
+<br />
+******************************************************************************<br />
+|* Tijwx8888  0  VRC B40c c4 cust <br />
+|* Extract masters fin runtime<br />
+|* Hitesh<br />
+|* 19-04-04 [14:48]<br />
+|******************************************************************************<br />
+|* Script Type: 0<br />
+|******************************************************************************<br />
+|* This program is for runtime  extract of masters<br />
+|******************************************************************************<br />
+	long ret,pno,lpno<br />
+	table	ttcmcs001	|Units<br />
+	table	ttcmcs002	|Currencies<br />
+	table	ttcmcs006	|Unit Sets <br />
+	table	ttcmcs007	|Unit Sets by language<br />
+	table	ttcmcs015	|Product types<br />
+	table	ttcmcs018	|Product types<br />
+	table	ttcmcs022	|Selection Code<br />
+	table	ttcmcs023	|Item Groups<br />
+	table	ttcmcs024	|Price Groups<br />
+	table	tticpr010	|CP comps<br />
+	table	tticpr050	|Operation rate codes<br />
+	table	tticpr100	|Cost price calculation codes<br />
+	table	tticpr150	|Operation rate codes<br />
+	table 	ttiitm001	|Items <br />
+	table 	ttiitm004	|Conversion factor<br />
+	table	ttiitm013	|Reference Designator<br />
+	table	ttibom010	|BOM<br />
+	table	ttibom020	|Reference Designator<br />
+	table	ttirou002	|Machines<br />
+	table	ttirou003	|Tasks<br />
+	table	ttirou101	|routing codes by item<br />
+	table	ttirou102	|routing codes <br />
+	table	ttdjwx401	|routing codes <br />
+	table 	ttijwx611	|Bom history<br />
+	<br />
+<br />
+	table	ttiitm012	|Alternatve code systems<br />
+	table  ttccom010<br />
+	<br />
+	extern 	domain 	tcmcs.st10	tblarr(1) based	<br />
+	extern long  tbctr<br />
+	<br />
+	long attrs(256)<br />
+	extern string pname(15)<br />
+	domain tcbool fromjwx011 |for jwx1211s001<br />
+	domain tcbool diffcopy |whether copy made<br />
+	long 	progrun , exitctr,updtctr<br />
+	<br />
+	string delpath(100),trghost(20)<br />
+	<br />
+	domain 	tcmcs.str9	maintab<br />
+	domain tcbool  mstupd<br />
+	extern long 	updstat ,fldord , strtid<br />
+	domain 	tcbool cspec<br />
+	domain tcsrnb	idxnum,numelmt<br />
+	domain tcmcs.st17 idxfld(32),custfld<br />
+	domain 	tccuno cuno.f,cuno.t<br />
+	domain tcpono prio.f,prio.t<br />
+	domain tcdate efdt.f , exdt.f<br />
+	domain tilcid stng.f,stng.t<br />
+	domain tcsqnc sqno.f,sqno.t<br />
+	string	rtfldr(10) , sptr(1) ,clntfldr(10)<br />
+	long 	lfp  |lock file pointer<br />
+	#pragma used dll otdjwxextrdaemo<br />
+	#pragma used dll ottdllfilehand<br />
+	#pragma used dll ottdllbw<br />
+	|dir.present / file.present / file.cmp<br />
+	|proc num  ttdsk 1 other 2 9999 4 8888 8   7777  16<br />
+	<br />
+function main()<br />
+{	<br />
+	if hostname$() = &quot;jewelex1&quot; or hostname$() = &quot;jewelex&quot; then<br />
+		rtfldr = &quot;/arch&quot;<br />
+		sptr = &quot;/&quot;<br />
+	else<br />
+		if hostname$() = &quot;JEWDELL&quot; then<br />
+			rtfldr = &quot;H:&quot;<br />
+			sptr = &quot;\&quot;<br />
+		else<br />
+			end()<br />
+		endif<br />
+	endif<br />
+	tbctr = 1<br />
+	clntfldr = &quot;P:&quot;<br />
+	<br />
+	|check if the daemon is already running <br />
+	|if yes then extract of (this program)  may not be run<br />
+	|to start appropriate session<br />
+	<br />
+	pno = pstat(parent,pname,attrs)<br />
+	while  true<br />
+		lpno = pno<br />
+		pno = pstat(pno,pname,attrs)<br />
+		|to test the pid against pno<br />
+		if pname = &quot;tijwx9999m999&quot;  and lpno &lt;&gt; pid then<br />
+		endif		<br />
+		if pno = 0 then<br />
+			break<br />
+		endif<br />
+	endwhile<br />
+	<br />
+	|to extract appropriate values from the active sessions<br />
+	<br />
+	progrun =  31<br />
+	exitctr = 0 <br />
+	mstupd = false<br />
+	pno = parent<br />
+	while true<br />
+		lpno = pno<br />
+		pno = pstat(lpno,pname,attrs)<br />
+		strtid = 0 <br />
+		cspec = false<br />
+		on case pname<br />
+		case &quot;tcmcs0101m000&quot;:<br />
+		case &quot;tcmcs0101s000&quot;:<br />
+		case &quot;tcmcs0102m000&quot;:<br />
+		case &quot;tcmcs0102s000&quot;:<br />
+		case &quot;tcmcs0106m000&quot;:<br />
+		case &quot;tcmcs0106s000&quot;:<br />
+		case &quot;tcmcs0115m000&quot;:<br />
+		case &quot;tcmcs0115s000&quot;:<br />
+		case &quot;tcmcs0118m000&quot;:<br />
+		case &quot;tcmcs0118s000&quot;:<br />
+		case &quot;tcmcs0122m000&quot;:<br />
+		case &quot;tcmcs0122s000&quot;:<br />
+		case &quot;tcmcs0123m000&quot;:<br />
+		case &quot;tcmcs0123s000&quot;:<br />
+		case &quot;tcmcs0124m000&quot;:<br />
+		case &quot;tcmcs0124s000&quot;:<br />
+		case &quot;tcmcs0144m000&quot;:<br />
+		case &quot;tcmcs0144s000&quot;:<br />
+		case &quot;tibom1110m000&quot;:<br />
+		case &quot;tibom1110s000&quot;:<br />
+		case &quot;tibom0120m000&quot;:<br />
+		case &quot;tibom0120s000&quot;:<br />
+		case &quot;ticpr0110m000&quot;:<br />
+		case &quot;ticpr0110s000&quot;:<br />
+		case &quot;ticpr0150m000&quot;:<br />
+		case &quot;ticpr0150s000&quot;:<br />
+		case &quot;ticpr1101m000&quot;:<br />
+		case &quot;ticpr1101s000&quot;:<br />
+		case &quot;ticpr1150m000&quot;:<br />
+		case &quot;ticpr1150s000&quot;:<br />
+		case &quot;tiitm0120m000&quot;:<br />
+		case &quot;tiitm0120s000&quot;:<br />
+		case &quot;tiitm0112m000&quot;: |Client specific<br />
+		case &quot;tiitm0112s000&quot;: |Client specific<br />
+		case &quot;tiitm0113m000&quot;: <br />
+		case &quot;tiitm0113s000&quot;: <br />
+		case &quot;tirou0101m000&quot;:<br />
+		case &quot;tirou0101s000&quot;:<br />
+		case &quot;tirou0102m000&quot;:<br />
+		case &quot;tirou0102s000&quot;:<br />
+		case &quot;tirou0103m000&quot;:<br />
+		case &quot;tirou0103s000&quot;:<br />
+		case &quot;tirou1101m000&quot;:<br />
+		case &quot;tirou1101s000&quot;:<br />
+		case &quot;tirou1102m000&quot;:<br />
+		case &quot;tirou1102s000&quot;:<br />
+		case &quot;tirou2110m000&quot;:<br />
+		case &quot;tirou2110s000&quot;:<br />
+			get.var(lpno,&quot;g.update.status&quot;,updstat)<br />
+			on case updstat <br />
+			case modify.set:<br />
+			case mark.delete:<br />
+			case add.set:<br />
+			case dupl.occur:<br />
+				if pname = &quot;tibom1110m000&quot; or pname = &quot;tibom1110s000&quot; then<br />
+					get.var(lpno,&quot;tibom010.mitm&quot;,tijwx611.item)<br />
+					get.var(lpno,&quot;logname$&quot;,tijwx611.user)<br />
+					select tijwx611.*<br />
+					from tijwx611 for update<br />
+					where tijwx611._index1 = {&quot;tibom010&quot;,:tijwx611.item}<br />
+					selectdo<br />
+						tijwx611.date = date.num()<br />
+						tijwx611.time = time.num()<br />
+						tijwx611.user = logname$<br />
+						db.retry.point()<br />
+						db.update(ttijwx611,db.retry)<br />
+						commit.transaction()<br />
+					selectempty<br />
+						tijwx611.tabl = &quot;tibom010&quot;<br />
+						tijwx611.date = date.num()<br />
+						tijwx611.time = time.num()<br />
+						db.retry.point()<br />
+						db.insert(ttijwx611,db.retry)<br />
+						commit.transaction()<br />
+					endselect<br />
+				endif<br />
+<br />
+				get.strtid.cspec(pname,strtid, cspec)<br />
+				get.var(lpno,&quot;main.table$&quot;,maintab)<br />
+				get.var(lpno,&quot;attr.id&quot;,fldord)<br />
+				if fldord &gt;= strtid then<br />
+					table.index.info(maintab(2),1,numelmt,idxfld)  |dll<br />
+					if numelmt = 0 then<br />
+						break<br />
+					endif<br />
+					update.index.values(pname,lpno,maintab,1,updstat,<br />
+					idxfld,numelmt,custfld)<br />
+				endif<br />
+				mstupd = true<br />
+				progrun = bit.and(progrun,2)?progrun:progrun + 2 <br />
+				break<br />
+			default:<br />
+				break<br />
+			endcase<br />
+			break<br />
+		case &quot;tiitm0101s000&quot;:<br />
+		case &quot;tiitm0101m000&quot;:<br />
+			get.var(lpno,&quot;g.update.status&quot;,updstat)<br />
+			on case updstat <br />
+			case modify.set:<br />
+|			case add.set:<br />
+				get.strtid.cspec(pname,strtid, cspec)       |dll function to get where the cursor should be <br />
+				get.var(lpno,&quot;main.table$&quot;,maintab)<br />
+				get.var(lpno,&quot;attr.id&quot;,fldord)<br />
+				if fldord &gt;= strtid and tiitm001.ltcp &lt;&gt; 0 then<br />
+					table.index.info(maintab(2),1,numelmt,idxfld)   |dll<br />
+					if numelmt = 0 then<br />
+						break<br />
+					endif<br />
+					update.index.values(pname,lpno,maintab,1,updstat,<br />
+					idxfld,numelmt,custfld)                         |dll<br />
+					mstupd = true<br />
+					progrun = bit.and(progrun,2)?progrun:progrun + 2 <br />
+				endif<br />
+				break<br />
+			default:<br />
+				break<br />
+			endcase<br />
+			break<br />
+		case &quot;tiitm0202s000&quot;:	|Copy item<br />
+		case &quot;tiitm0202s100&quot;:<br />
+			get.var(lpno,&quot;g.update.status&quot;,updstat)<br />
+			if updstat = cont.process then<br />
+				|to check choice  also<br />
+					get.var(lpno,&quot;copy.item&quot;,tijwx611.item)<br />
+					get.var(lpno,&quot;logname$&quot;,tijwx611.user)<br />
+					select tijwx611.*<br />
+					from tijwx611 for update<br />
+					where tijwx611._index1 = {&quot;tiitm001&quot;,:tijwx611.item}<br />
+					selectdo<br />
+						tijwx611.date = date.num()<br />
+						tijwx611.time = time.num()<br />
+						tijwx611.user = logname$<br />
+						db.retry.point()<br />
+						db.update(ttijwx611,db.retry)<br />
+						commit.transaction()<br />
+					selectempty<br />
+						tijwx611.tabl = &quot;tiitm001&quot;<br />
+						tijwx611.date = date.num()<br />
+						tijwx611.time = time.num()<br />
+						db.retry.point()<br />
+						db.insert(ttijwx611,db.retry)<br />
+						commit.transaction()<br />
+					endselect<br />
+				mstupd = true<br />
+				progrun = bit.and(progrun,2)?progrun:progrun + 2 <br />
+			endif<br />
+			break<br />
+		case &quot;tiitm0203m000&quot;:	|Delete item<br />
+		case &quot;tiitm0203s000&quot;:<br />
+			get.var(lpno,&quot;g.update.status&quot;,updstat)<br />
+			if updstat = cont.process then<br />
+				|to check choice  also to consider other field selections<br />
+				mstupd = true<br />
+				progrun = bit.and(progrun,2)?progrun:progrun + 2 <br />
+			endif<br />
+			break<br />
+ 		case &quot;ottdskmbrowse&quot;:<br />
+ 		case &quot;ottdskbrowser&quot;:<br />
+			|check uncopied files on server. for style flag<br />
+			|variable nooftimeserr , dirs to check<br />
+			check.uncopied.files()<br />
+			progrun = bit.and(progrun,1)?progrun:progrun + 1 <br />
+			break<br />
+		case &quot;tijwx9999m999&quot;: |Another startup program<br />
+			progrun = bit.and(progrun,4)?progrun:progrun + 4 <br />
+			break<br />
+		case &quot;tijwx7777m777&quot;:<br />
+			progrun = bit.and(progrun,16)?progrun:progrun + 16<br />
+			break<br />
+ 		case &quot;tijwx8888m888&quot;: |Current program<br />
+			if mstupd  and not bit.and(progrun,2) then<br />
+				if  updtctr &gt;= 3 then<br />
+					| if  not  check.folder.lock(&quot;masters&quot;,         |dll<br />
+					| &quot;   JAN&quot;, lfp,1,10,true) then<br />
+					|This is where actual related  files are created using updated index values in <br />
+					|tdjwx401<br />
+					if  not  check.client.lock(&quot;masters&quot;,<br />
+						&quot;   JAN&quot;, lfp,1,10,true) then<br />
+						|create and set a lock<br />
+						alloc.mem(tblarr,10,1)		<br />
+						set.mem(tblarr,&quot;&quot;)						<br />
+						create.export.files(&quot;   JAN&quot;,tblarr,tbctr)         |dll<br />
+						| if  not check.folder.lock(&quot;masters&quot;,  |dll<br />
+						| &quot;   JAN&quot;,lfp,2 , 1,true) then	|close file<br />
+|						check.client.files()<br />
+ 						copy.files.2.client()<br />
+						if  not check.client.lock(&quot;masters&quot;,  |dll<br />
+						&quot;   JAN&quot;,lfp,2 , 1,true) then	|close file					<br />
+<br />
+	<br />
+						endif<br />
+						mstupd = false<br />
+						updtctr = 0<br />
+					else <br />
+					endif<br />
+				else<br />
+					suspend(100)<br />
+					updtctr = updtctr + 1<br />
+				endif<br />
+			else<br />
+				if  not bit.and(progrun,3)   then<br />
+					exitctr =exitctr + 1<br />
+					if exitctr &gt;= 3 then<br />
+						progrun = - 1<br />
+					endif<br />
+				else<br />
+					exitctr = 0 <br />
+				endif<br />
+				if not mstupd then<br />
+					suspend(1000)<br />
+				endif<br />
+			endif<br />
+			|create file for export to JAN in this place<br />
+			|Update everything in table jwx400 and jwx401 to a file<br />
+			| and delete the record<br />
+			|endif<br />
+			if progrun &lt;   0 then<br />
+				break<br />
+			endif<br />
+			progrun = 0 <br />
+			break<br />
+		case &quot;init&quot;:<br />
+		case &quot;ottstpstdlib &quot;:<br />
+		case &quot;ottstppollmes&quot;:<br />
+			break<br />
+		default:<br />
+|			progrun = bit.and(progrun,2)?progrun:progrun + 2 <br />
+			progrun = bit.and(progrun,8)?progrun:progrun + 8 <br />
+		endcase<br />
+		if progrun &lt; 0 then<br />
+			break<br />
+		endif<br />
+	endwhile <br />
+}                                                                               <br />
+<br />
+function extern get.strtid.cspec(domain tcmcs.st14 pname , ref long strtid,ref domain tcbool cspec)<br />
+{<br />
+	cspec = false<br />
+	on case pname<br />
+	case &quot;tcmcs0101m000&quot;:<br />
+	case &quot;tcmcs0101s000&quot;:<br />
+		strtid = 2<br />
+		break<br />
+	case &quot;tcmcs0102m000&quot;:<br />
+	case &quot;tcmcs0102s000&quot;:<br />
+		strtid = 2<br />
+		break<br />
+	case &quot;tcmcs0106m000&quot;:<br />
+	case &quot;tcmcs0106s000&quot;:<br />
+		strtid = 2<br />
+		break<br />
+	case &quot;tcmcs0115m000&quot;:<br />
+	case &quot;tcmcs0115s000&quot;:<br />
+		strtid = 2<br />
+		break<br />
+	case &quot;tcmcs0118m000&quot;:<br />
+	case &quot;tcmcs0118s000&quot;:<br />
+		strtid = 2<br />
+		break<br />
+	case &quot;tcmcs0122m000&quot;:<br />
+	case &quot;tcmcs0122s000&quot;:<br />
+		strtid = 2<br />
+		break<br />
+	case &quot;tcmcs0123m000&quot;:<br />
+	case &quot;tcmcs0123s000&quot;:<br />
+		strtid = 2<br />
+		break<br />
+	case &quot;tcmcs0124m000&quot;:<br />
+	case &quot;tcmcs0124s000&quot;:<br />
+		strtid = 2<br />
+		break<br />
+	case &quot;tcmcs0144m000&quot;:<br />
+	case &quot;tcmcs0144s000&quot;:<br />
+		strtid = 2<br />
+		break<br />
+	case &quot;tibom1110m000&quot;:<br />
+	case &quot;tibom1110s000&quot;:<br />
+		strtid = 8<br />
+		break<br />
+	case &quot;tibom0120m000&quot;:<br />
+	case &quot;tibom0120s000&quot;:<br />
+		strtid = 9<br />
+		break<br />
+	case &quot;ticpr0110m000&quot;:<br />
+	case &quot;ticpr0110s000&quot;:<br />
+		strtid = 2<br />
+		break<br />
+	case &quot;ticpr0150m000&quot;:<br />
+	case &quot;ticpr0150s000&quot;:<br />
+		strtid = 2<br />
+		break<br />
+	case &quot;ticpr1101m000&quot;:<br />
+	case &quot;ticpr1101s000&quot;:<br />
+		strtid = 2<br />
+		break<br />
+	case &quot;ticpr1150m000&quot;:<br />
+	case &quot;ticpr1150s000&quot;:<br />
+		strtid = 5<br />
+		break<br />
+	case &quot;tiitm0101s000&quot;:<br />
+	case &quot;tiitm0101m000&quot;:<br />
+		strtid = 2<br />
+		break<br />
+	case &quot;tiitm0120m000&quot;:<br />
+	case &quot;tiitm0120s000&quot;:<br />
+		strtid = 6<br />
+		break<br />
+	case &quot;tiitm0112m000&quot;: |Client specific<br />
+	case &quot;tiitm0112s000&quot;: |Client specific<br />
+		cspec = true<br />
+		strtid = 10<br />
+		break<br />
+	case &quot;tiitm0113m000&quot;: <br />
+	case &quot;tiitm0113s000&quot;: <br />
+		strtid = 2<br />
+		break<br />
+	case &quot;tirou0101m000&quot;:<br />
+	case &quot;tirou0101s000&quot;:<br />
+		strtid = 3<br />
+		break<br />
+	case &quot;tirou0102m000&quot;:<br />
+	case &quot;tirou0102s000&quot;:<br />
+		strtid = 3<br />
+		break<br />
+	case &quot;tirou0103m000&quot;:<br />
+	case &quot;tirou0103s000&quot;:<br />
+		strtid = 3<br />
+		break<br />
+	case &quot;tirou1101m000&quot;:<br />
+	case &quot;tirou1101s000&quot;:<br />
+		strtid = 5<br />
+		break<br />
+	case &quot;tirou1102m000&quot;:<br />
+	case &quot;tirou1102s000&quot;:<br />
+		strtid = 5<br />
+		break<br />
+	case &quot;tirou2110m000&quot;:<br />
+	case &quot;tirou2110s000&quot;:<br />
+		strtid = 10<br />
+		break<br />
+	default:<br />
+		strtid = 250<br />
+		break<br />
+	endcase<br />
+}<br />
+<br />
+<br />
+function extern table.index.info(domain tcmcs.str9 tabl, domain tcsrnb indx , <br />
+			ref domain tcsrnb numelmt, ref domain tcmcs.st17 idxfld())<br />
+{<br />
+	numelmt = 0 <br />
+	set.mem(idxfld ,&quot;&quot;)<br />
+	if  rdi.column.combined(strip$(tabl)&amp;&quot;._index&quot; &amp; str$(indx),idxfld) &lt; 0  then <br />
+		numelmt = 0<br />
+		return<br />
+	endif<br />
+	while not isspace(idxfld(1,numelmt+1))<br />
+		numelmt = numelmt + 1<br />
+	endwhile<br />
+}<br />
+<br />
+function extern update.index.values(domain tcmcs.st14 pname, long pno,<br />
+		domain tcmcs.str9 tabl, domain tcsrnb indx, long updstat,<br />
+		ref domain tcmcs.st17 idxfld(),domain tcsrnb numelmt,<br />
+		ref domain tcmcs.st17 cusfld)<br />
+{<br />
+	string 	 idxstr(200)<br />
+	long i<br />
+	string impstr(500)<br />
+	long implong<br />
+	double impdbl<br />
+	impstr = &quot;&quot;<br />
+	idxstr = &quot;&quot;<br />
+	for i =1 to numelmt<br />
+		if len(strip$(shiftl$(idxstr))) &gt;= 200 then<br />
+			message(&quot;Index values can not be accomodated in single container&quot;)<br />
+		endif<br />
+		rdi.column(idxfld(1,i),<br />
+		flddmn,coffset,csize,cdept,ctype,cflag,cdflt)<br />
+		if flddmn = &quot;tccuno&quot; then<br />
+			cusfld = idxfld(1,i) <br />
+			get.var(pno,idxfld(1,i),impstr)<br />
+			if impstr &lt;&gt; &quot;   JAN&quot; then<br />
+				|later on add cuno in function argument<br />
+				return<br />
+			endif <br />
+		endif<br />
+		on case ctype<br />
+		case db.string:<br />
+		case db.multibyte:<br />
+			get.var(pno,idxfld(1,i),impstr)<br />
+			if cusfld = idxfld(1,i) then<br />
+				idxstr = idxstr &amp; strip$(idxfld(1,i)) &amp;<br />
+				 &quot;:=&quot;&quot;   JAN&quot;&quot;,&quot;<br />
+			else<br />
+				idxstr = idxstr &amp; strip$(idxfld(1,i)) &amp; &quot;:=&quot;&quot;&quot; &amp; impstr &amp; &quot;&quot;&quot;,&quot;<br />
+			endif<br />
+			break<br />
+		case db.long:<br />
+		case db.integer:<br />
+		case db.byte:<br />
+			get.var(pno,idxfld(1,i),implong)<br />
+			idxstr = idxstr &amp; strip$(idxfld(1,i)) &amp; &quot;:=&quot; &amp; str$(implong) &amp; &quot;,&quot;<br />
+			break<br />
+		case db.double:<br />
+		case db.float:<br />
+			get.var(pno,idxfld(1,i),impdbl)<br />
+			idxstr = idxstr &amp; strip$(idxfld(1,i)) &amp; &quot;:=&quot; &amp; str$(impdbl) &amp; &quot;,&quot;<br />
+			break<br />
+		case db.date:<br />
+			get.var(pno,idxfld(1,i),implong)<br />
+			idxstr = idxstr &amp; strip$(idxfld(1,i)) &amp; &quot;:=&quot; &amp; str$(implong) &amp; &quot;,&quot;<br />
+			break<br />
+		case db.bitset:<br />
+		case db.enum:<br />
+			get.var(pno,idxfld(1,i),implong)<br />
+			idxstr = idxstr &amp; strip$(idxfld(1,i)) &amp; &quot;:=&quot; &amp; str$(implong) &amp; &quot;,&quot;<br />
+			break<br />
+		endcase<br />
+	endfor<br />
+	if len(idxstr) &gt; 0 then<br />
+		idxstr = idxstr(1;len(idxstr)-1)<br />
+	endif<br />
+<br />
+	tdjwx400.tabl = tabl<br />
+	tdjwx400.user = logname$<br />
+	tdjwx400.sess = pname<br />
+	db.retry.point()<br />
+	db.insert(ttdjwx400,db.retry,db.skip.dupl )<br />
+	commit.transaction()<br />
+	<br />
+	tdjwx401.tabl = tabl<br />
+	tdjwx401.user = logname$<br />
+	tdjwx401.sess = pname<br />
+	on case updstat <br />
+	case modify.set:<br />
+		tdjwx401.updm  = tcqms.mode.update<br />
+		break<br />
+	case mark.delete:<br />
+		tdjwx401.updm  = tcqms.mode.delete<br />
+		break<br />
+	case add.set:<br />
+	case dupl.occur:<br />
+		tdjwx401.updm  = tcqms.mode.add<br />
+		break<br />
+	default:<br />
+	endcase<br />
+	tdjwx401.idxv = idxstr<br />
+	db.retry.point()<br />
+	db.insert(ttdjwx401,db.retry,db.skip.dupl )<br />
+	commit.transaction()<br />
+<br />
+}<br />
+<br />
+<br />
+Certain dll functions (for which simialr source is given may not exist now .<br />
+Also note following.<br />
+<br />
+1. We are not doing item masters because of dynamic stock data / cumulative stock data which we do not require in export . We use the extracted index values to write specific exchange schema exporting only specific data. Item copy /delete tracking is taken care off in this program.<br />
+<br />
+2. Also need to take care off undo / escape of the commands . This is taken already care off by writing of the primary key values in a temp table  and then check the same at the  time of creating file  whether they really exist / are deleted .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vishbaan</div><div class="date">3rd May 2006, 17:12</div></div><div class="posttext">Dear Hitesh,<br />
+<br />
+First of all, its a very good thought and effort by you, congratulations friend.<br />
+<br />
+My requirement was to sense the changes done to Item Master and extract them out to another host system every half an hour.<br />
+<br />
+ - I was trying triggers from the underlying RDBMS SQL 2000 ; it didnt work, <br />
+   may be bcos baan has implicit commits.<br />
+ - I was trying baan audit, but then to decode baan audit file and update <br />
+   another host table regularly seemed a trouble.<br />
+ - Now checking of parallel table options(copy of items in another table) so <br />
+   that always compare and take-out the differences; But this way, when no. <br />
+   of items grow more(100,000+), the performance is too slow.<br />
+<br />
+Your script is interesting,<br />
+as I understand, you seem to sense from the sessions for the changes done to the tables; can u pls clarify my following questions:<br />
+<br />
+1) if changes are done to tables using GTM or using an exchange scheme ,  is it possible to sense the items that are changed.<br />
+<br />
+2) anyother means is possible to achieve the above.<br />
+<br />
+Thanks and hv a nice day.<br />
+<br />
+Vish</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">4th May 2006, 07:25</div></div><div class="posttext">For us , it's sufficient bcos our users do not have access to GTM or exchange schema . It's working nice . We are supplementing it with day end item master exchange for static data using extracted key values.<br />
+<br />
+For GTM and exchange update , I think audit trail is the best thing u can use . I have an impression , enabling audit is a performance hit on the application program . This also u can probably address by choosing only static fields in the audit . It should not be difficult to decode audit files .<br />
+<br />
+Though I am not much familiar with SQL triggers as such , it should also work . Maybe some SQL server expert can help u on this.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">4th May 2006, 22:10</div></div><div class="posttext">Have you thought to use Table Audit?  It writes changes only automatically.  This can be used in multi-company exchanges (Baan V+), but even in Baan IV it will write the changes.  You need special functions to read this audit then.<br />
+<br />
+I see Hitesh has suggested.  It can be a performance hit on transaction tables.  For the item master, USUALLY not changed as often as a transaction table, it is done without TOO much of a hit, and can always be turned off if it affects you too much.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">5th May 2006, 07:00</div></div><div class="posttext">I had considered this possibility .But ruled it out in favour  of the above mentioned custom program for following reasons .<br />
+<br />
+1. Audit causes performance overhead on application programs updating the audit enabled tables .e.g item master is updated by many programs for inventories and other dynamic data.<br />
+2. Again there is need  to write programs to decode the audit files and audit DD and possibly table DD  for this purpose . <br />
+<br />
+I wonder why SQL server triggers also should not work for this matter. I did not understand implicit commits Vish talked about .</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

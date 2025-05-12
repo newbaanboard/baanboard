@@ -1,0 +1,104 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Sales Quotation AFS continue opens a wrong subsession, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Sales Quotation AFS continue opens a wrong subsession AFS/DDC/OLE: Function servers" />
+	
+	<title>Sales Quotation AFS continue opens a wrong subsession [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Sales Quotation AFS continue opens a wrong subsession</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Altrev</div><div class="date">22nd August 2017, 20:25</div></div><div class="posttext">Hi,<br />
+<br />
+I have two BaaN companies, and each company opens a different Quotation Lines subsession due to setup when opening from the menu:<br />
+<br />
+Company A: When using  tdsls1101m000 and add lines the subsession tdsls1102s000 - Maintain Quotation Lines is opened<br />
+<br />
+Company B: When using  tdsls1101m000 and add lines the subsession tdsls1107s000 - Maintain Quotation Lines (Wholesale) is opened<br />
+<br />
+But I'm using AFS to generate Sales Quotation, and being in Company B when I used the continue option the subsession opened is tdsls1102s000 instead of tdsls1107s000.<br />
+<br />
+stpapi.continue.process( &quot;tdsls1101m000&quot;, error )<br />
+<br />
+Even if before I set the sub process to tdsls1107s000:<br />
+stpapi.handle.subproc( &quot;tdsls1101m000&quot;, &quot;tdsls1107s000&quot;,&quot;add&quot;)<br />
+<br />
+Could someone have an idea why the continue process in AFS opens a different subsession that when using the Run Program?<br />
+<br />
+Thanks in advance for your help</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">22nd August 2017, 23:41</div></div><div class="posttext">Not familiar with the sessions, but it is always possible that in 4c4 in api mode it skips some code that makes the tdsls1107s000 sub-session kick off instead of tdsls1102s000. Do you own source code to where you can debug it?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Altrev</div><div class="date">23rd August 2017, 02:05</div></div><div class="posttext">Hi Mark,<br />
+Unfortunately I do not have the source code of the api.<br />
+Thanks!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd August 2017, 15:05</div></div><div class="posttext">Well then that makes it a lot tougher - it could really be anything. I know in one session I had set something called boi.call before the function server would work.  The only thing I can suggest is to run ttstpcreatdll to just create the DLL and just see what is in it.  The other thing you could possible try is to do a save or an update on tdsls1101m000 before the continue.  One of those commands might trigger a piece of code to set the subsession for the continue.<br />
+<br />
+stpapi.update(tdsls1101m000&quot;, 1, error)<br />
+stpapi.handle.subproc( &quot;tdsls1101m000&quot;, &quot;tdsls1107s000&quot;,&quot;add&quot;)stpapi.continue.process( &quot;tdsls1101m000&quot;, error )<br />
+<br />
+Of course I assume in company b if you run tdsls1101m000 by hand and hit continue it launches the tdsls1107s000 using the data that would run thru the AFS code.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">23rd August 2017, 16:02</div></div><div class="posttext">What version are you on? Also, moved the thread to the correct forum - AFS/DDC/OLE - Function servers</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th August 2017, 05:13</div></div><div class="posttext">Bhushan - in the other forum it was 4c4.  I was leaving it there just in case somebody on the functional side might know something to check.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Altrev</div><div class="date">29th August 2017, 19:16</div></div><div class="posttext">Hi,<br />
+Here is an Update, the continue process still opens the wrong session, this is what I had to do in order to open the correct session using API for Sales Quotations:<br />
+<br />
+Before accessing the API I had to select the record table by code:<br />
+<br />
+select	tdsls001.*<br />
+from		tdsls001<br />
+where	tdsls001.refa = :quote.item<br />
+order by tdsls001.refa<br />
+selectdo<br />
+		sq.num  = tdsls001.qono<br />
+endselect<br />
+<br />
+with this select the following API works fine without the continue.process<br />
+<br />
+tdslsf1101m000.handle.sub.process(prog.name$,&quot;send&quot;)<br />
+tdslsf1101m000.put.Quotation_Number( sq.num )<br />
+ret = tdslsf1101m000.find(error.msg)<br />
+<br />
+tdslsf1101m000.handle.sub.process(&quot;tdsls1107s000&quot;,&quot;add&quot;)<br />
+	tdslsf1107s000.put.Quotation_Number( sq.num )<br />
+	tdslsf1107s000.put.Position_Number.tdsls002.pono( sq.line.num )<br />
+	tdslsf1107s000.put.Alternative( sq.altn )<br />
+	tdslsf1107s000.put.Item( quote.item )<br />
+	tdslsf1107s000.put.Planned_Delivery_Date( quote.date )<br />
+	tdslsf1107s000.put.Ordered_Quantity( quote.qty )<br />
+	tdslsf1107s000.put.Tax_Code( tax.code )<br />
+	ret = tdslsf1107s000.insert( 1, error.msg )<br />
+<br />
+	sq.line.num = tdslsf1107s000.get.Position_Number.tdsls002.pono()<br />
+<br />
+	tdslsf1107s000.end(error.msg)<br />
+<br />
+tdslsf1101m000.end(error.msg)<br />
+<br />
+Thanks Mark and Bhushan for your help.<br />
+<br />
+Regards,</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

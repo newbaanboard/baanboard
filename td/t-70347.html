@@ -1,0 +1,140 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="need to find to which company the table to related to, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] need to find to which company the table to related to Tools Development" />
+	
+	<title>need to find to which company the table to related to [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; need to find to which company the table to related to</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">pundlik_girl</div><div class="date">15th August 2017, 13:46</div></div><div class="posttext">Hi,<br />
+<br />
+I want to basically re-write the logic of session ttaad4231m000 - Delete tables but without actually deleting the tables.<br />
+<br />
+my idea is to start with table ttadv112 - pvrc by package combination<br />
+then use the pacc to find the company in ttaad100.<br />
+and then check if the table to attached to the company.<br />
+<br />
+the standard program uses - DLL ttdllvrcsearch &amp; baan function ttadv0052<br />
+to search which vrc the table actually exists in<br />
+and then to check if that VRC is present in the package combination linked to the company.<br />
+<br />
+does anybody have the source code of the tt program script, dll or function?<br />
+or <br />
+has anyone developed such a functionality?<br />
+<br />
+please let me know ...<br />
+<br />
+thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">15th August 2017, 15:03</div></div><div class="posttext">Doubt anyone has the source, but you can typically see how to call the routines using bic_info.  As for one I wrote something once but we never used it  -  including some of the relevant code - not sure it will help and have not looked at it in years(looks like it is from 2004:))  The top two routines were in a select statement on ttadv422 and this is on 4c4 - so not how much that might matter.<br />
+<br />
+<br />
+| Get starting VRC for each table. Using users current package/vrc.<br />
+		get_current_pvrc()<br />
+		<br />
+| Search VRC will return true when the curr fields point to the lastest<br />
+| VRC for the table.<br />
+		rc = 0<br />
+		while rc = 0 and strip$(curr.tver(1,1)) &lt;&gt; &quot;&quot;<br />
+			rc = vrc_search_table(ttadv422.cpac,ttadv422.cmod,ttadv422.flno,<br />
+				tdep,curr.tver,curr.trel,curr.tcus)<br />
+			if rc = 0 then<br />
+				get_parent_pvrc()<br />
+			endif<br />
+		endwhile<br />
+<br />
+|******************************************************************************<br />
+| Used to get the users current VRC.  You always want to start in that VRC.<br />
+|******************************************************************************<br />
+function get_current_pvrc()<br />
+{<br />
+	select	ttadv040.*<br />
+	from	ttadv040<br />
+	where	ttadv040.user = :logname$<br />
+	and	ttadv040._compnr = 0<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	endselect<br />
+	curr.tver(1,1) = ttadv040.vers<br />
+	curr.trel(1,1) = ttadv040.rele<br />
+	curr.tcus(1,1) = ttadv040.cust<br />
+}<br />
+<br />
+|******************************************************************************<br />
+| Used to get the &quot;derived from&quot; VRC for a given VRC.<br />
+|******************************************************************************<br />
+function get_parent_pvrc()<br />
+{<br />
+	domain	ttadv.vers	tver<br />
+	domain	ttadv.rele	trel<br />
+	domain	ttadv.cust	tcus<br />
+<br />
+	tver = curr.tver(1,1)<br />
+	trel = curr.trel(1,1)<br />
+	tcus = curr.tcus(1,1)<br />
+<br />
+	select	ttadv111.*<br />
+	from	ttadv111<br />
+	where	ttadv111._index1 = {:ttadv422.cpac,:tver,:trel,:tcus}<br />
+	and	ttadv111._compnr = 0<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		curr.tver(1,1) = ttadv111.vedf<br />
+		curr.trel(1,1) = ttadv111.redf<br />
+		curr.tcus(1,1) = ttadv111.cudf<br />
+	selectempty   <br />
+		curr.tver(1,1) = &quot;&quot;<br />
+	endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">16th August 2017, 11:03</div></div><div class="posttext">Well you could use , db.drop.table<br />
+<br />
+<br />
+<br />
+db.drop.table()<br />
+Syntax:<br />
+function long  db.drop.table  (long table_id [, long flag] [, long comp_nr])<br />
+<br />
+Description<br />
+<br />
+This deletes a specified table. Data and indices associated with the table are also deleted. Reference counters are automatically updated. <br />
+<br />
+Note that this function cannot be used within a transaction; see Transaction handling. <br />
+<br />
+<br />
+Arguments<br />
+long table_id The table ID, as returned by db.bind(). <br />
+ <br />
+[long flag]  If you set this optional argument to DB.IGNORE.ALL.REFS, the data is deleted regardless of whether it is referenced by other tables. WARNING: if you don't need this behaviour, please leave out the argument completetly. Never supply another value than DB.IGNORE.ALL.REFS to this argument. <br />
+ <br />
+[long comp_nr]  This optional argument specifies a company number for the table. The default company is the company of the user. <br />
+ <br />
+ <br />
+Return values<br />
+0 Success. <br />
+&lt;&gt;0 Error. <br />
+ <br />
+Context<br />
+This function is implemented in the porting set and can be used in all script types. <br />
+<br />
+<br />
+<br />
+But i would suggest consulting the Baan or the system administrator before using this. Dropping a Table is a big decision.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

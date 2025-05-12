@@ -1,0 +1,122 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="forwarding variable length argument list, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] forwarding variable length argument list Tools Development" />
+	
+	<title>forwarding variable length argument list [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; forwarding variable length argument list</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">3rd January 2003, 17:42</div></div><div class="posttext">Is there a nice way of forwarding on a variable length list of function arguments?  What I am looking for is something similar to on.main.table, where the function call can have a variable number of arguments and that function will pass on all or a portion of the argument list to another function (ideally without know or caring about the argument types).<br />
+<br />
+For example:<br />
+<br />
+my.func(arg1, arg2, arg3, arg4)<br />
+...<br />
+function my.func(...)<br />
+{<br />
+	&lt;processing&gt;<br />
+	new.func(&lt;list of arguments&gt;)<br />
+}<br />
+<br />
+In calling new.func in this example, I might to send it args 1-4 or maybe just 2-4, etc.<br />
+<br />
+I have tried using new.func(...), but that doesn't seem to work.  I also tried making a giant, multi-level ?: using get.&lt;type&gt;.arg() for a simple case where I knew the number of arguments ahead of time (this failed because of double:string compatibility errors).<br />
+<br />
+Thoughts?:confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sdvries</div><div class="date">6th January 2003, 10:17</div></div><div class="posttext">A solution can be by using defines instead of functions.<br />
+<br />
+#define my.func( ... ) <br />
+^{<br />
+^           &lt;processing&gt;<br />
+^           new.func( ... )<br />
+^}<br />
+<br />
+See also the programmers manual (topic preprocessor) for more info.<br />
+<br />
+Regards,<br />
+<br />
+Sicco</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">6th January 2003, 15:34</div></div><div class="posttext">That works OK if the call and the actual function are in the same object.  In this case, however, the first call is in one object and the function is in another.  I guess I didn't really spell this out in my example, but consider the definition of my.func to be in some common library.  It gets called from different scripts, does some processing (e.g., logging/tracing), and then calls the desired function (which may reside in a third object).  The macro/preprocessor definition won't work here. :( <br />
+<br />
+Any other thoughts?:confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sdvries</div><div class="date">6th January 2003, 16:54</div></div><div class="posttext">A more difficult construction, but  more interesting :).<br />
+<br />
+It can be done by using get.arg.type in combination with get.&lt;type&gt;arg and<br />
+parse_and_exec_function.<br />
+<br />
+For example:<br />
+<br />
+string array_args(1,1) based<br />
+long nr_of_args<br />
+<br />
+nr_of_args = get.argc()<br />
+for i = 1 to nr_of_args<br />
+   on case get.arg.type(i)<br />
+   case DB.LONG:<br />
+        get.long.arg(i)<br />
+        |* Convert the argument to a string.<br />
+<br />
+        |* store in array_args.<br />
+        break<br />
+   case DB.DOUBLE:<br />
+       get.double.arg(i)<br />
+       |* Convert the argument to a <br />
+       |* string.<br />
+       |* store in array_args<br />
+       ...<br />
+       break<br />
+   case DB.STRING:<br />
+   case DB.MULTIBYTE:<br />
+       get.string.arg(i)<br />
+       |* No conversion needed<br />
+       |* store in array_args.<br />
+       ....<br />
+       break<br />
+   endcase<br />
+endfor<br />
+<br />
+string funccall(2048) |* or dynamic<br />
+string funccall = &quot;new.func(<br />
+<br />
+for i = 1 to nr.of.args<br />
+    funccall = funccall &amp; array_args(1,i)<br />
+    if i &lt; nr.of.args then<br />
+       funccall = funccall &amp; &quot;,&quot;<br />
+    endif<br />
+endfor<br />
+<br />
+funccall = funccall &amp; &quot;)&quot;<br />
+<br />
+ret = parse_and_exec_function( &quot;o&lt;dllobject&gt;&quot;, funccall, ret2, ret_call )<br />
+<br />
+Note: I have not tested this code :).<br />
+And it only works if the arguments are no arrays.<br />
+<br />
+Regards,<br />
+<br />
+Sicco</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">6th January 2003, 20:06</div></div><div class="posttext">I think this line of thinking will get me where I want to go.  Thanks.:D</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

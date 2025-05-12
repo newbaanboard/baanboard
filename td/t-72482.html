@@ -1,0 +1,319 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="commit.transaction on other table instead of main table, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] commit.transaction on other table instead of main table Tools Development" />
+	
+	<title>commit.transaction on other table instead of main table [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; commit.transaction on other table instead of main table</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">9th December 2019, 13:04</div></div><div class="posttext">I am working on a customized session that uses standard tcibd001 as its main table because it needs to display item images.<br />
+The session has a button that should insert a new record into another customized table that is not the main table. The process uses DAL functions such as dal.new.object, dal.set.field, and .dal.save.object.<br />
+Once the program reaches commit.transaction, an error occurs.<br />
+Error 206 (Record is not locked) on tcibd001804 in db_update(51)<br />
+Note that I am not doing anything on the main table. I am trying to insert a new record into another customized table using DAL.<br />
+How can I solve this problem?<br />
+Any help is appreciated.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ajesh</div><div class="date">9th December 2019, 15:25</div></div><div class="posttext">Where are you writing your update on other table statements?<br />
+<br />
+You need to properly select the other table for update and then using db.update or DAMs to update the table <br />
+<br />
+If you want you can write it on Table extension of main table tcibd001 or you can write it in after.update.db.commit in UI section depending on your requirement.<br />
+<br />
+No need to use commit.transaction in Table extension whereas you need to use it in after.update.db.commit UI Section<br />
+<br />
+Sample Code, If the other table if txibd050<br />
+<br />
+<br />
+<br />
+select txibd050.otbp<br />
+from txibd050 for update<br />
+where txibd050._index1 = {:tcibd001.item}<br />
+as set with 1 rows<br />
+selectdo<br />
+             dal.set.field(&quot;txibd050.otbp&quot;,tcibd001.otbp)<br />
+             ret = dal.change.object(&quot;txibd050&quot;)<br />
+endselect<br />
+if ret = 0 then<br />
+        commit.transaction()<br />
+endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">9th December 2019, 18:08</div></div><div class="posttext">[QUOTE]Error 206 (Record is not locked) on tcibd001804 in db_update(51)/QUOTE]<br />
+What does the logging* (eventvwr/logfiles) tell you on the exact table which is not locked? Is this indeed the tcibd001 maintable or some (DAL) related to your updated table record where some relation field needs an update (and thus lock)?<br />
+<br />
+What would happen if you include an update.occ() call?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">10th December 2019, 04:08</div></div><div class="posttext">Where are you writing your update on other table statements?<br />
+<br />
+You need to properly select the other table for update and then using db.update or DAMs to update the table <br />
+<br />
+If you want you can write it on Table extension of main table tcibd001 or you can write it in after.update.db.commit in UI section depending on your requirement.<br />
+<br />
+No need to use commit.transaction in Table extension whereas you need to use it in after.update.db.commit UI Section<br />
+<br />
+Sample Code, If the other table if txibd050<br />
+<br />
+<br />
+<br />
+select txibd050.otbp<br />
+from txibd050 for update<br />
+where txibd050._index1 = {:tcibd001.item}<br />
+as set with 1 rows<br />
+selectdo<br />
+             dal.set.field(&quot;txibd050.otbp&quot;,tcibd001.otbp)<br />
+             ret = dal.change.object(&quot;txibd050&quot;)<br />
+endselect<br />
+if ret = 0 then<br />
+        commit.transaction()<br />
+endif<br />
+<br />
+<br />
+<br />
+I want to insert a new record, not update, on clicking a custom form command. Now I am using on.choice. How can I properly select a table when I only want to insert a new record?<br />
+In addition, this is not a Table extension.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">10th December 2019, 04:17</div></div><div class="posttext">What does the logging* (eventvwr/logfiles) tell you on the exact table which is not locked? Is this indeed the tcibd001 maintable or some (DAL) related to your updated table record where some relation field needs an update (and thus lock)?<br />
+<br />
+What would happen if you include an update.occ() call?<br />
+<br />
+The event viewer log says the same.<br />
+Message	: FATAL ERROR: Error 206 (Record is not locked) on tcibd001804 in db_update(51)<br />
+<br />
+I also tried putting update.occ() just before commit.transaction() but the error still persists.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">10th December 2019, 05:10</div></div><div class="posttext">Alright, I solved the problem by putting execute(update.db) before doing the insert DALs that is even before the commit.transaction().<br />
+The issue, in my opinion, caused by the session that tries to save when clicking a button because there are some fields (not the main table fields) filled by the user. <br />
+execute(update.db) forces it to save the changes before doing the customized thing.<br />
+It works now.<br />
+Thank you for your help, Ajesh and OmeLuuk.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">10th December 2019, 15:28</div></div><div class="posttext">... that tries to save when clicking a button ... This you should be able to switch off in the Form command session<br />
+&quot;Save before execution&quot; = no</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">tmannais</div><div class="date">11th December 2019, 03:58</div></div><div class="posttext">This you should be able to switch off in the Form command session<br />
+&quot;Save before execution&quot; = no<br />
+<br />
+It is a better solution indeed.<br />
+I will try that out.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">saenzh</div><div class="date">12th March 2020, 16:18</div></div><div class="posttext">I'm facing the same issue however I am trying to update a custom table cprao900 with table cprao020.<br />
+<br />
+The issue occurs when I save after changing the value of cprao020.acce. Ajesh I tried your suggestion but the error still occurs.<br />
+<br />
+My code is as follows:<br />
+<br />
+function extern long ue.before.before.save.object(long mode)<br />
+{<br />
+	on case mode<br />
+	case DAL_NEW:<br />
+		break<br />
+	case DAL_UPDATE:<br />
+		| select	cprao900.*<br />
+		| from	cprao900<br />
+		| where	cprao900._index1 = {:cprao020.orno,:cprao020.pono}<br />
+		| selectdo<br />
+		| endselect<br />
+		e = dal.new.object(&quot;cprao900&quot;)<br />
+		dal.set.field(&quot;cprao900.orno&quot;,cprao020.orno)<br />
+		dal.set.field(&quot;cprao900.pono&quot;,cprao020.pono)<br />
+		| dal.set.field(&quot;cprao900.acdt&quot;,cprao020.pldt)|cprao900.acdt is the date the planner accepted the signal.<br />
+		dal.set.field(&quot;cprao900.item&quot;,cprao020.plni)<br />
+		dal.set.field(&quot;cprao900.quan&quot;,cprao020.quan)<br />
+		dal.set.field(&quot;cprao900.pldt&quot;,cprao020.pldt)<br />
+		dal.set.field(&quot;cprao900.sign&quot;,cprao020.sign)<br />
+		dal.set.field(&quot;cprao900.mess&quot;,cprao020.mess)<br />
+		dal.set.field(&quot;cprao900.resd&quot;,cprao020.resd)<br />
+		| dal.set.field(&quot;cprao900.acce&quot;,cprao020.acce)<br />
+		dal.set.field(&quot;cprao900.plid&quot;,cprao020.plid)<br />
+		dal.set.field(&quot;cprao900.txta&quot;,cprao020.txta)<br />
+		| if dal.save.object(&quot;cprao900.acce&quot;) then<br />
+			| dal.set.field(&quot;cprao900.acdt&quot;,utc.num())<br />
+			| cprao900.acdt = utc.num()<br />
+		| endif<br />
+<br />
+		|**To account for change of 'Accept' when saved<br />
+			dal.set.field(&quot;cprao900.acce&quot;,cprao020.acce)<br />
+			ret = dal.change.object(&quot;cprao900.acce&quot;)<br />
+		| if ret = 0 then<br />
+			| commit.transaction()<br />
+		| endif<br />
+<br />
+		if dal.save.object(&quot;cprao900&quot;) then<br />
+			dal.set.error.message(&quot;@@Unable to update serials on table cprao900&quot;)<br />
+				return(DALHOOKERROR)<br />
+		endif<br />
+		break<br />
+	endcase<br />
+	return(0)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">saenzh</div><div class="date">12th March 2020, 16:23</div></div><div class="posttext">I'm facing the same issue however I am trying to update a custom table cprao900 with table cprao020.<br />
+<br />
+The issue occurs when I save after changing the value of cprao020.acce. Ajesh I tried your suggestion but the error still occurs.<br />
+<br />
+My code is as follows:<br />
+<br />
+function extern long ue.before.before.save.object(long mode)<br />
+{<br />
+	on case mode<br />
+	case DAL_NEW:<br />
+		break<br />
+	case DAL_UPDATE:<br />
+		| select	cprao900.*<br />
+		| from	cprao900<br />
+		| where	cprao900._index1 = {:cprao020.orno,:cprao020.pono}<br />
+		| selectdo<br />
+		| endselect<br />
+		e = dal.new.object(&quot;cprao900&quot;)<br />
+		dal.set.field(&quot;cprao900.orno&quot;,cprao020.orno)<br />
+		dal.set.field(&quot;cprao900.pono&quot;,cprao020.pono)<br />
+		| dal.set.field(&quot;cprao900.acdt&quot;,cprao020.pldt)|cprao900.acdt is the date the planner accepted the signal.<br />
+		dal.set.field(&quot;cprao900.item&quot;,cprao020.plni)<br />
+		dal.set.field(&quot;cprao900.quan&quot;,cprao020.quan)<br />
+		dal.set.field(&quot;cprao900.pldt&quot;,cprao020.pldt)<br />
+		dal.set.field(&quot;cprao900.sign&quot;,cprao020.sign)<br />
+		dal.set.field(&quot;cprao900.mess&quot;,cprao020.mess)<br />
+		dal.set.field(&quot;cprao900.resd&quot;,cprao020.resd)<br />
+		| dal.set.field(&quot;cprao900.acce&quot;,cprao020.acce)<br />
+		dal.set.field(&quot;cprao900.plid&quot;,cprao020.plid)<br />
+		dal.set.field(&quot;cprao900.txta&quot;,cprao020.txta)<br />
+		| if dal.save.object(&quot;cprao900.acce&quot;) then<br />
+			| dal.set.field(&quot;cprao900.acdt&quot;,utc.num())<br />
+			| cprao900.acdt = utc.num()<br />
+		| endif<br />
+<br />
+		|**To account for change of 'Accept' when saved<br />
+			dal.set.field(&quot;cprao900.acce&quot;,cprao020.acce)<br />
+			ret = dal.change.object(&quot;cprao900.acce&quot;)<br />
+		| if ret = 0 then<br />
+			| commit.transaction()<br />
+		| endif<br />
+<br />
+		if dal.save.object(&quot;cprao900&quot;) then<br />
+			dal.set.error.message(&quot;@@Unable to update serials on table cprao900&quot;)<br />
+				return(DALHOOKERROR)<br />
+		endif<br />
+		break<br />
+	endcase<br />
+	return(0)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">13th March 2020, 06:11</div></div><div class="posttext">Why do you have ret = dal.change.object(&quot;cprao900.acce&quot;) after setting all the fields?<br />
+<br />
+Are you trying to insert a new record or update an existing record?<br />
+<br />
+Here's a sequence of how you should do these -- <br />
+<br />
+1. For insert - <br />
+<br />
+dal.new.object(&quot;table_name&quot;)<br />
+dal.set.field...<br />
+dal.save.object(&quot;table_name&quot;)<br />
+commit.transaction()<br />
+<br />
+2. For update<br />
+select table_name.fieldnames<br />
+from table_name for update<br />
+where....<br />
+selectdo<br />
+       dal.change.object(&quot;table_name&quot;)<br />
+       dal.set.field...<br />
+       dal.save.object(&quot;table_name&quot;)<br />
+       commit.transaction()<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">saenzh</div><div class="date">16th March 2020, 17:21</div></div><div class="posttext">Hi Bhushan,<br />
+<br />
+<br />
+<br />
+I tried the update code but still receive the attached error message when I save after unselecting cprao020.acce. I do want to update my custom table with the values from cprao020.<br />
+<br />
+My code is as follows:<br />
+<br />
+<br />
+function extern long ue.before.before.save.object(long mode)<br />
+{<br />
+	on case mode<br />
+	case DAL_NEW:<br />
+		break<br />
+	case DAL_UPDATE:<br />
+		e = dal.new.object(&quot;cprao900&quot;)<br />
+		dal.set.field(&quot;cprao900.plnc&quot;,cprao020.plnc)<br />
+		dal.set.field(&quot;cprao900.type&quot;,cprao020.type)<br />
+		dal.set.field(&quot;cprao900.orno&quot;,cprao020.orno)<br />
+		dal.set.field(&quot;cprao900.pono&quot;,cprao020.pono)<br />
+		dal.set.field(&quot;cprao900.seqn&quot;,cprao020.seqn)<br />
+		| dal.set.field(&quot;cprao900.acdt&quot;,cprao020.pldt)|cprao900.acdt is the date the planner accepted the signal.<br />
+		dal.set.field(&quot;cprao900.item&quot;,cprao020.plni)<br />
+		dal.set.field(&quot;cprao900.pldt&quot;,cprao020.pldt)<br />
+		dal.set.field(&quot;cprao900.sign&quot;,cprao020.sign)<br />
+		dal.set.field(&quot;cprao900.plid&quot;,cprao020.plid)<br />
+		dal.set.field(&quot;cprao900.quan&quot;,cprao020.quan)<br />
+		dal.set.field(&quot;cprao900.trdt&quot;,cprao020.trdt)<br />
+		| dal.set.field(&quot;cprao900.acce&quot;,cprao020.acce)<br />
+		dal.set.field(&quot;cprao900.prdt&quot;,cprao020.prdt)<br />
+		dal.set.field(&quot;cprao900.resd&quot;,cprao020.resd)<br />
+		dal.set.field(&quot;cprao900.mess&quot;,cprao020.mess)<br />
+		dal.set.field(&quot;cprao900.txta&quot;,cprao020.txta)<br />
+<br />
+		|**To account for change of 'Accept' when saved<br />
+		select	cprao900.*<br />
+		from	cprao900<br />
+		where	cprao900._index1 = {:cprao020.plnc,:cprao020.type,:cprao020.orno,<br />
+			:cprao020.pono,:cprao020.seqn,:cprao020.plni,:cprao020.pldt,:cprao020.sign,:cprao020.plid}<br />
+		selectdo<br />
+			dal.change.object(&quot;cprao900&quot;)<br />
+			dal.set.field(&quot;cprao900.acce&quot;,cprao020.acce)<br />
+			dal.save.object(&quot;cprao900&quot;)<br />
+			commit.transaction()<br />
+		endselect<br />
+<br />
+		| if ret = 0 then<br />
+		| if ret = 0 then<br />
+			| commit.transaction()<br />
+		| endif<br />
+<br />
+		if dal.save.object(&quot;cprao900&quot;) then<br />
+			dal.set.error.message(&quot;@@Unable to update serials on table cprao900&quot;)<br />
+				return(DALHOOKERROR)<br />
+		endif<br />
+		break<br />
+<br />
+	endcase<br />
+	return(0)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">hklett</div><div class="date">16th March 2020, 18:41</div></div><div class="posttext">In User-Exit you should never use commit ,abort transaction .<br />
+This will be done in the standard programm.<br />
+ <br />
+There is only one transaction within a LN process.<br />
+ If you want to do a transaction separate you can write a 3gl script with function main and start this with the activate functions. This will start a new LN-Process,<br />
+But than you have to take care, not to change records, which are modified<br />
+inside the standard transaction, otherwise you will get a EROWCHANGED error.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

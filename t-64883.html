@@ -1,0 +1,128 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Api call failing in batch job, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Api call failing in batch job AFS/DDC/OLE: Function servers" />
+	
+	<title>Api call failing in batch job [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Api call failing in batch job</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Paul HaynesBR</div><div class="date">30th October 2013, 13:14</div></div><div class="posttext">I have a problem with an api call to a standard Baan session. It works ok when I run it online but fails with the message 'Process is gone' when run from a batch job. It's failing after the call to stpapi.continue.process. I have put in a message to show the output file name that it's tryng to create and it's forming that name and path properly. Has anyone any ideas please? Code is below:<br />
+<br />
+              stpapi.put.field(&quot;tfcmg1270m000&quot;,&quot;batch&quot;,str$(batch.f))<br />
+	stpapi.put.field(&quot;tfcmg1270m000&quot;,&quot;payment.date&quot;,str$(date.f))<br />
+	hold.fileout = STRIP$(bse.tmp) &amp; &quot;/&quot; &amp; str$(batch.f) &amp; &quot;tmp1270.s&quot;		 <br />
+	message(&quot;Spool filename %s&quot;, hold.fileout)<br />
+	stpapi.put.field(&quot;tfcmg1270m000&quot;,&quot;spool.fileout&quot;,hold.fileout)			 <br />
+	stpapi.put.field(&quot;tfcmg1270m000&quot;,&quot;spool.device&quot;,&quot;ASCIF&quot;)<br />
+	stpapi.set.report(&quot;tfcmg1270m000&quot;,&quot;rtfcmg127012000&quot;,&quot;ASCIF&quot;, error1 )<br />
+	if error1 &lt;&gt; &quot;&quot; then<br />
+		message (&quot;error setting report : %s&quot;,error1)<br />
+	endif<br />
+	stpapi.continue.process(&quot;tfcmg1270m000&quot;,error1)<br />
+	if error1 &lt;&gt; &quot;&quot; then<br />
+		message (&quot;error creating file : %s&quot;,error1)<br />
+	endif<br />
+	stpapi.end.session(&quot;tfcmg1270m000&quot;)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">30th October 2013, 13:48</div></div><div class="posttext">Hi,<br />
+<br />
+Try to put suspend(500) or some time after stpapi.continue.process(). May be you are ending the session before its processed.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul HaynesBR</div><div class="date">31st October 2013, 11:17</div></div><div class="posttext">Hi, I have tried putting a suspend in various places - before and after the cont process and after the set.report but still getting the same message I'm afraid. Anything else I could try?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">31st October 2013, 14:48</div></div><div class="posttext">You can search this http://www.baanboard.com/baanboard/forumdisplay.php?f=59 forum for &quot;running in job&quot;.  Lots of people have had issues running them in job mode - in some cases SPs were needed.  I have asked for the thread to be moved to the correct forum.<br />
+<br />
+My first question or comment would be - I have never done it this way.  I just set spool.device to ASCIF.  And I set spool.fileout to the file name.<br />
+<br />
+stpapi.put.field(&quot;tfcmg1270m000&quot;,&quot;spool.fileout&quot;,hold.fileout) <br />
+stpapi.put.field(&quot;tfcmg1270m000&quot;,&quot;spool.device&quot;,&quot;ASCIF&quot;)<br />
+<br />
+<br />
+Not sure that makes a difference in batch mode.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">31st October 2013, 16:58</div></div><div class="posttext">Another question I have - do you run it once or multiple times?  I mean do you run this code once per batch job? Or do you kick of a batch job and the AFS code gets run multiple times for different batches?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul HaynesBR</div><div class="date">31st October 2013, 17:21</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Thanks for the advice, I will trawl through these posts and see what I can find. Changing the way I set the spool file didn't work though.<br />
+<br />
+Paul</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Paul HaynesBR</div><div class="date">31st October 2013, 17:23</div></div><div class="posttext">It gets run multiple times in theory as it's selecting records from a table and calling the session for each table entry. At the moment though I have been testing it with only one record and it's failing on that one.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">31st October 2013, 18:05</div></div><div class="posttext">I did not think it would, but worth a shot.  The only other thing I can think of is there anything in any log files?  I have actually had sessions come back with process is gone, yet they still worked.  I don't think that is the case here - I assume you temp file is still empty.  Are you launching the batch job or is it through like cron or something?<br />
+<br />
+<br />
+The problem I have run into on our 4c4 system is that the spool.fileout - while you change the file name, the session you are running keeps using the first spool.fileout you set.  Again this is running my AFS session manually - not using batch.  Below is some code I just wrote recently.  I actually ended up exporting the spool.fileout and importing into tdpur4401 to get around the issue.<br />
+<br />
+<br />
+function print.po()<br />
+{<br />
+	string		cmd(1000)	| Unix Command<br />
+	string		temp.file(256)	| Temp file name	<br />
+	string		email.addr(100)<br />
+	long		rc<br />
+	msg = &quot;&quot;<br />
+	if tdexi305.subm = tdexi.method.email then<br />
+		spool.device = &quot;ASCIF&quot;<br />
+		spool.fileout = creat.tmp.file$( bse.tmp.dir$() )<br />
+		spool.fileout = strip$(spool.fileout)<br />
+		rpt_id = spool.open(&quot;&quot;,spool.device,0)<br />
+		export(&quot;spool.fileout&quot;,spool.fileout)<br />
+	else<br />
+		spool.device = &quot;D66&quot;<br />
+		spool.fileout = &quot;&quot;<br />
+		rpt_id = spool.open(&quot;&quot;,spool.device,1)<br />
+		export(&quot;spool.fileout&quot;,spool.fileout)<br />
+	endif<br />
+	spool.close()<br />
+<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;tdpur999.send&quot;, str$(tdpur.dist.vendor) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;selection&quot;, str$(tcyesno.no) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;suno.f&quot;, &quot;      &quot; )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;suno.t&quot;, &quot;ZZZZZZ&quot; )	<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;orno.f&quot;,str$(tdexi305.orno))<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;orno.t&quot;,str$(tdexi305.orno))		<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;comp.f&quot;, str$(0) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;comp.t&quot;, str$(999) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;tdpur999.dpas&quot;, str$(tcyesno.yes) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;prnt.pric&quot;, str$(tcyesno.yes) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;printed&quot;, str$(tdsls.kofl.all) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;quan.to.print&quot;, str$(tdsls.koqu.ordered.quan) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;prnt.options&quot;, str$(tcyesno.yes) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;prnt.deladro&quot;, str$(tcyesno.no) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;chgflag&quot;, str$(tcyesno.no) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;chgordnum&quot;, str$(0) )<br />
+	stpapi.put.field( &quot;tdpur4401m000&quot;, &quot;chgorddte&quot;, str$(0) )<br />
+	stpapi.set.report(&quot;tdpur4401m000&quot;,&quot;rtdpur440101000&quot;, spool.device, msg)<br />
+	stpapi.continue.process( &quot;tdpur4401m000&quot;, msg)<br />
+	if(strip$(msg)&lt;&gt;&quot;&quot;) then<br />
+		message(&quot;Err. %s PO:%d&quot;, msg, tdexi305.orno)<br />
+	endif<br />
+	stpapi.end.session( &quot;tdpur4401m000&quot; ) <br />
+<br />
+<br />
+PS - yes I know I only need one export statement before the spool.close - just been too lazy to retest everything.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

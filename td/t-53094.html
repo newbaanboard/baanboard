@@ -1,0 +1,131 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Seq. tables for 3 months, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Seq. tables for 3 months Tools Development" />
+	
+	<title>Seq. tables for 3 months [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Seq. tables for 3 months</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">suhas-mahajan</div><div class="date">23rd July 2008, 14:24</div></div><div class="posttext">Hi Friends,<br />
+<br />
+I would like to make a session for generating flat files having fixed length columns/records for last three months data.<br />
+<br />
+I could use ttaad4226m000 but you know I cant specify date there.<br />
+<br />
+I have created a session which uses concat$ but the problem is it cant create fixed length columns per record.<br />
+<br />
+Can you put some light?<br />
+<br />
+regards,<br />
+<br />
+-Suhas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">george7a</div><div class="date">23rd July 2008, 14:54</div></div><div class="posttext">Hi,<br />
+<br />
+This link might help:<br />
+http://www.baanboard.com/baanboard/showthread.php?t=42287<br />
+<br />
+You can generate the Excel file then save the file as you wish.<br />
+<br />
+- George</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd July 2008, 15:29</div></div><div class="posttext">Or use sprintf$.  You might have to convert some strings (or declare them) as fixed.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">suhas-mahajan</div><div class="date">24th July 2008, 08:15</div></div><div class="posttext">Hi George,<br />
+<br />
+Thanks for the link. But unfortunately, there is no functionality to extract fixed length columns. You can see my comments there.<br />
+<br />
+Hi  Mark,<br />
+<br />
+I dont think sprintf will work correctly. Because if you see seq. dump with fixed length of tdsls045, you will see BaaN coverts 0 into big exponential format.<br />
+<br />
+Is there any clue/logic, how ttaad4226m000 works with fixed length column?<br />
+<br />
+regards,<br />
+<br />
+-Suhas</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">24th July 2008, 09:02</div></div><div class="posttext">Hi suhas,<br />
+<br />
+first suggestion: use bdbpre and then pipe to a 3 line awk script to &quot;swallow&quot; records which are too old.<br />
+second thought: for some old fashioned data exchange formats we do produce fixed length records without difficulty. Here is a sniplet of code how I do this:<br />
+----snip-----<br />
+zeil=string.set$(&quot; &quot;,129)<br />
+ zeil(1;4)=&quot;01D1&quot;<br />
+ zeil(5;3)=sprintf$(&quot;%03d&quot;,lfd)<br />
+ zeil(8;10)=mycuno<br />
+ zeil(18;35)=nama<br />
+ zeil(53;35)=namb<br />
+ if tcmcs080.cfrw=&quot;S25&quot; then<br />
+ zeil(100;3)=&quot;OHL&quot;<br />
+ endif<br />
+ zeil(129;1)=chr$(13)<br />
+seq.puts(zeil,filpo)<br />
+----snap---------<br />
+Notice how displacement 88 to 99 are neglected without any effect .... the variable &quot;namb&quot; is declared as string(30), not (35) nor fixed. <br />
+<br />
+hth<br />
+<br />
+Norbert<br />
+Norbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th July 2008, 14:51</div></div><div class="posttext">Hi  Mark,<br />
+<br />
+I dont think sprintf will work correctly. Because if you see seq. dump with fixed length of tdsls045, you will see BaaN coverts 0 into big exponential format.<br />
+<br />
+Is there any clue/logic, how ttaad4226m000 works with fixed length column?<br />
+<br />
+regards,<br />
+<br />
+-Suhas<br />
+<br />
+Sprintf will work - you are doing the conversion with the formating.  Here is an example - you can remove the fixed from buff1 and see what I am talking about.  With buff1 fixed you get 132 characters in the line, with it unfixed you get a total of 40 characters in the line.<br />
+<br />
+<br />
+function testfile()<br />
+{<br />
+	domain	tcmcs.str132	buff1	fixed<br />
+	error.file.name = &quot;testit&quot;<br />
+        errfile = seq.open(error.file.name,&quot;w&quot;)<br />
+	select	tiitm001.*<br />
+	from	tiitm001<br />
+	where	tiitm001.item like &quot;MS28775.*&quot;<br />
+	as set with 10 rows<br />
+	selectdo<br />
+		buff1 = sprintf$(&quot;%32s %08.4f&quot;, tiitm001.item, tiitm001.avpr)<br />
+		rc = seq.puts(buff1,errfile)<br />
+	endselect<br />
+	seq.close(errfile)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">suhas-mahajan</div><div class="date">28th July 2008, 11:54</div></div><div class="posttext">Hi Norbert and Mark,<br />
+<br />
+I already applied suggested solutions and seem its working perfectly.<br />
+<br />
+Thanks.<br />
+<br />
+regards,<br />
+<br />
+-Suhas</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,287 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="blogind6.1 rejects connection, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] blogind6.1 rejects connection Tools Administration &amp; Installation" />
+	
+	<title>blogind6.1 rejects connection [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; blogind6.1 rejects connection</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">lebowski</div><div class="date">11th January 2010, 17:39</div></div><div class="posttext">Hello,<br />
+<br />
+I installed Baan IV c4 on a server with SLES 11.<br />
+I would like to connect to Baan through the Baan login daemon, but I get the message &quot;user or password not correct&quot;. The connection through rexec works fine.<br />
+I started the blogind6.1 on the default port 7150 and can connect to this port through telnet.<br />
+If I start the blogind6.1 in debug mode, I get this message:<br />
+<br />
+Daemon: Incoming connection, spawn child.<br />
+ Child: handle BaanLogin request.<br />
+ Child: received:  user bsp, action 1<br />
+                  IBCmd /baan4/bse/bin/ipc_boot, bseVersion 6.1<br />
+ Child: logon for bsp failed.<br />
+blogind6.1: Login failed for user bsp<br />
+Daemon: revert to listen-mode.<br />
+<br />
+Any ideas ?<br />
+<br />
+Thank you.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">11th January 2010, 19:42</div></div><div class="posttext">Start blogin with the -d (debug) flag  and try connecting.<br />
+<br />
+(blogin6.1 -h should give you the help for the setting, i think you can do -d -d -d for 3 levels of debugging.)<br />
+<br />
+Are you doing anything out of the ordinary with your authentication? like  using PAM to connect to active directory or kerberos or anything?<br />
+<br />
+Also, blogin may need to be setuid root to work (not sure on that.. been a while since i set it up)<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lebowski</div><div class="date">13th January 2010, 11:06</div></div><div class="posttext">Hello Dave,<br />
+<br />
+thanks for your advice.<br />
+<br />
+If I start blogind with -d, I get this output:<br />
+<br />
+Daemon: Incoming connection, spawn child.<br />
+Child: handle BaanLogin request.<br />
+Child: received: user bsp, action 1<br />
+IBCmd /baan4/bse/bin/ipc_boot, bseVersion 6.1<br />
+Child: logon for bsp failed.<br />
+blogind6.1: Login failed for user bsp<br />
+Daemon: revert to listen-mode.<br />
+<br />
+We are not using PAM or kerberos, at least I dont need or want to use it. I am not experienced with Linux so I dont know how to check this.<br />
+<br />
+My initial problem is that the connection through rexec takes 20-30 seconds for the first connect and that the IPs of the clients have to be in /etc/hosts (&quot;Where are you?&quot; problem). So I thought I will use blogind to avoid this and now I cant get blogind6.1 running  :mad:<br />
+<br />
+lebowski</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mig28mx</div><div class="date">13th January 2010, 18:28</div></div><div class="posttext">Hello<br />
+To solve your issue using REXEC, you must disable the reverse resolution of that protocol.<br />
+<br />
+I´m on RedHat and I solve doing this:<br />
+Go to the file: /etc/xinet.d/rexec and add the server_args=-D flag to the end.<br />
+<br />
+By exmple:<br />
+{<br />
+disable = no<br />
+socket_type = stream<br />
+wait = no<br />
+user = root<br />
+log_on_success += USERID<br />
+log_on_failure += USERID<br />
+server = /usr/sbin/in.rexecd<br />
+server_args = -D<br />
+}<br />
+<br />
+Stop and start the REXEC service.<br />
+<br />
+The line server_arg =  - D, disables the reverse resolution. By the way, with this option you can avoid to put all ip client's address on file hosts.<br />
+<br />
+<br />
+Hope this helps.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">13th January 2010, 19:38</div></div><div class="posttext">mig28mx's solution sounds right to fix the rexec problem.<br />
+<br />
+you'd need to add more -d's to get better debug output if you care to get blogind running.<br />
+<br />
+Have you run the setperm in $BSE/bin? i'm not sure if blogin needs to be setuid root or not to be able to access the password file.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lebowski</div><div class="date">14th January 2010, 12:06</div></div><div class="posttext">Hello guys,<br />
+<br />
+I appreciate your help very much !<br />
+<br />
+@mig28mx:<br />
+<br />
+I added the server_args argument so now it looks like this:<br />
+{<br />
+        socket_type     = stream<br />
+        protocol        = tcp<br />
+        wait            = no<br />
+        user            = root<br />
+        group           = root<br />
+        server          = /usr/sbin/tcpd<br />
+        server_args     = /usr/sbin/in.rexecd<br />
+        flags           = NAMEINARGS<br />
+        log_on_success  += USERID<br />
+        log_on_failure  += USERID<br />
+        server_args     = -D<br />
+}<br />
+<br />
+Then I restarted xinetd (&quot;service xinetd restart&quot;), but the situation didnt change. I guess it has something to do with PAM since there is another file named &quot;rexec&quot; under /etc/pam.d and if I rename it, xinetd starts but no rexec connections are possible.<br />
+<br />
+@dave:<br />
+Adding more -d's doesnt give more information  (blogind6.1 -d -d -d -d has the same output like blogind6.1 -d).<br />
+I executed binperm6.1 after the installation of the portingset. I guess the permissions of the binary are allright. If I start blogind6.1 with another user than root it says &quot;You have to be root to run this program&quot;. So I started it as root.<br />
+<br />
+I will google a bbit more to get this reverse lookup disabled and will let you know if I succeed.<br />
+<br />
+Best regards,<br />
+<br />
+lebowski</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mig28mx</div><div class="date">14th January 2010, 16:12</div></div><div class="posttext">Hello,<br />
+Did you notice that you have server_args parameter duplicated?<br />
+And the server line it not pointing to  /usr/sbin/in.rexecd?<br />
+<br />
+As a suggestion, try to approach the more to the configuration file that I sent.<br />
+You can comment some lines and restart the service.<br />
+<br />
+As a comment, when I migrate to RHES, my installation have the same symptoms that you mentioned, and one thing is sure, it is rexec reverse resolution related.<br />
+<br />
+Good luck!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lebowski</div><div class="date">22nd January 2010, 16:29</div></div><div class="posttext">Hello,<br />
+<br />
+the problem doesnt exist anymore. I didnt get rexec running satisfyingly, but after a portingset update the baan login daemon works now.<br />
+I doubt that it has to do with the portingset itself, but with some permissions in $BSE/lib or wherever.<br />
+<br />
+Thanks for your support &amp; have a nice weekend.<br />
+<br />
+lebowski</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ductom2002</div><div class="date">2nd March 2010, 14:50</div></div><div class="posttext">Hi guys,<br />
+<br />
+we do have exactly the same problem here. OS SLES-10 SP1, BaaN C4.<br />
+<br />
+The -D option for REXEC doesn't solve the problem. RED HAT seems to compile the TCP stack in a different way than SUSE (Novell) does. So no changes at all.<br />
+<br />
+We 're also stuck since we moved from True64 to SLES-10.<br />
+<br />
+Where are the experts? ;-)<br />
+<br />
+Best regards<br />
+<br />
+Tom</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ductom2002</div><div class="date">2nd March 2010, 18:00</div></div><div class="posttext">Btw. We cannot use another porting set because of a lot of modifications we did.<br />
+<br />
+Tom<br />
+<br />
+Hi guys,<br />
+<br />
+we do have exactly the same problem here. OS SLES-10 SP1, BaaN C4.<br />
+<br />
+The -D option for REXEC doesn't solve the problem. RED HAT seems to compile the TCP stack in a different way than SUSE (Novell) does. So no changes at all.<br />
+<br />
+We 're also stuck since we moved from True64 to SLES-10.<br />
+<br />
+Where are the experts? ;-)<br />
+<br />
+Best regards<br />
+<br />
+Tom</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">2nd March 2010, 20:06</div></div><div class="posttext">it seems you can still disable reverse lookups with redhat:<br />
+see this link.<br />
+http://www.redhat.com/docs/manuals/linux/RHL-9-Manual/custom-guide/s1-httpd-default-settings.html<br />
+<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lebowski</div><div class="date">3rd March 2010, 07:54</div></div><div class="posttext">Hi Tom,<br />
+<br />
+are you able to start the baan login daemon ? It's only a workaround and not a solution for he rexec-problem. But it solved my problem.<br />
+As root: blogind6.1 and then change the connection method in your GUI from rexec to BanLogin.<br />
+<br />
+Regards,<br />
+<br />
+Lebowski</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Martin</div><div class="date">3rd March 2010, 14:04</div></div><div class="posttext">to solve the probelm with the rexec-deamon in SLES is easy :<br />
+<br />
+set up an working and correct configured DNS and the problem does not exists.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mnbaan</div><div class="date">23rd March 2010, 10:25</div></div><div class="posttext">Hi <br />
+<br />
+We are also facing similar issue wehein users that are migrated to LDAP are not able to login in baan with baanlogind6.2 but same login works fine for rexec..<br />
+<br />
+I searched posts regarding this but not sure what the solution is..<br />
+<br />
+Any one here knows the solution?<br />
+<br />
+<br />
+Thanks and Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">MSCBaaN</div><div class="date">4th February 2011, 10:56</div></div><div class="posttext">Hello Dave,<br />
+<br />
+thanks for your advice.<br />
+<br />
+If I start blogind with -d, I get this output:<br />
+<br />
+Daemon: Incoming connection, spawn child.<br />
+Child: handle BaanLogin request.<br />
+Child: received: user bsp, action 1<br />
+IBCmd /baan4/bse/bin/ipc_boot, bseVersion 6.1<br />
+Child: logon for bsp failed.<br />
+blogind6.1: Login failed for user bsp<br />
+Daemon: revert to listen-mode.<br />
+<br />
+We are not using PAM or kerberos, at least I dont need or want to use it. I am not experienced with Linux so I dont know how to check this.<br />
+<br />
+My initial problem is that the connection through rexec takes 20-30 seconds for the first connect and that the IPs of the clients have to be in /etc/hosts (&quot;Where are you?&quot; problem). So I thought I will use blogind to avoid this and now I cant get blogind6.1 running  :mad:<br />
+<br />
+lebowski<br />
+<br />
+Hi everybody,<br />
+<br />
+I'm coming late and I don't know if my message will be helpful but I'm struggeling for many years with rexec and the 30 seconds I had to wait before my gui starts. I did also use blogin as a &quot;workaround&quot; but I was faced to the &quot;password expire only with blogin&quot; (http://www.baanboard.com/baanboard/showthread.php?t=39502&amp;highlight=password+expire) issue. Now, I found the working solution to make rexec working without having to wait for more than 2 seconds :)<br />
+<br />
+Simply replace USERID by HOST in /etc/xinetd.d/rexec file as shown below :<br />
+<br />
+{<br />
+socket_type = stream<br />
+protocol = tcp<br />
+wait = no<br />
+user = root<br />
+group = root<br />
+server = /usr/sbin/tcpd<br />
+server_args = /usr/sbin/in.rexecd<br />
+flags = NAMEINARGS<br />
+log_on_success += HOST<br />
+log_on_failure += HOST<br />
+}<br />
+<br />
+You can forget the &quot;-D&quot; option which won't do anything more on SLES servers.<br />
+<br />
+You will have the same output in log files (/var/log/message and /var/log/xinetd.log) and you won't have to wait that long to run the gui.<br />
+<br />
+This is working with BaaN IVc4 sp19 with portingset 6.1c.07.09 on SLES 9 Ent. SP3.<br />
+<br />
+I hope this will help some of you.<br />
+<br />
+Best Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Kozure Ohashi</div><div class="date">4th February 2011, 11:22</div></div><div class="posttext">Thanks for sharing.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,365 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Report display problem, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Report display problem Tools Development" />
+	
+	<title>Report display problem [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Report display problem</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">stecorp</div><div class="date">2nd April 2013, 12:51</div></div><div class="posttext">I created the custom report to display the number of records based on the user selection. Now the problem is when I output the report, it is displaying only one record in each page.<br />
+<br />
+Where can I configure the number of records to display in one page and also how can I set the report to display in groups wise. eg., Start the new page for each business Partner.<br />
+<br />
+Please anybody help to solve....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">2nd April 2013, 14:45</div></div><div class="posttext">All of this can be done in the maintain reports session:<br />
+(1) Make sure the page length and margins are correct on the report.<br />
+(2) Make sure you did not accidently click the start new page on the detail layout.<br />
+(3) Sort the report by business partner, insert a layout for business partner.  Then click to the Page button for that layout.<br />
+<br />
+At least this is how I would do it for 4c4.  Not sure about LN.  Also for (1) above you need to check the device also.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">stecorp</div><div class="date">3rd April 2013, 03:48</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Thank you for your support.<br />
+<br />
+I checked the details you specified in point 1&amp; 2. No issues in it.<br />
+<br />
+Let me to explain in detail.<br />
+<br />
+I just copied the report session from some other session and altered the script. After changing the script it used to display some 11 records in one page. After changing the select statement, now it is only displaying one record in one page but it includes some additional blank lines in each page.<br />
+<br />
+Following are my code...<br />
+<br />
+I have also attached the report screenshot for your referrence..<br />
+<br />
+<br />
+on.choice:<br />
+		<br />
+		|# initialize values<br />
+		init.val()<br />
+<br />
+		|------------------------------------------------------------<br />
+		| 2.2.1 Open Report<br />
+		|------------------------------------------------------------<br />
+		spool.rep = spool.open( REP_CAR_MDL_CON_LVL, spool.device, 1 )<br />
+		if ( spool.rep = 0 ) then<br />
+			choice.again()<br />
+		endif<br />
+		<br />
+		spool.id = spool.rep<br />
+		brp.ret = brp.open( REP_CAR_MDL_CON_LVL, spool.device, 1 )<br />
+<br />
+		|------------------------------------------------------------<br />
+		| Set Scenario Report Field<br />
+		|------------------------------------------------------------<br />
+		r.plnc = i.plnc<br />
+		r.plnc.desc = cprpd400.dsca<br />
+		|------------------------------------------------------------<br />
+		| 2.2.2 Set Period<br />
+		|------------------------------------------------------------<br />
+		set.period.to.report()<br />
+<br />
+		|------------------------------------------------------------<br />
+		| 2.2.3 Select Output Data From Item, Plan<br />
+		|------------------------------------------------------------<br />
+		<br />
+		select	a.item, a.plni<br />
+			from cprpd100 a<br />
+			where a.item in (select tcibd001.item from tcibd001<br />
+						where tcibd001._index1 inrange {:i.item.f} and {:i.item.t}<br />
+						and tcibd001.csig = &quot;40&quot; <br />
+						and tcibd001._index4 =:i.citg)<br />
+			and Exists (select tdisa010.item from tdisa010<br />
+						where tdisa010._index3 = a.item<br />
+						and tdisa010.stbp inrange {:i.stbp.f}and {:i.stbp.t})<br />
+			<br />
+			selectdo<br />
+<br />
+			|# hold value for next step<br />
+			i.plni	=  cprpd100.plni<br />
+			i.tdisa_item = cprpd100.item<br />
+<br />
+			|------------------------------------------------------------<br />
+			| 2.2.4 Output Car Model Data to Report<br />
+			|------------------------------------------------------------<br />
+			func.ret	= output.car.data()<br />
+			<br />
+			if ( func.ret = FUNC_OK ) then<br />
+				|# do nothing<br />
+			endif<br />
+<br />
+			selectempty<br />
+		<br />
+			|# no data<br />
+			mess( MSG_TRG_DATA_NOT_FOUND, 1 )<br />
+			job.process.error = true<br />
+			brp.close( brp.ret )<br />
+			spool.close()<br />
+			choice.again()<br />
+					<br />
+			endselect<br />
+				<br />
+		|------------------------------------------------------------<br />
+		| 2.2.5 close report<br />
+		|------------------------------------------------------------<br />
+		brp.close( brp.ret )<br />
+		spool.close()<br />
+<br />
+		|------------------------------------------------------------<br />
+		| 2.2.6 End Process<br />
+		|------------------------------------------------------------<br />
+		if ( output.cnt = 0 ) then<br />
+			mess( MSG_REP_NOT_OUTPUT, 1 )<br />
+		endif<br />
+<br />
+<br />
+functions:<br />
+<br />
+|------------------------------------------------------------<br />
+|** function Description <br />
+|** 2.2.2 set period to report field<br />
+|------------------------------------------------------------<br />
+function void set.period.to.report()<br />
+{<br />
+	cprpddll1015.read.plan.periods(	<br />
+							i.plnc,<br />
+							dummy_date,<br />
+							dummy_date,<br />
+							get.compnr(),<br />
+							False,<br />
+							cpcom.yeno.no,<br />
+							prd.num<br />
+								)<br />
+<br />
+	|------------------------------------------------------------<br />
+	| 2.3 set period display format data to field<br />
+	|------------------------------------------------------------<br />
+	if ( i.pren &lt;= prd.num ) then<br />
+		r.prid.1	=	cprpddll1015.per.description(1,i.pren)<br />
+	else<br />
+		r.prid.1	=	&quot;&quot;<br />
+	endif<br />
+	<br />
+	if ( i.pren + 1 &lt;= prd.num ) then<br />
+		r.prid.2	=	cprpddll1015.per.description(1,i.pren + 1)<br />
+	else<br />
+		r.prid.2	=	&quot;&quot;<br />
+	endif<br />
+<br />
+	if ( i.pren + 2 &lt;= prd.num ) then<br />
+		r.prid.3	=	cprpddll1015.per.description(1,i.pren + 2)<br />
+	else<br />
+		r.prid.3	=	&quot;&quot;<br />
+	endif<br />
+	<br />
+	if ( i.pren + 3 &lt;= prd.num ) then<br />
+		r.prid.4	=	cprpddll1015.per.description(1,i.pren + 3)<br />
+	else<br />
+		r.prid.4	=	&quot;&quot;<br />
+	endif<br />
+<br />
+	if ( i.pren + 4 &lt;= prd.num ) then<br />
+		r.prid.5	=	cprpddll1015.per.description(1,i.pren + 4)<br />
+	else<br />
+		r.prid.5	=	&quot;&quot;<br />
+	endif<br />
+	<br />
+	if ( i.pren + 5 &lt;= prd.num ) then<br />
+		r.prid.6	=	cprpddll1015.per.description(1,i.pren + 5)<br />
+	else<br />
+		r.prid.6	=	&quot;&quot;<br />
+	endif<br />
+	<br />
+	if ( i.pren + 6 &lt;= prd.num ) then<br />
+		r.prid.7	=	cprpddll1015.per.description(1,i.pren + 6)<br />
+	else<br />
+		r.prid.7	=	&quot;&quot;<br />
+	endif<br />
+	<br />
+	if ( i.pren + 7 &lt;= prd.num ) then<br />
+		r.prid.8	=	cprpddll1015.per.description(1,i.pren + 7)<br />
+	else<br />
+		r.prid.8	=	&quot;&quot;<br />
+	endif<br />
+<br />
+	if ( i.pren + 8 &lt;= prd.num ) then<br />
+		r.prid.9	=	cprpddll1015.per.description(1,i.pren + 8)<br />
+	else<br />
+		r.prid.9	=	&quot;&quot;<br />
+	endif<br />
+<br />
+	if ( i.pren + 9 &lt;= prd.num ) then<br />
+		r.prid.10	=	cprpddll1015.per.description(1,i.pren + 9)<br />
+	else<br />
+		r.prid.10	=	&quot;&quot;<br />
+	endif<br />
+	<br />
+	if ( i.pren + 10 &lt;= prd.num ) then<br />
+		r.prid.11	=	cprpddll1015.per.description(1,i.pren + 10)<br />
+	else<br />
+		r.prid.11	=	&quot;&quot;<br />
+	endif<br />
+	<br />
+	if ( i.pren + 11 &lt;= prd.num ) then<br />
+		r.prid.12	=	cprpddll1015.per.description(1,i.pren + 11)<br />
+	else<br />
+		r.prid.12	=	&quot;&quot;<br />
+	endif<br />
+}<br />
+<br />
+|------------------------------------------------------------<br />
+|** function Description <br />
+|** 2.2.4 output car model data<br />
+|------------------------------------------------------------<br />
+function long output.car.data()<br />
+{<br />
+	|------------------------------------------------------------<br />
+	| 2.2.4.1 select output car model data<br />
+	|------------------------------------------------------------<br />
+	double	dem.amount	| amount of estimated demand<br />
+	dem.amount	=	0.0<br />
+<br />
+	<br />
+	select	cprmp300.plni,<br />
+		cprmp300.pern,<br />
+		cprmp300.demf<br />
+	from	cprmp300<br />
+	where	cprmp300._index2	=	{	:i.plnc,<br />
+							:i.plni,<br />
+							&quot;&quot;<br />
+								}<br />
+	and		cprmp300.pern	&gt;=	:i.pren<br />
+	and		cprmp300.pern	&lt;=	:i.pren + 11<br />
+	<br />
+	selectdo<br />
+		|# add demand to amount<br />
+		dem.amount = dem.amount + cprmp300.demf<br />
+<br />
+		|------------------------------------------------------------<br />
+		| 2.2.4.2 Set Output car model demand data<br />
+		|------------------------------------------------------------<br />
+		if ( cprmp300.pern = i.pren ) then<br />
+			r.demf.1	=	cprmp300.demf<br />
+		endif<br />
+		<br />
+		if ( cprmp300.pern = i.pren + 1 ) then<br />
+			r.demf.2	=	cprmp300.demf<br />
+		endif<br />
+<br />
+		if ( cprmp300.pern = i.pren + 2 ) then<br />
+			r.demf.3	=	cprmp300.demf<br />
+		endif<br />
+<br />
+		if ( cprmp300.pern = i.pren + 3 ) then<br />
+			r.demf.4	=	cprmp300.demf<br />
+		endif<br />
+<br />
+		if ( cprmp300.pern = i.pren + 4 ) then<br />
+			r.demf.5	=	cprmp300.demf<br />
+		endif<br />
+<br />
+		if ( cprmp300.pern = i.pren + 5 ) then<br />
+			r.demf.6	=	cprmp300.demf<br />
+		endif<br />
+<br />
+		if ( cprmp300.pern = i.pren + 6 ) then<br />
+			r.demf.7	=	cprmp300.demf<br />
+		endif<br />
+<br />
+		if ( cprmp300.pern = i.pren + 7 ) then<br />
+			r.demf.8	=	cprmp300.demf<br />
+		endif<br />
+<br />
+		if ( cprmp300.pern = i.pren + 8 ) then<br />
+			r.demf.9	=	cprmp300.demf<br />
+		endif<br />
+<br />
+		if ( cprmp300.pern = i.pren + 9 ) then<br />
+			r.demf.10	=	cprmp300.demf<br />
+		endif<br />
+<br />
+		if ( cprmp300.pern = i.pren + 10 ) then<br />
+			r.demf.11	=	cprmp300.demf<br />
+		endif<br />
+<br />
+		if ( cprmp300.pern = i.pren + 11 ) then<br />
+			r.demf.12	=	cprmp300.demf<br />
+		endif<br />
+<br />
+	selectempty<br />
+		|# goto next record<br />
+		return ( FUNC_NG )<br />
+	endselect<br />
+<br />
+	|------------------------------------------------------------<br />
+	| 2.2.4.3 Check Output car model data<br />
+	|------------------------------------------------------------<br />
+	if ( double.cmp( dem.amount, 0.0, DOUBLE_TOLERANCE ) = 0 ) and ( i.zrch = tcyesno.yes ) then<br />
+		|# goto next record<br />
+		return ( FUNC_NG )<br />
+	endif<br />
+	<br />
+	|------------------------------------------------------------<br />
+	| 2.2.4.4 Set Output car model data to Report Field<br />
+	|------------------------------------------------------------<br />
+	|# Select STBP to Display<br />
+	select	tdisa010.stbp<br />
+		from	tdisa010<br />
+		where	tdisa010.item = :i.tdisa_item<br />
+<br />
+		Selectdo<br />
+		r.stbp	=	str$( tdisa010.stbp )<br />
+		selectempty<br />
+		|# goto next record<br />
+		endselect<br />
+	<br />
+	|# Item<br />
+		r.plni	=	cprmp300.plni( 13;len(cprmp300.plni) - 12 )<br />
+	<br />
+	|------------------------------------------------------------<br />
+	| 2.2.4.5 Output report<br />
+	|------------------------------------------------------------<br />
+	brp.ready( brp.ret )<br />
+	output.cnt = output.cnt + 1<br />
+<br />
+	return ( FUNC_OK )<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">3rd April 2013, 15:34</div></div><div class="posttext">Here is how I would approach it since I do not readily see an issue - I would first remove the change to the select and make sure it runs exactly like the original report.  If it does then you know the issue is the change in the select.  Then point out the change you made in the select.  Maybe someone will see something I don't see.<br />
+<br />
+Now if you removed the code and it still printed wrong - then something did not get cloned completely. In that case just compare the reports and see if you can identify where the issue is.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">stecorp</div><div class="date">4th April 2013, 11:07</div></div><div class="posttext">Hi Mark,<br />
+<br />
+Thank you for your suggestions, I will do it as per your suggestions, since I changed all the tables and fields, it takes some time.<br />
+<br />
+I also asked my vendor for this issue, will let you know once I resolve the problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">stecorp</div><div class="date">8th April 2013, 09:58</div></div><div class="posttext">Hi Mark,<br />
+<br />
+I found the issue. Actually the issue is not with the script, it was with the Report. Since I copied the script, in the Before Field, the Mandatory field - &quot;Field Name&quot; was the sort filter and page break. It was mentioned as cprpd100.item, so for each item it breaks the page and starts in a new page. Now I changed to Ship to Business Partner, then only breaks when the next business partner starts.<br />
+<br />
+Thank you for your support.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

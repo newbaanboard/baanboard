@@ -1,0 +1,225 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Exit between selectdo and endselect, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Exit between selectdo and endselect Tools Development" />
+	
+	<title>Exit between selectdo and endselect [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Exit between selectdo and endselect</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">pralash</div><div class="date">21st November 2017, 06:52</div></div><div class="posttext">Hi,<br />
+<br />
+I'm new for LN Programming... I'm using the break statement in order to exit the control from the body of selectdo and endselect.  But I'm not able to get the break of the loop... Is it correct for using break with in the selectdo and endselect or some other else?<br />
+<br />
+My Sample script is as follows....<br />
+<br />
+function read.counter.table()<br />
+{<br />
+change = tcyesno.no<br />
+process.end = tcyesno.no<br />
+<br />
+<br />
+select tctls903.logg<br />
+from tctls903<br />
+where tctls903._index1 inrange {:logg.f} and {:logg.t}<br />
+selectdo<br />
+    <br />
+    if logg.t.change=logg.t or logg.f.change=logg.t then<br />
+    break<br />
+    endif<br />
+<br />
+    if change=tcyesno.no then<br />
+        act.date = sprintf$(&quot;%u(%04Y-%02m-%02d)&quot;,tctls903.logg)<br />
+        logg.first=tctls903.logg<br />
+    else<br />
+        logg.first=logg.f.change<br />
+        act.date = sprintf$(&quot;%u(%04Y-%02m-%02d)&quot;,logg.first)<br />
+    endif<br />
+    <br />
+<br />
+    select tctls903.logg as temp<br />
+    from tctls903<br />
+    where tctls903._index1 inrange {:logg.first} and {:logg.t}<br />
+    selectdo<br />
+        act.date2 = sprintf$(&quot;%u(%04Y-%02m-%02d)&quot;,temp)<br />
+        if act.date &lt;&gt; act.date2 then<br />
+            logg.f.change = temp |kkkk<br />
+            break<br />
+        else<br />
+            change=tcyesno.yes<br />
+            logg.t.change=0<br />
+            logg.t.change = temp<br />
+        endif<br />
+    endselect    <br />
+<br />
+    <br />
+    counter = 0<br />
+<br />
+    select distinct tctls903.user<br />
+    from tctls903<br />
+    where tctls903._index1 inrange {:logg.first} and {:logg.t.change}<br />
+    selectdo<br />
+        counter = counter+1<br />
+    <br />
+    endselect<br />
+    <br />
+    rprt_send()<br />
+endselect<br />
+<br />
+|message(&quot;%s&quot;,sprintf$(&quot;%u(%04Y-%02m-%02d)&quot;,logg.t.change))<br />
+}<br />
+<br />
+Please let me know if there is some another methods are available to exit the control the body of the loop instead of the &quot;Break&quot; statement...?<br />
+<br />
+Regards,<br />
+Pralash</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">21st November 2017, 08:09</div></div><div class="posttext">Hi Pralash,<br />
+<br />
+Remember, the &quot;break&quot; will only break the current loop and not all the select loops.<br />
+<br />
+Here's an explanation of your code - <br />
+<br />
+function read.counter.table()<br />
+{<br />
+change = tcyesno.no<br />
+process.end = tcyesno.no<br />
+<br />
+<br />
+select tctls903.logg   |#First Select Loop<br />
+from tctls903<br />
+where tctls903._index1 inrange {:logg.f} and {:logg.t}<br />
+selectdo<br />
+    <br />
+    if logg.t.change=logg.t or logg.f.change=logg.t then<br />
+    break   |# Will break the first select loop<br />
+    endif<br />
+<br />
+    if change=tcyesno.no then<br />
+        act.date = sprintf$(&quot;%u(%04Y-%02m-%02d)&quot;,tctls903.logg)<br />
+        logg.first=tctls903.logg<br />
+    else<br />
+        logg.first=logg.f.change<br />
+        act.date = sprintf$(&quot;%u(%04Y-%02m-%02d)&quot;,logg.first)<br />
+    endif<br />
+    <br />
+<br />
+    select tctls903.logg as temp  |# Second select loop<br />
+    from tctls903<br />
+    where tctls903._index1 inrange {:logg.first} and {:logg.t}<br />
+    selectdo<br />
+        act.date2 = sprintf$(&quot;%u(%04Y-%02m-%02d)&quot;,temp)<br />
+        if act.date &lt;&gt; act.date2 then<br />
+            logg.f.change = temp |kkkk<br />
+            break                |# Will break the second select loop and will go to third select loop and will also remain in first select loop<br />
+        else<br />
+            change=tcyesno.yes<br />
+            logg.t.change=0<br />
+            logg.t.change = temp<br />
+        endif<br />
+    endselect    <br />
+<br />
+    <br />
+    counter = 0<br />
+<br />
+    select distinct tctls903.user |# Third select loop<br />
+    from tctls903<br />
+    where tctls903._index1 inrange {:logg.first} and {:logg.t.change}<br />
+    selectdo<br />
+        counter = counter+1<br />
+    <br />
+    endselect<br />
+    <br />
+    rprt_send()<br />
+endselect<br />
+<br />
+|message(&quot;%s&quot;,sprintf$(&quot;%u(%04Y-%02m-%02d)&quot;,logg.t.change))<br />
+}<br />
+<br />
+If you want the code to break the select loop 2 and get out of the select loop 1 as well, you can do this - <br />
+<br />
+function read.counter.table()<br />
+{<br />
+domain tcbool break.all<br />
+change = tcyesno.no<br />
+process.end = tcyesno.no<br />
+<br />
+<br />
+select tctls903.logg<br />
+from tctls903<br />
+where tctls903._index1 inrange {:logg.f} and {:logg.t}<br />
+selectdo<br />
+    <br />
+    if logg.t.change=logg.t or logg.f.change=logg.t then<br />
+    break<br />
+    endif<br />
+<br />
+    if change=tcyesno.no then<br />
+        act.date = sprintf$(&quot;%u(%04Y-%02m-%02d)&quot;,tctls903.logg)<br />
+        logg.first=tctls903.logg<br />
+    else<br />
+        logg.first=logg.f.change<br />
+        act.date = sprintf$(&quot;%u(%04Y-%02m-%02d)&quot;,logg.first)<br />
+    endif<br />
+    <br />
+<br />
+              break.all = false<br />
+    select tctls903.logg as temp<br />
+    from tctls903<br />
+    where tctls903._index1 inrange {:logg.first} and {:logg.t}<br />
+    selectdo<br />
+        act.date2 = sprintf$(&quot;%u(%04Y-%02m-%02d)&quot;,temp)<br />
+        if act.date &lt;&gt; act.date2 then<br />
+            logg.f.change = temp |kkkk<br />
+                break.all = true<br />
+            break<br />
+        else<br />
+            change=tcyesno.yes<br />
+            logg.t.change=0<br />
+            logg.t.change = temp<br />
+        endif<br />
+    endselect    <br />
+<br />
+    <br />
+if break.all then<br />
+     break  |# Break from the select loop 1<br />
+endif<br />
+<br />
+    counter = 0<br />
+<br />
+    select distinct tctls903.user<br />
+    from tctls903<br />
+    where tctls903._index1 inrange {:logg.first} and {:logg.t.change}<br />
+    selectdo<br />
+        counter = counter+1<br />
+    <br />
+    endselect<br />
+    <br />
+    rprt_send()<br />
+endselect<br />
+<br />
+|message(&quot;%s&quot;,sprintf$(&quot;%u(%04Y-%02m-%02d)&quot;,logg.t.change))<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">pralash</div><div class="date">21st November 2017, 14:43</div></div><div class="posttext">Hi bhushanchanda,<br />
+Thanks so much for your information...<br />
+I fixed the issue in my script...<br />
+Regards,<br />
+Pralash</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

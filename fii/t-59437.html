@@ -1,0 +1,115 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="FAM Fixed Asset Management - DKEY &amp; LKEY, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] FAM Fixed Asset Management - DKEY &amp; LKEY Finance, Invoicing and Integration" />
+	
+	<title>FAM Fixed Asset Management - DKEY &amp; LKEY [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Finance, Invoicing and Integration</a> &gt; FAM Fixed Asset Management - DKEY &amp; LKEY</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">26th October 2010, 15:12</div></div><div class="posttext">Can someone help me with the following:<br />
+<br />
+I need to upload data into tables tffam100 &amp; tffam110, and need to also create records in tffam120. In tffam120 I need to find/assemble the correct Asset Distribution Key (DKEY) &amp; Location Key (LKEY).<br />
+<br />
+Does anyone know the correct logic to assemble those field values? Is there a standard Baan DLL function?<br />
+<br />
+Thanks in advance!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">SujithKumar</div><div class="date">26th October 2010, 20:45</div></div><div class="posttext">You took me back to memory lines! I did the fixed asset migration from Old Vax system to Baan 5c, including the assets which are partially depreciated - 8 years ago!<br />
+1) tffam120.dkey  is a running sequence number so you can increment the counter and update it<br />
+2) lkey refers to tffam500 (location codes), you can create the locations there and use the key in fam120. I loaded them to a default location first and then through another update split to necessary locations<br />
+<br />
+=== Here are some functions i used 8 years ago<br />
+This is the first function, which does Initial load. Initially lkey was set to a default value 98<br />
+function update.asset.distribution()<br />
+{<br />
+	long	count1<br />
+	count1 = 20100<br />
+	select tffam100.*<br />
+	from	tffam100<br />
+	where	not exists ( select tffam120.*<br />
+				from tffam120<br />
+				where tffam120.anbr = tffam100.anbr<br />
+				and	tffam120.aext = tffam100.aext)<br />
+				<br />
+	selectdo<br />
+		count1 = count1 + 1<br />
+		tffam120.anbr = tffam100.anbr<br />
+		tffam120.aext = tffam100.aext<br />
+		tffam120.dkey = count1<br />
+		tffam120.comp = 600<br />
+		tffam120.lkey = 98<br />
+		tffam120.srce = tffam.srce.inte<br />
+		tffam120.dqty = 1<br />
+		db.insert(ttffam120, db.retry)<br />
+		commit.transaction()<br />
+	endselect<br />
+	message(&quot;%d&quot;, count1)<br />
+}<br />
+<br />
+second update, correcting the locations<br />
+function update.asset.distr()<br />
+{<br />
+	long	count1, count2<br />
+	<br />
+	db.retry.point()<br />
+	<br />
+	select	tffam120.*, tffam955.*<br />
+	from	tffam120 for update, tffam955<br />
+	where   tffam120._index1 inrange {:anum.f, :suff.f}<br />
+	                             and {:anum.t, :suff.t}<br />
+	and	(tffam120.lkey = 138 or tffam120.lkey = 98)<br />
+	and	tffam120.anbr = tffam955.anum<br />
+	and	tffam120.aext = tffam955.suff	<br />
+	selectdo<br />
+		on case tffam955.edpt<br />
+			case &quot;5622&quot;:<br />
+				tffam120.lkey = 99<br />
+				break<br />
+<br />
+			case &quot;5624&quot;:<br />
+			case &quot;5643&quot;:<br />
+				tffam120.lkey = 139<br />
+				break<br />
+<br />
+			case &quot;5637&quot;:<br />
+				tffam120.lkey = 100<br />
+				break<br />
+<br />
+			case &quot;5638&quot;:<br />
+				tffam120.lkey = 101<br />
+				break<br />
+<br />
+			case &quot;5645&quot;:<br />
+				tffam120.lkey = 141<br />
+				break<br />
+			break<br />
+		endcase	<br />
+		count1 = count1 + 1<br />
+		count2 = count2 + 1<br />
+		db.update(ttffam120, db.retry)<br />
+		if count1 &gt; 50 then<br />
+			commit.transaction()<br />
+			count1 = 0<br />
+		endif<br />
+			<br />
+	endselect<br />
+	commit.transaction()<br />
+	message(&quot;%d&quot;, count2)<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

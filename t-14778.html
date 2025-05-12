@@ -1,0 +1,318 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="BaaN / Excel, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] BaaN / Excel AFS/DDC/OLE: Function servers" />
+	
+	<title>BaaN / Excel [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; BaaN / Excel</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">penawils</div><div class="date">11th March 2004, 23:06</div></div><div class="posttext">Hi.<br />
+<br />
+I´m learning Baan OLE Automation, and firts I tried the samples that are within bw client folder.<br />
+<br />
+I ran the Baan.xls example and all was fine. the result was ok. I saw my baan users greater that &quot;tools&quot; .<br />
+<br />
+But I just only change the table and the query and I can´t obtain good results, bellow you can see the script. <br />
+<br />
+Any ideas or Baan Example only work with ttaad200 table?.<br />
+<br />
+Thanks.<br />
+<br />
+Dim BaanObj As Object<br />
+Dim B_function As String<br />
+Dim B_function2 As String<br />
+Dim Query As String<br />
+Dim user As String<br />
+Dim temp_string As String<br />
+Dim query_id As Long<br />
+Dim RetVal As Long<br />
+<br />
+Sub GetBaanUsers()<br />
+    ' This example will fill the spreadsheet with the names of BAAN IV users,<br />
+    ' with the criterium: user name &gt; &quot;tools&quot;<br />
+    ' This macro parses the following string:<br />
+    ' &quot;select ttaad200.user from ttaad200 where ttaad200.user &gt; &quot;tools&quot;&quot;<br />
+    ' The DLL &quot;ottdllsql_query&quot; contains a function to convert this string to a Baan query and<br />
+    ' other functions to parse and execute the query. The DLL also contains functions to retrieve<br />
+    ' the result of the query, e.g. function &quot;olesql_getstring&quot;.<br />
+    On Error GoTo CannotCreateBaan<br />
+    <br />
+    'run Baan Application<br />
+    Set BaanObj = CreateObject(&quot;Baan4.Application&quot;)<br />
+    ThisWorkbook.Sheets(&quot;Actual&quot;).Activate<br />
+    BaanObj.Timeout = 10<br />
+    On Error GoTo BaanAutomationError<br />
+  <br />
+   <br />
+    ' form the string to Visual Basic format. Mind how quotes (Chr(34)) are put in the string<br />
+Rem Query = &quot;select ttcabb108.cwbs.d from ttcabb108 where ttcabb108.cprj.d = &quot; &amp; Chr(34) &amp; Chr(34) &amp; &quot;213006&quot; &amp; Chr(34) &amp; Chr(34)<br />
+    Query = &quot;select ttfgld011.ttyp from ttfgld011 where ttfgld011._compnr=100 and ttfgld011.ttyp &gt; &quot; &amp; Chr(34) &amp; Chr(34) &amp; &quot;CA &quot; &amp; Chr(34) &amp; Chr(34)<br />
+ <br />
+    B_function = &quot;olesql_parse(&quot; &amp; Chr(34) &amp; Query &amp; Chr(34) &amp; &quot;)&quot;<br />
+    ' execute the function olesql_parse(&quot;select ttaad200.user from ttaad200 where ttaad200.user &gt; &quot;tools&quot;&quot;)<br />
+    ' from DLL ottdllsql_query<br />
+    BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+    ' If this function fails the ReturnValue is equal to zero, otherwise<br />
+    ' the function olesql_parse returns a identification number of the query<br />
+    ' Convert the (string) ReturnValue to a long variable using the function Val<br />
+    query_id = Val(BaanObj.ReturnValue)<br />
+    If query_id = 0 Then<br />
+        MsgBox &quot;function olesql_parse fails&quot;<br />
+       <br />
+        GoTo BaanAutomationError<br />
+    End If<br />
+    ' The function olesql_fetch reads one query result, in this example the (string) value of ttaad200.user<br />
+    ' The identification number of the query must be passed as argument to this function<br />
+    B_function = &quot;olesql_fetch(&quot; &amp; query_id &amp; &quot;)&quot;<br />
+    BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+    temp_string = &quot;ttfgld011.ttyp&quot;<br />
+    user = String(3, &quot; &quot;)<br />
+    ' The function olesql_getstring retrieves the query result and stores it in the second argument,<br />
+    ' a 'call by reference' argument. Note that the second argument must be large enough to fill in the result<br />
+    B_function2 = &quot;olesql_getstring(&quot; &amp; Chr(34) &amp; temp_string &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; user &amp; Chr(34) &amp; &quot;)&quot;<br />
+    BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function2<br />
+    <br />
+    ' search returned string in the function call (call by reference argument)<br />
+    temp_string = BaanObj.FunctionCall<br />
+    user = Mid(temp_string, 35, 10)<br />
+    user = Trim(user)<br />
+    <br />
+    Row = 1<br />
+    Column = 6<br />
+    If user = &quot;&quot; Then MsgBox (&quot;No users found&quot;)<br />
+    While (user &lt;&gt; &quot;&quot;)<br />
+        ' fill spreadsheet<br />
+        Worksheets(&quot;Actual&quot;).Cells(Row, Column) = user<br />
+        Row = Row + 1<br />
+        If Row &gt; 10 Then<br />
+            Row = 1<br />
+            Column = Column + 1<br />
+        End If<br />
+        <br />
+        ' Read next query result. If this function fails, the ReturnValue is not equal to zero<br />
+        BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+        If BaanObj.ReturnValue = 0 Then<br />
+            ' retrieve query result and store it in the second argument of the function olesql_getstring<br />
+            BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function2<br />
+            temp_string = BaanObj.FunctionCall<br />
+            ' the second argument (user name) can be retrieved from position 35 of the FunctionCall<br />
+            user = Mid(temp_string, 35, 10)<br />
+            user = Trim(user)    ' removes spaces from text string<br />
+        ElseIf BaanObj.ReturnValue = 110 Then       ' end of set<br />
+            user = &quot;&quot;<br />
+        Else<br />
+            GoTo BaanAutomationError<br />
+        End If<br />
+    Wend<br />
+    <br />
+    ' stop and remove query<br />
+    B_function = &quot;olesql_break(&quot; &amp; query_id &amp; &quot;)&quot;<br />
+    BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+    If BaanObj.ReturnValue &lt;&gt; 0 Then GoTo BaanAutomationError<br />
+    B_function = &quot;olesql_close(&quot; &amp; query_id &amp; &quot;)&quot;<br />
+    BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+    <br />
+    ' exit Baan<br />
+    BaanObj.Quit<br />
+    Set BaanObj = Nothing<br />
+    Exit Sub<br />
+    <br />
+' error handling<br />
+CannotCreateBaan:<br />
+    MsgBox &quot;Unable to start Baan&quot;<br />
+    Exit Sub<br />
+    <br />
+BaanAutomationError:<br />
+    MsgBox &quot;Baan IV automation error: &quot; &amp; BaanObj.Error<br />
+    MsgBox &quot;Return value function: &quot; &amp; B_function &amp; &quot;  &quot; &amp; BaanObj.ReturnValue<br />
+    BaanObj.Quit<br />
+    Set BaanObj = Nothing<br />
+    Exit Sub<br />
+    <br />
+End Sub</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th March 2004, 23:23</div></div><div class="posttext">There should be other examples in this forum.  I am wondering if you really want this in your script  &quot;ttfgld011.ttyp &gt; &quot; &amp; Chr(34) &amp; Chr(34) &amp; &quot;CA &quot; &amp; Chr(34) &amp; Chr(34) - do you want &quot;&gt;&quot; or do you mean &quot;=&quot;.<br />
+<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th March 2004, 23:27</div></div><div class="posttext">Here is one sample. (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=7409&amp;highlight=OLE+and+Excel)  You should be able to find others just by searching on OLE or Excel.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">penawils</div><div class="date">12th March 2004, 15:04</div></div><div class="posttext">Thanks Mark for your answer.<br />
+<br />
+I don´t understand what happen, I change the Query by this:<br />
+<br />
+Query = &quot;select tfgld011.ttyp from tfgld011&quot;<br />
+<br />
+this a simple query but , it don't work, do you have any other idea about what is the problem.?<br />
+<br />
+The query_id always return cero.<br />
+<br />
+query_id = Val(BaanObj.ReturnValue)<br />
+<br />
+<br />
+<br />
+Thanks for your help.<br />
+<br />
+<br />
+:)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">14th March 2004, 00:27</div></div><div class="posttext">I just saw the problem with your original query you have:<br />
+<br />
+select ttfgld011.ttyp from ttfgld011 where ttfgld011._compnr=100 and ttfgld011.ttyp <br />
+<br />
+<br />
+and it should be:<br />
+<br />
+<br />
+select tfgld011.ttyp from tfgld011 where tfgld011._compnr=100 and tfgld011.ttyp<br />
+<br />
+<br />
+Just like a baan select statement - you do not need ttfgld011 but tfgld011.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">penawils</div><div class="date">15th March 2004, 16:33</div></div><div class="posttext">Mark:<br />
+<br />
+Thanks gor your reply.<br />
+<br />
+I explain you tha actual situation, <br />
+<br />
+Connect to Baan     OK.<br />
+Retry String Data     OK.<br />
+<br />
+But now I need get two fields, the first one is a string, but the second is a double.<br />
+<br />
+Whit the string data I don´t have problem but when I tried to get the double the BW broken and no message is show me. Other important tip, the double field is an array, and I need to get the data that is in the position 2.<br />
+<br />
+Bellow yoa can see a part of my script.<br />
+<br />
+    B_function = &quot;olesql_fetch(&quot; &amp; query_id &amp; &quot;)&quot;<br />
+    BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+    temp_string1 = &quot;tcabb106.actc.d&quot;<br />
+    valor = 999999<br />
+    B_function3 = &quot;olesql_getfloat_arrelem(&quot; &amp; Chr(34) &amp; temp_string1 &amp; Chr(34) &amp; &quot;,2,&quot; &amp; Chr(34) &amp; valor &amp; Chr(34) &amp; &quot;)&quot;<br />
+    BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function3<br />
+<br />
+<br />
+Do you have any ideas, what is wrong.<br />
+<br />
+Thanks<br />
+<br />
+<br />
+Wilson</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">15th March 2004, 18:10</div></div><div class="posttext">Sorry, but I can not help with that problem.  I have never tried to get an array element like that.  I know there was another post along those lines but do not remember what was stated.  Hopefully someone else will have the answer.<br />
+<br />
+Good Luck!<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">16th March 2004, 02:45</div></div><div class="posttext">B_func = &quot;olesql_getfloat_arrelem(&quot; &amp; Chr(34) &amp; FldVarName &amp; Chr(34) &amp; &quot;,&quot; &amp; Element &amp; &quot;,0.0)&quot;<br />
+<br />
+Use the olesql_getfloat_arrelem function for double elements, where FldVarName is the fieldname and Element is the index to the array.<br />
+<br />
+All of the functions in the dll &quot;ottdllsql_query&quot; can be viewed by running bic_infox.x against the dll object.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">penawils</div><div class="date">16th March 2004, 14:55</div></div><div class="posttext">Gordon:<br />
+<br />
+Thanks for your reply, I implemented the function that you wrote  the sintax is ok, but the result isn't good because I can´t get the value.<br />
+When I consult the contents of the Temp_string1 variable, is zero.<br />
+<br />
+I made other test, I created a Long Variable (amount) and put this like last argument of the function (Replace the 0.0 of the original), whe I ran the function the result was empty (&quot;&quot;).<br />
+<br />
+Bellow you can see a part of my script.<br />
+<br />
+<br />
+    temp_string1 = &quot;tcabb106.actc.d&quot;<br />
+    valor = 2<br />
+    amount = 0<br />
+ <br />
+    B_function3 = &quot;olesql_getfloat_arrelem(&quot; &amp; Chr(34) &amp; temp_string1 &amp; Chr(34) &amp; &quot;,&quot; &amp; valor &amp; &quot;,amount)&quot;<br />
+    BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function3<br />
+    temp_string1 = BaanObj.FunctionCall<br />
+<br />
+<br />
+Any ideas.<br />
+<br />
+<br />
+Thanks<br />
+<br />
+<br />
+Wilson</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">16th March 2004, 17:49</div></div><div class="posttext">B_function3 = &quot;olesql_getfloat_arrelem(&quot; &amp; Chr(34) &amp; temp_string1 &amp; Chr(34) &amp; &quot;,&quot; &amp; valor &amp; &quot;,&quot; &amp; amount &amp; &quot;)&quot;<br />
+<br />
+<br />
+You have to parse the string returned by the BaanObj.FunctionCall. The value isn't returned in your amount variable!<br />
+<br />
+I've actually written functions for each Baan data type that returns the the field value. <br />
+For example:<br />
+<br />
+Call GetBaanFloatDataArr(FldValue(colCnt), j, Fld(i).FldLength, tFldTable(i) &amp; &quot;.&quot; &amp; Fld(i).FldName)<br />
+<br />
+...<br />
+<br />
+Sub GetBaanFloatDataArr(ByRef StrFld, Element, Length, FldVarName)<br />
+Dim tempstr As String<br />
+Dim tmpdbl As Double<br />
+Dim eLen<br />
+<br />
+    StrFld = String(Length, &quot; &quot;)<br />
+    B_func = &quot;olesql_getfloat_arrelem(&quot; &amp; Chr(34) &amp; FldVarName &amp; Chr(34) &amp; &quot;,&quot; &amp; Element &amp; &quot;,0.0)&quot;<br />
+    BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_func<br />
+    If BaanVersion = 4 Then<br />
+        tempstr = BaanObj.FunctionCall<br />
+    Else<br />
+        tempstr = BaanObj.ReturnCall<br />
+    End If<br />
+    eLen = 2<br />
+    If Element &gt; 9 Then<br />
+    eLen = 3<br />
+    End If<br />
+    If Element &gt; 99 Then<br />
+    eLen = 4<br />
+    End If<br />
+    tmpdbl = Val(Mid(tempstr, eLen + 28 + Len(Trim(FldVarName)), Length))<br />
+    StrFld = Trim(Str(tmpdbl))<br />
+<br />
+End Sub</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">AlexSpb</div><div class="date">18th December 2008, 11:08</div></div><div class="posttext">I tried to obtain the data from Baan, using an example (Baan.xls).<br />
+I have &quot;Unable to start Baan&quot; error message Reason - I have not dll in my Baan folder (ex.ottdllsql_query.dll absent) Could you inform me which of dll's are should be included to VBA project (VBA Reference) Can anybody to send me necessary dll's?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">18th December 2008, 15:11</div></div><div class="posttext">I believe you need to first look at which &quot;.bwc&quot; file you are trying to start.  As far as I know there is not a DLL.  So use bw.configure for the .bwc file you are trying to use, go to the automation tab.  Record the class name and put that in the createobject below.<br />
+<br />
+'run Baan Application<br />
+Set BaanObj = CreateObject(&quot;Baan4.Application&quot;)<br />
+ThisWorkbook.Sheets(&quot;Actual&quot;).Activate<br />
+BaanObj.Timeout = 10</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

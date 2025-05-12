@@ -1,0 +1,128 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to use AFS to work Cycle Counting Orders , any example ? thanks, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to use AFS to work Cycle Counting Orders , any example ? thanks AFS/DDC/OLE: Function servers" />
+	
+	<title>How to use AFS to work Cycle Counting Orders , any example ? thanks [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; How to use AFS to work Cycle Counting Orders , any example ? thanks</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">dylphin</div><div class="date">22nd March 2009, 05:25</div></div><div class="posttext">Hi to all :<br />
+<br />
+thanks a lot !</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd March 2009, 01:53</div></div><div class="posttext">Not sure what session your are looking for, but search this forum for the session number.  You might find something.  That is the one area we have not developed any api code for.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">_Ralph_</div><div class="date">23rd March 2009, 16:45</div></div><div class="posttext">Hi to all :<br />
+<br />
+thanks a lot !<br />
+<br />
+if you are working with LN, a long time a go I needed to use afs on this session. What I can say: I suffer :D<br />
+<br />
+The big problem involved the field of &quot;counted pieces&quot;.<br />
+<br />
+The solution in the end was a mix of AFS and db transactions(such an ugly thing)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Thomasm</div><div class="date">24th March 2009, 10:41</div></div><div class="posttext">Tried to solve this via afs but ended up doing it via db.update since I did not get the 'find' to work in the session tdinv1120m000.<br />
+<br />
+This is what I do:<br />
+<br />
+i    if ( OK.to.report.item ) then<br />
+      | first we do a check to see if we can assume that the order has been zeroed or not and take action if not<br />
+      | Zeroing an order destroys the table buffer, hence 2 selects<br />
+      select <br />
+        *<br />
+      from<br />
+        tdinv120<br />
+      where<br />
+        tdinv120._index3 = {:tssma306.cwar,:counted.item}<br />
+        and tdinv120.prst = tcyesno.yes<br />
+        and ( tdinv120.csts = tcyesno.no<br />
+         or tdinv120.cstc &lt; 0.01 )<br />
+      order by<br />
+        tdinv120.date desc | make sure to pick up the latest order (if more than one)<br />
+      as set with 1 rows | make sure to pick up the latest order (if more than one)<br />
+      selectdo<br />
+        if ( tdinv120.csts = tcyesno.no and double.cmp(tdinv120.cstc, 0.0, 0.01) &lt;= 0 ) then<br />
+          | this is record not set to 0 so expect the complete order to not be zeroed<br />
+          OK.to.report.item = setAllNotCountedRecordsOnOrderToAllocated( tdinv120.orno, tdinv120.cwar )<br />
+        endif<br />
+        <br />
+      endselect<br />
+    <br />
+      | here we do the real update.<br />
+      | Zeroing an order destroys the table buffer, hence 2 selects<br />
+      db.retry.point()<br />
+      select <br />
+        *<br />
+      from<br />
+        tdinv120 for update<br />
+      where<br />
+        tdinv120._index3 = {:tssma306.cwar,:counted.item}<br />
+        and tdinv120.prst = tcyesno.yes<br />
+        and ( tdinv120.csts = tcyesno.no<br />
+         or tdinv120.cstc &lt; 0.01 )<br />
+      order by<br />
+        tdinv120.date desc | make sure to pick up the latest order (if more than one)<br />
+      as set with 1 rows | make sure to pick up the latest order (if more than one)<br />
+      selectdo<br />
+        <br />
+        select <br />
+          *<br />
+        from<br />
+          tdinv001<br />
+        where<br />
+          tdinv001._index1 = {:tdinv120.cwar,:tdinv120.item}<br />
+        as set with 1 rows<br />
+        selectdo<br />
+          break | just pick it up<br />
+        selectempty<br />
+          setError( &quot;Did not find the item in the warehouse from table tdinv001&quot;<br />
+          &amp; &quot; Warehouse: &quot; &amp; strip$(shiftl$(tdinv120.cwar))<br />
+          &amp; &quot; Item: &quot; &amp; strip$(shiftl$( tdinv120.item) ) )<br />
+          OK.to.report.item = false<br />
+        endselect<br />
+        <br />
+        if ( OK.to.report.item ) then<br />
+          quantity = tdinv001.allo + counted.qana<br />
+          <br />
+          tdinv120.cstc = quantity<br />
+          tdinv120.cdat = counted.cdat<br />
+          tdinv120.csts = tcyesno.yes<br />
+          upd = db.update(ttdinv120, db.retry)<br />
+          if ( upd = 0 ) then<br />
+            comm = commit.transaction()<br />
+            if ( comm = 0 ) then<br />
+              OK.to.report.item = true<br />
+            else<br />
+              OK.to.report.item = false<br />
+            endif<br />
+          else<br />
+            OK.to.report.item = false<br />
+          endif<br />
+        endif<br />
+selectempty<br />
+| error handling<br />
+endselect<br />
+<br />
+<br />
+<br />
+Good luck</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

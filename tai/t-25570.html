@@ -1,0 +1,120 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Triton 2.2d: copy company?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Triton 2.2d: copy company? Tools Administration &amp; Installation" />
+	
+	<title>Triton 2.2d: copy company? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Triton 2.2d: copy company?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">inalfa01</div><div class="date">8th November 2005, 15:01</div></div><div class="posttext">What was the exact procedure to copy a company to a new number?<br />
+Especially the repairing of the company number in th new company...<br />
+I believe there are no sesisons for this repairing in 2.2d...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Viplov</div><div class="date">10th November 2005, 13:45</div></div><div class="posttext">You can create a new company and then create a sequential dump of the another company which you want to copy.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">inalfa01</div><div class="date">14th November 2005, 14:14</div></div><div class="posttext">But how to convert the company number in the new company in 2.2d?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">14th November 2005, 19:21</div></div><div class="posttext">Does triton of the tfgld9001 - 9004 sessions? that is how you would<br />
+change the company number if the data.<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">15th November 2005, 09:55</div></div><div class="posttext">Hi there,<br />
+<br />
+lets assume you have sequential dumps of all tables in directory &quot;/dump&quot;.<br />
+These seq. dumps have seperator &quot;|&quot;.<br />
+Lets further assume your companynumber is &quot;123&quot;.<br />
+<br />
+change to directory /dump<br />
+<br />
+Create the following file (in directory /dump) &quot;awkcomchk&quot;:<br />
+<br />
+#----------start of file awkcomchk<br />
+BEGIN{FS=&quot;|&quot;}<br />
+{if (NR==1) for (i=1;i&lt;=NF;i++) x[i]=1}<br />
+{for (i in x) if ($i!=&quot;123&quot;) delete x[i]}<br />
+{ok=asort(x,y); if (ok==0) exit}<br />
+END{for (i in x) these=these &quot; &quot; i;<br />
+    if (these!=&quot;&quot;) print FILENAME&quot; Companynumber in: &quot; these}<br />
+#----------End of file<br />
+<br />
+<br />
+<br />
+Now check all sequential dump files there using:<br />
+for i in *<br />
+do<br />
+awk -f awkcomchk $i<br />
+done<br />
+<br />
+This will give you a list of all files which have the string &quot;123&quot; in each field x.<br />
+<br />
+To change these via awk ist a lot simpler than the above script :-)<br />
+<br />
+<br />
+hth<br />
+<br />
+Norbert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">norwim</div><div class="date">15th November 2005, 10:39</div></div><div class="posttext">Hi there,<br />
+<br />
+with the above assumptions  (old company number= &quot;123&quot;, new shall be &quot;321&quot;)<br />
+#----start of awkconvcomp<br />
+BEGIN{FS=&quot;|&quot;}<br />
+{if (NR==1) for (i=1;i&lt;=NF;i++) x[i]=1}<br />
+{for (i in x) if ($i!=&quot;123&quot;) delete x[i]}<br />
+{ok=asort(x,y); if (ok==0) exit}<br />
+END{for (i in x) these=these &quot; &quot; i;<br />
+    if (these!=&quot;&quot;)<br />
+    {print &quot;mv &quot;FILENAME&quot; orig/&quot;FILENAME &gt;&gt; &quot;convert.sh&quot;;<br />
+     print &quot;BEGIN{FS=\&quot;|\&quot;;OFS=\&quot;|\&quot;}&quot; &gt; &quot;awk&quot;FILENAME;<br />
+     for (i in x) print &quot;{$&quot;i&quot;=\&quot;321\&quot;}&quot; &gt; &quot;awk&quot;FILENAME;<br />
+     print &quot;{print $0}&quot; &gt; &quot;awk&quot;FILENAME;<br />
+     print &quot;awk -f awk&quot;FILENAME &quot; orig/&quot;FILENAME &quot; &gt; &quot;FILENAME<br />
+&gt;&gt; &quot;convert.sh&quot;}}<br />
+#----end of file awkconvcomp<br />
+The above script will create a script &quot;convert.sh&quot; plus all awk-scripts needed to change 123 into 321.<br />
+<br />
+requirements:<br />
+<br />
+complete sequential dump in directory /dump ... all files have seperator &quot;|&quot;<br />
+you created a directory /dump/orig<br />
+you pasted the awkscript above into /dump/awkconvcomp<br />
+<br />
+go to directory /dump<br />
+<br />
+for i in *<br />
+do<br />
+awk -f awkconvcomp $i<br />
+done<br />
+..<br />
+then<br />
+sh convert.sh<br />
+<br />
+Tested. Note that if your bdbpost creates two leading lines, then you may need to insert <br />
+{if (NR==1) {next;next}} as line 3 in the above awk-script<br />
+Of course you should check the result, if you have a corrupted record with no company number in it, then the table won't be converted .... but I thought it to be funny to have a solution independent of Baan Version :-)<br />
+<br />
+hth<br />
+<br />
+Norbert</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

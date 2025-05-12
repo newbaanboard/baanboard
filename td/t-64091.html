@@ -1,0 +1,217 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Regarding DLL, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Regarding DLL Tools Development" />
+	
+	<title>Regarding DLL [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Regarding DLL</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">yogesh kapil</div><div class="date">23rd May 2013, 08:09</div></div><div class="posttext">HI All,<br />
+<br />
+Can anyone please give me beginner level tips on how to use dlls with examples. Thanks.<br />
+<br />
+Yogesh Kapil<br />
+9711204433</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd May 2013, 16:57</div></div><div class="posttext">I am on 4c4 and here is how I think of DLL's.  These are libraries that will hold common routines that can be called from multiple programs.  I do this for most of my API code since we may have multiple uses for the code.  So for example below is just part of one DLL for outbound.  Now I can write multiple sessions which call insert inbound for different scenarios - one might be read in a file and insert inbound, another might be to just insert inbound for certain items.  Not exactly how I use them, but they are only examples.  Just they other day we were looking at my bin to bin library - there are about 6 different user sessions which uses the library - (1) one for file loads of bin to bins, (2) one for inventory to process individual bin to bins, (3) one for bin to bin floor stock items, (4) one to move automated storage management moves, etc.  So that is how I think of libraries.  I do not know about LN or 5 and what other options might be available.<br />
+<br />
+Funny - after posting this you can see comments that shows how long we have been using these libraries - at least since 2004.<br />
+<br />
+|******************************************************************************<br />
+	table	ttiitm001		| Items<br />
+	table	ttdpur045		| Receipts<br />
+	<br />
+#pragma	used	dll	ottstpapihand	| Baan API Handler<br />
+	extern  domain  tcmcs.str132    boi.call<br />
+	extern		long		rc<br />
+	extern		string		some.msg(180)<br />
+	extern	domain	tcmcs.str15 	apishort<br />
+	extern	domain	tcbool		api.mode<br />
+	extern	domain	timps.devi	real.tag.printer<br />
+	extern	domain	tcmcs.long	tag.run.mode<br />
+	extern		string		tag.temp.file(1024)<br />
+|******************************************************************************<br />
+|* API Code for Maintaining Outbound.<br />
+|******************************************************************************<br />
+function extern insert_outbound(	domain	tcmcs.str12	runnumber,<br />
+					domain  tdilc.kooa	order.type,<br />
+					domain	tcorno		order.number,<br />
+					domain	tcpono		order.position,<br />
+					domain	tdilc.loca	order.location,<br />
+					domain	tccuni		order.stun,<br />
+					domain	tcqiv1		order.qty,<br />
+					domain	tdltc.clot	order.lot,<br />
+					domain	tcdate		order.date,<br />
+					ref	string		strsera(),<br />
+					ref	string		strserb(),<br />
+					ref     string          msg())<br />
+{<br />
+	msg = &quot;&quot;<br />
+	stpapi.handle.subproc(&quot;tdilc4101m000&quot;,&quot;tdilc4102s000&quot;,&quot;add&quot;)<br />
+	stpapi.put.field(&quot;tdilc4101m000&quot;,&quot;runnumber&quot;,runnumber)<br />
+	stpapi.put.field(&quot;tdilc4101m000&quot;,&quot;k.o.order&quot;,str$(order.type))<br />
+	stpapi.put.field(&quot;tdilc4101m000&quot;,&quot;ordernr&quot;,str$(order.number))<br />
+	stpapi.continue.process(&quot;tdilc4101m000&quot;,msg)<br />
+	if not isspace(msg) then<br />
+		stpapi.end.session(&quot;tdilc4101m000&quot;)<br />
+		return<br />
+	endif<br />
+	stpapi.enum.answer(&quot;tdilc4102s000&quot;,&quot;tdilc4102.1&quot;,tcyesno.no)<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.pono&quot;,str$(order.position))<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.loca&quot;,order.location)<br />
+| 092404.st - Add lot and date to insert outbound.	<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.clot&quot;,order.lot)<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.date&quot;,str$(order.date))<br />
+| 092404.end	<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.stun&quot;,order.stun)<br />
+	stpapi.put.field(&quot;tdilc4102s000&quot;,&quot;tdilc401.qstr&quot;,str$(order.qty))<br />
+	rc = stpapi.insert(&quot;tdilc4102s000&quot;,1,msg)<br />
+	if isspace(msg) then<br />
+		stpapi.get.field( &quot;tdilc4102s000&quot;, &quot;tdilc401.sera&quot;, strsera )<br />
+		stpapi.get.field( &quot;tdilc4102s000&quot;, &quot;tdilc401.serb&quot;, strserb )<br />
+	endif<br />
+	stpapi.end.session(&quot;tdilc4513s000&quot;)<br />
+	stpapi.end.session(&quot;tdilc4102s000&quot;)<br />
+	stpapi.end.session(&quot;tdilc4101m000&quot;)<br />
+}<br />
+|******************************************************************************<br />
+|* API Code for Printing outbound for a production order.  spool.report must<br />
+|* be set in order to use this library routine.<br />
+|******************************************************************************<br />
+function extern print_outbound(		domain	tcmcs.str12	runnumber,<br />
+					domain  tcorno		run.order.f,<br />
+					domain  tcorno		run.order.t,<br />
+					domain	tcpono		run.opno.f,<br />
+					domain	tcpono		run.opno.t,<br />
+					domain	tcitem		run.item.f,<br />
+					domain	tcitem		run.item.t,<br />
+					domain	tccwar		run.cwar.f,<br />
+					domain	tccwar		run.cwar.t,<br />
+					domain	tcdate		run.gendate.f,<br />
+					domain	tcdate		run.gendate.t,<br />
+					domain	tcmcs.str15	run.report,<br />
+					ref     string          msg())<br />
+{<br />
+	msg = &quot;&quot;<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;runnumber.f&quot;,runnumber)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;runnumber.t&quot;,runnumber)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;koor.f&quot;,str$(tdilc.koob.act.sfc))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;koor.t&quot;,str$(tdilc.koob.act.sfc))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;orno.f&quot;,str$(run.order.f))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;orno.t&quot;,str$(run.order.t))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;opno.f&quot;,str$(run.opno.f))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;opno.t&quot;,str$(run.opno.t))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;prdt.t&quot;,str$(date.num()+1000))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;ddta.f&quot;,str$(date.num()-1000))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;ddta.t&quot;,str$(date.num()+1000))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;item.f&quot;,run.item.f)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;item.t&quot;,run.item.t)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;cwar.f&quot;,run.cwar.f)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;cwar.t&quot;,run.cwar.t)<br />
+| 20041119 - Start passing generate date	<br />
+	|stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;gendate.f&quot;,str$(date.num()))<br />
+	|stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;gendate.t&quot;,str$(date.num()))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;gendate.f&quot;,str$(run.gendate.f))<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;gendate.t&quot;,str$(run.gendate.t))<br />
+| 20041119	<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;gcid.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;gcid.t&quot;,&quot;ZZZZZZZZZZZZZZZZZZZZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;ship.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;ship.t&quot;,&quot;ZZZZZZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;cuno.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;cuno.t&quot;,&quot;ZZZZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;cprj.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;cprj.t&quot;,&quot;ZZZZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;cntr.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;cntr.t&quot;,&quot;ZZZ&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;crte.f&quot;,&quot;&quot;)<br />
+	stpapi.put.field(&quot;tdilc4401m000&quot;,&quot;crte.t&quot;,&quot;ZZZZZ&quot;)<br />
+	|stpapi.set.report(&quot;tdilc4401m000&quot;,&quot;rtdilc440109000&quot;,spool.device,msg)<br />
+	stpapi.set.report(&quot;tdilc4401m000&quot;,run.report,spool.device,msg)<br />
+	<br />
+	if isspace(msg) then<br />
+		stpapi.continue.process(&quot;tdilc4401m000&quot;,msg)<br />
+		some.msg = stpapi.get.mess.code(&quot;tdilc4401m000&quot;,msg)<br />
+	endif<br />
+	stpapi.end.session(&quot;tdilc4401m000&quot;)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bdittmar</div><div class="date">24th May 2013, 13:54</div></div><div class="posttext">HI All,<br />
+<br />
+Can anyone please give me beginner level tips on how to use dlls with examples. Thanks.<br />
+<br />
+Yogesh Kapil<br />
+9711204433<br />
+<br />
+Hello,<br />
+example of an own LN DLL<br />
+<br />
+<br />
+function extern dhhtm.dll0001.get.employee.data(domain tcemno 	   i.emno,<br />
+					ref	domain tcnama	   o.nama,<br />
+					ref	domain tcmcs.str25 o.telw,<br />
+					ref	domain tcmcs.str25 o.tefw,<br />
+					ref	domain bpmdm.info o.mail)<br />
+{<br />
+dllusage<br />
+	Read employee data for Formdesigner reports.<br />
+	<br />
+	Input:	i.emno = Employee number<br />
+	Output:	o.nama = Name<br />
+		o.telw = Phome<br />
+		o.tefw = Fax<br />
+		o.mail = Email<br />
+enddllusage<br />
+	o.nama = &quot;&quot;<br />
+	o.telw = &quot;&quot;<br />
+	o.tefw = &quot;&quot;<br />
+	o.mail = &quot;&quot;<br />
+<br />
+	select	tccom001.nama<br />
+	from	tccom001<br />
+	where	tccom001._index1 = {:i.emno}<br />
+	selectdo<br />
+		o.nama = strip$(tccom001.nama)<br />
+		<br />
+		select	bpmdm001.*, <br />
+			tcmcs010.tfcd,<br />
+			tcmcs010.fxcd<br />
+		from	bpmdm001, tccom130, tcmcs010<br />
+		where	bpmdm001._index1 = {:i.emno}<br />
+		and	bpmdm001.cadr refers to tccom130 unref clear<br />
+		and	tccom130.ccty refers to tcmcs010 unref clear<br />
+		selectdo<br />
+			o.telw = not isspace(bpmdm001.telw) ? trim$(tcmcs010.tfcd) &amp; &quot; &quot; &amp; strip$(bpmdm001.telw) : &quot;&quot;<br />
+			o.tefw = not isspace(bpmdm001.tefw) ? trim$(tcmcs010.fxcd) &amp; &quot; &quot; &amp; strip$(bpmdm001.tefw) : &quot;&quot;<br />
+			o.mail = strip$(bpmdm001.mail)<br />
+		endselect<br />
+	endselect<br />
+}<br />
+<br />
+<br />
+Regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">yogesh kapil</div><div class="date">27th May 2013, 09:48</div></div><div class="posttext">Hi ,<br />
+<br />
+thanks you so much to give me information regarding dll.<br />
+<br />
+Yogesh Kapil</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

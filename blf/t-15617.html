@@ -1,0 +1,275 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS y la sesión Mantener recepciones, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS y la sesión Mantener recepciones Forum español" />
+	
+	<title>AFS y la sesión Mantener recepciones [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">BB Language Forums</a> &gt; <a href="../index.html">Forum español</a> &gt; AFS y la sesión Mantener recepciones</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">fbernaus</div><div class="date">9th June 2004, 18:38</div></div><div class="posttext">Estamos desarrollando un programa con las funciones AFS.<br />
+Este programa tiene que ejecutar la sesión de &quot;Mantener recepciones&quot; (tdpur4120m000) del módulo de Compras. Ahora bien, tenemos estos 2 problemas:<br />
+<br />
+1. Localizar la orden de compra concreta que queremos. El problema está en que la sesión empieza pidiendo introducir el número de entrega, que es una variable que no identifica a la orden de compra y que encima se pide como una variable de formulario. Una vez introducido ese dato, hay que especificar en una subsesión el número de la orden de compra, pero también como una variable de formulario (orno.form). En resumidas cuentas, que una vez iniciada la sesión no vale con hacer un &quot;put sesion,nombre_campo, valor_campo&quot; y a continuación un &quot;find&quot;.<br />
+¿Sabeis como se hace esto?<br />
+<br />
+2. ¿Cómo navegamos en los registros de una sesión que muestra varios registros? Es la misma sesión de antes. El caso es que dada una orden de compra, en la sesión se muestran tantos registros como artículos de la orden pendientes de recibir. Queremos ir registro a registro especificando las cantidades entregadas, pero no sabemos como distinguir los registros entre sí, ya que todos tienen el mismo nombre. Pensamos, pero no lo hemos podido probar por no tener lo anterior, que habrá que hacer un find anidado. Es decir un find para la orden de compra y dentro de él un &quot;find&quot; para cada artículo.<br />
+<br />
+Si teneis experiencia con estos problemas, os agradecería que me dijerais cómo podemos arreglarlos o alguna pauta para poder avanzar.<br />
+Muchísimas gracias de antemano!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lsilvag</div><div class="date">15th June 2004, 12:48</div></div><div class="posttext">Encontre este codigo en mis programas AFS que guardo cada vez que hago uno. Creo que te daria una idea de como hacerlo. Espero que te ayude pero en caso que tengas problemas podrias crear un caso y podria atenderlo personalmente ok.<br />
+<br />
+|******************************************************************************<br />
+|* tdinvlenain  0  VRC B40U c4 stnd<br />
+|* Lenain's AFS.<br />
+|* lenains<br />
+|* 06-28-02 [17:03]<br />
+|******************************************************************************<br />
+|* Script Type: 123<br />
+|******************************************************************************<br />
+                                                                                <br />
+|****************************** DECLARATION SECTION ***************************<br />
+declaration:<br />
+	extern	domain	tcmcs.str20	forminp<br />
+	extern	domain	tcitem		item, titem<br />
+	extern	domain	tcdsca		dsca<br />
+	extern	domain	tcorno		orno<br />
+	extern	domain	tcmcs.long	lano<br />
+	extern	domain	tcmcs.long	oqua<br />
+	extern	domain	tcmcs.long	dqua<br />
+	extern	domain	tcmcs.str30	errdll<br />
+	extern	domain	tcmcs.str30	retval<br />
+	extern	domain 	tcmcs.long	fnd.line<br />
+	<br />
+	table	ttiitm001, ttdinv001, ttdpur045, ttiitm012, ttdsls045<br />
+	<br />
+	extern	domain	tcmcs.long	get.dat.tel<br />
+	<br />
+	#pragma used dll ottstpapihand	<br />
+	<br />
+|****************************** PROGRAM     SECTION ***************************<br />
+before.program:<br />
+	lano = 0<br />
+	oqua = 0<br />
+	dqua = 0<br />
+	item = &quot;&quot;<br />
+	dsca = &quot;&quot;<br />
+	forminp = &quot;&quot;<br />
+	switch.to.ascii.mode()<br />
+	<br />
+|****************************** ZOOM FROM   SECTION ***************************<br />
+|****************************** FORM	     SECTION ***************************<br />
+|****************************** CHOICE      SECTION ***************************<br />
+|****************************** FIELD       SECTION ***************************<br />
+field.forminp:<br />
+after.input:<br />
+	item = &quot;&quot;<br />
+	dsca = &quot;&quot;<br />
+	oqua = 0<br />
+	dqua = 0<br />
+	<br />
+	if forminp(1;1) = &quot;E&quot; and len(forminp) = 7 then<br />
+		orno = lval(forminp(2;18))<br />
+<br />
+		stpapi.handle.subproc( &quot;tdpur4120m000&quot;, &quot;tdpur4224s000&quot;, &quot;send&quot; )<br />
+		stpapi.put.field( &quot;tdpur4120m000&quot;, &quot;form.dino&quot;, &quot;bishernich&quot; )<br />
+		fnd.line =  stpapi.change.view( &quot;tdpur4120m000&quot; )<br />
+		stpapi.put.field( &quot;tdpur4224s000&quot;, &quot;form.orno&quot;, str$(orno) )<br />
+		stpapi.continue.process(&quot;tdpur4224s000&quot;, errdll)<br />
+		stpapi.end.session( &quot;tdpur4224s000&quot; )<br />
+		if isspace(errdll) then<br />
+			stpapi.get.field( &quot;tdpur4120m000&quot;, &quot;tdpur045.reno&quot;,retval)<br />
+			lano = lval(retval)<br />
+			<br />
+			if lano = 0 then<br />
+				get.dat.tel = 0<br />
+				while get.dat.tel &lt; 10 <br />
+					stpapi.get.field( &quot;tdpur4120m000&quot;, &quot;tdpur045.reno&quot;,retval)<br />
+					lano = lval(retval)<br />
+					if lano = 0 then<br />
+						get.dat.tel = get.dat.tel + 1<br />
+					else<br />
+						get.dat.tel = 10<br />
+					endif<br />
+				endwhile<br />
+			endif<br />
+		endif<br />
+<br />
+		stpapi.end.session( &quot;tdpur4120m000&quot; ,errdll)<br />
+		if lano = 0 then<br />
+			select	tdpur045.reno<br />
+			from 	tdpur045<br />
+			where	tdpur045._index1 = {:orno}<br />
+			  and	tdpur045.reno &lt;&gt; 0 <br />
+			as set with 1 rows<br />
+			selectdo<br />
+				lano = tdpur045.reno<br />
+			endselect<br />
+		endif	<br />
+		forminp = &quot;&quot;<br />
+		display.all()		<br />
+		input.again()	<br />
+	else<br />
+		select	tdpur045.*, tiitm001.*<br />
+		from	tdpur045, tiitm001<br />
+		where	tdpur045._index6 = {:lano}<br />
+		  and	tdpur045.item = :forminp<br />
+		  and	tdpur045.spur = 3<br />
+		  and	tdpur045.item refers to tiitm001<br />
+		selectdo<br />
+			forminp = &quot;&quot;<br />
+			oqua = tdpur045.diqu<br />
+			dqua = tdpur045.diqu<br />
+			item = tiitm001.item<br />
+			dsca = tiitm001.dsca<br />
+			display.all()<br />
+		selectempty<br />
+			forminp = &quot;&quot;<br />
+			oqua = 0<br />
+			dqua = 0<br />
+			item = &quot;&quot;<br />
+			dsca = &quot;**ITEM NICHT** **VORHANDEN**&quot;<br />
+			display.all()<br />
+			input.again()<br />
+		endselect<br />
+	endif<br />
+	stpapi.end.session( &quot;tdpur4120m000&quot; )<br />
+<br />
+	<br />
+field.dqua:<br />
+after.input:<br />
+	stpapi.put.field( &quot;tdpur4120m000&quot;, &quot;tdpur045.reno&quot;, str$(tdpur045.reno) )<br />
+	stpapi.put.field( &quot;tdpur4120m000&quot;, &quot;tdpur045.orno&quot;, str$(tdpur045.orno) )<br />
+	stpapi.put.field( &quot;tdpur4120m000&quot;, &quot;tdpur045.pono&quot;, str$(tdpur045.pono) )<br />
+	stpapi.put.field( &quot;tdpur4120m000&quot;, &quot;tdpur045.srnb&quot;, str$(tdpur045.srnb) )<br />
+	fnd.line = stpapi.find( &quot;tdpur4120m000&quot; )<br />
+	if fnd.line = 1 then<br />
+		errdll = &quot;&quot;<br />
+		stpapi.put.field( &quot;tdpur4120m000&quot;, &quot;tdpur045.reno&quot;, str$(tdpur045.reno) )<br />
+		stpapi.put.field( &quot;tdpur4120m000&quot;, &quot;tdpur045.orno&quot;, str$(tdpur045.orno) )<br />
+		stpapi.put.field( &quot;tdpur4120m000&quot;, &quot;tdpur045.pono&quot;, str$(tdpur045.pono) )		<br />
+		stpapi.put.field( &quot;tdpur4120m000&quot;, &quot;tdpur045.dqua&quot;, str$(dqua) )<br />
+		stpapi.put.field( &quot;tdpur4120m000&quot;, &quot;tdpur045.bqua&quot;, str$(oqua-dqua) )<br />
+		stpapi.put.field( &quot;tdpur4120m000&quot;, &quot;tdpur045.date&quot;, str$(date.num()) )	<br />
+		stpapi.update( &quot;tdpur4120m000&quot;, 1, errdll )<br />
+		if not isspace(errdll) then<br />
+			dsca = errdll<br />
+			item = &quot;**ERROR**&quot;<br />
+			dqua = 0<br />
+			oqua = 0<br />
+			display.all()<br />
+			to.field(&quot;forminp&quot;)<br />
+		else<br />
+			stpapi.save( &quot;tdpur4120m000&quot;, errdll )<br />
+			if not isspace(errdll) then<br />
+				dsca = errdll<br />
+				item = &quot;**ERROR**&quot;<br />
+				dqua = 0<br />
+				oqua = 0<br />
+				display.all()<br />
+				to.field(&quot;forminp&quot;)			<br />
+			endif<br />
+		endif<br />
+		dsca = &quot;VERARBEITUNG OK***************&quot;<br />
+		stpapi.end.session( &quot;tdpur4120m000&quot; )<br />
+	else<br />
+		if stpapi.browse.view(&quot;tdpur4120m000&quot;, &quot;last.view&quot;) = 1 then<br />
+			stpapi.get.field( &quot;tdpur4120m000&quot;, &quot;tdpur045.item&quot;,retval)<br />
+			stpapi.end.session( &quot;tdpur4120m000&quot; )<br />
+			dsca = &quot;**LINE NICHT** ** VORHANDEN **&quot;<br />
+			item = &quot;&quot;<br />
+			dqua = 0<br />
+			oqua = 0<br />
+			display.all()<br />
+			to.field(&quot;forminp&quot;)		<br />
+		endif<br />
+	endif<br />
+		<br />
+	item = &quot;&quot;<br />
+	dsca = &quot;VERARBEITUNG OK***************&quot;<br />
+	dqua = 0<br />
+	oqua = 0<br />
+	display.all()<br />
+	to.field(&quot;forminp&quot;)<br />
+<br />
+|****************************** MAIN TABLE  SECTION ***************************<br />
+|****************************** FUNCTION    SECTION **************************</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fbernaus</div><div class="date">15th June 2004, 13:35</div></div><div class="posttext">Muchas gracias! Lo probaremos. Esperamos que sí,<br />
+Un saludo,</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fbernaus</div><div class="date">21st June 2004, 18:12</div></div><div class="posttext">Hola! Estamos a medio camino de conseguirlo. El código que nos has dejado nos ha servido. Pero tenemos el problema de que el número de recepción que obtenemos con la función get.field(.., tdpur045.reno,..) es siempre 0.<br />
+<br />
+¿Sabes como arreglar esto? El código que tenemos es éste. Muchas gracias con lo que sea. Un saludo,<br />
+<br />
+ Public Function recepcionar( _<br />
+          ByVal orden_compra As String, _<br />
+          ByVal datos As DataSet) As Integer<br />
+<br />
+        Dim cvs As String<br />
+        Dim cv As Long<br />
+<br />
+        'Creación de un objeto Baan, de invocaciòn de sesiones automático<br />
+        Dim baanobj As Object<br />
+        baanobj = CreateObject(&quot;Baan4.Application.baanivc4&quot;) '501<br />
+        baanobj.Timeout = 300<br />
+        MsgBox(&quot;Objeto AFS creado&quot;)<br />
+<br />
+        Dim sesion_baan As String = &quot;tdpur4120m000&quot; 'SESION: Mantener recepciones<br />
+        Dim subsesion As String = &quot;tdpur4224s000&quot;   'Subsesión: Seleccionar recepiones por número de orden<br />
+        Dim resul_cp As String<br />
+        Dim nota_entrega As String = &quot;001&quot;<br />
+        '========================================================================================================================================================================================================<br />
+<br />
+<br />
+        'A)<br />
+        baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.handle.subproc(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;add&quot; &amp; Chr(34) &amp; &quot;)&quot;)<br />
+        baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;form.dino&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; nota_entrega &amp; Chr(34) &amp; &quot;)&quot;)<br />
+        baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.change.view(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; cvs &amp; Chr(34) &amp; &quot;)&quot;)<br />
+        MsgBox(&quot;Changeview --&gt;&gt; &quot; &amp; baanobj.returnValue &amp; &quot; errorMsg: &quot; &amp; cvs)<br />
+<br />
+        'B)<br />
+        baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;form.orno&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; orden_compra &amp; Chr(34) &amp; &quot;)&quot;)<br />
+        baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.continue.process(&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; resul_cp &amp; Chr(34) &amp; &quot;)&quot;)<br />
+        MsgBox(&quot;CP: &quot; &amp; resul_cp)<br />
+        baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.end.session(&quot; &amp; Chr(34) &amp; subsesion &amp; Chr(34) &amp; &quot;)&quot;)<br />
+<br />
+        'Esperar un tiempo, unos 5s<br />
+        MsgBox(&quot;empieza cuenta&quot;)<br />
+        Dim i As Integer<br />
+        Dim z As Double<br />
+        For i = 1 To 700000000<br />
+            z += 0.0001<br />
+        Next<br />
+        MsgBox(&quot;termino cuenta&quot;)<br />
+<br />
+        'C)<br />
+        Dim num_rec As String<br />
+        baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.get.field(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;tdpur045.reno&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; num_rec &amp; Chr(34) &amp; &quot;)&quot;)<br />
+        baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.end.session(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;)&quot;)<br />
+        MsgBox(&quot;numRecepción--&gt;&gt; &quot; &amp; num_rec &amp; &quot;Valor: &quot; &amp; Val(num_rec))<br />
+<br />
+        'D)<br />
+        baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;tdpur045.reno&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; nota_entrega &amp; Chr(34) &amp; &quot;)&quot;)<br />
+        baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;tdpur045.orno&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; orden_compra &amp; Chr(34) &amp; &quot;)&quot;)<br />
+        baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.put.field(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;tdpur045.pono&quot; &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; &quot;10&quot; &amp; Chr(34) &amp; &quot;)&quot;)<br />
+        baanobj.ParseExecFunction(&quot;ottstpapihand&quot;, &quot;stpapi.find(&quot; &amp; Chr(34) &amp; sesion_baan &amp; Chr(34) &amp; &quot;)&quot;)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

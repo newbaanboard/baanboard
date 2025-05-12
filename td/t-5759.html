@@ -1,0 +1,171 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Speeding up the SQL, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Speeding up the SQL Tools Development" />
+	
+	<title>Speeding up the SQL [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Speeding up the SQL</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Haggis</div><div class="date">9th July 2002, 18:45</div></div><div class="posttext">Hi<br />
+<br />
+We have a customized session that contains extra attributes about our items.  The users are able to run a filter on items by selecting up to 5 attributes to search on.  It works perfectly but the speed is not great and the users, as always, are complaining.  I am not sure how to speed it up with out changing the whole design of the session.  It gets all its data from one table.  The table has item no, attribute code and response so we would have<br />
+<br />
+Item: 00008<br />
+attribute code: 10<br />
+response: bottle<br />
+<br />
+Then for the next attribute<br />
+Item: 00008<br />
+attribute code: 20<br />
+response: 500ml<br />
+<br />
+So we currently have 5 sql statement that run depending on how many attributes they filter on.  I don't think we can run it all in one sql statment as they search on the same index ie.<br />
+<br />
+z.subq(1,ff) =&quot;select tczzz016.* from tczzz016 where (tczzz016._index3 = {&quot; &amp; str$(tczzz025.attr) &amp; &quot;, '&quot; &amp;<br />
+strip$(tczzz025.resp) &amp;  &quot;',:1}) &quot;<br />
+<br />
+I have been racking my brains thinking about using DISTINCT in the sql but have hit a dead end.  Has anyone got any ideas on this to keep me thinking?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">9th July 2002, 20:11</div></div><div class="posttext">Are you trying to create output for a report, use the SQL in a query.extension declaration for a form, or something else?  I think my approach might differ depending on what I was trying to accomplish.<br />
+<br />
+If I was trying to build it into one big SQL statement (perhaps for query.extension, for example), I might keep appending AND EXISTS (SELECT ...) clauses to the where statement.  You could do this programmatically.  I guess it would depend on how your users entered data.  So, you might get something like this:<br />
+<br />
+<br />
+select tiitm001.*<br />
+from tiitm001<br />
+where EXISTS (SELECT tczzz016.* FROM tczzz016 WHERE tczzz016._index1 = {tiitm001.item, :attrib1, :value1})<br />
+and EXISTS (SELECT tczzz016.* FROM tczzz016 WHERE tczzz016._index1 = {tiitm001.item, :attrib2, :value2})<br />
+...<br />
+selectdo<br />
+<br />
+<br />
+The attribute and value variables could be replaced by actual values, especially in the case of query.extension.  I also just arbitrarily used tiitm001, but you could use any table.<br />
+<br />
+In other instances, you could use nested SELECTs, where each one would further refine your selection:<br />
+<br />
+select tczzz016.*<br />
+from tczzz016<br />
+where tczzz016._index3 = {:attrib1, :value1}<br />
+selectdo<br />
+	if not isspace(attrib2) then<br />
+		select tczzz016.item<br />
+		from tczzz016<br />
+		where tczzz016._index1 = {:tczzz016.item, :attrib2, :value2}<br />
+		as set with 1 rows<br />
+		selectdo<br />
+			...<br />
+			do something with result<br />
+		endselect<br />
+	endif<br />
+endselect<br />
+<br />
+<br />
+Ultimately, you may have to do a little testing to see what approach works better.  I'm sure there are other ways to do this, too...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Haggis</div><div class="date">10th July 2002, 16:13</div></div><div class="posttext">Thanks for the help Evesely<br />
+<br />
+This is a subsession that a user enters certain attributes in (up to 5 of them) and it uses the returned items to populate a form with the results.<br />
+<br />
+I see how I can use the solutions you gave me.  Our curent script brings in the attributes and responses into an array z.subs(1,ff) as shown in my first post.<br />
+<br />
+I am trying to work out how to use your method with the index equal to the values in an array?  I am thinking I will have to create a new array for th attributes and responses to hold them? <br />
+<br />
+Not sure I am making sense?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">10th July 2002, 17:58</div></div><div class="posttext">I still am not certain exactly how your sessions work.  However, since the attributes and values they enter on the form are external variables, you may be able to use an import or export to get there values into the other session (I'm not sure if the criteria entry is on the main session or subsession) without creating more arrays.  Are you using query.extension or some other method to limit what is displayed on your form?<br />
+<br />
+Good luck!:)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Haggis</div><div class="date">11th July 2002, 17:32</div></div><div class="posttext">The session displays all the attributes about the item on a form.  You select filter and a blank version of the form appears.  The user makes the selection of attributes and repsonse he wishes to run a filter from and these get put into a seperate table.  The current script then reads these out into a string array to create the sql arguments.  When running the sql any qualifying items get inserted into another new table.  Upon exiting the filter the main session imports the items from this other table and uses them to populate the main form.<br />
+<br />
+I am trying to use your way to redo the script but am battling as the user can enter anywhere between 1 and 5 responses to filter on.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">11th July 2002, 17:58</div></div><div class="posttext">OK, I got it.  I'm not sure why the attributes and values must get stored in a table and not used directly, but you know your script better than I do.<br />
+<br />
+Well, you could use the nested SQL statements I showed in my second example.  When you run out of criteria or hit the last selectdo, you add the item to the table.  For example:<br />
+<br />
+select tczzz016.*<br />
+from tczzz016<br />
+where tczzz016._index3 = {:attrib1, :value1}<br />
+selectdo<br />
+	if not isspace(attrib2) then<br />
+		select tczzz016.item<br />
+		from tczzz016<br />
+		where tczzz016._index1 = {:tczzz016.item, :attrib2, :value2}<br />
+		as set with 1 rows<br />
+		selectdo<br />
+			...<br />
+			&lt;add tczzz016.item to table&gt;<br />
+		endselect<br />
+	else<br />
+		&lt;add tczzz016.item to table&gt;<br />
+	endif<br />
+endselect<br />
+<br />
+<br />
+A more elegant (and flexible) way to do this would be to use recursion.  I know recursion is a somewhat dirty word in Baan, but you can use it under some circumstances (using global variables, no parameters, etc.), and this may be a good case.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Haggis</div><div class="date">11th July 2002, 18:26</div></div><div class="posttext">Hi Evesely<br />
+<br />
+Thanks for your help I see know how it will work via your solution.  The only thing I am struggling with is getting the attributes and responses that the user enters into variables.  You do not know how many responses a user will search on so the current script has a select statement extracting them from the filter table to an array.  You do not know how many responses there will be and ideally you would want to get the attributes and responses into attrib1, value 1 and attrib2, value 2, etc.<br />
+<br />
+Would I need to extract them into two arrays, one for the attrib and one for the value/response and then extract the array into variables attrib1 and value1, etc?<br />
+<br />
+Sorry for all the questions.<br />
+<br />
+Oh I should have mentioned that the table contains all the attributes on it and the user picks the values he wants from there so you do not know which attribute number he has entered a value for off hand.  The table has all the attributes in it and values for those they have entered. eg.  The table could be<br />
+<br />
+item 00008<br />
+attribute 10<br />
+value <br />
+ if no value was entered or if they did enter one it would read<br />
+<br />
+item 00023<br />
+attribute 80<br />
+value bottle<br />
+<br />
+so you need to find out what attributes they have entered data for thats whats got me stumped.<br />
+<br />
+Thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">11th July 2002, 18:53</div></div><div class="posttext">OK, I think I am confused again.  Let's list the tables and sessions to make sure we are clear.  Are these right:<br />
+<br />
+Tables:<br />
+<br />
+ List of all item/attribute/value combinations (tczzz016?)<br />
+ User selections/filters (attribute, value)<br />
+ Selected Items (after querying)<br />
+ <br />
+<br />
+Sessions:<br />
+<br />
+ Main session allows filter selection (up to 5 attribute/value pairs)<br />
+ subsession displays resulting list of filtered items<br />
+<br />
+<br />
+I think I am missing something based on the last part of your previous post.  Please correct my assumptions, and then I may be able to help more.<br />
+<br />
+Sorry if I'm being dense.:p</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

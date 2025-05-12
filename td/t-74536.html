@@ -1,0 +1,74 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Triggerpoint in Extension also in BOD?, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Triggerpoint in Extension also in BOD? Tools Development" />
+	
+	<title>Triggerpoint in Extension also in BOD? [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Triggerpoint in Extension also in BOD?</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">18th July 2022, 19:08</div></div><div class="posttext">We have table extensions that will trigger an extended standard BOD.<br />
+<br />
+Like the extended standard BOD is the Item_v3,<br />
+When some change is made in the pricebook for this item, we want to generate a new item BOD, so in tdpcg031 we added a call to trigger the Item_v3 from txesttdpcg031.<br />
+Also when there is a change in stock for an item we trigger the Item_v3, so when we see a change on an item record in whinr140 we trigger the item BOD from txestwhinr140.<br />
+<br />
+What we would like to know, looking at the item BOD is where the BOD is triggered. We can see the session code (not by prog.name$ but by other variables) but we cannot see the name of the extension object (like otxestwhinr140) that causes the trigger.<br />
+<br />
+I added an external variable &quot;trigger_ID&quot; that I would like to fill with the calling object.<br />
+<br />
+Is there a way to tell from which extension the BOD is triggered?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">19th July 2022, 10:02</div></div><div class="posttext">Add the following line before you call BOD.Publish():<br />
+<br />
+trigger_ID = __OBJECT__</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">19th July 2022, 13:46</div></div><div class="posttext">Thanks, that works:<br />
+&lt;UserArea&gt;<br />
+  &lt;Property&gt;<br />
+    &lt;NameValue name=&quot;ln.trigger&quot; type=&quot;StringType&quot;&gt;tccom1640m000/otxesttccom140/ttccom140/otxesbbocom110&lt;/NameValue&gt;<br />
+  &lt;/Property&gt;<br />
+  &lt;Property&gt;<br />
+    &lt;NameValue name=&quot;ln.systemlogin&quot; type=&quot;StringType&quot;&gt;se504&lt;/NameValue&gt;<br />
+  &lt;/Property&gt;<br />
+&lt;/UserArea&gt;<br />
+<br />
+In the trigger table extension:<br />
+function extern long before.open.object.set()<br />
+{	| hook code<br />
+        long    info(PSMAXSIZE)<br />
+        domain  tcpath2         trigger_nmp<br />
+        e = pstat(pid, trigger_nmp, info)               | process name<br />
+        trigger_id = str.join$(&quot;/&quot;, trigger_nmp, __OBJECT__, main.table$)<br />
+	return (0)<br />
+}and in the BOD extension:#include &lt;bic_tt&gt;<br />
+| Make name c XML safe<br />
+#define XMLNM(B) str.replace$(str.replace$(str.replace$(str.replace$(<br />
+^	str.replace$(B,&quot; &quot;,&quot;&quot;),&quot;/&quot;,&quot;&quot;),&quot;)&quot;,&quot;_&quot;),&quot;(&quot;,&quot;_&quot;),&quot;%&quot;,&quot;&quot;)<br />
+| Make an short ln. name from the tablefield<br />
+#define MAKEATNM(B) tolower$(XMLNM(&quot;ln.&quot; &amp; tt.short.field.desc(B,35)))<br />
+| Add a string field if not empty with name based on tablefield B<br />
+#define	XMLPSTR(A,B) if not isspace(A) then rbl=addValue(MAKEATNM(B),trim$(A),<br />
+^	&quot;String&quot;)endif<br />
+trigger_id=(not isspace(trigger_id)?trigger_id&amp;&quot;/&quot;:&quot;(Yet) Unknown/&quot;)&amp;__OBJECT__<br />
+XMLPSTR(trigger_id, &quot;datrg100.trig&quot;)    | ln.trigger<br />
+XMLPSTR(logname$, &quot;ttaad200.uusr&quot;)      | ln.systemlogin<br />
+And of course an extern declaration of the variable|global declarations for extension script.<br />
+        extern	domain	tcpath2		trigger_id</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

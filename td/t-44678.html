@@ -1,0 +1,128 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Date of client file, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Date of client file Tools Development" />
+	
+	<title>Date of client file [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Date of client file</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">frank holland</div><div class="date">19th November 2007, 16:49</div></div><div class="posttext">Hi all,<br />
+<br />
+Does anyone know if there is a function in Baan that returns the latest modification date of a client file?<br />
+<br />
+The function seq.fstat.local only returns the number of bytes.<br />
+<br />
+What if you want to check if a local file is older than an equivalent at the Baan-server?<br />
+<br />
+Thanks for any help,<br />
+Frank</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">19th November 2007, 17:04</div></div><div class="posttext">Well you could always write and run a bat file on the client, output the data to file, read that data in, parse out date and then compare in to the unix side of things.  I do not know of a function that gets the date on a client side file.  Of course that does not mean it is one. I am going to send you a PM for a different topic. :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">george7a</div><div class="date">19th November 2007, 17:18</div></div><div class="posttext">Hi,<br />
+<br />
+The first idea I thought of was to use app_start to run the following command <br />
+dir &lt;Your file name&gt; &gt; output.txtThen output.txt will include the date of your file. Example of outout.txt:<br />
+<br />
+ Volume in drive C is WinXP<br />
+ Volume Serial Number is G7X4-9V22<br />
+<br />
+ Directory of C:\Documents and Settings\george<br />
+<br />
+16/08/2007  17:40               704 &lt;FILE NAME&gt;<br />
+               1 File(s)            704 bytes<br />
+               0 Dir(s)  17,958,580,224 bytes free<br />
+<br />
+<br />
+I hope it helps,<br />
+<br />
+- George</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">frank holland</div><div class="date">20th November 2007, 11:57</div></div><div class="posttext">Hi all,<br />
+<br />
+Here is an example of a solution, following the way that George proposed.<br />
+Remarks:<br />
+- I had to create a batch-file for the dir-command on the server, because seq.open.local did not let me<br />
+- the separator for the date now is &quot;.&quot;, this of course is country-dependent<br />
+<br />
+Ciao,<br />
+Frank<br />
+<br />
+function domain tcdate date.of.local.file(<br />
+					domain tcmcs.s256 i.filedir,<br />
+					domain tcmcs.s256 i.filename)<br />
+{<br />
+	domain tcmcs.s256	cmd.str<br />
+	long			app_id<br />
+	long			f.fp<br />
+	string			file.buf(1000)<br />
+	long			buf.size<br />
+	long			p<br />
+	domain tcmcs.str10	date.str<br />
+<br />
+	|* Check parameters<br />
+	i.filedir = strip$(i.filedir)<br />
+	i.filename = strip$(i.filename)<br />
+	if isspace(i.filedir) or isspace(i.filename) then<br />
+		return(0)<br />
+	endif<br />
+	<br />
+	|* Create batch file for dir command<br />
+	f.fp = seq.open(&quot;${HOME}/&quot; &amp; &quot;dircmd.bat&quot;, &quot;wt&quot;)	<br />
+	if f.fp &lt; 1 then<br />
+		return(0)<br />
+	endif<br />
+	file.buf = &quot;dir &quot; &amp; i.filename &amp; &quot; &gt; dircmd.txt&quot;<br />
+	seq.puts(file.buf, f.fp)<br />
+	seq.close(f.fp)<br />
+	f.fp = 0<br />
+	<br />
+	|* Move to client and apply<br />
+	server2client(&quot;${HOME}/&quot; &amp; &quot;dircmd.bat&quot;, i.filedir &amp; &quot;\&quot; &amp; &quot;dircmd.bat&quot;, true)<br />
+	app_id = app_start(i.filedir &amp; &quot;\&quot; &amp; &quot;dircmd.bat&quot;, i.filedir, &quot;&quot;, &quot;&quot;, &quot;&quot;)<br />
+        if app_id &lt; 0 then<br />
+		return(0)<br />
+	endif<br />
+	<br />
+	|* Get date from file with dir output<br />
+	f.fp = seq.open.local(i.filedir &amp; &quot;\&quot; &amp; &quot;dircmd.txt&quot;, &quot;r&quot;, false)<br />
+	if f.fp &lt; 1 then<br />
+		return(0)<br />
+	endif<br />
+	seq.read.local(file.buf, buf.size, f.fp)<br />
+	seq.close.local(f.fp)<br />
+	date.str = &quot;&quot;<br />
+	p = pos(file.buf, &quot;.&quot;)<br />
+	while p &gt; 0<br />
+		if file.buf(p+3;1) = &quot;.&quot; then<br />
+			date.str = file.buf(p-2;10)<br />
+			p = 0<br />
+		else<br />
+			file.buf = file.buf(p+1;1000-p)<br />
+			p = pos(file.buf, &quot;.&quot;)<br />
+		endif<br />
+	endwhile<br />
+	if isspace(date.str) then<br />
+		return(0)<br />
+	endif<br />
+	return(date.to.num(lval(date.str(7;4)), lval(date.str(4;2)), lval(date.str(1;2))))<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

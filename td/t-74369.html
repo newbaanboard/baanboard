@@ -1,0 +1,122 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="BaaN IV Query Transaction Data, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] BaaN IV Query Transaction Data Tools Development" />
+	
+	<title>BaaN IV Query Transaction Data [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; BaaN IV Query Transaction Data</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">carlb85</div><div class="date">13th May 2022, 21:59</div></div><div class="posttext">Hello, <br />
+<br />
+I need the help of this user board. <br />
+I'm very new to BaaN IV. I want to create a new query about the table tdinv700.<br />
+Result of the query should be a report about the transcation datas for the different articles in which the amounts of every possible movement is totalized  per month. <br />
+It should be like this: <br />
+<br />
+Article     movement        amount              date<br />
+12345     Sales order        5000                  2022/01<br />
+12345      Sales oder         200                    2022/02<br />
+15555      Sales order         300                   2022/01<br />
+14444      Sales order          400                   2022/02<br />
+<br />
+With my already created query i'm getting the movement totalized per day and not per month. <br />
+<br />
+My problem is the field tdinv700.trdt. I would like to change the format of this field or shorten the filed. <br />
+<br />
+The code I tried for shorten this field is<br />
+<br />
+Select <br />
+Left (tdinv700.trdt,6)......and so on. <br />
+<br />
+<br />
+When I'm trying to execute this query, I'm allways getting the error message that there is no table 'Left(tdinv700.trdt,6)'<br />
+<br />
+What I have to do, that i can trim a field in baan, or better what I have to write in my SQL code to get a result like I wrote in my example. <br />
+<br />
+Thanks in advance.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">15th May 2022, 14:11</div></div><div class="posttext">Is this a simple easy sql query?  Or is this a new reporting session you are working?<br />
+<br />
+Also going to delete the other post.  Looks like they are the same. The first post requires a moderator to approve.  Looks like we were all off or busy last couple of days.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">carlb85</div><div class="date">15th May 2022, 14:47</div></div><div class="posttext">Thanks for your answer. You are right, the other posts are the same. I didn't know that the first post has to be appoved and I was wondering what's wrong with my internet conection, and so I posted again and again. Sorry for that. <br />
+<br />
+I would like to create a new reporting session.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">16th May 2022, 01:24</div></div><div class="posttext">I know you are new to baan but I am going to assume you know how to created a session and a report.  There might be a better way to do this in 4c4, but I never looked after I got this working in 2000.<br />
+<br />
+This is one way I solved this type problem - mine was for work orders.  I created a session that the users gave me a date range for example 1/2021 to 12/2022.  I would translate these to 1/1/2021 and my enddate would be like 12/31/2021.  I would then essentially go thru the queries for each month - so I start with 1/1/2021 to 1/31/2021 for the records I needed.  I would query and output the workcenter and hours for that month.  Then I would increment 1 to 2 and query for February, so on and so fourth until the end of the range.   You can checkout  sprintf for how to get the month and years using something like date.f = val(sprintf$(&quot;%D(%m)&quot;,date.num())).<br />
+<br />
+| some other examples.<br />
+       year  = sprintf$(&quot;%D(%Y)&quot;,somedate)<br />
+	month = sprintf$(&quot;%D(%02m)&quot;,somedate)<br />
+	weekn = sprintf$(&quot;%D(%02W)&quot;,somedate)<br />
+<br />
+I actually let them pick how the report printed by year/month or year/wk.  It is (or was) a lot more complicated that what I outlined.<br />
+<br />
+<br />
+function extern set_month_dates(domain tcyrno year.f,<br />
+			domain tcweek month.f,<br />
+			domain tcyrno year.t,<br />
+			domain tcweek month.t)<br />
+{<br />
+        domain  tcyrno	hold.year<br />
+        domain  tcweek	hold.month<br />
+<br />
+| Get start/stop dates for reporting range.<br />
+        start.date = date.to.num(year.f,month.f,1)<br />
+<br />
+| To get to to month add 1 to the input to month.  This was <br />
+| you get the 1st of the next month and can query for <br />
+| less than the stop date.<br />
+        hold.month = month.t + 1<br />
+	hold.year  = year.t<br />
+        if(hold.month&gt;12) then<br />
+                hold.month = 1<br />
+                hold.year = hold.year + 1<br />
+        endif<br />
+        stop.date  = date.to.num(hold.year,hold.month,1)<br />
+}<br />
+| Below a couple of the sample queries where I would run it by month.<br />
+| Sum all the hours.<br />
+        select  sum(tihra100.hrea):demo.cap<br />
+        from    tihra100<br />
+        where   tihra100._index3 between {:begin.date} and<br />
+                                         {:end.date}<br />
+        and     tihra100.cwoc inrange :sub.from and :sub.to<br />
+        and     tihra100.cwoc refers to tirou001<br />
+        and     tirou001.mnwc inrange :main.from and :main.to<br />
+        selectdo<br />
+	endselect<br />
+	cnt.days = 0<br />
+| How many work days WERE there.<br />
+        select  count(tirou420.pcwt):cnt.days<br />
+        from    tirou400,tirou420<br />
+        where   tirou400.cwoc = &quot;ZZZ&quot;<br />
+        and     (tirou400.date &gt;= :begin.date and tirou400.date&lt;:end.date)<br />
+	and	tirou400.ctod refers to tirou420<br />
+	and 	tirou420.pcwt &gt; 0<br />
+        selectdo<br />
+        endselect<br />
+<br />
+<br />
+PS - the code comes from multiple routines in a library I created for a couple of other sessions that I needed to report sfc hours in different formats using different calculations.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

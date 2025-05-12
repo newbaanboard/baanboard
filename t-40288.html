@@ -1,0 +1,170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS &amp; VBA: functioncall, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS &amp; VBA: functioncall AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS &amp; VBA: functioncall [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS &amp; VBA: functioncall</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">8th August 2007, 19:26</div></div><div class="posttext">Hi,<br />
+ <br />
+I'm learning how to do AFS from an Excel VBA macro, using the Baan samples, and many of the posts in this form, especially http://www.baanboard.com/baanboard/showthread.php?t=13049&amp;highlight=functioncall and http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=774&amp;highlight=excel.<br />
+ <br />
+As I understand it the functioncall property of the Baan OLE object should return the results of the Baan function. But when I run it, it returns just the statement I passed to the function. I think I'm missing something.<br />
+ <br />
+For example, I'm writing some code to add a line to a sales order. If the Baan DLL function is successful, it should return the new position number. This works if there is valid data in Excel. But now I'm trying to trap various errors. For example, if the item number is wrong, it should return the &quot;item not found&quot; error. <br />
+ <br />
+Here is my code:<br />
+ <br />
+Baan DLL Function:<br />
+ <br />
+ <br />
+function extern domain tcmcs.st30 add_line( domain tcorno i.orno, <br />
+     domain tcitem i.item, <br />
+     long i.oqua, <br />
+     string err.msg(100))  <br />
+<br />
+{long ret<br />
+<br />
+string  rstr(30), value(10)  <br />
+<br />
+domain  tcqsl1  o.qty <br />
+ <br />
+<br />
+o.qty = i.oqua  <br />
+ <br />
+<br />
+stpapi.put.field(&quot;tdsls4101m000&quot;, &quot;tdsls040.orno&quot;, str$(i.orno))<br />
+<br />
+stpapi.find(&quot;tdsls4101m000&quot;)<br />
+<br />
+stpapi.handle.subproc(&quot;tdsls4101m000&quot;, &quot;tdsls4102s000&quot;, &quot;add&quot;)  <br />
+<br />
+stpapi.continue.process(&quot;tdsls4101m000&quot;, err.msg)<br />
+<br />
+stpapi.put.field(&quot;tdsls4102s000&quot;, &quot;tdsls041.item&quot;, i.item)<br />
+<br />
+stpapi.put.field(&quot;tdsls4102s000&quot;, &quot;tdsls041.oqua&quot;, str$(o.qty)) <br />
+<br />
+ret = stpapi.insert(&quot;tdsls4102s000&quot;, 1, err.msg) <br />
+<br />
+if ret = 0 then <br />
+<br />
+    rstr = err.msg <br />
+<br />
+    stpapi.recover(&quot;tdsls4102s000&quot;, err.msg)  <br />
+<br />
+else <br />
+<br />
+    stpapi.get.field(&quot;tdsls4102s000&quot;, &quot;tdsls041.pono&quot;, value)<br />
+<br />
+    rstr=value  <br />
+<br />
+endif<br />
+<br />
+stpapi.end.session(&quot;tdsls4102s000&quot;)<br />
+<br />
+stpapi.end.session(&quot;tdsls4101m000&quot;)<br />
+<br />
+return(rstr)  <br />
+}<br />
+<br />
+ <br />
+Here is the VBA code that calls the function (somewhat condensed for this example):<br />
+ <br />
+ <br />
+strDLL = &quot;omySalesFunction&quot;<br />
+lngSO = 123456<br />
+strItem = &quot;BadItemCode&quot;<br />
+lngQty =  1<br />
+strFunc = &quot;add_line(&quot; &amp; lngSO &amp; _<br />
+     &quot;, &quot; &amp; Chr(34) &amp; strItem &amp; Chr(34) &amp; &quot;, &quot; &amp; _<br />
+     lngQty &amp; &quot;, &quot; &amp; Chr(34) &amp; Space(100) &amp; Chr(34) &amp; &quot;)&quot;<br />
+ <br />
+Set objBaan = CreateObject(&quot;Baan4.Application&quot;)<br />
+objBaan.ParseExecFunction strDLL, strFunc<br />
+varRetVal = objBaan.returnvalue<br />
+varErrVal = objBaan.Error<br />
+debug.print objBaan.functioncall<br />
+<br />
+ <br />
+Sorry, this code is a bit rough still, and shows some trial and error.<br />
+ <br />
+When I run this, the functioncall is the same as the string I sent in ParseExecFunction, ie &quot;add_line(123456, &quot;BadItemCode&quot;, 1, &quot;[100 spaces]&quot;). <br />
+I thought from all the examples I've seen that the last position of the functioncall would have contained the error code, instead of just 100 spaces, but it does not change.<br />
+ <br />
+The Baan DLL function right now returns &quot;Item Not Found&quot; in this case, instead of the position number. I want my VBA code to recongnize that it got an error back instead valid data. I know that I could just test for a long here, but I am trying to write generic code (a VBA class module actually) that will work in a variety of situations. The &quot;Item Not Found&quot; error does not generate anything reconginzed by objBaan.Error.<br />
+ <br />
+Is what I'm trying to do possible? Am I missing something?<br />
+ <br />
+Thanks,<br />
+Rob</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th August 2007, 20:21</div></div><div class="posttext">I am not an expert and only played with this one time.  What I did was add the errmsg as a parameter on the DLL.  Like this:<br />
+<br />
+function extern domain tcbool sfcdll9475.process.records(<br />
+				domain	tuole.data	comp,<br />
+				domain	tccwoc		main.f, <br />
+				domain	tccwoc		main.t,<br />
+				domain	tccwoc		sub.f, <br />
+				domain	tccwoc		sub.t,<br />
+				domain	tcyrno		year.f,<br />
+				domain	tcyrno		year.t,<br />
+				domain	tcweek		date.f,<br />
+				domain	tcweek		date.t,<br />
+				domain	tiqbm2		effi.rate,<br />
+				domain	tisfc.dayp	salary.perc,<br />
+					string		input.file(1024),<br />
+					string		report.file.name(1024),<br />
+			ref	domain	tuole.data	commmsg)<br />
+<br />
+THen in the excel VB code I did this:<br />
+<br />
+        dllfunction = &quot;sfcdll9475.process.records&quot; &amp; &quot;(&quot;<br />
+        dllfunction = dllfunction &amp; comp$       ' Company<br />
+        dllfunction = dllfunction &amp; main_f$     ' main from<br />
+        dllfunction = dllfunction &amp; Main_t$     ' main to<br />
+        dllfunction = dllfunction &amp; sub_f$      ' sub from<br />
+        dllfunction = dllfunction &amp; sub_t$      ' sub to<br />
+        dllfunction = dllfunction &amp; year_f         ' year from<br />
+        dllfunction = dllfunction &amp; year_t         ' year to<br />
+        dllfunction = dllfunction &amp; date_f         ' date from<br />
+        dllfunction = dllfunction &amp; date_t         ' date to<br />
+        dllfunction = dllfunction &amp; efficiency     ' Efficiency<br />
+        dllfunction = dllfunction &amp; salary_perc    ' Salary Perc.<br />
+        msg = &quot;Start&quot; + String(130, &quot; &quot;)<br />
+        dllfunction = dllfunction &amp; file1$      ' Input File<br />
+        dllfunction = dllfunction &amp; file2$      ' Report File<br />
+        dllfunction = dllfunction &amp; Chr(34) &amp; msg &amp; Chr(34) ' Report File<br />
+        dllfunction = dllfunction &amp; &quot;)&quot;<br />
+'        Call SendtoBAAN(dllname, dllfunction)<br />
+        Call SendtoBAAN<br />
+        strlen = Len(BaanObj.functioncall)<br />
+        compos = InStr(1, BaanObj.functioncall, &quot;commmsg:&quot;, 1)<br />
+        msg = Mid(BaanObj.functioncall, compos + 8, strlen - 3)<br />
+        msg = RTrim(Mid(msg, 1, Len(msg) - 2))<br />
+        If (msg &lt;&gt; &quot;Done&quot;) Then<br />
+            MsgBox msg<br />
+        End If<br />
+<br />
+I do not know if this is best.  All I know is at the time I tested it, the code worked.  Never did use this.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">rduncan10</div><div class="date">8th August 2007, 21:13</div></div><div class="posttext">Thanks. It was the &quot;ref&quot; I was missing. It works great now.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

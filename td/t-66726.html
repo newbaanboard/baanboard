@@ -1,0 +1,129 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Query not fetching record set, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Query not fetching record set Tools Development" />
+	
+	<title>Query not fetching record set [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Query not fetching record set</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">12th August 2014, 22:57</div></div><div class="posttext">My requirement is to fetch records from table form both archiving company and live company and write it to a file.<br />
+<br />
+But i have encountered  strange problem , if i execute the extraction session straight away after log on ... its extraction the data but after that session does not extract the data at all ... ( after log on i am trying to execute the session 2nd or 3rd time)<br />
+<br />
+i have debugged it ... and found that that the query is not fetching the data set   <br />
+<br />
+can anyone let me know what might be the issue ?<br />
+<br />
+		select tfacp200.* <br />
+		from   tfacp200<br />
+		where  tfacp200._index4 = {:year.f}<br />
+		and    (tfacp200.prod &gt;= :prod.f and<br />
+			tfacp200.prod &lt;= :prod.t)<br />
+		and tfacp200._compnr = :live.comp<br />
+		UNION<br />
+		select tfacp200.*<br />
+		from   tfacp200<br />
+		where  tfacp200._index4 = {:year.f}<br />
+		and    (tfacp200.prod &gt;= :prod.f and<br />
+			tfacp200.prod &lt;= :prod.t)<br />
+		and tfacp200._compnr = :arch.comp<br />
+		selectdo<br />
+<br />
+<br />
+<br />
+I know i can go with individual company ....   but if UNION works out that would be gr8</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">13th August 2014, 13:13</div></div><div class="posttext">Simplify, there is no need to do the UNION of two select, one is enough:<br />
+<br />
+<br />
+select  tfacp200.* <br />
+from    tfacp200<br />
+where  tfacp200._index4 = {:year.f}<br />
+   and  tfacp200.prod between :prod.f  and  :prod.t<br />
+   and  (tfacp200._compnr = :live.comp or tfacp200._compnr = :arch.comp)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">13th August 2014, 14:30</div></div><div class="posttext">Zardoz  the code sample that you mention has an Error <br />
+<br />
+pgbcor22000( 201): Error SQL: SQLState 42I30: Compnr specification in OR condition (error 302)<br />
+<br />
+i think one cannot use and   -- or with compnr</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">13th August 2014, 16:47</div></div><div class="posttext">What I would do is create a function where I just passed the company number as a parameter - let say just print the records<br />
+<br />
+function print.records()<br />
+{<br />
+     get.records(prodcompany)<br />
+     get.records(archcompany)<br />
+}<br />
+<br />
+function get.records(domain tccomp some.compnr)<br />
+{<br />
+        select tfacp200.* <br />
+        from   tfacp200<br />
+        where  tfacp200._index4 = {:year.f}<br />
+        and    (tfacp200.prod &gt;= :prod.f and<br />
+            tfacp200.prod &lt;= :prod.t)<br />
+        and tfacp200._compnr = :live.comp<br />
+        selectdo<br />
+            |do stuff<br />
+            rprt_send()<br />
+        endselect<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vamsi_gujjula</div><div class="date">14th August 2014, 16:12</div></div><div class="posttext">Hi Mark,  <br />
+<br />
+that's my last resort  ..;)  anyway  .. i changed it to individual company   <br />
+<br />
+but i wanted to know what might be the issue...<br />
+<br />
+one more observation was ... the session is extracting  if  switch company using webtop --&gt; tools --&gt; change company.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Juergen</div><div class="date">14th August 2014, 16:47</div></div><div class="posttext">I would also prefer the solution by Mark but it should also work with the UNION query. I only use the UNION ALL.<br />
+<br />
+Just did a small test in our LN test system with a very simple session (print warehouses) for two companies.<br />
+<br />
+Changed Code:<br />
+select tfacp200.* <br />
+        from   tfacp200<br />
+        where  tfacp200._index4 = {:year.f}<br />
+        and    (tfacp200.prod &gt;= :prod.f and<br />
+            tfacp200.prod &lt;= :prod.t)<br />
+        and tfacp200._compnr = :live.comp<br />
+        UNION ALL<br />
+        select tfacp200.*<br />
+        from   tfacp200<br />
+        where  tfacp200._index4 = {:year.f}<br />
+        and    (tfacp200.prod &gt;= :prod.f and<br />
+            tfacp200.prod &lt;= :prod.t)<br />
+        and tfacp200._compnr = :arch.comp<br />
+        selectdo  <br />
+<br />
+regards,<br />
+Juergen</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">15th August 2014, 16:03</div></div><div class="posttext">Is the union functionality even part of Baan 4c4?  Never tried it myself, but will see if I can find time in the coming week.  Just realized the only place I can test it is in production(only place we have two companies) - and I cannot develop there.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">15th August 2014, 17:51</div></div><div class="posttext">Mark, I guess, its not available in IV.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

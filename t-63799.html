@@ -1,0 +1,209 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS for LN Sales Quotations, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS for LN Sales Quotations AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS for LN Sales Quotations [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS for LN Sales Quotations</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">kmcinc</div><div class="date">8th March 2013, 16:50</div></div><div class="posttext">I need a session to insert a new sales quote via AFS.  Based on the code below I am able to create the header but the line insert fails.  The error message I'm getting is &quot;Enter a value for the Quotation field.&quot;.  It appears that the provided quote number is not registered or is getting blanked out in the quotation lines session before the insert function call.<br />
+<br />
+When manually creating a quote the sequence of sessions is as follows:<br />
+tdsls1500m000<br />
+  tdsls1100s000<br />
+    tdsls1501m000<br />
+       tdsls1101s000<br />
+<br />
+I show these indented to indicate the parent-child relationship.  The process sequence when executing my AFS appears is this:<br />
+tdsls1500m000<br />
+  tdsls1100s000<br />
+    tdsls1501m000<br />
+tdsls1101s000<br />
+<br />
+You can see that the last session - Sales Quotation Lines - is not spawned as a child.  This may explain why tdsls1101s000 loses the value for tdsls101.qono and generates the error.<br />
+<br />
+Here is the code:<br />
+	tdslsdll1100.Quotation_Lines( error.msg )<br />
+<br />
+	tdslsdll1501.put.Quotation( evsls100.qono )<br />
+	tdslsdll1501.set.view( &quot;tdsls1501m000&quot; )<br />
+	tdslsdll1501.handle.sub.process( &quot;tdsls1101s000&quot;, &quot;add&quot; )<br />
+<br />
+	tdslsdll1101.put.Quotation( evsls100.qono )<br />
+	tdslsdll1101.put.Position( evsls101.pono )<br />
+	rc = tdslsdll1101.find( error.msg )<br />
+	populate.sls101.fields()<br />
+<br />
+	if rc = 1 then<br />
+		rc = tdslsdll1101.update( true, error.msg )<br />
+	else<br />
+		rc = tdslsdll1101.insert( true, error.msg )<br />
+	endif<br />
+<br />
+<br />
+Any advice on how to resolve this problem?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kmcinc</div><div class="date">8th March 2013, 16:59</div></div><div class="posttext">What is the AFS equivalent to double-clicking on a quotation line in an overview session of ERP LN?  Double-clicking is the only way to get to the line detail.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th March 2013, 21:02</div></div><div class="posttext">You can try stpapi.mark, but that just marks the record after the find.  I do not think that is the equivalent of double clicking.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">8th March 2013, 21:17</div></div><div class="posttext">Something else to try is stpapi.continue, just to see if it initiates the lines.  I can't really say since I do not use LN and they really recommend using DAL2 funtionality for LN.  I just do not know enough about this stuff.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kmcinc</div><div class="date">8th March 2013, 23:50</div></div><div class="posttext">Mark, thanks for your input.  The quotation lines overview session does not have a 'Continue' choice.  Instead I tried a 'stpapi.synchronized.dialog' call but that didn't help either.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vinceco252</div><div class="date">9th March 2013, 01:03</div></div><div class="posttext">This isn't for sales quotes, but it's the same idea.  This is for entering a manual purchase invoice from maintain transactions:<br />
+<br />
+stpapi.put.field( &quot;tfgld1101m100&quot;, &quot;tfgld101.year&quot;, str$(year.f) )<br />
+stpapi.put.field( &quot;tfgld1101m100&quot;, &quot;tfgld101.btno&quot;, curr.btno )<br />
+<br />
+ret = stpapi.find( &quot;tfgld1101m100&quot;, error )<br />
+<br />
+stpapi.put.field( &quot;tfgld1101m100&quot;, &quot;tfgld101.ttyp&quot;, ttyp.f )<br />
+<br />
+ret = stpapi.find( &quot;tfgld1101m100&quot;, error)<br />
+<br />
+<br />
+if ret = 1 then<br />
+	ret = stpapi.mark( &quot;tfgld1101m100&quot;, error)<br />
+	stpapi.form.command( &quot;tfgld1101m100&quot;, 5, &quot;enter.transactions&quot;, error)<br />
+...<br />
+<br />
+I am not sure what the form command to zoom to lines is in sales quotes, but you should be able to find that by looking at the session in Maintain Sessions.<br />
+<br />
+Hope it helps.<br />
+<br />
+Vince</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kmcinc</div><div class="date">10th March 2013, 15:59</div></div><div class="posttext">Vince, I looked through all form commands but none of them launch tdsls1101s000.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">10th March 2013, 16:43</div></div><div class="posttext">SYNTAX<br />
+long stpapi.synchronize.dialog(string session, string mode, ref string err.mesg)<br />
+ARGUMENTS<br />
+session	Name of the multi-occurrence session this command is executed on.<br />
+mode	The mode in which the synchronized dialog box must be started. The possible values are:<br />
+	Add – the dialog box is started and synchronized in Edit mode, view fields are sent from the multi-occurrence session to the single-occurrence session; use this mode before a stpapi.insert() call<br />
+	Modify – the dialog box is started and synchronized in Edit mode, use this mode before a stpapi.update() call<br />
+	display – the dialog box is started in Display mode<br />
+	“ ” – no dialog box is synchronized (for future use when multi-occurrence and single-occurrence sessions have the same code, focus is set to the multi-occurrence session)<br />
+err.mesg	This parameter will contain the text of the error message if the function cannot complete normally.<br />
+DESCRIPTION<br />
+This function synchronizes a multi-occurrence session with its registered synchronized dialog box. Depending on the mode, the session with the editable window is synchronized or the read-only window.<br />
+RETURN VALUES<br />
+0	Sessions could not be synchronized (err.mesg is filled)<br />
+1	Sessions are synchronized (err.mesg is empty)<br />
+EXAMPLE<br />
+stpapi.put.field(&quot;dtfsa1501m000&quot;, &quot;dtfsa101.seno&quot;, str$(i.seno))<br />
+ret = stpapi.find(&quot;dtfsa1501m000&quot;, error.msg)<br />
+if ret then		<br />
+       ret = stpapi.synchronize.dialog(&quot;dtfsa1501m000&quot;, &quot;modify&quot;, error.msg)<br />
+       if ret then<br />
+               stpapi.put.field(&quot;dtfsa1101s000&quot;, &quot;dtfsa101.name&quot;, new.name) <br />
+	            ret = stpapi.update(&quot;dtfsa1501m000&quot;, true, error.msg)<br />
+       endif<br />
+endif<br />
+Explanation:<br />
+The record is searched in the multi-occurrence session. When found, the synchronized dialog box is started, the field changed, and the record updated.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">11th March 2013, 10:45</div></div><div class="posttext">I found this code from my list. May be this will help you. <br />
+Pls note:- tdlvd401 is my customized table. <br />
+I am trying to insert a sales order line using DAL.<br />
+<br />
+<br />
+select	tdlvd401.*<br />
+	from		tdlvd401 for update<br />
+	where		tdlvd401._index1 = {:tdlvd400.netw, :tdlvd400.orno}<br />
+				and tdlvd401.proc = tcyesno.no<br />
+	selectdo<br />
+		target.item = get.target.item()<br />
+		db.retry.point()<br />
+		select	tdsls401.*<br />
+		from		tdsls401<br />
+		where		tdsls401._index1 = {:tdsls400.orno, :tdlvd401.pono }<br />
+		selectdo<br />
+		selectempty<br />
+<br />
+			dal.new.object(&quot;tdsls401&quot;)<br />
+			dal.set.field(&quot;tdsls401.orno&quot;, tdsls400.orno )<br />
+			dal.set.field(&quot;tdsls401.ofbp&quot;, tdlvd411.bpid )<br />
+			dal.set.field(&quot;tdsls401.pono&quot;, tdlvd401.pono )<br />
+			dal.set.field(&quot;tdsls401.item&quot;, target.item )<br />
+			dal.set.field(&quot;tdsls401.qoor&quot;, tdlvd401.qoor )<br />
+			dal.set.field(&quot;tdsls401.cuqs&quot;, strip$(tdlvd401.cuqp) )<br />
+			dal.set.field(&quot;tdsls401.cups&quot;, strip$(tdlvd401.cuqp) )<br />
+			dal.set.field(&quot;tdsls401.pric&quot;, tdlvd401.pric )<br />
+		 	dal.set.field(&quot;tdsls401.porg&quot;,tdgen.porg.manual)	<br />
+			if tcibd001.kitm = tckitm.cost then<br />
+				dal.set.field(&quot;tdsls401.dltp&quot;, tdsls.dltp.sales )	<br />
+			else<br />
+				dal.set.field(&quot;tdsls401.dltp&quot;, tdsls.dltp.warehousing )	<br />
+			endif<br />
+			dal.set.field(&quot;tdsls401.odat&quot;, str$(utc.num()) )<br />
+			dal.set.field(&quot;tdsls401.ddta&quot;, str$(tdlvd401.ddta) )<br />
+			dal.set.field(&quot;tdsls401.cwar&quot;, tdsls039.cwar )<br />
+			dal.set.field(&quot;tdsls401.stbp&quot;, tdlvd411.bpid )<br />
+			ret = dal.save.object(&quot;tdsls401&quot;,db.return.error)<br />
+			if ret &lt;&gt; 0 then<br />
+				ret = dal.get.error.message(error.msg )<br />
+				seq.puts(concat$(&quot;|&quot;, &quot;Error during SO line creation&quot;, tdlvd400.orno, tdlvd401.pono, target.item, error.msg), seq.log )<br />
+				error_found = TRUE<br />
+				abort.transaction()<br />
+			else<br />
+				if not isspace(tdlvd400.cprj) then<br />
+					update.project.parts()<br />
+				endif<br />
+				if ret = 0 then<br />
+					tdlvd401.proc = tcyesno.yes<br />
+					db.update(ttdlvd401, db.retry)<br />
+					commit.transaction()<br />
+				endif<br />
+			endif	<br />
+		endselect<br />
+	endselect<br />
+	<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kmcinc</div><div class="date">12th March 2013, 03:57</div></div><div class="posttext">I'll try that.  Thanks, bhushanchanda.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vinceco252</div><div class="date">12th March 2013, 17:15</div></div><div class="posttext">The &quot;to.lines&quot; form command opens the tdsls1501m000 session.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kmcinc</div><div class="date">12th March 2013, 19:40</div></div><div class="posttext">Yes, but there is not a form command to get from tdsls1501m000 to tdsls1101s000.  I'm still playing with the synchronize.dialog function; it seems to do what I want it to do.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">benito</div><div class="date">13th March 2013, 15:10</div></div><div class="posttext">i only use AFS in LN sparingly. advantages of LN over BaanIV are the use of DAL, DLLs and Business Methods. i haven't done sales quotations but there is a DLL tdslsdll1100 (generate sales quotations). there are several functions in this DLL including  tdsls.dll1100.add.header.record(..) and tdsls.dll1100.add.line.record(..). I suggest you explore them first.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">kmcinc</div><div class="date">27th March 2013, 21:56</div></div><div class="posttext">Benito,<br />
+<br />
+Thanks to your suggestion I was able to complete the quotation generation including lines, using the DLL you mentioned.  It wasn't without a challenge but I got it working.  Appreciate everybody's help with this problem!<br />
+<br />
+-Tom</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">benito</div><div class="date">27th March 2013, 22:04</div></div><div class="posttext">you're welcome. good to know it worked for you :D . again, the advantages of LN over the earlier version.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

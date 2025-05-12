@@ -1,0 +1,275 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Hourglass after process completed, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Hourglass after process completed AFS/DDC/OLE: Function servers" />
+	
+	<title>Hourglass after process completed [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Hourglass after process completed</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">sasa888</div><div class="date">11th November 2003, 00:38</div></div><div class="posttext">I created a simple AFS to scrap some parts in tdinv1101m000.  After the process is done and completed (w/o any error), the hourglass did not return to a regular mouse pointer, do you think I forgot to do something in my code? Please help.  By the way, I am using a text file to get a list of part number that need to be scrap.  Thank You!<br />
+<br />
+ss</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Bertram</div><div class="date">11th November 2003, 09:39</div></div><div class="posttext">Please post the code.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th November 2003, 15:06</div></div><div class="posttext">Yes as Bertram suggested the code will help us.  One thing to keep in mind is to kill the sessions in reverse order.  If you do not do this then the session will hang on one of the stpapi.end statements.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sasa888</div><div class="date">11th November 2003, 20:23</div></div><div class="posttext">Sorry, I should have done this yesterday. I can't make this format look nicer, sorry again :(<br />
+<br />
+function read.seq.file()<br />
+{<br />
+	ret.io = 0<br />
+	seq.num = 1<br />
+	while (ret.io = 0)<br />
+		ret.io = seq.gets(str.rec, 2000, lfn.strfile)<br />
+		if (ret.io = 0) then<br />
+			input.item = strip$(str.rec(1;16))<br />
+			select tiitm001.item, tiitm001.stoc<br />
+			from   tiitm001<br />
+			where  tiitm001._index1 = {:input.item}<br />
+			and    tiitm001.stoc &gt; 0<br />
+			selectdo<br />
+				select tdinv001.item, tdinv001.cwar, tdinv001.stoc<br />
+				from   tdinv001<br />
+				where  tdinv001._index2 = {:tiitm001.item}<br />
+				and    tdinv001.stoc &gt; 0<br />
+				selectdo<br />
+					stpapi.put.field   (&quot;tdinv1101m000&quot;,&quot;tdinv100.item&quot;,tdinv001.item)<br />
+					stpapi.put.field(&quot;tdinv1101m000&quot;,&quot;tdinv100.cwar&quot;,tdinv001.cwar)<br />
+					stpapi.put.field(&quot;tdinv1101m000&quot;,&quot;tdinv100.kowt&quot;,str$(etol(tckowt.stc.correction)))			<br />
+					stpapi.put.field(&quot;tdinv1101m000&quot;,&quot;tdinv100.dqan&quot;,str$(-1*(tdinv001.stoc)))		<br />
+					stpapi.put.field(&quot;tdinv1101m000&quot;,&quot;tdinv100.recd&quot;,&quot;SCR   &quot;)			<br />
+					stpapi.insert(&quot;tdinv1101m000&quot;,true,error.msg)<br />
+					if not isspace(error.msg) then<br />
+						stpapi.recover(&quot;tdinv1101m000&quot;,recover.msg)<br />
+					endif<br />
+				endselect<br />
+			endselect<br />
+		endif<br />
+	endwhile<br />
+	stpapi.end.session(&quot;tdinv1101m000&quot;)<br />
+<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">11th November 2003, 21:39</div></div><div class="posttext">If nothing else I think I made it easier to read.  The one question I have is - Do any subsessions start during this scrap process?  Also you may want to move the end after the insert error check.  I know you do not have to do that, but I made that a habit early on when I had problems closing sessions.  Where exactly does it lock up?<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">11th November 2003, 23:29</div></div><div class="posttext">Yes, do try 1 transaction and make sure it is successful before looping - that can introduce new problems.<br />
+<br />
+Also, I noticed from your other posts that you do not get a return value for the stpapi.insert command.  It is likely that your api handling objects are old...?  What porting set are you on?  Generally if you are on a later porting set you will have the updated api objects in Baan IVc4.   If not, you can check the solution on the Baan support site for the Latest Version of the standard program (163178), which includes the API solutions.   I would not recommend updating this without testing, especially if you are far back on porting sets, but it may be part of the problem.  The older versions did not always work right.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sasa888</div><div class="date">12th November 2003, 00:11</div></div><div class="posttext">I tried to process it with a few item numbers already, and they all looked ok.  Thanks for all of your suggestions though :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">12th November 2003, 00:13</div></div><div class="posttext">Hey - there's a clue itself.  <br />
+<br />
+Try closing the session (end.session) after each record, or after a few records.   Does it stop on one particular record?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sasa888</div><div class="date">12th November 2003, 00:33</div></div><div class="posttext">Here is what i just did:<br />
+<br />
+I put the program in debug mode and stepped through the process, at the end of the process where <br />
+stpapi.end.session(&quot;tdinv1101m000&quot;)<br />
+I shell out using ps the list all of the current session, and tdinv1101m000 disappear from the list, that means this session actually closed right? Anyhow, what does NI means? because before this session closed it had -20 value under NI...<br />
+<br />
+ss</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th November 2003, 15:21</div></div><div class="posttext">Yes it does mean it closed.  And here is what help I found for NI     = Basis priority or nice value:<br />
+             -20: High<br />
+               0: Default<br />
+              20: Low<br />
+So I guess closing it caused a higher priority.  I have never really checked this variable.  Is the session still hanging?<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sasa888</div><div class="date">12th November 2003, 19:18</div></div><div class="posttext">Thanks, Mark.  I am learning something new everytime I am here. Anyways, do you mean the session that actually have the AFS? The Inventory Scraping session was actually closed.  The session that run AFS is hanging but since I am running it at debug mode, I can close it from the debug window.............. <br />
+<br />
+ss</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th November 2003, 21:08</div></div><div class="posttext">What type of session is this?  I usually use a print session - mainly because I usually generate a report or two on the transactions.  You should just be able to click on continue, let the API code run, and then enter your next set of data. Since it looks like your API data is running correctly I wonder what else it is waiting for.  This appears to be the same type problem Kumra(I think) posted last week.  I had hoped one of the Baan V experts would stop by and help them on that problem.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sasa888</div><div class="date">12th November 2003, 21:17</div></div><div class="posttext">I am using a type 4 form. It has a continue button and this program is reading from a text file ........... the process seems to work fine but I don't know why it won't close. :(</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th November 2003, 21:29</div></div><div class="posttext">In ttadv2100m000 on form 1 what is the session type?  I really do not see why this would matter, but I can not figure out why it would hang after closing the session and exiting the while loop.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sasa888</div><div class="date">12th November 2003, 21:42</div></div><div class="posttext">Update session..........should it be Maintain instead, do you think?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th November 2003, 22:12</div></div><div class="posttext">I have never really thought about it, but you can try maintain.  Like I mentioned I have always used print type sessions - for the reports I generate. Maybe posting the whole session script will help Lisa or one of the others.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sasa888</div><div class="date">12th November 2003, 23:00</div></div><div class="posttext">Here is my code, thanks for your helps in advance.<br />
+<br />
+declaration:<br />
+<br />
+	#pragma used dll ottstpapihand<br />
+<br />
+	table ttdinv001	|Inventory by Warehouse<br />
+	table ttiitm001	|Item Master<br />
+<br />
+<br />
+	|*Form Variables      <br />
+	<br />
+	extern	domain	tcmcs.st40	filename <br />
+	extern	domain	tcmcs.st40	directory.to.save <br />
+	extern	domain	tctext	command     <br />
+<br />
+<br />
+<br />
+	|*Program Variables<br />
+	<br />
+	long lfn.strfile<br />
+	long ret.io<br />
+	long first<br />
+	long seq.num<br />
+	string str.rec(2000)<br />
+	long input2(100)<br />
+	long comma(100)<br />
+	long ret<br />
+	string error.message<br />
+<br />
+<br />
+	domain	tctext	directory<br />
+	<br />
+	domain	tcmcs.st30	file.name<br />
+<br />
+<br />
+<br />
+|************************** Choice Section **********************************<br />
+choice.cont.process:<br />
+before.choice:<br />
+	open.seq.file()<br />
+<br />
+on.choice:<br />
+	read.seq.file()<br />
+<br />
+after.choice:<br />
+	close.seq.file()<br />
+<br />
+|************************** Function Section ********************************<br />
+functions:<br />
+<br />
+function open.seq.file()<br />
+{<br />
+<br />
+	domain tcmcs.str30 full.path<br />
+<br />
+	full.path = strip$(directory.to.save)<br />
+	full.path = full.path &amp; filename	<br />
+	lfn.strfile = seq.open(full.path, &quot;r&quot;)<br />
+	if (lfn.strfile &lt;= 0) then<br />
+		end()<br />
+	endif<br />
+<br />
+}<br />
+<br />
+<br />
+<br />
+function read.seq.file()<br />
+{<br />
+	domain tcitem	input.item<br />
+	domain tcqiv1	input.stoc<br />
+	domain tccwar	input.cwar	<br />
+	string recover.msg(100)<br />
+	string error.msg(100)<br />
+	long retval2<br />
+<br />
+	ret.io = 0<br />
+	seq.num = 1<br />
+	while (ret.io = 0)<br />
+		ret.io = seq.gets(str.rec, 2000, lfn.strfile)<br />
+		if (ret.io = 0) then<br />
+			input.item = strip$(str.rec(1;16))<br />
+			select tiitm001.item, tiitm001.stoc<br />
+			from   tiitm001<br />
+			where  tiitm001._index1 = {:input.item}<br />
+			and    tiitm001.stoc &gt; 0<br />
+			selectdo<br />
+				select tdinv001.item, tdinv001.cwar, tdinv001.stoc<br />
+				from   tdinv001<br />
+				where  tdinv001._index2 = {:tiitm001.item}<br />
+				and    tdinv001.stoc &gt; 0<br />
+				selectdo<br />
+					stpapi.put.field(&quot;tdinv1101m000&quot;,&quot;tdinv100.item&quot;,tdinv001.item)<br />
+					stpapi.put.field(&quot;tdinv1101m000&quot;,&quot;tdinv100.cwar&quot;,tdinv001.cwar)<br />
+					stpapi.put.field(&quot;tdinv1101m000&quot;,&quot;tdinv100.kowt&quot;,str$(etol(tckowt.stc.correction)))<br />
+					stpapi.put.field(&quot;tdinv1101m000&quot;,&quot;tdinv100.dqan&quot;,str$(-1*(tdinv001.stoc)))<br />
+					stpapi.put.field(&quot;tdinv1101m000&quot;,&quot;tdinv100.recd&quot;,&quot;SCR   &quot;)<br />
+					stpapi.insert(&quot;tdinv1101m000&quot;,true,error.msg)<br />
+					if not isspace(error.msg) then<br />
+						stpapi.recover(&quot;tdinv1101m000&quot;,recover.msg)<br />
+					endif	<br />
+				endselect<br />
+			endselect<br />
+		endif<br />
+	endwhile<br />
+	stpapi.end.session(&quot;tdinv1101m000&quot;)<br />
+<br />
+	<br />
+}<br />
+<br />
+<br />
+function close.seq.file()<br />
+{<br />
+	ret.io = seq.close(lfn.strfile)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">lbencic</div><div class="date">12th November 2003, 23:08</div></div><div class="posttext">I'm sorry - confused here.  Is the session Hanging - as in somewhere in debug it stops and will not continue?  Or is it not closing when you hit the exit button.  <br />
+<br />
+If it is not closing when you hit the exit button - usually there is a spawned processes down there that is not killed.  The main call may have generated others.  Try running with nothing else going on in your shell, check the processes before the afs calls and after.  I know you saw the main one go away, but was there anything else there?  Sometimes reports will hang too.  And, if you kill those things if they are there, does your session exit properly?<br />
+<br />
+If it is hanging somewhere in debug mode - where exactly?  If this is the problem, try turning on the AFS Log and see if it has anything to offer:  In your bw setup, before you run it, put in <br />
+-- -set AFSLOG=1<br />
+in the command box.  This will create a log in your home directory (or baan\tmp if you are on NT) that may help.  <br />
+<br />
+Also, regarding Update vs. Maintain session - I would think if anything the Print would be the best choice.  The difference with Update and Print is that with the print the bulk of the logic is called from the print.data section, so you would have to regenerate to see that change, it's not just changing the Type from Update to Print.  I think that the print.data section is a healthier section when printing reports and may affect some AFS report processes.   That said, I have not had a difference in AFS reaction to date depending on what type of session I am in Update / Print / Maintain, as long as you pay attention to your own commits, etc.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Andreas</div><div class="date">13th November 2003, 16:29</div></div><div class="posttext">Hi sasa888,<br />
+The same problem is on discussion in another thread started by krumra, but on 5.0c.<br />
+I had this problem too and solved it with Solution 132907:<br />
+<br />
+'Defect 212722 AFS session hangs when using afs calls in 4GL session'<br />
+<br />
+try this!<br />
+<br />
+good luck,<br />
+Andreas</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

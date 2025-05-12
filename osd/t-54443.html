@@ -1,0 +1,199 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="ora_storage file size limit, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] ora_storage file size limit Operating Systems &amp; Databases" />
+	
+	<title>ora_storage file size limit [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; ora_storage file size limit</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">4th December 2008, 22:49</div></div><div class="posttext">Is there a maximum number of lines that can be put inside the ora_storage file?<br />
+<br />
+We want to set up some new companies in different SIDs, and some tables are going to be large and require specific table by table entries in ora_storage file.<br />
+<br />
+Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">5th December 2008, 03:05</div></div><div class="posttext">Shah,<br />
+<br />
+I don't know if there is a limit, we did use a ton of entries ages ago. Luckily, I had the ancient environment to refer to.<br />
+[OLD_DEV:bsp]/app/lms/lmsd/opt/baan/sy16/bse/lib/ora&gt;wc -l ora_storage_param*<br />
+2 ora_storage_param<br />
+11502 ora_storage_param.20020415<br />
+11656 ora_storage_param.20020416<br />
+11656 ora_storage_param.20020424<br />
+12 ora_storage_param.20020522<br />
+29250 ora_storage_param.20020610<br />
+40958 ora_storage_param.20020611<br />
+46812 ora_storage_param.20020613<br />
+46966 ora_storage_param.20020627<br />
+47044 ora_storage_param.20020710<br />
+41236 ora_storage_param.20020711<br />
+35344 ora_storage_param.20020725<br />
+35428 ora_storage_param.20020731<br />
+35450 ora_storage_param.20020910<br />
+41360 ora_storage_param.20020911<br />
+47314 ora_storage_param.20021029<br />
+47330 ora_storage_param.20021031<br />
+47348 ora_storage_param.20021105<br />
+47362 ora_storage_param.bad<br />
+12 ora_storage_param.old<br />
+624042 total<br />
+<br />
+[DEV:bsp]/app/lms/lmss/opt/bse/lib/ora&gt;wc -l ora_storage_param*<br />
+45 ora_storage_param<br />
+43 ora_storage_param.old<br />
+88 total<br />
+We successfully ran the system with 47k+ lines in that file before we changed our implementation model and went lean with fewer entries. We have multiple databases and many companies. Although, it helps in managing Oracle storage well, it added a lot of maintenance overhead from a Baan Administrator's perspective.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">5th December 2008, 07:55</div></div><div class="posttext">Hi Shah,<br />
+<br />
+Even though I do not know a physical limit, I suggest not to have thousands of entries in that file. There are several reasons for this:<br />
+<br />
+a) It's an admin nightmare<br />
+b) For each database access (also for all selects) the oracle driver has to read the optimization value in on eof the columns of the file. A large ora_storage is known to negatively influence performance<br />
+c) It's simply not necassary.<br />
+<br />
+Let me explain the last point:<br />
+In Oracle 9,10,11 you can use dictionary mapped tablespaces. In that configuration the old oracle wisdom to reduce the number of extents for performance reasons does not apply anymore. So that whole manual extent management done in the past is not needed anymore. The only entries you will need in ora_storage are used for assigning tables/indexes to tablespaces. If this is done on a per company or per module basis, then the numbers of entries in ora_storage should be greatly reduced.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">6th December 2008, 02:57</div></div><div class="posttext">Thank you, Gentlemen, for the quick feedback.<br />
+<br />
+The main reason we use the ora_storage is to direct the table creation in BAAN to the defined tablespaces in ora_storage - the main culprits at present being the integration transaction tables and the project cost ledger tables.<br />
+<br />
+After looking at the report about 47k lines, I must confess the concern at our end is not justified. We have about 3000 lines, and after expected addition of four more companies, it should not exceed 7500 to 8000 lines, assuming we use the same structure of tablespace distrubution.<br />
+<br />
+But it was good to have a second opinion.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">18th December 2008, 14:59</div></div><div class="posttext">the ora_storage should contain only 2 lines. For the creation of tables please put these things in ora_storage_param as mentioned by NPRao. That file will only be accessed by the creation of tables while the ora_storage will be read for all table access.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">18th December 2008, 21:57</div></div><div class="posttext">As Dik mentioned ideally, for most Baan installation 2 lines would be enough.<br />
+In much complex system like ours where we have multiple companies (65+) and database (30+) per environment (dev, qa, prod).<br />
+<br />
+We had to change our implementation model to use the Oracle-10g's feature - Transportable Table Space, which improved our High Availability, Database Cloning (prod to dev/qa/sandboxes) etc.<br />
+More Info -<br />
+What is Transportable Tablespace?<br />
+ Mechanism to quickly move a tablespace across Oracle databases<br />
+ Most efficient means to move bulk data between databases.<br />
+– File is simply copied at OS level<br />
+<br />
+Cross Platform Transportable<br />
+Tablespace Benefits<br />
+ Fast data distribution in Data Warehousing environment (data marts)<br />
+ Used for publishing structured data (i.e. catalogs on CDs)<br />
+ Sharing of read only tablespaces by heterogeneous systems<br />
+Allowing a database to be migrated from one platform to another<br />
+<br />
+<br />
+Oracle Database Cross Platform Transportable Tablespace (http://www.oracle.com/technology/deploy/availability/htdocs/xtts.htm)<br />
+<br />
+Now our ora_storage_param looks like -<br />
+<br />
+[DEV:bsp]/app/lms/lmss/opt/bse/lib/ora<br />
+&gt;cat ora_storage_param<br />
+#---------------------------------------------------------------------------<br />
+#                                S T O R A G E<br />
+# Please edit this file only with the DBA Module of Baan<br />
+# Syntax: table:company:table/index:private/group:object type:optimize options:refresh time:parameters<br />
+#---------------------------------------------------------------------------<br />
+*:781:T:TABLESPACE DATA01_781 PCTFREE 5 INITRANS 3<br />
+*:781:I:TABLESPACE INDEX01_781 PCTFREE 5 INITRANS 3<br />
+*:753:T:TABLESPACE DATA01_753 PCTFREE 5 INITRANS 3<br />
+*:753:I:TABLESPACE INDEX01_753 PCTFREE 5 INITRANS 3<br />
+*:724:T:TABLESPACE DATA01_724 PCTFREE 5 INITRANS 3<br />
+*:724:I:TABLESPACE INDEX01_724 PCTFREE 5 INITRANS 3<br />
+*:723:T:TABLESPACE DATA01_723 PCTFREE 5 INITRANS 3<br />
+*:723:I:TABLESPACE INDEX01_723 PCTFREE 5 INITRANS 3<br />
+*:722:T:TABLESPACE DATA01_722 PCTFREE 5 INITRANS 3<br />
+*:722:I:TABLESPACE INDEX01_722 PCTFREE 5 INITRANS 3<br />
+*:721:T:TABLESPACE DATA01_721 PCTFREE 5 INITRANS 3<br />
+*:721:I:TABLESPACE INDEX01_721 PCTFREE 5 INITRANS 3<br />
+*:720:T:TABLESPACE DATA01_720 PCTFREE 5 INITRANS 3<br />
+*:720:I:TABLESPACE INDEX01_720 PCTFREE 5 INITRANS 3<br />
+*:719:T:TABLESPACE DATA01_719 PCTFREE 5 INITRANS 3<br />
+*:719:I:TABLESPACE INDEX01_719 PCTFREE 5 INITRANS 3<br />
+*:718:T:TABLESPACE DATA01_718 PCTFREE 5 INITRANS 3<br />
+*:718:I:TABLESPACE INDEX01_718 PCTFREE 5 INITRANS 3<br />
+*:717:T:TABLESPACE DATA01_717 PCTFREE 5 INITRANS 3<br />
+*:717:I:TABLESPACE INDEX01_717 PCTFREE 5 INITRANS 3<br />
+*:716:T:TABLESPACE DATA01_716 PCTFREE 5 INITRANS 3<br />
+*:716:I:TABLESPACE INDEX01_716 PCTFREE 5 INITRANS 3<br />
+*:715:T:TABLESPACE DATA01_715 PCTFREE 5 INITRANS 3<br />
+*:715:I:TABLESPACE INDEX01_715 PCTFREE 5 INITRANS 3<br />
+*:714:T:TABLESPACE DATA01_714 PCTFREE 5 INITRANS 3<br />
+*:714:I:TABLESPACE INDEX01_714 PCTFREE 5 INITRANS 3<br />
+*:713:T:TABLESPACE DATA01_713 PCTFREE 5 INITRANS 3<br />
+*:713:I:TABLESPACE INDEX01_713 PCTFREE 5 INITRANS 3<br />
+*:440:T:TABLESPACE DATA01_440 PCTFREE 5 INITRANS 3<br />
+*:440:I:TABLESPACE INDEX01_440 PCTFREE 5 INITRANS 3<br />
+*:360:T:TABLESPACE DATA01_360 PCTFREE 5 INITRANS 3<br />
+*:360:I:TABLESPACE INDEX01_360 PCTFREE 5 INITRANS 3<br />
+*:330:T:TABLESPACE DATA01_330 PCTFREE 5 INITRANS 3<br />
+*:330:I:TABLESPACE INDEX01_330 PCTFREE 5 INITRANS 3<br />
+*:320:T:TABLESPACE DATA01_320 PCTFREE 5 INITRANS 3<br />
+*:320:I:TABLESPACE INDEX01_320 PCTFREE 5 INITRANS 3<br />
+*:310:T:TABLESPACE DATA01_310 PCTFREE 5 INITRANS 3<br />
+*:310:I:TABLESPACE INDEX01_310 PCTFREE 5 INITRANS 3<br />
+*:*:T:TABLESPACE DATA01 PCTFREE 5 INITRANS 3<br />
+*:*:I:TABLESPACE INDEX01 PCTFREE 5 INITRANS 3<br />
+<br />
+This implementation is still leaner than the 47k lines and little more than 2 lines. It is 2-line entry per company.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">19th December 2008, 09:47</div></div><div class="posttext">As Dik mentioned ideally, for most Baan installation 2 lines would be enough.<br />
+In much complex system like ours where we have multiple companies (65+) and database (30+) per environment (dev, qa, prod).<br />
+<br />
+&lt;&lt;SNIPP&gt;&gt;<br />
+<br />
+This implementation is still leaner than the 47k lines and little more than 2 lines. It is 2-line entry per company.<br />
+<br />
+What reason could you think of to use anything else than an ora_storage or ora_driver param that looks as follows:<br />
+<br />
+*:*:T:group:014:0:<br />
+*:*:I:group:014:0:<br />
+<br />
+Best regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">23rd December 2008, 17:08</div></div><div class="posttext">After reading NPRao's reaction a bit better I discovered that he agrees with met that the ora_storage can be left to 2 lines and that the real stoorage logic must be stored in ora_storage_param (or whatever it is called in Baan IV). Sorry for any inconvenience I gave you.<br />
+<br />
+best regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">30th December 2008, 12:03</div></div><div class="posttext">I suppose we get to wait till we migrate to ORACLE 10 before we can use these very good suggestions.<br />
+<br />
+I must save this post where I can get back to it in a hurry later ...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">30th December 2008, 12:15</div></div><div class="posttext">I suppose we get to wait till we migrate to ORACLE 10 before we can use these very good suggestions.<br />
+Suggestions are Oracle version independent, but do relate to Baan versions. In Baan 4 I think we only have something as a ora_storage2 file and from verson 5 and onwards, the ora_storage_param and ora_driver_param. If you are on Baan 4 please use an ora_storage2 file:<br />
+<br />
+&lt;rdbms&gt;_storage -&gt; the storage data<br />
+&lt;rdbms&gt;_storage2 -&gt; as small as possible like ora_driver_param<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

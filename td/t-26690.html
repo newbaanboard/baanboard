@@ -1,0 +1,442 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Baan Report Export to Excel, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Baan Report Export to Excel Tools Development" />
+	
+	<title>Baan Report Export to Excel [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Baan Report Export to Excel</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">baazigar</div><div class="date">22nd March 2006, 14:32</div></div><div class="posttext">hi all gurus out there,<br />
+i am very new to baan programming - and hence the question - may be stupid - but would appreciate if any of you gurus could answer it.<br />
+<br />
+the question is :  is it possible for me to export a report directly to excel.    my users are asking for it and i am not sure how to do it?  I am working in baan5c - so any hint or codes snippets would be appreciated<br />
+<br />
+thanks</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">22nd March 2006, 15:37</div></div><div class="posttext">Several solutions are posted in this forum and the code and utilities forum.  At our site we use excel macros to format reports.  We have a device called PCEXCEL that looksup the report number, finds the download file name and then launches the appropriate macro.  Just one of the many ways to do this.  So you can search for EXCEL and get other solutions.  I think ~Vamsi posted a method on how to create the xls files.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mrf808</div><div class="date">22nd November 2006, 18:04</div></div><div class="posttext">Hi mark,<br />
+<br />
+Is it possible that you share your Excel macors so we can also benifit from your idea.<br />
+<br />
+Thanks in advance<br />
+MRF</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">22nd November 2006, 18:29</div></div><div class="posttext">I am not sure my macros would help others.  Most of our Macros are just recording the steps to format a report.  Really basic stuff.  The macro below is no longer used.  What it did was take a home made report, format it, then run through and pull some additional fields from Baan.  I had to do this because nobody wanted me to change the original session or report.<br />
+<br />
+<br />
+Attribute VB_Name = &quot;Module1&quot;<br />
+' Set-up the variables<br />
+Dim BaanObj As Object<br />
+Dim B_function As String<br />
+Dim B_function2 As String<br />
+Dim Query As String<br />
+Dim temp_string As String<br />
+Dim value_string As String<br />
+Dim query_id As Long<br />
+Dim RetVal As Long<br />
+<br />
+' Routing Stuff<br />
+Dim Item As String<br />
+Dim operation As Long<br />
+Dim routing As String<br />
+Dim setup As Long<br />
+Dim order_status As Long<br />
+Sub auto_open()<br />
+'   Call Performance_details<br />
+End Sub<br />
+Sub Performance_details()<br />
+'<br />
+<br />
+'<br />
+'    Application.WindowState = xlMinimized<br />
+'Step 1 Convert text to columns<br />
+    Workbooks.OpenText FileName:=&quot;C:\baan\tmp\perfdetails.txt&quot;, Origin:= _<br />
+        xlWindows, StartRow:=1, DataType:=xlDelimited, TextQualifier:= _<br />
+        xlDoubleQuote, ConsecutiveDelimiter:=False, Tab:=True, Semicolon:=False, _<br />
+        Comma:=False, Space:=False, Other:=True, OtherChar:=&quot;|&quot;, FieldInfo:= _<br />
+        Array(Array(1, 1), Array(2, 1), Array(3, 1), Array(4, 1), Array(5, 1), Array(6, 1), Array(7 _<br />
+        , 1), Array(8, 2), Array(9, 1), Array(10, 1))<br />
+    Sheets(1).Name = &quot;Details&quot;<br />
+<br />
+  <br />
+    Row = 2<br />
+    workcenter = UCase(Sheets(1).Cells(Row, 1))<br />
+    subwc = UCase(Sheets(1).Cells(Row, 2))<br />
+    While subwc &lt;&gt; &quot;&quot;<br />
+        If (Left(workcenter, 1) &lt;&gt; &quot;3&quot;) Then<br />
+            'Rows(row:row).Select<br />
+            Sheets(1).Rows(Row).Delete<br />
+            'Selection.Delete Shift:=xlUp<br />
+        Else<br />
+            Row = Row + 1<br />
+        End If<br />
+        workcenter = UCase(Sheets(1).Cells(Row, 1))<br />
+        subwc = UCase(Sheets(1).Cells(Row, 2))<br />
+    Wend<br />
+    holdrow = Row<br />
+    <br />
+    Call GetOrderStatus<br />
+    <br />
+' Save as for the sub-totals<br />
+    ChDir (&quot;c:\baan\tmp&quot;)<br />
+    FileSaveName = Application.GetSaveAsFilename(initialfilename:=&quot;perfdetails.xls&quot;, _<br />
+                filefilter:=&quot;Microsoft Excel Workbook (*.xls),*.xls&quot;)<br />
+    ActiveWorkbook.SaveAs FileName:=FileSaveName, _<br />
+        FileFormat:=xlNormal, Password:=&quot;&quot;, WriteResPassword:=&quot;&quot;, _<br />
+        ReadOnlyRecommended:=False, CreateBackup:=False<br />
+   <br />
+' Get ready to do subtotals<br />
+    Columns(&quot;I:M&quot;).Select<br />
+    Selection.EntireColumn.Hidden = True<br />
+    Columns(&quot;O:P&quot;).Select<br />
+    Selection.EntireColumn.Hidden = True<br />
+    ActiveWindow.SmallScroll ToRight:=-6<br />
+<br />
+' Select columns for sub-totals<br />
+    Columns(&quot;A:R&quot;).Select<br />
+    <br />
+' Step 4  Do main work center sub totals<br />
+    Selection.Subtotal GroupBy:=1, Function:=xlSum, TotalList:=Array(5, 6, 14, _<br />
+        17, 18), Replace:=True, PageBreaks:=False, SummaryBelowData:=True<br />
+' Select range<br />
+'    Sheets(1).Range(Cells(1, 1), Cells(holdrow, 10)).Select<br />
+' Step 5  Do sub work center sub totals<br />
+    Selection.Subtotal GroupBy:=2, Function:=xlSum, TotalList:=Array(5, 6, 14, _<br />
+        17, 18), Replace:=False, PageBreaks:=False, SummaryBelowData:=True<br />
+            <br />
+' Step 6  Do percentages calculations<br />
+    Row = 2<br />
+    std = Sheets(1).Cells(Row, 5)<br />
+    act = Sheets(1).Cells(Row, 6)<br />
+    perc = Sheets(1).Cells(Row, 7)<br />
+    While std &lt;&gt; &quot;&quot; And act &lt;&gt; &quot;&quot;<br />
+        If (perc = &quot;&quot;) Then<br />
+            If (act = 0) Then<br />
+                Sheets(1).Cells(Row, 7) = 0<br />
+            Else<br />
+                Sheets(1).Cells(Row, 7) = std / act * 100<br />
+            End If<br />
+        End If<br />
+        Row = Row + 1<br />
+        std = Sheets(1).Cells(Row, 5)<br />
+        act = Sheets(1).Cells(Row, 6)<br />
+        perc = Sheets(1).Cells(Row, 7)<br />
+    Wend<br />
+' Format the columns as numbers<br />
+    Columns(&quot;E:G&quot;).Select<br />
+    Selection.NumberFormat = &quot;0.00&quot;<br />
+<br />
+' Step 7  Do save as to allow user to save worksheet<br />
+    ActiveWorkbook.SaveAs FileName:=FileSaveName, _<br />
+        FileFormat:=xlNormal, Password:=&quot;&quot;, WriteResPassword:=&quot;&quot;, _<br />
+        ReadOnlyRecommended:=False, CreateBackup:=False<br />
+    <br />
+ End Sub<br />
+<br />
+<br />
+Sub GetOrderStatus()<br />
+' The DLL &quot;ottdllsql_query&quot; contains a function to convert this string to a Baan query and<br />
+' other functions to parse and execute the query. The DLL also contains functions to retrieve<br />
+' the result of the query, e.g. function &quot;olesql_getstring&quot;.<br />
+    On Error GoTo CannotCreateBaan<br />
+        <br />
+' Setup Column titles<br />
+    Sheets(1).Cells(1, 13) = &quot;Status&quot;<br />
+    Sheets(1).Cells(1, 14) = &quot;Setup&quot;<br />
+    Sheets(1).Cells(1, 15) = &quot;Runtime&quot;<br />
+    Sheets(1).Cells(1, 16) = &quot;Qty.&quot;<br />
+    Sheets(1).Cells(1, 17) = &quot;Total Run Time&quot;<br />
+    Sheets(1).Cells(1, 18) = &quot;Total Std.&quot;<br />
+    <br />
+    <br />
+'run Baan Application<br />
+    Set BaanObj = CreateObject(&quot;Baan4.Application.ole701&quot;)<br />
+    Sheets(1).Activate<br />
+    BaanObj.Timeout = 10<br />
+    On Error GoTo BaanAutomationError<br />
+    <br />
+' Setup the info to work through the spreadsheet<br />
+    Row = 2<br />
+    Column = 3<br />
+    prod_order = UCase(Sheets(1).Cells(Row, Column))<br />
+    While prod_order &lt;&gt; &quot;&quot;<br />
+        operation = Sheets(1).Cells(Row, Column + 1)<br />
+        index_string = Chr(34) &amp; Chr(34) &amp; Item &amp; Chr(34) &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; Chr(34) &amp; routing &amp; Chr(34) &amp; Chr(34) &amp; &quot;,&quot; &amp; operation<br />
+        <br />
+         Query = &quot;select tisfc001.osta from tisfc001&quot; &amp; _<br />
+                &quot; where tisfc001._index1 = {&quot; &amp; prod_order &amp; &quot;}&quot;<br />
+        'MsgBox Query<br />
+' Execute query<br />
+        B_function = &quot;olesql_parse(&quot; &amp; Chr(34) &amp; Query &amp; Chr(34) &amp; &quot;)&quot;<br />
+        BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+    <br />
+' If this function fails the ReturnValue is equal to zero, otherwise<br />
+' the function olesql_parse returns a identification number of the query<br />
+' Convert the (string) ReturnValue to a long variable using the function Val<br />
+        query_id = Val(BaanObj.ReturnValue)<br />
+        If query_id = 0 Then<br />
+            MsgBox &quot;function olesql_parse fails&quot;<br />
+            GoTo BaanAutomationError<br />
+        End If<br />
+        <br />
+' Fetch the record<br />
+        B_function = &quot;olesql_fetch(&quot; &amp; query_id &amp; &quot;)&quot;<br />
+        BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+        runtime = 0<br />
+        setup = 0<br />
+        If BaanObj.ReturnValue = 0 Then<br />
+' retrieve query result and store it in the second argument of the function olesql_getstring<br />
+' Get Setup Time Number<br />
+            temp_string = &quot;tisfc001.osta&quot;<br />
+            order_status = 0<br />
+            'order_status = String(20, &quot; &quot;)<br />
+            B_function2 = &quot;olesql_getint(&quot; &amp; Chr(34) &amp; temp_string &amp; Chr(34) &amp; &quot;,&quot; &amp; order_status &amp; &quot;)&quot;<br />
+            BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function2<br />
+            temp_string = BaanObj.FunctionCall<br />
+            temp_string = Mid(temp_string, 30, 10)<br />
+            value_string = &quot;&quot;<br />
+            found = False<br />
+            For i = 1 To 10<br />
+                If (Asc(Mid(temp_string, i, 1)) &gt;= 48 And Asc(Mid(temp_string, i, 1)) &lt;= 57) Then<br />
+                    value_string = value_string &amp; Mid(temp_string, i, 1)<br />
+                    found = True<br />
+                Else<br />
+                 If (found) Then<br />
+                        Exit For<br />
+                    End If<br />
+                End If<br />
+            Next i<br />
+            order_status = Val(value_string)<br />
+        End If<br />
+' Write setup time<br />
+        Sheets(1).Cells(Row, Column + 10) = order_status<br />
+        Sheets(1).Cells(Row, Column + 13).Select<br />
+<br />
+' Get next order status<br />
+        Row = Row + 1<br />
+        prod_order = UCase(Sheets(1).Cells(Row, Column))<br />
+        <br />
+' stop and remove query<br />
+        B_function = &quot;olesql_break(&quot; &amp; query_id &amp; &quot;)&quot;<br />
+        BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+        If BaanObj.ReturnValue &lt;&gt; 0 Then GoTo BaanAutomationError<br />
+        B_function = &quot;olesql_close(&quot; &amp; query_id &amp; &quot;)&quot;<br />
+        BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+    Wend<br />
+<br />
+    ' exit Baan<br />
+    BaanObj.Quit<br />
+    Application.Wait (Now + TimeValue(&quot;0:00:10&quot;))<br />
+    Set BaanObj = Nothing<br />
+    <br />
+    Call Getsetupruntime<br />
+    Exit Sub<br />
+    <br />
+' error handling<br />
+CannotCreateBaan:<br />
+    MsgBox &quot;Unable to start Baan&quot;<br />
+    Exit Sub<br />
+    <br />
+BaanAutomationError:<br />
+    MsgBox &quot;Baan IV automation error: &quot; &amp; BaanObj.Error<br />
+    MsgBox &quot;Return value function: &quot; &amp; B_function &amp; &quot;  &quot; &amp; BaanObj.ReturnValue<br />
+    BaanObj.Quit<br />
+    Set BaanObj = Nothing<br />
+    Exit Sub<br />
+    <br />
+End Sub<br />
+Sub Getsetupruntime()<br />
+' The DLL &quot;ottdllsql_query&quot; contains a function to convert this string to a Baan query and<br />
+' other functions to parse and execute the query. The DLL also contains functions to retrieve<br />
+' the result of the query, e.g. function &quot;olesql_getstring&quot;.<br />
+    On Error GoTo CannotCreateBaan<br />
+    <br />
+'run Baan Application<br />
+    Set BaanObj = CreateObject(&quot;Baan4.Application.ole701&quot;)<br />
+    Sheets(1).Activate<br />
+    BaanObj.Timeout = 10<br />
+    On Error GoTo BaanAutomationError<br />
+    <br />
+' Setup the info to work through the spreadsheet<br />
+    Row = 2<br />
+    Column = 3<br />
+    prod_order = UCase(Sheets(1).Cells(Row, Column))<br />
+    While prod_order &lt;&gt; &quot;&quot;<br />
+        operation = Sheets(1).Cells(Row, Column + 1)<br />
+        index_string = Chr(34) &amp; Chr(34) &amp; Item &amp; Chr(34) &amp; Chr(34) &amp; &quot;,&quot; &amp; Chr(34) &amp; Chr(34) &amp; routing &amp; Chr(34) &amp; Chr(34) &amp; &quot;,&quot; &amp; operation<br />
+        'index_string = Chr(34) &amp; Chr(34) &amp; Item &amp; Chr(34) &amp; Chr(34)<br />
+        <br />
+         Query = &quot;select tisfc010.sutm,tisfc010.rutm,tisfc010.qpln from tisfc010&quot; &amp; _<br />
+                &quot; where tisfc010._index1 = {&quot; &amp; prod_order &amp; &quot;,&quot; &amp; operation &amp; &quot;}&quot;<br />
+        'MsgBox Query<br />
+' Execute query<br />
+        B_function = &quot;olesql_parse(&quot; &amp; Chr(34) &amp; Query &amp; Chr(34) &amp; &quot;)&quot;<br />
+        BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+    <br />
+' If this function fails the ReturnValue is equal to zero, otherwise<br />
+' the function olesql_parse returns a identification number of the query<br />
+' Convert the (string) ReturnValue to a long variable using the function Val<br />
+        query_id = Val(BaanObj.ReturnValue)<br />
+        If query_id = 0 Then<br />
+            MsgBox &quot;function olesql_parse fails&quot;<br />
+            GoTo BaanAutomationError<br />
+        End If<br />
+        <br />
+' Fetch the record<br />
+        B_function = &quot;olesql_fetch(&quot; &amp; query_id &amp; &quot;)&quot;<br />
+        BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+        runtime = 0<br />
+        setup = 0<br />
+        If BaanObj.ReturnValue = 0 Then<br />
+' retrieve query result and store it in the second argument of the function olesql_getstring<br />
+' Get Setup Time Number<br />
+            temp_string = &quot;tisfc010.sutm&quot;<br />
+            setup = 0<br />
+            'order_status = String(20, &quot; &quot;)<br />
+            B_function2 = &quot;olesql_getint(&quot; &amp; Chr(34) &amp; temp_string &amp; Chr(34) &amp; &quot;,&quot; &amp; setup &amp; &quot;)&quot;<br />
+            BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function2<br />
+            temp_string = BaanObj.FunctionCall<br />
+            temp_string = Mid(temp_string, 30, 10)<br />
+            value_string = &quot;&quot;<br />
+            found = False<br />
+            For i = 1 To 10<br />
+                If (Asc(Mid(temp_string, i, 1)) &gt;= 48 And Asc(Mid(temp_string, i, 1)) &lt;= 57) Then<br />
+                    value_string = value_string &amp; Mid(temp_string, i, 1)<br />
+                    found = True<br />
+                Else<br />
+                 If (found) Then<br />
+                        Exit For<br />
+                    End If<br />
+                End If<br />
+            Next i<br />
+            setup = Val(value_string)<br />
+     'Get Runtime Time Number<br />
+            temp_string = &quot;tisfc010.rutm&quot;<br />
+            runtime = 99999.999<br />
+            B_function2 = &quot;olesql_getfloat(&quot; &amp; Chr(34) &amp; temp_string &amp; Chr(34) &amp; &quot;,&quot; &amp; runtime &amp; &quot;)&quot;<br />
+            BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function2<br />
+            temp_string = BaanObj.FunctionCall<br />
+            temp_string = Mid(temp_string, 30, 15)<br />
+            value_string = &quot;&quot;<br />
+            found = False<br />
+            For i = 1 To 15<br />
+                If ((Asc(Mid(temp_string, i, 1)) &gt;= 48 And Asc(Mid(temp_string, i, 1)) &lt;= 57) Or _<br />
+                    (Asc(Mid(temp_string, i, 1)) = 46)) Then<br />
+                    value_string = value_string &amp; Mid(temp_string, i, 1)<br />
+                    found = True<br />
+                Else<br />
+                    If (found) Then<br />
+                        Exit For<br />
+                    End If<br />
+                End If<br />
+            Next i<br />
+            runtime = Val(value_string)<br />
+     'Get qty planned<br />
+            temp_string = &quot;tisfc010.qpln&quot;<br />
+            qty = 99999.9999<br />
+            B_function2 = &quot;olesql_getfloat(&quot; &amp; Chr(34) &amp; temp_string &amp; Chr(34) &amp; &quot;,&quot; &amp; qty &amp; &quot;)&quot;<br />
+            BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function2<br />
+            temp_string = BaanObj.FunctionCall<br />
+            temp_string = Mid(temp_string, 30, 15)<br />
+            value_string = &quot;&quot;<br />
+            found = False<br />
+            For i = 1 To 15<br />
+                If ((Asc(Mid(temp_string, i, 1)) &gt;= 48 And Asc(Mid(temp_string, i, 1)) &lt;= 57) Or _<br />
+                    (Asc(Mid(temp_string, i, 1)) = 46)) Then<br />
+                    value_string = value_string &amp; Mid(temp_string, i, 1)<br />
+                    found = True<br />
+                Else<br />
+                    If (found) Then<br />
+                        Exit For<br />
+                    End If<br />
+                End If<br />
+            Next i<br />
+            qty = Val(value_string)<br />
+        End If<br />
+' Write setup time<br />
+        Sheets(1).Cells(Row, Column + 11) = setup / 60#<br />
+        Sheets(1).Cells(Row, Column + 11).Select<br />
+        Selection.NumberFormat = &quot;0.00&quot;<br />
+' Write  runtime<br />
+        Sheets(1).Cells(Row, Column + 12) = runtime / 60#<br />
+        Sheets(1).Cells(Row, Column + 12).Select<br />
+        Selection.NumberFormat = &quot;0.00&quot;<br />
+' Write setup time<br />
+        Sheets(1).Cells(Row, Column + 13) = qty<br />
+        Sheets(1).Cells(Row, Column + 13).Select<br />
+        Selection.NumberFormat = &quot;0.00&quot;<br />
+' Do total Runtime<br />
+        Sheets(1).Cells(Row, Column + 14) = (qty * runtime / 60#)<br />
+        Sheets(1).Cells(Row, Column + 14).Select<br />
+        Selection.NumberFormat = &quot;0.000&quot;<br />
+<br />
+' Do total<br />
+        Sheets(1).Cells(Row, Column + 15) = (qty * runtime / 60#) + (setup / 60#)<br />
+        Sheets(1).Cells(Row, Column + 15).Select<br />
+        Selection.NumberFormat = &quot;0.000&quot;<br />
+<br />
+' Get next order status<br />
+        Row = Row + 1<br />
+'        Item = UCase(Worksheets(&quot;Logfile&quot;).Cells(Row, Column))<br />
+        prod_order = UCase(Sheets(1).Cells(Row, Column))<br />
+        <br />
+' stop and remove query<br />
+        B_function = &quot;olesql_break(&quot; &amp; query_id &amp; &quot;)&quot;<br />
+        BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+        If BaanObj.ReturnValue &lt;&gt; 0 Then GoTo BaanAutomationError<br />
+        B_function = &quot;olesql_close(&quot; &amp; query_id &amp; &quot;)&quot;<br />
+        BaanObj.ParseExecFunction &quot;ottdllsql_query&quot;, B_function<br />
+    Wend<br />
+    <br />
+<br />
+    ' exit Baan<br />
+    BaanObj.Quit<br />
+    Set BaanObj = Nothing<br />
+    Exit Sub<br />
+    <br />
+' error handling<br />
+CannotCreateBaan:<br />
+    MsgBox &quot;Unable to start Baan&quot;<br />
+    Exit Sub<br />
+    <br />
+BaanAutomationError:<br />
+    MsgBox &quot;Baan IV automation error: &quot; &amp; BaanObj.Error<br />
+    MsgBox &quot;Return value function: &quot; &amp; B_function &amp; &quot;  &quot; &amp; BaanObj.ReturnValue<br />
+    BaanObj.Quit<br />
+    Set BaanObj = Nothing<br />
+    Exit Sub<br />
+    <br />
+End Sub</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">khudgson</div><div class="date">22nd November 2006, 23:19</div></div><div class="posttext">You can use a product called B2Win. This will allow you to output it to word or excel</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jeffersyuan</div><div class="date">23rd November 2006, 03:17</div></div><div class="posttext">I am doing a new tool to export to Excel.<br />
+My way is by XML format.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">23rd November 2006, 08:20</div></div><div class="posttext">You can create CSV file by using baan output.This is One of the ways. Otherwise  there are some utulities for it  but you should buy licence for them like  B2win. I recommend you should examine all boards threads , I am sure you find best for yourself.<br />
+<br />
+<br />
+Good luck !</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

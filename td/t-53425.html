@@ -1,0 +1,167 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Sanity check on code rewrite, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Sanity check on code rewrite Tools Development" />
+	
+	<title>Sanity check on code rewrite [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Sanity check on code rewrite</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">22nd August 2008, 21:19</div></div><div class="posttext">How would you re-write this code(not mine).  tpppc215.tetd come from the record being processed, the same with the tdpur046.ninv and tfacp200.appr. To me it looks like this code would always process every tpppc215 record for that project - it may or may not set the flag.<br />
+<br />
+	select	tpppc215.cdoc <br />
+	from		tpppc215<br />
+	where	tpppc215._index1 = {:tppdm600.cprj}<br />
+	and   	(tpppc215.tetd = tpppc.tetd.invoice or<br />
+			tpppc215.tetd = tpppc.tetd.order.invoice or<br />
+			tpppc215.tetd = tpppc.tetd.pipo.a)<br />
+	selectdo<br />
+		if tpppc215.tetd = tpppc.tetd.pipo.a and<br />
+		tfacp200.appr = tfacp.matc.pur then<br />
+			flag = 1<br />
+		else<br />
+			o.ninv = str$(tdpur046.invn)<br />
+			if o.ninv =  shiftl$(strip$(tpppc215.cdoc)) and<br />
+			tfacp200.appr =tfacp.matc.pur then<br />
+				flag = 1<br />
+			endif<br />
+		endif			<br />
+	endselect<br />
+	if flag = 1 then			      <br />
+		paid   = i.amoc * ( total.paid   / (total.paid + total.unpaid))<br />
+		unpaid = i.amoc * ( total.unpaid / (total.paid + total.unpaid))<br />
+	else									<br />
+		paid = total.paid<br />
+		unpaid = total.unpaid<br />
+	endif			endif<br />
+<br />
+<br />
+here is what I did<br />
+<br />
+		if tfacp200.appr = tfacp.matc.pur then<br />
+			o.ninv = str$(tdpur046.invn)<br />
+| The tpppc215.tetd comes from the tpppc215 record being process.  Since it is not part of the select lets<br />
+| move it outside the select.<br />
+			if tpppc215.tetd = tpppc.tetd.pipo.a then<br />
+				flag = 1<br />
+			else<br />
+| Now lets look directly for o.ninv, but only the first row<br />
+				select tpppc215.cdoc <br />
+				from   tpppc215<br />
+				where  tpppc215._index1 = {:tppdm600.cprj}<br />
+				and	(tpppc215.tetd = tpppc.tetd.invoice or<br />
+					tpppc215.tetd = tpppc.tetd.order.invoice or<br />
+					tpppc215.tetd = tpppc.tetd.pipo.a)<br />
+				and 	tpppc215.cdoc = :o.ninv<br />
+				as set with 1 rows<br />
+				selectdo<br />
+					flag = 1<br />
+				endselect<br />
+			endif<br />
+		endif<br />
+		if flag = 1 then			      <br />
+			paid   = i.amoc * ( total.paid / (total.paid + total.unpaid))<br />
+			unpaid = i.amoc * ( total.unpaid / (total.paid + total.unpaid))<br />
+		else									<br />
+			paid = total.paid<br />
+			unpaid = total.unpaid<br />
+		endif<br />
+<br />
+Any better suggestions?  Did I miss something?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">23rd August 2008, 00:05</div></div><div class="posttext">From what I can see by looking at the data in our system, tpppc215.cdoc is actually a concatenation of Purchase Order Number and Position, separated by a dash, for example, 652537-1, from the Purchase Order Line record.<br />
+<br />
+So, the condition o.ninv =  shiftl$(strip$(tpppc215.cdoc) is NEVER going to return TRUE, because o.ninv (from tdpur046.ninv) is actually the Accounts Payable Document Number which is an entirely different number.<br />
+<br />
+Maybe if you can explain a bit more what the flag is all about - a functional definition maybe - at the best of times, tpppc215 is not a good table to read for any reason (!). There must be other ways to determine the flag.<br />
+<br />
+However, if you do have to stick to tpppc215, then a possible entry point from tfacp200 would be to use tfacp200.orno and use _index5 of tpppc215 - this will constrain records in tpppc215 to at least the purchase order number under consideration - still could be many records.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sprasad</div><div class="date">23rd August 2008, 09:20</div></div><div class="posttext">Hi Mark,<br />
+<br />
+ You are using the field tpppc215.tetd before selection of table and i think this should be after the selection of table tpppc215 and you are checking o.ninv even if the tpppc215.tetd = tpppc.tetd.pipo.a which is not in the original code.<br />
+<br />
+<br />
+Regards,<br />
+Sai Prasad.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sprasad</div><div class="date">23rd August 2008, 09:43</div></div><div class="posttext">Check this code.<br />
+<br />
+<br />
+		if tfacp200.appr = tfacp.matc.pur then<br />
+		o.ninv = str$(tdpur046.invn)<br />
+		select	tpppc215.cdoc <br />
+		from	tpppc215<br />
+		where	tpppc215._index1 = {:tppdm600.cprj}<br />
+		and   	((tpppc215.tetd = tpppc.tetd.invoice or<br />
+				tpppc215.tetd = tpppc.tetd.order.invoice ) and tpppc215.cdoc = :o.ninv)or<br />
+				tpppc215.tetd = tpppc.tetd.pipo.a)<br />
+                          as set with 1 rows<br />
+		selectdo<br />
+			flag = 1<br />
+		endselect<br />
+	endif		if flag = 1 then			      <br />
+			paid   = i.amoc * ( total.paid / (total.paid + total.unpaid))<br />
+			unpaid = i.amoc * ( total.unpaid / (total.paid + total.unpaid))<br />
+		else									<br />
+			paid = total.paid<br />
+			unpaid = total.unpaid<br />
+		endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">23rd August 2008, 18:23</div></div><div class="posttext">Here is the situation - this code is from tpcin9280m000(Create Billable Cost Reports).  We are upgrading to current service pack and to Oracle 10g.  The run times almost doubled on this session(not always).  Infor provided the code for the session - so my DBA's complained about this query being run repeatedly and getting poor performance.  So I can't really make some of the changes suggested. Getting this fixed is our last obstacle to going to production.  Everything else seems to be okay.<br />
+<br />
+Shah - I thought the same thing, but I did a review of tdpur046 and tpppc215.  Both had receipt numbers that matched that did not have purchase order - line number. Example - tdpur046 has 28000008 and tpppc215 has cdoc 28000008.  What I did do was a count to see which was more numerous, but what you said is also what I thought - until I start digging at the data.  Not sure if you all use this session or have source code but this is in accumulate.bcr.cost and will get run for what looks like all material costs.<br />
+<br />
+As it is my change netted us about a 30% decrease in run times.  I have not reviewed the rest of the code, but am positive there are performance gains other places.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">24th August 2008, 18:17</div></div><div class="posttext">We do not use this part of BAAN Projects, so I have never looked into the session code till today. (I know, it is Sunday, and I am here at work cooking a table modification when nobody else is in my way, so while the re-org is going on, I thought I would take a quick peek into the script).<br />
+<br />
+The function you mention (accumulate.bcr.cost) does not exist in the script we have - so you probably have an 'enhanced' version. My script has Last Modification date as 07-26-1999. SO, I am afraid I cannot connect the links and figure out what the 'flag' business is all about and why use tpppc215 to determine that.<br />
+<br />
+That behind us, for improving performance in general, you may want to consider reviewing each and every where clause where you do not see index being used for access and maybe tweak that. There are plenty of places where tables are read without an index - unless all this is corrected in your version of the script. <br />
+<br />
+Alternatively (before you modify the script at all for indexes), have the DBA do his magic (analyze table, whatever incantations they use ...) and that will possibly help.<br />
+<br />
+As far as the original problem goes - if you can figure out why the 'flag' is being set, you can define a different approach entirely, hopefully one that does not need tpppc215.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th August 2008, 17:07</div></div><div class="posttext">Your so lucky. :)  There must be a hundred modifications since 1999. :) And some of the queries do not have index fields and most queries do not have complete indexes.<br />
+<br />
+I think this code came about because of something we reported; not sure about that though, but it was a change made in Jul which was what we were waiting for.  <br />
+<br />
+Thanks everyone.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">shah_bs</div><div class="date">25th August 2008, 19:17</div></div><div class="posttext">Maybe I should have been more clear about index use . Partial number of attributes in an indexed access is not incorrect - it will constrain to a number of records that match the number of attributes supplied (in general resulting in more than one rows), and that may be what the logic requires. The important thing is to use the index. There were so many places in the script where there is no index used at all - for example:<br />
+<br />
+        where tpppc215.cprj = :tppdm600.cprj<br />
+<br />
+<br />
+which could be replace with tpppc215._index1 = {:tppdm600.cprj}<br />
+<br />
+The table tpppc215 at our place has about 8.5 million records, and the original where clause (without the index) possibly would be very slow - though I have not confirmed this.<br />
+<br />
+Also, it may be that there is no index to use.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th August 2008, 22:27</div></div><div class="posttext">WOW - we only have about 2 million records.  Yeah - most of the queries that have an index use the _index syntax.  I just wish there were more fields for the index in the script, so we get fewer records.  I am going to search through it again looking at a couple of other queries, about all I can do at this point.  What fun it is.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

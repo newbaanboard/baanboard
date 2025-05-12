@@ -1,0 +1,482 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Performance issues after migrating to O9, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Performance issues after migrating to O9 Operating Systems &amp; Databases" />
+	
+	<title>Performance issues after migrating to O9 [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Operating Systems &amp; Databases</a> &gt; Performance issues after migrating to O9</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">27th January 2004, 14:43</div></div><div class="posttext">Hi everybody,<br />
+<br />
+we migrated the test system from oracle 8.0.6 to oracle 9i by doing export/import. We are workfing on BaanIVc4 (Portingset 06.06) and Hp-Ux.<br />
+<br />
+After the migration, we have some strange performance problems. If anybody experienced the same or has an idea how to analyze it better, please let me know:<br />
+<br />
+a) Some session (customer maint., item maint) have now a very long startup time, if started for the very first time.<br />
+<br />
+b) One session (maintain purchase orders) takes up to 2 min, if you change from going next to previous, or the other way around.<br />
+<br />
+c) Another session (maintain sales orders) shows the same as above, plus very long (again 2 min) startup times each time, if used by some specific users.<br />
+<br />
+<br />
+As the problems are session related, we are mainly looking in Baan for the source of the problem. For all the sessions, we have the current up to date version. We can not find a difference between the users to cause the different behaviour.<br />
+<br />
+When we trace the session in Oracle, we find:<br />
+<br />
+a) The time is spend mainly in one sql statement to fetch the main data row to be displayed.<br />
+<br />
+b) The sql statement and execution plan is the same independend from the oracle version and user<br />
+<br />
+c) In the problematic cases, oracle fetches up to 250000 records, in the good cases oracle fetches only 4.<br />
+<br />
+<br />
+We are absolutely clueless, what might cause this behaviour.<br />
+<br />
+Any ideas, what we can test or look into?<br />
+<br />
+Regards<br />
+<br />
+Markus<br />
+<br />
+P.S.: we set BAAN_ORACLE_PREFETCH = 0 according to Baan knowledge base</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gguymer</div><div class="date">27th January 2004, 16:22</div></div><div class="posttext">As Oracle 8 required more memory than 7.3 did, so it goes with Oracle 9.  I would suggest running the STATSPACK package and examine the results. Without knowing for sure, I would venture a guess that the parameters controlling the memory allocation for Oracle are too low. And it may be that Oracle's memory demands are greater than your server can give.<br />
+<br />
+Gilbert Guymer<br />
+Database Administrator<br />
+Lufkin Industries, Inc.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">27th January 2004, 19:57</div></div><div class="posttext">Markus,<br />
+<br />
+As Gilbert suggested you have to check the Oracle parameters.<br />
+<br />
+Also refer to the thread -<br />
+<br />
+Oracle 9i on AIX has poor performance (http://www.baanboard.com/baanboard/showthread.php?s=&amp;postid=54146#post54146) <br />
+<br />
+You can also try to execute a schema level analyze for all tables and indexes.<br />
+<br />
+Can you post the $BSE/lib/defaults/db_resource settings here?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">27th January 2004, 20:46</div></div><div class="posttext">Hi Markus,<br />
+<br />
+NPRao probably hit it on the head.. Have you done oracle statistics since the upgrade?<br />
+<br />
+Also, do you have optimizer_max_permutations set in the init.ora?<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">28th January 2004, 10:04</div></div><div class="posttext">I heard that sometimes statistics on dictionary tables has been advised (by Oracle) for Oracle 9. <br />
+<br />
+If you have set them try to remove them as I have heard about customers who used it and improved performance after removing these statistics.<br />
+<br />
+Yeah, a new release and every DBA who thought that he knew everything has to start over again.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">28th January 2004, 10:12</div></div><div class="posttext">Hi everybody and thanks for your help!<br />
+<br />
+We did a &quot;analyze tables&quot; over all tables after the import. Actually this was my first idea.<br />
+<br />
+I found the baan_oracle_prefetch two days ago on the knowledgebase. If we do not set it at all or set it to 0, then we get the described behaviour. If we set it to 1, then the behaviour is even much worse.<br />
+<br />
+In regards to the oracle_max_permutations, we had this parameter in Oracle8, but in Oracle9 it was deleted, because by default it is 2000 in O9. I will try on Thursday to set it to 1000 to see, wether it makes a difference. Today and tomorrow the system is not available, because of HW changes.<br />
+<br />
+In general we are setting most parameters not in the db_resource, but a environment variables, which are set both in ASCII and GUI. Anyway here are the settings, which were allready used for O8:<br />
+<br />
+export ORA_MAX_ARRAY_FETCH=5<br />
+export ORA_MAX_ARRAY_INSERT=5<br />
+export RDS_FULL=5<br />
+export SSTS_SET_ROWS=5<br />
+export BDB_MAX_SESSION_SCHEDULE=5 <br />
+export DBSINIT=&quot;01&quot;<br />
+export DS_TIMEOUT_DETECT=40<br />
+export LOCK_RETRY=&quot;30*100,30*500&quot;<br />
+export BDB_MAX_SERVER_SCHEDULE=2<br />
+export ORA_COLUMN_FORMAT=7  <br />
+export COMMIT_GLD212=10<br />
+export COMMIT_GLD215=10<br />
+export MAX_NO_TRANS=100<br />
+export DBCINIT=&quot;01&quot;<br />
+<br />
+<br />
+For O9 we added:<br />
+<br />
+export BAAN_ORACLE_PREFETCH=0<br />
+<br />
+To be honest, there are a few variables, which I am not certain about and which did exist in the system, before I was responsible for it. These are DBCINIT, COMMIT_GLD212, COMMIT_GLD215, MAX_NO_TRANS. I will test also on thursday, how the system performs without them.<br />
+<br />
+Any ideas to the settings would be appreciated,<br />
+<br />
+Regards<br />
+<br />
+Markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">28th January 2004, 10:14</div></div><div class="posttext">Just a small addon:<br />
+<br />
+We did analyze tables. But only for the Baan user tables!<br />
+<br />
+according to my knowledge, this is the was to go and to leave system tables by themselves. Is this correct?<br />
+<br />
+Regards<br />
+<br />
+Markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">torwin</div><div class="date">28th January 2004, 11:34</div></div><div class="posttext">Markus,<br />
+<br />
+Which oracle driver are you using within Baan ( 7 or 8 ? ).<br />
+<br />
+We were experiencing long wait times when going into session tisfc1500m000 - Display Production Planning. At the time we were running with the Oracle7 drivers ( due to other problems we had encountered ) when we switched to the Oracle 8 driver the wait times reduced dramatically.<br />
+<br />
+Tim</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">28th January 2004, 11:46</div></div><div class="posttext">We are using the Oracle8 driver.<br />
+<br />
+We are running in hostmode and we want to avoid the overhead to go via SQL-Net. If I am not mistaken, to access a Oracle8 or 9 database with the Oracle7 driver, you have to use Sql-Net, correckt?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">torwin</div><div class="date">28th January 2004, 12:51</div></div><div class="posttext">Yes, we do run over SQLNET.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">patrickmonks</div><div class="date">29th January 2004, 10:50</div></div><div class="posttext">Try to make your ora_storage very small<br />
+then run the maint item and see if faster...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Martin</div><div class="date">29th January 2004, 14:01</div></div><div class="posttext">@marcus<br />
+<br />
+I had running an Oracle9 on HP-UX 11i on RP5470 Machine (5 Gig mem, 180 Baan User, 3-t variant, connect via sql-net,2 GBit NIC with load balancing and failover)<br />
+That was a migaration from Tbase.<br />
+Respone times very fast (like Tbase).<br />
+The Probelm on O9 is: install the Database with only local-managed tablespaces, automatic undo-management,  automatic extend-management and automatic-space management. (very important !) Use only deticated server connections, no MTS.<br />
+Set the following parameter in ini.ora :<br />
+HPUX_SCHED_NOAGE=178<br />
+<br />
+Hope this helps.<br />
+Martin</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">29th January 2004, 14:08</div></div><div class="posttext">After all good ideas maybe you just need to run some traces. My document (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=7665) explains how to do so. <br />
+<br />
+As it are only a few sessions maybe the problem can be explained by looking at the queries of these traces.<br />
+<br />
+About using the Oracle 7 driver: if you have ora_column_format set to 8 than you can't use the Oracle 7 driver.<br />
+<br />
+About the ora_storage: This counts for the startup of sessions. Also take a look at ora_storage2 (http://www.baanboard.com/baanboard/showthread.php?s=&amp;postid=5507#post5507) <br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">12th May 2004, 12:48</div></div><div class="posttext">Hi !<br />
+We are facing exactly same situation (8.0.5 to 9.2.0.5).<br />
+How did you solve problems?<br />
+Item data browsing from record to record takes now 1 sec. if query goes to edm-tables (revision controlled item). There is much more buffer gets than with 8.0.5. I can't see any possibility that this could be solved by db_resource settings. My opinion is that optimizer works badly. If I delete statistics from these edm-tables it's little bit faster....<br />
+<br />
+optimizer_features_enable is defined to 8.0.0 like in 8.0.5.<br />
+<br />
+Also:<br />
+_index_join_enabled = FALSE #MP<br />
+_b_tree_bitmap_plans = FALSE #MP<br />
+<br />
+tested without success.<br />
+<br />
+Problem query looks like this (sqltrace):<br />
+<br />
+select  tiedm100.eitm, tiedm100.indt, tiedm100.revi<br />
+                                ,tiedm101.cprj, tiedm101.item<br />
+                        from tiedm101, tiedm100, tiedm010, tiedm310<br />
+                        where tiedm101._index1 = {:i.cprj, :i.item}<br />
+                        and tiedm101.cmbb refers to tiedm100<br />
+                        and tiedm100.indt &lt;= :i.date<br />
+<br />
+                        and     (tiedm100.exdt &gt; :i.date or tiedm100.exdt = 0)<br />
+<br />
+                        and tiedm100.rele = tiedm.rele.yes<br />
+                        and tiedm101.eitm refers to tiedm010<br />
+                        and tiedm010.prdr = tcyesno.yes<br />
+                        and tiedm100.orno refers to tiedm310<br />
+                        and (( tiedm100.orno &lt;&gt; 0<br />
+                                and tiedm310.osta = tiedm.osta.actualised)<br />
+                        or      (tiedm100.orno = 0<br />
+                        and (( tiedm010.kitm = tckitm.manufacture<br />
+                              and ( tiedm101.ebcp = tcyesno.yes<br />
+                              or  <br />
+                              not exists ( <br />
+                                select tiedm110.*<br />
+                                from tiedm010, tiedm110<br />
+                                where tiedm110._index1 = {tiedm101.eitm,<br />
+                                         tiedm101.revi}<br />
+                                and tiedm110.comp refers to tiedm010.eitm<br />
+                                and ( tiedm110.cmtp = tiedm.cmtp.item<br />
+                                or (tiedm110.cmtp = tiedm.cmtp.eitm <br />
+                                and tiedm010.prdr = tcyesno.yes)))))<br />
+                        or  ( tiedm010.kitm = tckitm.purchase          <br />
+                              and  tiedm101.eicp = tcyesno.yes ))))    <br />
+                                               <br />
+                        order by tiedm101.cprj, tiedm101.item, <br />
+                                tiedm100._index3 desc<br />
+                        as set with 1 rows<br />
+<br />
+------------------------------------------------<br />
+Nr Rows Fetched                 :     0<br />
+Total Time                      :  0.980 sec</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gguymer</div><div class="date">12th May 2004, 16:16</div></div><div class="posttext">Use Oracle's STATSPACK utility. It will give a much better picture of what is going on at the database level. It will also give you advice on what Oracle settings to look at. Changing the db_resource settings won't give you nearly as much control as you will get from modifying the Oracle settings. The Oracle optimizer is only as good as the statistics that it has to use. Tables need to be analyzed for reliable statistics so that the optimizer can make good excution decisions. I know from past experience that the max permutations setting needed to be set for 1500 because of the optimizer had a habit of going down all 80,000 permutations before returning an excution plan. In those cases it would have taken less time to execute a less efficient plan than to wait for a more optimal one that it took 80,000 permutations to find.<br />
+<br />
+Gilbert Guymer<br />
+Database Administrator<br />
+Lufkin Industries, Inc.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">12th May 2004, 16:40</div></div><div class="posttext">This is taken from this one query...buffer gets value is very big:<br />
+<br />
+<br />
+STATSPACK SQL report for Hash Value: 2747255744  Module:    ?  @xxxxx (TNS V1-V3)<br />
+<br />
+DB Name         DB Id    Instance     Inst Num Release     Cluster Host<br />
+------------ ----------- ------------ -------- ----------- ------- ------------<br />
+BAAN          3805179932 baan                1 9.2.0.5.0   NO      xxxxx<br />
+<br />
+ Start Id     Start Time         End Id      End Time       Duration(mins)<br />
+--------- ------------------- --------- ------------------- --------------<br />
+        4 11-May-04 14:13:33          5 11-May-04 14:13:53            0.33<br />
+<br />
+SQL Statistics<br />
+~~~~~~~~~~~~~~<br />
+-&gt; CPU and Elapsed Time are in seconds (s) for Statement Total and in<br />
+   milliseconds (ms) for Per Execute<br />
+                                                       % Snap<br />
+                     Statement Total      Per Execute   Total<br />
+                     ---------------  ---------------  ------<br />
+        Buffer Gets:       1,211,412        173,058.9   99.43<br />
+         Disk Reads:               0              0.0     .00<br />
+     Rows processed:               7              1.0<br />
+     CPU Time(s/ms):               7            948.6<br />
+ Elapsed Time(s/ms):               6            923.7<br />
+              Sorts:               0               .0<br />
+        Parse Calls:               0               .0<br />
+      Invalidations:               0<br />
+      Version count:               2<br />
+    Sharable Mem(K):             110<br />
+         Executions:               7<br />
+<br />
+SQL Text<br />
+~~~~~~~~<br />
+SELECT /*+ FIRST_ROWS */ a.t$cprj,a.t$item,c.t$eitm,c.t$indt,c.t<br />
+$revi,c.t$orno FROM baan.ttiedm101771 a,baan.ttiedm010770 b,baan<br />
+.ttiedm100770 c,baan.ttiedm310771 e WHERE c.t$eitm (+) = a.t$eit<br />
+m AND c.t$revi (+) = a.t$revi AND b.t$eitm (+) = a.t$eitm AND e.<br />
+t$orno (+) = c.t$orno AND ((e.t$osta = :1 AND c.t$orno != :2) OR<br />
+ (c.t$orno = :2 AND ((b.t$kitm = :3 AND (NOT EXISTS (SELECT d.t$<br />
+Refcntu FROM baan.ttiedm110770 d,baan.ttiedm010770 f WHERE ((f.t<br />
+$prdr = :4 AND d.t$cmtp = :3) OR d.t$cmtp = :4) AND f.t$eitm (+)<br />
+ = d.t$comp AND d.t$eitm = a.t$eitm AND d.t$revi = a.t$revi) OR<br />
+a.t$ebcp = :4)) OR (b.t$kitm = :4 AND a.t$eicp = :4)))) AND (c.t<br />
+$exdt = :5 OR (c.t$exdt &gt; :6)) AND a.t$cprj = :7 AND a.t$item =<br />
+:8 AND (c.t$indt &lt;= :9) AND c.t$rele = :4 AND b.t$prdr = :4 ORDE<br />
+R BY 1,2,3 DESC,4 DESC,5 DESC<br />
+<br />
+Plans in shared pool between Begin and End Snap Ids<br />
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~<br />
+Shows the Execution Plans found in the shared pool between the begin and end<br />
+snapshots specified.  The values for Rows, Bytes and Cost shown below are those<br />
+which existed at the time the first-ever snapshot captured this plan - these<br />
+values often change over time, and so may not be indicative of current values<br />
+-&gt; Rows indicates Cardinality, PHV is Plan Hash Value<br />
+-&gt; ordered by Plan Hash Value<br />
+<br />
+--------------------------------------------------------------------------------<br />
+| Operation                      | PHV/Object Name     |  Rows | Bytes|   Cost |<br />
+--------------------------------------------------------------------------------<br />
+--------------------------------------------------------------------------------<br />
+<br />
+End of Report</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">12th May 2004, 16:43</div></div><div class="posttext">Can you also post an explain plan?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">12th May 2004, 16:48</div></div><div class="posttext">Can this be formatted a bit? This is difficult too read and if you do it, we don't have to do it anymore :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">12th May 2004, 17:06</div></div><div class="posttext">explain plan as txt-file</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">12th May 2004, 17:22</div></div><div class="posttext">Do you still have info of the 8i environment?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">12th May 2004, 17:40</div></div><div class="posttext">explain plan from 8.0.5 attached.<br />
+<br />
+**********<br />
+edit:<br />
+We have tested moving these five tables to 8.1.6 database and it's working normally (sqltrace total=0.04 sec. ). Seems like &quot;sort&quot; is important in the beginning of query.....but how to add this sort to 9.2.0.5.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">13th May 2004, 05:27</div></div><div class="posttext">CONCATENATION<br />
+      0     NESTED LOOPS (OUTER)<br />
+<br />
+<br />
+I've never seen that in a Baan execution plan..<br />
+<br />
+What does your init.ora look like? Also did you use statspack to gather the statistics ( as opposed to analyze table ..estimate statistics.. ) <br />
+or did you just use it to generate the report?<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">13th May 2004, 08:53</div></div><div class="posttext">We have tried to analyze several ways (dbms_stat also). Nothing seems to help.<br />
+<br />
+Concatenate seems to be instead of &quot;filter&quot;. Same query run by sqlplus is attached. Now it's showing also rows.<br />
+134957       INDEX FULL SCAN DESCENDING TTIEDM100770$IDX3 (object id 25422) seems to be the problem. How to solve this?<br />
+<br />
+<br />
+************<br />
+edit:<br />
+If we  change hint FIRST_ROWS to ALL_ROWS it starts working ok.<br />
+We are waiting for Oracle-level solution...we don't want to change Baan code.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Martin</div><div class="date">13th May 2004, 09:48</div></div><div class="posttext">HI,<br />
+<br />
+The CONCATENATION was prepared by the optimizer, if a order by .... desc doesn't work. <br />
+<br />
+Please make sure, that all fields containing index3 are present in the select statement.<br />
+<br />
+Try to replace the order by clause from index3 to the fields, containing index3.<br />
+<br />
+If doesnt work proberly, set the following parameter in the init.ora and try again :<br />
+_or_expand_nvl_predicate =false<br />
+(please with the underscore at the beginning and only if you had set otimizer_features_enable &gt;= 8.1.7).<br />
+<br />
+martin</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">13th May 2004, 10:00</div></div><div class="posttext">Ok: we need to force the query to start on index 1 of tiedem101. The Oracle 8.0.5 proves that it was possible. But during time the optimizer changed (some times good some toimes bad).<br />
+<br />
+Maybe it helps when you change the line:and tiedm101.cmbb refers to tiedm100 <br />
+into and tiedm101.cmbb refers to tiedm100 unrefer skip <br />
+<br />
+This is allowed because the the relation between these 2 tables is mandatory because the  and tiedm100.rele = tiedm.rele.yes  <br />
+and tiedm101._index1 = {:i.cprj, :i.item} <br />
+forces a restriction on both tables.<br />
+<br />
+Is this generating a different plan?<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">13th May 2004, 13:07</div></div><div class="posttext">How about ora_storage?<br />
+If I change just this idx3 by changing index_opt value from 0214 to something else:<br />
+nested, iterative, filter?<br />
+<br />
+I'm not able to try right now.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">13th May 2004, 13:36</div></div><div class="posttext">I don't think this will help as the different ways of solving when having a &gt; or &gt;= over multiple fields like:<br />
+where table._index1 &gt;= {:a, :b}<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">14th May 2004, 10:03</div></div><div class="posttext">Problem seems to solved by Oracle parameter and value:<br />
+<br />
+ _sort_elimination_cost_ratio=5<br />
+<br />
+<br />
+Metalink:<br />
+&quot;&lt;BUG:3455017&gt; - Bad First_Rows Plan In 9204 <br />
+This Bug is closed as Not a Bug.&quot;</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">14th May 2004, 16:49</div></div><div class="posttext">Now I'm little bit worried of oraclebaan -process (server-side client process)memory consumption in overall. It use to be 3-7 per user with 8.0.5. Now it seems to be 50MB. Comparison done by using Glance process list res mem values. Any ideas?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">14th May 2004, 17:21</div></div><div class="posttext">Never look to RSS values as these show you the code pages that will be shared across processes. In this case you will see the memory usage for 1 user. The next user will use only a small additional amount of memory.<br />
+<br />
+Instead of looking to the RSS you should look at private memory. <br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">30th May 2004, 07:58</div></div><div class="posttext">Hi Guys,<br />
+<br />
+sorry for coming back on this too late, but here are my current discoveries:<br />
+<br />
+a) For the case of performance issues with EDM: Baan is a patch for that<br />
+<br />
+b) My origional problem was caused, because on two tables with 0 rows (!), indexes were missing. <br />
+<br />
+Hope other people can benefit from this<br />
+<br />
+regards<br />
+<br />
+Markus</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">1st June 2004, 11:15</div></div><div class="posttext">I got very good workaround from Baan. You can disable query hints by setting these environment variables to somewhere:<br />
+<br />
+ST_OPTIMIZER_HINT=,MT_OPTIMIZER_HINT=<br />
+<br />
+I put these settings into tabledef for table tdrpl100 (empty values) and my problem is solved. No more first_rows -hints. You can also try to put some &quot;modern&quot; values and try.<br />
+<br />
+We had two serious problems with 9.2.0.5 and now they are fixed. Thank's for help!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">1st June 2004, 11:20</div></div><div class="posttext">Indeed this can help to solve your specific problem.<br />
+<br />
+Two points of attention:<br />
+- These settings only work for 6.1 portingsets with Oracle.<br />
+- As you placed them in the tabledef. This can result in the startup of multiple database driver that can lead to unexpected results in other sessions.<br />
+<br />
+So, test, test and test before setting this in production.<br />
+<br />
+Kind regards,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">makiju</div><div class="date">1st June 2004, 12:12</div></div><div class="posttext">Yes, there was one customized session which used this table and &quot;count(*)&quot; in session code. This was not working, but fixed somehow...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">climafilho</div><div class="date">3rd July 2004, 23:20</div></div><div class="posttext">Hi Markus,<br />
+ your Porting Set is 06.06, at Baan site it's Portingset 6.1c.07.01 min. Something that I don't know?<br />
+I will migrate from 8.1.6 to 9.2.x... HPUX. Your system is ok now?<br />
+Lima.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">dave_23</div><div class="date">4th July 2004, 06:37</div></div><div class="posttext">6.1c.06.06 is the first to support Oracle 9i..<br />
+<br />
+but the 6.1c.07 is highly reccomended...<br />
+<br />
+Dave</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Markus Schmitz</div><div class="date">4th July 2004, 12:21</div></div><div class="posttext">We upgraded to the latest Portingset, but this had nothing got to do with our problem.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

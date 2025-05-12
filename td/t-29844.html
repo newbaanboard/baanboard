@@ -1,0 +1,140 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Check Table in Company, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Check Table in Company Tools Development" />
+	
+	<title>Check Table in Company [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Check Table in Company</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">_Ralph_</div><div class="date">12th January 2007, 18:21</div></div><div class="posttext">Hi all :) <br />
+<br />
+Could you explain me how to check if a table exists in a respective company??<br />
+<br />
+I try to use the dll <br />
+<br />
+ttadvtablecomp <br />
+table.in.compnr(string table, long company)<br />
+<br />
+but its always returns 0, even for unknow tables.:( <br />
+<br />
+Could you give me some examples?:D <br />
+<br />
+regards<br />
+<br />
+ralph</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">12th January 2007, 20:55</div></div><div class="posttext">Well I do not know about that function, but what I did in one program was to use dynamic sql to check fields and count rows in a table.  I can not remember if it was the parse or the fetch that returned an error when the table was not allocated.  You can play with this and just a thought.  There is probably something easier, but this could hold you over until a real expert shows up.  Too many libraries for me to know what is where.<br />
+<br />
+function domain tcbool field_is_used()<br />
+{<br />
+	string		sql(120)<br />
+	long		sql_id<br />
+	domain	tcbool	found<br />
+<br />
+| First check to make sure table has not expired<br />
+	select	ttadv420.expi<br />
+	from	ttadv420<br />
+	where	ttadv420._index1 = {:ttadv422.cpac, :ttadv422.cmod, :ttadv422.flno,<br />
+				:ttadv422.vers, :ttadv422.rele, :ttadv422.cust}<br />
+	and	ttadv420._compnr = 0<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	selectempty<br />
+	| Not found in here the return false. Table not used<br />
+		return(false)<br />
+	endselect<br />
+	if ttadv420.expi = ttyeno.yes then<br />
+		return(false)<br />
+	endif<br />
+<br />
+| Errors should now return false - so unallocated tables will be skipped.<br />
+	error.bypass = 1<br />
+	found = false<br />
+ 	sql = &quot;select &quot; &amp; table.field &amp; &quot; from &quot; &amp; table.name<br />
+	sql = sql &amp; &quot; where &quot; &amp; table.field  &amp; &quot; &lt;&gt; &quot;&quot;&quot;&quot; as set with 1 rows&quot;<br />
+	sql_id = sql.parse(sql)<br />
+	sql.exec(sql_id)<br />
+	while true<br />
+		on case sql.fetch(sql_id)<br />
+			case eendfile:<br />
+				found = false<br />
+				break<br />
+			case 0:<br />
+				found = true<br />
+				break<br />
+			default:<br />
+				found = false<br />
+		endcase<br />
+		break<br />
+	endwhile<br />
+	error.bypass = 0<br />
+	sql.break(sql_id)<br />
+	sql.close(sql_id)<br />
+	return(found)<br />
+}<br />
+<br />
+|******************************************************************************<br />
+| Use dynamic sql to count rows on a table.<br />
+|******************************************************************************<br />
+function double count_table_rows()<br />
+{<br />
+	string		sql(120)<br />
+	long		sql_id<br />
+	double		rows<br />
+<br />
+	<br />
+	rows = 0<br />
+	error.bypass = 1<br />
+	sql = &quot;select count(*):1 from &quot; &amp; table.name<br />
+	sql_id = sql.parse(sql)<br />
+	if sql_id&lt;&gt;0 then<br />
+		sql.select.bind(sql_id, 1, rows)<br />
+		sql.exec(sql_id)<br />
+		while true<br />
+			on case sql.fetch(sql_id)<br />
+				case eendfile:<br />
+					break<br />
+				case 0:<br />
+					break<br />
+				default:<br />
+			endcase<br />
+			break<br />
+		endwhile<br />
+		sql.break(sql_id)<br />
+		sql.close(sql_id)<br />
+	endif<br />
+	error.bypass = 0<br />
+	return(rows)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">12th January 2007, 22:24</div></div><div class="posttext">Ralph,<br />
+<br />
+You can use Mark's idea of using dynamic SQL and check the return value for sql.fetch() for 506 or ENOTABLE to determine if the table physically exists in the database or not.<br />
+<br />
+Alternatively, you can use the BaaN standard session: ttaad4232m000 - Check Tables</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Hitesh Shah</div><div class="date">13th January 2007, 17:14</div></div><div class="posttext">If ur purpose is to create  / drop the table based on it's existence , then u can use these function along with error.bypass = 1 (as indicated in Mark's code ) to go ahead . It will work .</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">_Ralph_</div><div class="date">16th January 2007, 19:52</div></div><div class="posttext">Thank you all<br />
+<br />
+it works!:)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

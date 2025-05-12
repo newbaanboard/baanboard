@@ -1,0 +1,188 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Nested API Calls, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Nested API Calls Tools Development" />
+	
+	<title>Nested API Calls [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Nested API Calls</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">19th May 2021, 19:48</div></div><div class="posttext">I am having an issue working with a new bespoke session (A), which calls another bespoke session (B), which in turn calls 3 other (standard) sessions via AFS.  Session B works fine on its own.<br />
+<br />
+My expectation was that when session A calls session B, session B would run the 3 standard sessions, assemble any messages it might encounter during the process and finish, returning control to session A, which could then continue...<br />
+<br />
+Instead, session A calls session B, but as soon as session B calls its first session via AFS, control returns to session A, even though B hasn't finished processing.<br />
+<br />
+When session A closes session B with 'stpapi.end.session(&quot;gbpcf1203m000&quot;, error)', it then waits for session B to finish and continues.  However, any error messages cannot then be retrieved.<br />
+<br />
+(Session B is using the following to initiate each of its 3 sessions:<br />
+stpapi.put.field(&quot;gbpcf1203m000&quot;, &quot;f.machine.segment.1&quot;, i.item(1; 9))<br />
+<br />
+As soon as the first of these commands is executed, control returns to session A.<br />
+<br />
+My question is, why does session A not wait until session B is finished?<br />
+<br />
+Thanks in advance!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">20th May 2021, 10:41</div></div><div class="posttext">Further to this, I would add that both sessions are processing sessions with type 4 forms.  Session A executes the 'Continue' process in session B with:<br />
+stpapi.form.command(&quot;gbpcf1203m000&quot;, 2, &quot;exec.cont.process&quot;, error)<br />
+<br />
+Session A then waits  for session B (I was expecting session B to complete before handing control  back to session A), but as soon as session B inputs a field in session C, session A continues to the 'stpapi.end.session' command, but waits until session B has finished before continuing.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">24th May 2021, 16:14</div></div><div class="posttext">I do not recall seeing that happen - I know I have had to do some weird things around API.  So a couple of questions does session A control both B and C or session a calling another session which then uses API code for session C.  Not sure I get exactly what is being called and how.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">25th May 2021, 11:33</div></div><div class="posttext">Hi Mark.  Thanks for your response. Session B (gbpcf1203m000) actually calls 3 sessions via API calls:<br />
+- tipcs2220m000 (Generate Project Structure for Product Variant)<br />
+- tipcs3250m000 (Calculate Cost Prices by Project)<br />
+- tisfc1203m000 (Reprocess Production Orders)<br />
+<br />
+Session B works well as a stand-alone session (and has done for many years).<br />
+<br />
+Session A is a new session that reads an input file and then for each line in the file, calls session B via API, fills in the input fields and presses 'Continue'.  Session B should then process the 3 sessions above itself via its own API calls.<br />
+<br />
+What is happening is - session A calls session B, fills in fields, then initiates the 'Continue' process:<br />
+- stpapi.form.command(&quot;gbpcf1203m000&quot;, 2, &quot;exec.cont.process&quot;, error)<br />
+<br />
+All good so far...<br />
+<br />
+As soon as session B enters its first API call:<br />
+- stpapi.put.field(&quot;tipcs2220m000&quot;, &quot;regenerate&quot;, str$(fs.yes))<br />
+<br />
+...session A continues (with 'fs.mess.code = stpapi.get.mess.code(&quot;gbpcf1203m000&quot;, error)' etc.), until it reaches:<br />
+- stpapi.end.session(&quot;gbpcf1203m000&quot;, error)<br />
+<br />
+At which point it waits until session B completes and then it continues.<br />
+<br />
+The problem is, it's then too late to retrieve and error messages that might have been encountered in session B.<br />
+<br />
+[Since session B sets an application lock before processing its 3 sessions, I am considering utilising 'suspend' in session A and checking for the lock being removed, before trying to retrieve any messages then closing session B, but I am mystified as to why it is behaving this way.]</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">25th May 2021, 16:43</div></div><div class="posttext">Hi Mark.  Thanks again for your response.<br />
+<br />
+I have solved this with a workaround, as suggested above, by monitoring the called session (B) via the application lock that it has set and waiting for it to finish.  The messages are then retrieved successfully by session A.  It works, but it's still a mystery as to why session A continues whilst session B is still running, as soon as the latter has called session C via API.<br />
+<br />
+Anyway, here's a snippet of the code that I used:<br />
+<br />
+	|# Continue Process<br />
+	|<br />
+	stpapi.form.command(&quot;gbpcf1203m000&quot;, 2, &quot;exec.cont.process&quot;, fs.error)<br />
+<br />
+	|* Called program (gbpcf1203m000) returns control here before completion (at first API call), so<br />
+	|* wait until it has completed processing and has removed its application lock<br />
+	|<br />
+	amendment.complete = false<br />
+	while not amendment.complete<br />
+		if	mc.spec.change.applic.lock.present(i.item) then<br />
+			suspend(5000)		|5 seconds<br />
+		endif<br />
+	endwhile<br />
+<br />
+	last.mess.code = &quot;&quot;<br />
+	fs.mess.code = stpapi.get.mess.code(&quot;gbpcf1203m000&quot;, fs.mess)<br />
+	fs.msg.count = 0<br />
+	if	not isspace(fs.mess) then<br />
+		while	not isspace(fs.mess)<br />
+			|Report message if 'fs.mess' not empty		<br />
+			|<br />
+			if	fs.msg.count &gt; 0 then<br />
+				fs.mess.code = stpapi.get.mess.code(&quot;gbpcf1203m000&quot;, fs.mess)<br />
+			endif<br />
+			if	(not isspace(fs.mess.code)) and<br />
+				strip$(fs.mess.code) &lt;&gt; strip$(last.mess.code) then<br />
+				report.as.fs.message(strip$(fs.mess))<br />
+			endif<br />
+			last.mess.code = fs.mess.code<br />
+			fs.msg.count = 	fs.msg.count + 1<br />
+			if	isspace(fs.mess) then<br />
+				break<br />
+			endif<br />
+		endwhile<br />
+	endif<br />
+<br />
+	stpapi.end.session(&quot;gbpcf1203m000&quot;, fs.error)<br />
+<br />
+<br />
+function domain tcbool mc.spec.change.applic.lock.present(	domain	tcitem	i.item)<br />
+{<br />
+	curr.compnr = get.compnr()<br />
+	mc.spec.chg.appl.lock = &quot;gbpcf1203m000_&quot; &amp; edit$(get.compnr(),&quot;999&quot;) &amp; &quot;_&quot; &amp; strip$(i.item)<br />
+<br />
+	select	ttadv998.*<br />
+	from	ttadv998<br />
+	where	ttadv998._index1 = {:mc.spec.chg.appl.lock, :curr.compnr}<br />
+	and	ttadv998._compnr = &quot;000&quot;<br />
+	as set with 1 rows<br />
+	selectdo<br />
+		return(true)<br />
+	endselect<br />
+<br />
+	amendment.complete = true<br />
+	return(false)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th May 2021, 17:13</div></div><div class="posttext">Good solution.  I was looking through some of my code yesterday - I found where I did some pauses and I did run into where I did a lock on some sessions to prevent others from trying to process same work order.  I keep thinking it has to do with how session B is started, but not 100% sure.  You could try making a session b that is a child session versus a main session (same forms, scripts and everything just a new session type).  But no promises that will work also.  <br />
+<br />
+I know in a couple of places I gave them the opportunity in the session to load and process a file(with a button to get the file) or they could manually enter records to process one at a time.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">25th May 2021, 19:16</div></div><div class="posttext">Thanks again for you time on this.  Yes, making session B a child session might have worked - but I didn't really want to have to replicate it.<br />
+<br />
+Anyway, all works well now.  APIs can indeed deliver unpredictable behaviour sometimes, so I always need patience when working with them!<br />
+<br />
+Cheers.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">25th May 2021, 22:35</div></div><div class="posttext">LOL - patience and creativity is definitely needed with API coding. :)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">andy2609</div><div class="date">27th May 2021, 20:40</div></div><div class="posttext">Hi Mark<br />
+<br />
+I managed to solve this in the proper way.  Obvious really (face palm) - by the use of 'stpapi.handle.subproc' for each session that is called by session B.<br />
+<br />
+This ensures session A waits until all session B completes, despite calling any / all of the specified programs.<br />
+<br />
+Here's my snippet:<br />
+stpapi.put.field(&quot;gbpcf1203m000&quot;, &quot;f.machine.segment.1&quot;, i.item(1; 9))<br />
+stpapi.put.field(&quot;gbpcf1203m000&quot;, &quot;f.machine.segment.2&quot;, i.item(10; 38))<br />
+<br />
+|# Session gbpcf1203m000 calls the following sub-processes by Function Server:<br />
+|  - tipcs2220m000 (Generate Project Structure for Product Variant)<br />
+|  - tipcs3250m000 (Calculate Cost Prices by Project)<br />
+|  - tisfc1203m000 (Reprocess Production Orders)<br />
+|<br />
+|  The following instructions ensure that control will not be returned to<br />
+|  this calling program until the child processes have completed<br />
+|<br />
+stpapi.handle.subproc(&quot;gbpcf1203m000&quot;, &quot;tipcs2220m000&quot;, &quot;ignore&quot;)<br />
+stpapi.handle.subproc(&quot;gbpcf1203m000&quot;, &quot;tipcs3250m000&quot;, &quot;ignore&quot;)<br />
+stpapi.handle.subproc(&quot;gbpcf1203m000&quot;, &quot;tisfc1203m000&quot;, &quot;ignore&quot;)<br />
+<br />
+|# Continue Process<br />
+|<br />
+stpapi.form.command(&quot;gbpcf1203m000&quot;, 2, &quot;exec.cont.process&quot;, fs.error)<br />
+<br />
+fs.mess.code = stpapi.get.mess.code(&quot;gbpcf1203m000&quot;, fs.error)<br />
+stpapi.end.session(&quot;gbpcf1203m000&quot;, fs.error)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">1st June 2021, 01:11</div></div><div class="posttext">Thanks for posting a final solution.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

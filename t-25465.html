@@ -1,0 +1,89 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="apiserver doesn't exit (BIVc4 sp18), baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] apiserver doesn't exit (BIVc4 sp18) AFS/DDC/OLE: Function servers" />
+	
+	<title>apiserver doesn't exit (BIVc4 sp18) [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; apiserver doesn't exit (BIVc4 sp18)</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">HennySol</div><div class="date">26th October 2005, 11:10</div></div><div class="posttext">Hi,<br />
+<br />
+I developed importing functionality (purchase invoices) using a little bit AFS (a dummy query with a report containing the importing functionality). To make it really work I had to do some hardcoded table updates. It all worked nicely in sp11. Input was read from ascii files.<br />
+<br />
+After upgrading to sp18 I stumbled on the two following -silly- problems:<br />
+<br />
+1. In case the ascii file contains two invoices -in some cases- the first document is processed oke and the first afs call related to the processing of the second document will result in a hang situation (the report script is stuck; examining the process list of the bshell reveals nothin unusual (no sessions are waiting for input etcetera)). <br />
+Notes:<br />
+- 'in some cases': I know what input to provide to reproduce the hang situation; in other cases the report script will process and end without any problems.<br />
+- when I remove the first document from the ascii file and restart the report the second document will be processed correctly. I.e. there's no functional problem.<br />
+<br />
+2. 'In some cases' the ostpapiserv program will not end. I know what data to provide to reproduce this situation. Note that the ostpapiserver didn't exist in sp11. In case the apiserv program ends oke I can see the following message in the afs.log: 18dll-&gt;serv (afsscript: exit(18)). In case the ostpapiserv doen't end this message wil not appear.<br />
+<br />
+Anyone having a suggestion? <br />
+<br />
+Henny</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th October 2005, 13:25</div></div><div class="posttext">We had several problems with SP18.  We did get some new tools and stpapi patches from Baan.  On top of that with SP18 SSA had started incorporating their warehouse product.  This caused us a lot of problems in the receiving area.  Baan fixed the code for the sessions I identified - most of it had to do with lot controlled items.  I also had to redesign my piece to actually get lot controlled items to work again.  I would report this to Baan as soon as possible. Currently we are testing service pack 19.<br />
+<br />
+If you have source you might be able to trace the new problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">HennySol</div><div class="date">27th October 2005, 16:42</div></div><div class="posttext">Hi Mark,<br />
+<br />
+For your information: I installed the latest version (solution 205876). So far this doesn't seem to make any difference.<br />
+<br />
+Henny</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">27th October 2005, 18:13</div></div><div class="posttext">What porting set - we use 6.1c.07.04.  It seems to me someone posted something in this forum about problems with a porting set.  No promises this would solve the problem - over the years it seems like something different with each SP, one reason I recommend contacting SSA.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">HennySol</div><div class="date">28th October 2005, 13:18</div></div><div class="posttext">Hi Mark,<br />
+<br />
+I already posted a call at SSA describing my problem. So far I didn't receive any answer. The portingset should be oke I guess:<br />
+<br />
+Portingset  : 6.1c.07.06<br />
+Port no.    : PA.2638<br />
+Date        : Tue Nov 30 16:39:29 MET 2004<br />
+Uname       : HP-UX torka B.11.00 A 9000/861 2016171322 two-user license<br />
+Machine-id  : HP9000_PA_8000<br />
+OS-release  : HPUX11.00<br />
+<br />
+I 've found a work-around: If I split my ascii file data in a number of ascii files (to be precise: for each separate processing stream in the report script a separate file) the processing ends oke (apiserver exits!)<br />
+<br />
+The only problem remaining is the processing of purchase invoices with a ttyp that is 'PurchaseOrderRelated' (if you know what I mean). The problem there is the following:<br />
+1. If I enter the receipts via AFS in tfacp1131/1132s000 and subsequently approve via tfacp1140 my first invoice is processed oke (batch is balanced and can be processed)<br />
+2. If the ascii file contains another invoice to be processed the first AFS call to tfacp1131 for the second invoice will result in a hang situation.<br />
+<br />
+This problem I can work around by splitting once more the ascii files for this type of documents: If each ascii file contains only one invoice the processing is oke.<br />
+<br />
+So I can make it work; only thing is: my cheeks flush if I have a look at the coding that is necessary. It's not very elegant to say the least.<br />
+<br />
+I wonder if my problems could be caused by the thing you mentioned (SSA incorporating their warehouse product in sp18). I can imagine that tfacp1131/1132 are also changed because of this. Agree?<br />
+<br />
+Kind regards,<br />
+<br />
+Henny</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">28th October 2005, 16:22</div></div><div class="posttext">I can not really say if that is the case - so far I have not had any problems in the tf package.  I do know where all the warehouse stuff went - I only have a few sessions with source code.  Luckily the lot controlled session was one.  <br />
+<br />
+Another thing I have done in the past:<br />
+Have you tried processing more than one record in debug mode?  stepping through each line - for two records.  I have had api code work this method but not work when a normal compile is done.  In some of these cases I have added a suspend statement to get them to work.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

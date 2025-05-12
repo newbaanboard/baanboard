@@ -1,0 +1,96 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="How to use add.set to create a new record, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] How to use add.set to create a new record Tools Development" />
+	
+	<title>How to use add.set to create a new record [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; How to use add.set to create a new record</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">tion1976</div><div class="date">7th September 2023, 18:41</div></div><div class="posttext">I want to open a session from another and to import a variable from the parent session.<br />
+Then I want to search for a record in the main table of the called session and if it is not present in the table, to be able to create it by using choice.add.set, or something.<br />
+However, the line is not enabled for user input.<br />
+What can I do?<br />
+Code is below:<br />
+choice.add.set:<br />
+before.choice:<br />
+	new.record = true<br />
+	if not isspace(enno) then<br />
+		tiitt231.enno = enno<br />
+		display.all()<br />
+	endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">11th September 2023, 13:22</div></div><div class="posttext">I want to open a session from another and to import a variable from the parent session.<br />
+Then I want to search for a record in the main table of the called session and if it is not present in the table, to be able to create it by using choice.add.set, or something.<br />
+However, the line is not enabled for user input.<br />
+What can I do?<br />
+Code is below:<br />
+choice.add.set:<br />
+before.choice:<br />
+	new.record = true<br />
+	if not isspace(enno) then<br />
+		tiitt231.enno = enno<br />
+		display.all()<br />
+	endif<br />
+Something similar to what you intend I have in this piece of code:choice.zoom:<br />
+after.choice:<br />
+	if ( ( not tcibd915.attributes.present(tcibd914.cpln)) or<br />
+	     ( not all.tcibd911.in.915(tcibd914.cpln)) ) and<br />
+	   not isspace(g.cpln) then<br />
+		g.do.update = 1<br />
+		update.occ()	| Trigger 4GL to perform update action.<br />
+		execute(update.db)<br />
+	endifThe tcibd915.attributes.present and all.tcibd911.in.915 functions check the completeness of a record in 915 based on the setup, for a selected product line. The update.occ will trigger the 4GL update flag so on update.db it will execute the choice update.db:choice.update.db:<br />
+before.choice:<br />
+	update.occ()		| Trigger 4GL to perform update action.<br />
+	| 4GL sets db.retry.point just after the before.choice<br />
+	| Prepare updates in the &quot;normal&quot; flow and execute them in the<br />
+	| after.choice section without extra retry points and commits. Just call<br />
+	| execute(update.db)<br />
+after.choice:<br />
+	| All additional update actions must be initiated through functions here<br />
+	if g.do.update = 1 then		| make 914 + 915 current<br />
+		warn.outside.transaction = &quot;&quot;<br />
+		on.main.table(fill.tcibd914, g.cpln, g.item)<br />
+		g.do.update = 0<br />
+	endif<br />
+	| 4GL will perform the commit transaction after this section.<br />
+<br />
+after.update.db.commit:<br />
+	| now the STP commit has been done. New transactions must have their own<br />
+	| db.retry.point() and commit.transaction().<br />
+	if not isspace(warn.outside.transaction) then<br />
+		mess(&quot;tcgenstring&quot;, 1, warn.outside.transaction)<br />
+		if pos(warn.outside.transaction, &quot;RESTART&quot;) &lt;&gt; 0 then<br />
+			exit(&quot;RESTART&quot;)<br />
+		endif<br />
+		warn.outside.transaction = &quot;&quot;<br />
+	endif<br />
+	if (not isspace(g.titl)) and<br />
+	   ( all.mandatory.values.filled.915(tcibd914.cpln, tcibd914.item) or<br />
+	     ( tcibd914.txtn &lt;&gt; 0 and<br />
+	       not tcibd915.attributes.present(tcibd914.cpln) ) ) then<br />
+		enable.commands(&quot;recreate.texts&quot;)<br />
+	else<br />
+		disable.commands(&quot;recreate.texts&quot;)<br />
+	endif<br />
+	clean.mess()<br />
+Where the fill.tcibd914 function will insert the new records but the errors are cached in the variable warn.outside.transaction which are not shown inside but outside the transaction of 4GL. They may be reason to restart the session instead of just refresh the data.<br />
+<br />
+Maybe that path can help you somewhat further.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="AFS and Purchasing module, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] AFS and Purchasing module AFS/DDC/OLE: Function servers" />
+	
+	<title>AFS and Purchasing module [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; AFS and Purchasing module</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">fbernaus</div><div class="date">9th June 2004, 18:44</div></div><div class="posttext">Hi all,<br />
+I would really thanked who can help me with this matter:<br />
+We want to develope a program using AFS, which can realize the session tdpur4120m000 (related to the Purchasing module).We have 2 problems on doing this:<br />
+<br />
+1)We don´t know how to pass the order number with we want to work. We have tried on use the &quot;put&quot; AFS function directly with the table_oracle.orno field. But, no way. So we tried with the orno.form field, but this way the Baan object return value is always 1, although we pass order numbers that don´t exist!<br />
+<br />
+2)Supossing we have solved the first problem, how could we register the input of an specified article of the order?<br />
+<br />
+If you have some experience on doing this, I would thank you if you share it. Thanks for your help!<br />
+Vanessa</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">9th June 2004, 20:06</div></div><div class="posttext">Vanessa,<br />
+<br />
+Below is some code you can play with - I do not promise that it will work for you.  Depends on tools release and session objects.  These could be different between our systems.  What I do is I check to see if an existing receipt is available for the PO, if yes I just call the modify receipt routine, if not then I create a receipt for all lines on a PO, then go and modify the specific line they are receiving. <br />
+<br />
+Mark<br />
+<br />
+<br />
+|******************************************************************************<br />
+|* API Code for creating a new receipt<br />
+|******************************************************************************<br />
+function extern domain tcrcno create_receipt(	domain	tcrcno		receipt.number,<br />
+				domain  tcorno		purchase.order,<br />
+				domain	tcpono  	purchase.line,<br />
+				domain	tcqiv1		packingslip.qty,<br />
+				domain	tcqiv1		received.qty,<br />
+				domain	tcdate		received.date,<br />
+				domain	tdltc.clot	purchase.lot,<br />
+				domain	tcdate		purchaselot.date,<br />
+				domain	tcconv		conv.factor,<br />
+				domain	tccuni		purchase.unit,<br />
+				domain	tcitem		purchase.item,<br />
+				ref     string          msg())<br />
+{<br />
+	string	dummy(6)<br />
+<br />
+| Creating a receipt always use 0 for the tdpur045.reno field.<br />
+	msg = &quot;&quot;<br />
+	stpapi.handle.subproc(&quot;tdpur4120m000&quot;,&quot;tdpur4224s000&quot;,&quot;add&quot;)<br />
+ 	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,str$(0))<br />
+ 	stpapi.change.view(&quot;tdpur4120m000&quot;,msg)<br />
+	if not isspace(msg) then<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return(receipt.number)<br />
+	endif<br />
+<br />
+| Always use tdpur4224s000 to create receipt for all lines.<br />
+   	stpapi.put.field(&quot;tdpur4224s000&quot;,&quot;form.orno&quot;,str$(purchase.order))<br />
+  	stpapi.continue.process(&quot;tdpur4224s000&quot;,msg)<br />
+ 	stpapi.end.session(&quot;tdpur4224s000&quot;)<br />
+	if not isspace(msg) and strip$(msg)&lt;&gt; &quot;Process is gone&quot; then<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return(receipt.number)<br />
+	endif<br />
+	msg = &quot;&quot;<br />
+	<br />
+| Try a pause to make sure receipt is completed.	<br />
+	suspend(3000)<br />
+<br />
+| Get the receipt so you can use the modify receipt to update. the field.<br />
+ 	stpapi.get.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,dummy)<br />
+	receipt.number = val(dummy)<br />
+	stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+	<br />
+| Verify this receipt number has this PO and line on it.<br />
+	select	tdpur045.reno<br />
+	from	tdpur045<br />
+	where	tdpur045._index6 = {:receipt.number,:purchase.order,:purchase.line}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	selectempty<br />
+		receipt.number = 0<br />
+	endselect<br />
+	if receipt.number = 0 then<br />
+		msg = &quot;Receipt failed.&quot;<br />
+		return(0)<br />
+	endif<br />
+	<br />
+| Now go modify the new receipt.	<br />
+	modify_receipt(	receipt.number,<br />
+			purchase.order,<br />
+			purchase.line,<br />
+			packingslip.qty,<br />
+			received.qty,<br />
+			received.date,<br />
+			purchase.lot,<br />
+			purchaselot.date,<br />
+			conv.factor,<br />
+			purchase.unit,<br />
+			purchase.item,<br />
+			msg)<br />
+	return(receipt.number)<br />
+}<br />
+|******************************************************************************<br />
+|* API Code for modifying an existing receipt.<br />
+|******************************************************************************<br />
+function extern modify_receipt(	domain	tcrcno		receipt.number,<br />
+				domain  tcorno		purchase.order,<br />
+				domain	tcpono  	purchase.line,<br />
+				domain	tcqiv1		packingslip.qty,<br />
+				domain	tcqiv1		received.qty,<br />
+				domain	tcdate		received.date,<br />
+				domain	tdltc.clot	purchase.lot,<br />
+				domain	tcdate		purchaselot.date,<br />
+				domain	tcconv		conv.factor,<br />
+				domain	tccuni		purchase.unit,<br />
+				domain	tcitem		purchase.item,<br />
+				ref     string          msg())<br />
+{<br />
+		long	rc, cnt<br />
+		string	dummy(6), error_code(16)<br />
+	domain	tcorno	get.orno<br />
+	domain	tcpono	get.pono<br />
+	<br />
+	select	tiitm001.stgu, tiitm001.kitm<br />
+	from	tiitm001<br />
+	where	tiitm001._index1 = {:purchase.item}<br />
+	as set with 1 rows<br />
+	selectdo<br />
+	endselect<br />
+	<br />
+	msg = &quot;&quot;<br />
+	boi.call = &quot;tdboidll0011.Create&quot;<br />
+ 	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.reno&quot;,str$(receipt.number))<br />
+  	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.orno&quot;,str$(purchase.order))<br />
+ 	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.pono&quot;,str$(purchase.line))<br />
+	rc = stpapi.find(&quot;tdpur4120m000&quot;,msg)<br />
+	if not isspace(msg) or rc&lt;&gt;1 then<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return<br />
+	endif<br />
+	stpapi.get.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.orno&quot;,dummy)<br />
+	get.orno = val(dummy)<br />
+	stpapi.get.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.pono&quot;,dummy)<br />
+	get.pono = val(dummy)<br />
+<br />
+| Prepare to handle lot controlled items.	<br />
+	if ((not isspace(purchase.lot) or conv.factor&gt;1 or  purchase.unit &lt;&gt; tiitm001.stgu)<br />
+	and (tiitm001.kitm=tckitm.purchase or tiitm001.kitm = tckitm.manufacture))	then<br />
+		stpapi.handle.subproc(&quot;tdpur4120m000&quot;,&quot;tdilc4113s000&quot;,&quot;add&quot;)<br />
+	endif<br />
+	<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.diqu&quot;,str$(packingslip.qty))<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.date&quot;,str$(received.date))<br />
+	stpapi.put.field(&quot;tdpur4120m000&quot;,&quot;tdpur045.dqua&quot;,str$(received.qty))<br />
+	stpapi.update(&quot;tdpur4120m000&quot;,1,msg)<br />
+	if not isspace(msg) or rc&lt;&gt;1 then<br />
+		if not isspace(purchase.lot) or conv.factor&gt;1 then<br />
+			stpapi.end.session(&quot;tdilc4113s000&quot;)<br />
+		endif<br />
+		stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+		return<br />
+	endif<br />
+<br />
+| Need to handle the conversion factor.<br />
+	if ((not isspace(purchase.lot) or conv.factor&gt;1 or  purchase.unit &lt;&gt; tiitm001.stgu)<br />
+	and (tiitm001.kitm=tckitm.purchase or tiitm001.kitm = tckitm.manufacture))	then<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.clot&quot;,purchase.lot)<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.date&quot;,str$(purchaselot.date))<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.qstr&quot;,str$(received.qty*conv.factor))<br />
+		stpapi.put.field(&quot;tdilc4113s000&quot;, &quot;tdilc402.qstc&quot;,str$(received.qty*conv.factor))<br />
+		stpapi.insert(&quot;tdilc4113s000&quot;,1,msg)<br />
+		error_code = stpapi.get.mess.code(&quot;tdilc4113s000&quot;,msg)<br />
+		if strip$(error_code) = &quot;tdilc40062&quot; then<br />
+			msg = &quot;&quot;<br />
+		endif<br />
+		stpapi.end.session(&quot;tdilc4113s000&quot;)<br />
+	endif<br />
+ 	stpapi.end.session(&quot;tdpur4120m000&quot;)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">fbernaus</div><div class="date">11th June 2004, 09:48</div></div><div class="posttext">Thank you very much, we will try that.<br />
+Vanessa</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

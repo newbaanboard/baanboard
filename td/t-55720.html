@@ -1,0 +1,98 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Mulit-occ session takes very-very long time to complete, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Mulit-occ session takes very-very long time to complete Tools Development" />
+	
+	<title>Mulit-occ session takes very-very long time to complete [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Mulit-occ session takes very-very long time to complete</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Amit_Jain</div><div class="date">24th April 2009, 15:04</div></div><div class="posttext">Dear Board Member<br />
+<br />
+This session takes very long time to execute, even for fewer selected records. I explored the script and could only figure out(or guess) that it is due to do.all.occ, db.retry points. I am posting the script, looking for some urgent help from you all<br />
+<br />
+A promt reply/solution would be a great help<br />
+<br />
+Thanks and regards</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Amit_Jain</div><div class="date">25th April 2009, 08:59</div></div><div class="posttext">please Reply....!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">25th April 2009, 12:53</div></div><div class="posttext">Compile the script with the profile option; this allows you to obtain a printing of all function calls and the execution time related to them. With this report you can easily verify the number of function calls and the run time, so you can analyze the script by yourself to know where there is the problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Amit_Jain</div><div class="date">25th April 2009, 15:20</div></div><div class="posttext">This session was giving Error 201 previously. If we run it for 4 records, it works fine, but the moment we run it for more than 4 records it gave error 201. <br />
+<br />
+I played with db.retry.point and commit.transaction. the error stoped but it started taking very very long time to complete if we select some 4-6 records.<br />
+<br />
+Any simpler solution would be greatly appreciated</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">27th April 2009, 09:21</div></div><div class="posttext">Error 201 means that the record changed when you tried to do an update on it after a delayed lock. In this case the problem seems that you, by example, read a record from table A, do something on it, after that it comes a commit.transaction that closes ALL the transactions you have done in this moment (even the ones you wouldn't expect to close), and after that you do another update in this table, so that the record is different from the starting record.  <br />
+Debugging the script and tracking the db retries could help you to find the problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ARijke</div><div class="date">27th April 2009, 11:22</div></div><div class="posttext">Try to have the db.retry.point() and the commit.transaction() as pairs on the same level.<br />
+In function generate.order.1() you have multiple commits with just 1 retry point.<br />
+In function update.order you do not have any retry point.<br />
+You can do the update on tskci015 within the same transaction, so remove the commit from update.order(). <br />
+<br />
+This would be better:<br />
+function generate.order.1()<br />
+{<br />
+...	db.retry.point()<br />
+	select	tskci019.*<br />
+	from	tskci019 for update<br />
+...<br />
+	selectdo<br />
+		tskci019.ffno = tskci019.ffno + 1<br />
+		db.update(ttskci019, db.retry)<br />
+		on.main.table(update.order)<br />
+		order.count = order.count + 1<br />
+                commit.transaction()	|Amit now<br />
+	selectempty<br />
+...<br />
+		db.insert(ttskci019, db.retry)<br />
+		on.main.table(update.order)<br />
+		order.count = order.count + 1<br />
+		commit.transaction()	|	Amit	24-04-09 commented now<br />
+	endselect<br />
+}<br />
+<br />
+Secondly use with retry. From the help:<br />
+The WITH RETRY option in queries will prevent re-execution the already-processed records in case of update retries.<br />
+Example<br />
+The option WITH RETRY must be used in the following situation:<br />
+db.retry.point()<br />
+select  table.*<br />
+from    table for update<br />
+where   table.fld1 inrange :fld1.f and :fld1.t<br />
+order by table._index1 with retry<br />
+selectdo<br />
+    table.amount = table.amount + amount<br />
+    db.update(ttable, db.retry)<br />
+    commit.transaction()<br />
+endselect<br />
+<br />
+Explenation<br />
+<br />
+The WITH RETRY option is needed, because of the accumulation of the variable table.amount.<br />
+Say, there are two records in the range to be updated. If the commit on the first was done right, and the second fails (retry), the first record is not updated again when the WITH_RETRY option is implemented. <br />
+If the WITH_RETRY is not implemented, the first record is updated again and the value of table.amount variable will increase by twice the value of the variable amount.<br />
+The WITH RETRY option must be implemented in all situations where the commit.transaction() or abort.transaction() is implemented within the selectdo part.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Slow query even when using index, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Slow query even when using index Tools Development" />
+	
+	<title>Slow query even when using index [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Slow query even when using index</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">jcook331</div><div class="date">11th October 2005, 03:58</div></div><div class="posttext">I am trying to bring back the Conversion Factor from tiitm004 so I can calculate the Net Quantity.  Even though I'm using the index to search it still takes a relatively long time to come back (there are just under 4000 record in the table).  I think I remember something about using blank strings in an index but don't remember exactly what that was. Does anyone have any suggestions to speed it up?  Thanks<br />
+<br />
+select tiitm004.*<br />
+from tiitm001<br />
+where tiitm004._index1 = {&quot;&quot;, &quot;&quot;, &quot;&quot;, :base.unit, :lflfa361.cuni}<br />
+selectdo<br />
+          conv.factor = tiitm004.conv<br />
+selectempty<br />
+          conv.factor = 0.0<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">11th October 2005, 07:50</div></div><div class="posttext">Try using the Baan-provided DLL for conversions:<br />
+<br />
+declaration:<br />
+#pragma used dll &quot;otiitmdll0003&quot;        | Read conversion factor<br />
+<br />
+<br />
+in your section or function:<br />
+<br />
+	                              | Convert from base unit to specified unit.<br />
+conv.factor = tiitm.dll0003.conv.factor(&quot;&quot;, &quot;&quot;, &quot;&quot;, base.unit, lflfa361.cuni) <br />
+<br />
+<br />
+You can also specify the project (arg #1), item (arg#2), and/or item group (arg #3) as well. Leaving these null will provide the conversion simply using the two factors and 'tiitm004'.   'conv.factor' is returned as zero if a conversion cannot be done, so you have to set it to one or trap the zero before multiplying something by it.  You can also have this function return an error as '1' for the conversion factor by using a sixth argument and passing it as 'false':<br />
+<br />
+conv.factor = tiitm.dll0003.conv.factor(&quot;&quot;, &quot;&quot;, &quot;&quot;, base.unit, lflfa361.cuni, 0)<br />
+<br />
+<br />
+You can leave the base unit (arg #4) null if an item (arg #2) is provided.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">11th October 2005, 07:53</div></div><div class="posttext">I think that there is problem in your index structure. you can add new one to table index that depends on your fields.<br />
+<br />
+Good luck !</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">11th October 2005, 11:38</div></div><div class="posttext">I am not sure about Baan IV, but in Baan V there is a second index on the conversion factors table (tcibd003). The second index answers your needs: basu, unit, item, citg.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jcook331</div><div class="date">11th October 2005, 21:08</div></div><div class="posttext">Baan IV does not have another index on tiitm004 as it does in Baan V, but BaanInOhio's suggestion worked great.  Thanks for all your help.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">vahdani</div><div class="date">11th October 2005, 22:55</div></div><div class="posttext">select tiitm004.*<br />
+    from tiitm001<br />
+    where tiitm004._index1 = {&quot;&quot;, &quot;&quot;, &quot;&quot;, :base.unit, :lflfa361.cuni}<br />
+    selectdo<br />
+          conv.factor = tiitm004.conv<br />
+    selectempty<br />
+          conv.factor = 0.0<br />
+    endselect<br />
+<br />
+<br />
+from  tiitm001   ??  I hope this was just a typo!  Ýou meant from  tiitm004. Otherwise this would cause the effect you described! Here for every record in tiitm004 all the item master records are returned!!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">beginer</div><div class="date">12th October 2005, 07:28</div></div><div class="posttext">hi,<br />
+<br />
+I dont have the BaaN 4 Environment as of now.... but I suppose u are mapping the complete first index. i.e. all the parts of Index 1 are mapped so u are very sure that you will get 1 record only. In such case one should use as set with 1 rows as this speeds up the performance.<br />
+Also as one of our member already pointed out .... we think that &quot;from tiitm001&quot; is  a typing mistake.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanInOhio</div><div class="date">12th October 2005, 18:09</div></div><div class="posttext">I always try to specify the 'as set with 1 rows', even when I know that only one will be returned.  It probably doesn't make a difference in your case, since the 'set with x rows' is best used to limit the number of records returned from the query so you don't have to use record counting logic and 'break/continue' statements to abort the loop.  <br />
+<br />
+In the case of a single hit (expected) query, I specify it to let the next person that has to maintain my code know what I was thinking when I developed the script.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Dikkie Dik</div><div class="date">13th October 2005, 09:51</div></div><div class="posttext">Adding &quot;set with 1 rows&quot; is a good suggestion. I wonder how you know that this query takes a long time and what in your opinion it should take. Lets assume that you are right and this query is slow, I suggest you to:<br />
+- Trace on Oracle what this query is doeing. I suggest to take the query seperately and test with SQL_TRACE what Oracle is doing. Take a look in Chapter 4 of my doc (http://www.baanboard.com/baanboard/showthread.php?t=7665)  for more info on tracing Oracle<br />
+- If above step is too complex for you I suggest to add &quot;order by tiitm004._index1&quot; to the query. Placing &quot;tiitm004._index1&quot; will not definitly use index X of tiitm004. Maybe this helps<br />
+<br />
+If the second step doesn't help you probably deal with a corupted or missing index on tiitm004. Then you really have to investigate on Oracle level.<br />
+<br />
+Hope this helps,<br />
+Dick</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">jcook331</div><div class="date">17th October 2005, 17:31</div></div><div class="posttext">Yes, that was a typo, but that is how I had it coded in my program script.  I don't know how I missed that.  Too many long hours, I guess.  Thanks.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">toolswizard</div><div class="date">17th October 2005, 19:35</div></div><div class="posttext">Once you fix your typo, you may also want to just try getting rid of the index and try using the actual fields.  It has been said that a full index scan will take longer than a full table scan.</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

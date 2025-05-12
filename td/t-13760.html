@@ -1,0 +1,140 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Inner join not working as expected, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Inner join not working as expected Tools Development" />
+	
+	<title>Inner join not working as expected [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Inner join not working as expected</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">bernhard_frei</div><div class="date">27th November 2003, 17:39</div></div><div class="posttext">Hi<br />
+<br />
+I want to do an inner join on tables tdsls704 and tdsls045 (primary key is {orno, pono, srnb}). Since there is no reference defined between the two, I tried using the standard SQL join syntax. But all records from tdsls704 keep showing up in the result (as I would expect from an outer join).<br />
+function read.main.table()<br />
+{<br />
+	select tdsls704.*, tdsls045.*, tccom010.*<br />
+	from tdsls704, tdsls045, tccom010<br />
+	where tdsls704.akcd = &quot;NL&quot;<br />
+	and tdsls704 refers to tccom010 UNREF SETUNREF<br />
+	and tdsls045.orno = tdsls704.orno and tdsls045.pono = tdsls704.pono and tdsls045.srnb = 0<br />
+	selectdo<br />
+		days.to.del = tdsls045.ddat - tdsls704.date<br />
+		rprt_send()<br />
+	endselect<br />
+}<br />
+Any ideas?<br />
+<br />
+Thanks<br />
+Bernhard</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">evesely</div><div class="date">1st December 2003, 15:40</div></div><div class="posttext">If you want to use refers to, try unref skip.<br />
+<br />
+However, it is simpler and quicker to just do:<br />
+<br />
+...<br />
+and tccom010._index1 = {tdsls704.cuno}<br />
+...<br />
+<br />
+<br />
+BTW, you could also change your tdsls045 part of the WHERE clause to use its index:<br />
+<br />
+and tdsls045._index1 = {tdsls704.orno, tdsls704.pono, 0}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bernhard_frei</div><div class="date">1st December 2003, 16:14</div></div><div class="posttext">Hi Ed<br />
+<br />
+&gt;If you want to use refers to, try unref skip.&lt;<br />
+<br />
+My intention was *not* to skip records in the unlikely case a reference to tccom010 is not found (in the sense of an outer join), that's why I used SETUNREF. I thought your suggestion tccom010._index1 = {tdsls704.cuno} would rather work like an inner join?<br />
+<br />
+However, my original problem, the join between tdsls704 and tdsls045, still persists, I also tried your suggestion <br />
+<br />
+&gt;and tdsls045._index1 = {tdsls704.orno, tdsls704.pono, 0}&lt;<br />
+<br />
+and it makes no difference, i.e. records from tdsls045 are selected even if there's no matching record in tdsls704.<br />
+<br />
+Regards,<br />
+Bernhard</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">1st December 2003, 16:44</div></div><div class="posttext">The way I would attack this is to first take the tccom010 table out of the select.  Then run it to make sure you get only the records you expect to get from the tdsls045 and tdsls704 tables.  This may show that the problem is caused in the tccom010 part of the select.  If not eliminate the tdsls045 table next.  Build the select one statement at a time to see what causes the problem.  There is a possiblity that an index is corrupt.<br />
+<br />
+I would probably put the tccom010 select inside the selectdo anyway with &quot;as set with 1 rows&quot; on the query.  I would refer to the optimization guide(post somewhere on the board, and I think in this forum) on breaking select statements up.<br />
+<br />
+Not sure if this helps, but I thought I would post it anyway.<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bernhard_frei</div><div class="date">1st December 2003, 17:26</div></div><div class="posttext">Mark<br />
+<br />
+Thanks for your advice. I actually did it exactly this way and the result is still the same, i.e. all records from tdsls704, whether I join the table with tdsls045 or not. I do not think that the index of tdsls045 is corrupt, because the resulting report shows only those fields from tdsls045 filled with (the correct) values where actually a record exists that matches tdsls704.<br />
+<br />
+Bernhard</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">BaanForever</div><div class="date">1st December 2003, 18:14</div></div><div class="posttext">If {tdsls704.orno, tdsls704.pono} - primary key try this<br />
+<br />
+	select tdsls045.*, tdsls704.* <br />
+	from tdsls045, tdsls704<br />
+	where tdsls045.cmba refers to tdsls704 UNREF SKIP<br />
+                and tdsls045.srnb = 0<br />
+	and tdsls704.akcd = &quot;NL&quot;<br />
+	selectdo<br />
+		days.to.del = tdsls045.ddat - tdsls704.date<br />
+		rprt_send()<br />
+	endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bernhard_frei</div><div class="date">1st December 2003, 18:19</div></div><div class="posttext">BaanForever<br />
+<br />
+Thanks for the suggestion but unfortunately the primary key of sls704 is different (it's orno, date, time, pono).<br />
+<br />
+Bernhard</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">ulrich.fuchs</div><div class="date">1st December 2003, 20:27</div></div><div class="posttext">I never learned what's the difference between inner joins and outer joins. Anyway, I understand you want to get the records of tdsls045 only for records in tdsls704, so if there is nothing ind sls704, nothing should be printed for an order, right?<br />
+<br />
+So why not trying it this way:<br />
+<br />
+<br />
+select tdsls704.*<br />
+from tdsls704<br />
+where tdsls704.akcd = &quot;NL&quot;<br />
+selectdo<br />
+	select 	tdsls045.*,<br />
+		tccom010.*<br />
+	from 	tdsls045,<br />
+		tdsls010<br />
+	where	tdsls045._index1 = {:tdsls704.orno, :tdsls704.pono, 0}<br />
+	and	tdsls045.cuno referes to tccom010<br />
+	selectdo<br />
+		| do calculations<br />
+		rprt_send()<br />
+	endselect<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bernhard_frei</div><div class="date">3rd December 2003, 10:42</div></div><div class="posttext">Ulrich<br />
+<br />
+Inner joins only select the records that match the join criteria from both joined tables, outer joins select all the records from one of the joined tables, whether there's a matching record in the other table or not.<br />
+<br />
+But you're right, your solution works (it's actually the other way round, so I would have to swap sls704 and sls045). But I still wonder if my problem is really a problem or Baan standard behaviour?<br />
+<br />
+Bernhard</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

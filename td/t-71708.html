@@ -1,0 +1,97 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Use DLL function call from external variable, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Use DLL function call from external variable Tools Development" />
+	
+	<title>Use DLL function call from external variable [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Use DLL function call from external variable</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">14th February 2019, 18:37</div></div><div class="posttext">This is a somewhat out-of-the-box question. <br />
+<br />
+Usually in a program script you can call functions in a DLL by just typing their name: tccomdllo0001.do.check.this.bp(tccom001.bpid)<br />
+<br />
+What I want to try is this:<br />
+In a fixed program (once compiled) I want to be able to extend its functionality and call newer DLL functions without touching the caller program.<br />
+<br />
+I think it is impossible, since you need this &quot;function call&quot; in the object &quot;used functions&quot;. On the other hand, is the PCF not more or less doing the same?<br />
+<br />
+So I want to put the name of the function to be called from a (set of) DLLs <br />
+(which are declared = #pragma used dll &quot;ofunction_library&quot;) in a variable.<br />
+Like in<br />
+if pos(filename, VAR_FILETYPE_1) &lt;&gt; 0 and<br />
+    tccomdll.&amp;FUNCTION_FILETYPE_1(FUNC_ARG_LIST_1) then<br />
+        mess(&quot;tcgenstring&quot;, 1, &quot;File &quot; &amp; filename &amp; &quot; passed test &quot; &amp; FUNCTION_FILETYPE_1)<br />
+<br />
+In this way you can call any pre-programmed function for any file-type depending on the content of the program string variables VAR_FILETYPE_1, FUNCTION_FILETYPE_1 and FUNC_ARG_LIST_1.<br />
+<br />
+It is a bit similar to what you can do with program variables<br />
+  if put.var(pid, trim$(tolower$(tccom905.pvid)), trim$(<br />
+				tccom905.data)) =1 then<br />
+        message(&quot;Program Variable &quot; &amp; quoted.string(<br />
+				trim$(tolower$(tccom905.pvid))) &amp;<br />
+				&quot; set to value &quot; &amp; trim$(tccom905.data) &amp; &quot;.&quot;)<br />
+  endif<br />
+It is a bit similar to var_1 = trim$(tccom905.data) except that also the name of the variable is variable... to a certain extend (as is its datatype due to implicit conversion).<br />
+<br />
+The named program variable in tccom905.pvid must be pre-known in the program script and declared extern, but its value and its name can be set in a parameterized table tccom905.<br />
+<br />
+Your first question would be: why would you want this?<br />
+hmmm you made me thinking like :confused:<br />
+<br />
+It is easy to do the something similar with:<br />
+if pos(filename, VAR_FILENAME_1) &lt;&gt; 0 and     tccomdllo0001.do.check.1(FUNC_ARG_LIST_1) then</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NPRao</div><div class="date">14th February 2019, 20:28</div></div><div class="posttext">If I understood your question correctly, you like to call a new function in a new DLL dynamically? Yes, it is possible.<br />
+<br />
+Refer to the functions in the link -<br />
+<br />
+DLL functions (executing) overview and synopsis (http://www.baanboard.com/programmers_manual_baanerp_help_functions_dll_overview_and_synopsis)<br />
+<br />
+ Question exec_dll_function Fatel Error  (http://www.baanboard.com/baanboard/showthread.php?t=60134&amp;highlight=load_dll)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">15th February 2019, 21:50</div></div><div class="posttext">Spot on!   Thanks a lot.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">OmeLuuk</div><div class="date">20th February 2019, 18:23</div></div><div class="posttext">Current status of implementation :cool:<br />
+function init.dll.checks()<br />
+{<br />
+	my.dll = load_dll(&quot;owhinhdllo9160&quot;, DLL_OVERLOAD+DLL_SILENT_ERR)<br />
+	for i = 1 to MAX.SESN<br />
+	    get.var(pid, &quot;sesn_&quot; &amp; str$(i) &amp; &quot;_name&quot;, s.dummy)<br />
+	    if not isspace(s.dummy) then<br />
+		get.var(pid, &quot;sesn_&quot; &amp; str$(i) &amp; &quot;_check&quot;, s.dummy)<br />
+		a.func(i) = get_function(my.dll, s.dummy)<br />
+	    else<br />
+		a.func(i) = 0<br />
+	    endif<br />
+	endfor<br />
+	for i = MAX.SESN + 1 to MAX.SESN + MAX.REPN<br />
+	    get.var(pid, &quot;repn_&quot; &amp; str$(i - MAX.SESN) &amp; &quot;_name&quot;, s.dummy)<br />
+	    if not isspace(s.dummy) then<br />
+		get.var(pid, &quot;repn_&quot; &amp; str$(i - MAX.SESN) &amp; &quot;_check&quot;, s.dummy)<br />
+		a.func(i) = get_function(my.dll, s.dummy)<br />
+	    else<br />
+		a.func(i) = 0<br />
+	    endif<br />
+	endfor<br />
+	ret = exec_function(my.dll, get_function(my.dll,<br />
+					&quot;whinhdllo9160.init.vars&quot;))<br />
+}</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

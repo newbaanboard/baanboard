@@ -1,0 +1,87 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Difference in Package Combination, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Difference in Package Combination Tools Administration &amp; Installation" />
+	
+	<title>Difference in Package Combination [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Administration &amp; Installation</a> &gt; Difference in Package Combination</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">iamdnb</div><div class="date">21st March 2013, 06:12</div></div><div class="posttext">Hi,<br />
+<br />
+I am trying to figure out how baan quickly manages to identify the difference in package combinations (Tables &amp; Domains).<br />
+<br />
+As a standard, we are allowed to switch companies belonging to different package combinations at least in BaaN 5c.  As soon as we introduce some difference in the table definition/domain, it restricts us from switching the companies.  Now the question is where does it store this data.  <br />
+<br />
+I am assuming that while CRDD, it does the comparison of all involved tables with the rest of package combinations and puts a flag somewhere.  I am still investigating.  If someone already has this knowledge please share, else if I am able to figure the same out, I will update this thread.<br />
+<br />
+Regards<br />
+Davenrdra Bhatnagar</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">21st March 2013, 09:00</div></div><div class="posttext">When you introduce some difference in a table definition and/or domain, you are storing some data isn't it? That is the answer your question.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">iamdnb</div><div class="date">21st March 2013, 13:24</div></div><div class="posttext">That's right.  I am interested in knowing how baan tracks these changes so fast.  There are 1000's of tables that need to be compared.  I am close to my findings.. will share if successful.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">JaapJD</div><div class="date">21st March 2013, 13:39</div></div><div class="posttext">They don't need to be compared. Just the fact that table or domain definitions are found in different VRCs for both package combinations will disable the company switch.<br />
+<br />
+So, just copying a table or domain to the other VRC will immediately disable the company switch.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">iamdnb</div><div class="date">25th March 2013, 11:41</div></div><div class="posttext">That's right JaapJD.  I could also find the same after going thru the DBSLOG.  Here's my detailed analysis for future reference:<br />
+<br />
+Compare entries in ttaad121 (Packages by Package Combination) for involved companies during switch<br />
+If number of entries do not match<br />
+     raise error &quot;Package combination of company is %s ; package VRCs in package combination are different&quot;<br />
+else<br />
+     For each package in ttaad121 (package by package combination) of switch-to company<br />
+           Check package in ttaad121 (packages by Pack Comb) for current company<br />
+           if package not found<br />
+                raise error &quot;Package combination of company is %s ; package VRCs in package combination are different&quot;<br />
+           else<br />
+                Retrieve PVRC details from PVRC table (ttaad111)<br />
+                For each derivation level<br />
+                     check if any domain exist in ttadv400<br />
+                     check if any table definition exist in ttadv420 <br />
+                next<br />
+           end if<br />
+           Check package in ttaad121 (packages by Pack Comb) for switch-to company<br />
+           if package not found<br />
+                raise error &quot;Package combination of company is %s ; package VRCs in package combination are different&quot;<br />
+           else<br />
+                Retrieve package VRC details from PVRC table (ttaad111)<br />
+                For each derivation level<br />
+                     check if any domain exist in ttadv400<br />
+                     check if any table definition exist in ttadv420 <br />
+                next<br />
+           end if<br />
+           Keep track of PVRC found in the ttadv400/420<br />
+           If any mismatch found then<br />
+                raise error &quot;Package combination of company is %s ; package VRCs in package combination are different&quot;<br />
+           end if<br />
+     next<br />
+end if<br />
+<br />
+In nutshell, BaaN actually does find the real difference.  Presence of any additional entry of table/domain definition in ttadv400/420 is enough to raise the alert.  There are no flags or file level updates involved to identify the mismatch.<br />
+<br />
+Attaching the log I referred for my understanding.<br />
+<br />
+Cheers !!<br />
+Davendra</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

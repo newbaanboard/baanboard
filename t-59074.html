@@ -1,0 +1,105 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="PO LInes - AFS, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] PO LInes - AFS AFS/DDC/OLE: Function servers" />
+	
+	<title>PO LInes - AFS [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; PO LInes - AFS</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Baanman_2</div><div class="date">26th August 2010, 12:48</div></div><div class="posttext">I am trying to get a simple PO line insert through AFS.  The headers can be input through AFS no problem, I seem to be missing something when it comes to sync dialog.<br />
+<br />
+Manually all I need to input is item, qty and price.<br />
+<br />
+Code I have is :-<br />
+<br />
+stpapi.put.field(&quot;tdpur4500m000&quot;,&quot;tdpur400.orno&quot;,orno_str)<br />
+ret_stapi = stpapi.find( &quot;tdpur4500m000&quot; , err.msg )<br />
+<br />
+ret_stapi = stpapi.change.view(&quot;tdpur4501m000&quot;, err.msg)<br />
+ret_stapi = stpapi.synchronize.dialog(&quot;tdpur4501m000&quot;, &quot;add&quot;, err.msg)<br />
+<br />
+stpapi.put.field(&quot;tdpur4101s000&quot;,&quot;tdpur401.item.segment.1&quot;,item(1;9))<br />
+stpapi.put.field(&quot;tdpur4101s000&quot;,&quot;tdpur401.item.segment.2&quot;,item(10;38))<br />
+stpapi.put.field(&quot;tdpur4101s000&quot;,&quot;tdpur401.oqua&quot;,str$(oqua))			<br />
+stpapi.put.field(&quot;tdpur4101s000&quot;,&quot;tdpur401.pric&quot;,str$(pric))      <br />
+<br />
+ret_stapi = stpapi.insert(&quot;tdpur4501m000&quot;,true,err.mess)  <br />
+<br />
+if not ret_stapi<br />
+then					<br />
+	stpapi.recover(&quot;tdpur4101s000&quot;, return.msg)<br />
+endif<br />
+            <br />
+stpapi.end.session(&quot;tdpur4101s000&quot;,err.mess)  <br />
+stpapi.end.session(&quot;tdpur4501m000&quot;,err.mess)					 <br />
+stpapi.end.session(&quot;tdpur4500m000&quot;,err.mess)<br />
+<br />
+The return values for the find, synchronize and insert are all 1.<br />
+<br />
+:confused:</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th August 2010, 16:06</div></div><div class="posttext">What version of baan is this?  What are the sessions that need to be sync'ed up?  Just from glancing at your code I can see issues - but I only work on 4c4 so my recommendations may not work on other versions. I am also assuming the tdpur4501m000 session is actually a subsession(not a main session which could be called independently) to the tdpur4500m000 session.<br />
+<br />
+<br />
+| This activates the tdpur4500m000 session and finds the order.<br />
+stpapi.put.field(&quot;tdpur4500m000&quot;,&quot;tdpur400.orno&quot;,orno_str)<br />
+ret_stapi = stpapi.find( &quot;tdpur4500m000&quot; , err.msg )<br />
+| Next what command in tdpur4500m000 activates the lines session-tdpur4501m000?<br />
+| In 4c4 it is the continue command so I would do this:<br />
+stpapi.handle.subproc( &quot;tdpur4500m000&quot;, &quot;tdpur4501m000&quot;, &quot;add&quot; )<br />
+stpapi.continue.process( &quot;tdpur4500m000&quot;, fserr )<br />
+| Now the above continue could be the stpapi.form.command for other versions of baan.<br />
+| The above stpapi.subproc command lets tdpur4500 control the subsession(tdpur4501m000)<br />
+| Typically these type commands do not require a find, but it depends on how this works manually.<br />
+<br />
+ret_stapi = stpapi.synchronize.dialog(&quot;tdpur4501m000&quot;, &quot;add&quot;, err.msg)<br />
+stpapi.put.field(&quot;tdpur4101s000&quot;,&quot;tdpur401.item.segment.1&quot;,item(1;9))<br />
+stpapi.put.field(&quot;tdpur4101s000&quot;,&quot;tdpur401.item.segment.2&quot;,item(10;38))<br />
+stpapi.put.field(&quot;tdpur4101s000&quot;,&quot;tdpur401.oqua&quot;,str$(oqua)) <br />
+stpapi.put.field(&quot;tdpur4101s000&quot;,&quot;tdpur401.pric&quot;,str$(pric)) <br />
+ret_stapi = stpapi.insert(&quot;tdpur4501m000&quot;,true,err.mess) <br />
+<br />
+stpapi.end.session(&quot;tdpur4101s000&quot;,err.mess) <br />
+stpapi.end.session(&quot;tdpur4501m000&quot;,err.mess) <br />
+stpapi.end.session(&quot;tdpur4500m000&quot;,err.mess)<br />
+<br />
+<br />
+Typically the way I do these sessions is to map them out like this.<br />
+(1) Start session x<br />
+(2) hit find button<br />
+(3) type in order click ok - correct order found<br />
+(4) Click continue<br />
+(5) Subsession x starts on order found <br />
+(6) Hit insert<br />
+(7) Put fields a,b,c let other fields default. Record inserted okay.<br />
+(8) Close subsession<br />
+(9) Close mainsession<br />
+Next I can map it to stpapi commands. I know for example 1,2,3 can be covered with a put.field and stpapi.find so on and so fourth.<br />
+<br />
+With you code I see you start tdpur4500m000 and then separately start tdpur4501m000 - nothing to tie the two together.  I can't speak for your version, but this is how 4c4 would work.  If tdpur4501m000 is actually a main session then I could see where the insert could work and return a 1 value - you start the session change.view, sync it then start inserting.  So what ever PO or record it started on now has a new line and not the PO you intended.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Baanman_2</div><div class="date">26th August 2010, 18:54</div></div><div class="posttext">Thanks Mark.  This was for Baan V.  As you pointed out, the call to tdpur4100m000 was not required.  I have removed that and done the find on tdpur4501m000.<br />
+Record inserted properly.<br />
+<br />
+Thanks again.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">26th August 2010, 19:43</div></div><div class="posttext">Glad it worked. It is not always that easy. :)</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

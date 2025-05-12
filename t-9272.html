@@ -1,0 +1,320 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Arrays in OLE, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Arrays in OLE AFS/DDC/OLE: Function servers" />
+	
+	<title>Arrays in OLE [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="index.html">Newbaanboard</a> &gt; <a href="index.html">Baan SIGs</a> &gt; <a href="index.html">AFS/DDC/OLE: Function servers</a> &gt; Arrays in OLE</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">Ruskin</div><div class="date">17th March 2003, 03:30</div></div><div class="posttext">I have an OLE object that is calling a function within a library. Pretty standard VB code, but what I can't figure out, is how to pass arrays and interrogate returned arrays. For example;<br />
+<br />
+Suppose I have a library (tdslsdlltestr) with the following code;<br />
+<br />
+function extern some_function(domain tcamnt i.amnt,<br />
+		         ref  domain tcamnt o.amnt(),<br />
+		         ref  domain tcdsca o.dsca())<br />
+{<br />
+	| Test dll to see how VB handles byref arrays<br />
+<br />
+	o.amnt(1) = i.amnt - 1<br />
+	o.amnt(2) = i.amnt - 2<br />
+	o.amnt(3) = i.amnt - 3<br />
+	o.dsca(1,1) = &quot;in minus 1&quot;<br />
+	o.dsca(1,2) = &quot;in minus 2&quot;<br />
+	o.dsca(1,3) = &quot;in minus 3&quot;<br />
+}<br />
+<br />
+<br />
+And I create a VB connection to interrogate this;<br />
+<br />
+Sub main()<br />
+    Dim BaanObject As Baan.BwCOleAutomationServer<br />
+    Dim libParameters As String<br />
+    <br />
+    Set BaanObject = New Baan.BwCOleAutomationServer<br />
+    BaanObject.Timeout = 10<br />
+    <br />
+    libParameters = &quot;some_function(5.0, 0.0, 0.0, 0.0, &quot; &amp; _<br />
+                    Chr$(34) &amp; &quot;                   &quot; &amp; Chr$(34) &amp; _<br />
+                    Chr$(34) &amp; &quot;                   &quot; &amp; Chr$(34) &amp; _<br />
+                    Chr$(34) &amp; &quot;                   &quot; &amp; Chr$(34) &amp; &quot;)&quot;<br />
+    <br />
+    BaanObject.ParseExecFunction &quot;otdslsdlltestr&quot;, libParameters<br />
+    MsgBox BaanObject.ReturnCall<br />
+    <br />
+    BaanObject.Quit<br />
+    Set BaanObject = Nothing<br />
+End Sub<br />
+<br />
+I get argument errors in my BW window (Arg Error DOUBLE, expected: DOUBLE|ARRAY|BASED)<br />
+<br />
+I have tried a whole heap of different variations, in the parameters that I am passing to the function. Is it possible to pass and retrieve array variables and if so, how?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">zardoz</div><div class="date">17th March 2003, 11:28</div></div><div class="posttext">I think that a problem of this error could be the declaration of the function. The third argument must be a bidimensional array, like:<br />
+<br />
+function extern some_function(domain tcamnt i.amnt,<br />
+ref domain tcamnt o.amnt(),<br />
+ref domain tcdsca o.dsca(,))<br />
+.....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mark_h</div><div class="date">17th March 2003, 16:20</div></div><div class="posttext">I think the baan code is okay.  I think it is in the VB code:<br />
+<br />
+<br />
+libParameters = &quot;some_function(5.0, 0.0, 0.0, 0.0, &quot; &amp; _<br />
+Chr$(34) &amp; &quot; &quot; &amp; Chr$(34) &amp; _<br />
+Chr$(34) &amp; &quot; &quot; &amp; Chr$(34) &amp; _<br />
+Chr$(34) &amp; &quot; &quot; &amp; Chr$(34) &amp; &quot;)&quot;<br />
+<br />
+<br />
+I think Baan expects one parameter for each one.  The problem is I am not sure how you would pass an array of descriptions.  <br />
+<br />
+<br />
+function extern domain tcbool sfcdll9475.process.records(<br />
+				domain	tuole.data	comp,<br />
+				domain	tccwoc		main.f, <br />
+				domain	tccwoc		main.t,<br />
+				domain	tccwoc		sub.f, <br />
+				domain	tccwoc		sub.t,<br />
+				domain	tcyrno		year.f,<br />
+				domain	tcyrno		year.t,<br />
+				domain	tcweek		date.f,<br />
+				domain	tcweek		date.t,<br />
+				domain	tiqbm2		effi.rate,<br />
+				domain	tisfc.dayp	salary.perc,<br />
+					string		input.file(1024),<br />
+					string		report.file.name(1024),<br />
+			ref	domain	tuole.data	commmsg)<br />
+<br />
+<br />
+Then I used this in the VB code<br />
+<br />
+<br />
+       dllfunction = &quot;sfcdll9475.process.records&quot; &amp; &quot;(&quot;<br />
+        dllfunction = dllfunction &amp; comp$       ' Company<br />
+        dllfunction = dllfunction &amp; main_f$     ' main from<br />
+        dllfunction = dllfunction &amp; Main_t$     ' main to<br />
+        dllfunction = dllfunction &amp; sub_f$      ' sub from<br />
+        dllfunction = dllfunction &amp; sub_t$      ' sub to<br />
+        dllfunction = dllfunction &amp; year_f         ' year from<br />
+        dllfunction = dllfunction &amp; year_t         ' year to<br />
+        dllfunction = dllfunction &amp; date_f         ' date from<br />
+        dllfunction = dllfunction &amp; date_t         ' date to<br />
+        dllfunction = dllfunction &amp; efficiency     ' Efficiency<br />
+        dllfunction = dllfunction &amp; salary_perc    ' Salary Perc.<br />
+        msg = &quot;Start&quot; + String(130, &quot; &quot;)<br />
+        dllfunction = dllfunction &amp; file1$      ' Input File<br />
+        dllfunction = dllfunction &amp; file2$      ' Report File<br />
+        dllfunction = dllfunction &amp; Chr(34) &amp; msg &amp; Chr(34) ' Report File<br />
+        dllfunction = dllfunction &amp; &quot;)&quot;<br />
+'        Call SendtoBAAN(dllname, dllfunction)<br />
+        Call SendtoBAAN<br />
+        strlen = Len(BaanObj.functioncall)<br />
+        compos = InStr(1, BaanObj.functioncall, &quot;commmsg:&quot;, 1)<br />
+        msg = Mid(BaanObj.functioncall, compos + 8, strlen - 3)<br />
+        msg = RTrim(Mid(msg, 1, Len(msg) - 2))<br />
+        If (msg &lt;&gt; &quot;Done&quot;) Then<br />
+<br />
+<br />
+Rather than trying to pass the VB arrary I would probably develop the Baan dll to work on one element at a time.  Of course If you do solve how to pass the arrary - please post it.<br />
+<br />
+Hope this helps!<br />
+<br />
+Mark</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ruskin</div><div class="date">17th March 2003, 22:31</div></div><div class="posttext">Thanks for the suggestions. The Baan code does work fine, as I can call the library with;<br />
+<br />
+domain tcdsca ret.dsca(3)<br />
+domain tcamnt ret.amnt(3)<br />
+<br />
+some_function(5, ret.amnt, ret.dsca)<br />
+<br />
+and it returns;<br />
+<br />
+ret.amnt(1) = 4<br />
+ret.amnt(2) = 3<br />
+ret.amnt(3) = 2<br />
+ret.dsca(1,1) = &quot;in minus 1&quot;<br />
+ret.dsca(1,2) = &quot;in minus 2&quot;<br />
+ret.dsca(1,3) = &quot;in minus 3&quot;<br />
+<br />
+The issue is calling the function with the array variable from an external source. The problem, is that there could be a varying number of elements. Thus, the calling procedure can't allocate a field per element. ie:<br />
+<br />
+libParameters = &quot;some_function(5.0, 0.0, 0.0, 0.0, &quot; &amp; _<br />
+Chr$(34) &amp; &quot; &quot; &amp; Chr$(34) &amp; _<br />
+Chr$(34) &amp; &quot; &quot; &amp; Chr$(34) &amp; _<br />
+Chr$(34) &amp; &quot; &quot; &amp; Chr$(34) &amp; &quot;)&quot;<br />
+<br />
+would &quot;in theory&quot; only work, if there are 3 elements. Even then, it returns errors because the third parameter, should be the string array (whereas, this example has the third parameter as the second array element for the amount). I could rewrite the library to pass 3 individual amounts and 3 individual descriptions, but I am using it, to try to figure out how to pass and retrieve arrays, so that standard Baan libraries can be called. Such as tdslsdll1234, which creates sales orders, but uses a couple of arrays (for discounts, pricing and currency rates), rather than write a new library that calls the tdslsdll1234 library, without passing arrays to the new library (if that makes sense).<br />
+<br />
+I will keep trying, but if anyone has any other suggestions, please let me know.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">r_nagu</div><div class="date">19th March 2003, 23:31</div></div><div class="posttext">Ruskin,<br />
+	I am also stuck at the same point where you are.<br />
+<br />
+	I am trying to design an Excel-VB application. I wrote this following function in a dll in BaaN and I am trying to call it with in VB.<br />
+<br />
+Here is the dll function:<br />
+<br />
+Function extern edll100.read.rou001(ref domain tccwoc cwoc(),<br />
+				       ref domain tcdsca dsca())<br />
+{<br />
+	long i<br />
+<br />
+	set.mem(cwoc,&quot;&quot;)<br />
+	set.mem(cwoc,&quot;&quot;)<br />
+	i = 0<br />
+	select	tirou001.cwoc,<br />
+		tirou001.dsca<br />
+	from	tirou001<br />
+	order by tirou001._index1<br />
+	selectdo<br />
+		i = i + 1<br />
+		cwoc(1,i) = tirou001.cwoc<br />
+		dsca(1,i) = tirou001.dsca <br />
+	endselect<br />
+}<br />
+<br />
+Here is the VB code:<br />
+<br />
+Private Sub Collect_Data()<br />
+    Dim cwoc(100) As String<br />
+    Dim desc(100) As String<br />
+        <br />
+    MsgBox (&quot;Collecting Data...&quot;)<br />
+    DllName = &quot;otccomedll100&quot;<br />
+    DllFunction = &quot;edll100.read.rou001&quot; &amp; &quot;(&quot;<br />
+    DllFunction = DllFunction &amp; Chr(34) &amp; cwoc &amp; Chr(34) &amp; &quot;, &quot;<br />
+    DllFunction = DllFunction &amp; Chr(34) &amp; desc &amp; Chr(34) &amp; &quot;)&quot;<br />
+    BaanObj.ParseExecFunction DllName, DllFunction<br />
+End Sub<br />
+<br />
+Every time I compile this VB code, it keeps giving me a &quot;Type Mismatch&quot; error.<br />
+<br />
+The reference arguments to the function are an array variables. If I change them to a non-array variables, it complies fine but blows up on BaanObj.ParseExecFunction since the function is expecting an array variable as arguments.<br />
+<br />
+I will try to figure out how to get this work till my brain goes blank, meanwhile if you find something, please let me know.<br />
+<br />
+Appreciate your help.<br />
+<br />
+Thanks,<br />
+NS</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">20th March 2003, 00:57</div></div><div class="posttext">Initialize your field before using it in the call and it should clear up your problem.<br />
+<br />
+Dim cwoc(100) As String<br />
+Dim desc(100) As String<br />
+<br />
+cwoc = String(100, &quot; &quot;)<br />
+desc = String(100, &quot; &quot;)<br />
+<br />
+DllName = &quot;otccomedll100&quot;<br />
+DllFunction = &quot;edll100.read.rou001&quot; &amp; &quot;(&quot;<br />
+DllFunction = DllFunction &amp; Chr(34) &amp; cwoc &amp; Chr(34) &amp; &quot;, &quot;<br />
+DllFunction = DllFunction &amp; Chr(34) &amp; desc &amp; Chr(34) &amp; &quot;)&quot;<br />
+BaanObj.ParseExecFunction DllName, DllFunction</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">r_nagu</div><div class="date">20th March 2003, 03:57</div></div><div class="posttext">Gordan,<br />
+        I tried your suggestion but, when I ran the VB code, it gave me an Can not assign to array error at this line <br />
+             cwoc = String(100, &quot; &quot;)<br />
+<br />
+Thanks,<br />
+NS</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">gfasbender</div><div class="date">20th March 2003, 21:08</div></div><div class="posttext">Sorry about that, I really meant the following:<br />
+<br />
+Dim cwoc As String<br />
+Dim desc As String<br />
+<br />
+cwoc = String(100, &quot; &quot;)<br />
+desc = String(100, &quot; &quot;)<br />
+<br />
+DllName = &quot;otccomedll100&quot;<br />
+DllFunction = &quot;edll100.read.rou001&quot; &amp; &quot;(&quot;<br />
+DllFunction = DllFunction &amp; Chr(34) &amp; cwoc &amp; Chr(34) &amp; &quot;, &quot;<br />
+DllFunction = DllFunction &amp; Chr(34) &amp; desc &amp; Chr(34) &amp; &quot;)&quot;<br />
+BaanObj.ParseExecFunction DllName, DllFunction<br />
+<br />
+I guess in your case, if cwoc was 3 chars long, and you wanted to allocated space for 100 of them then you would use 300 instead of 100. Careful though, there is a limit to the byte amount you can send to the Baan function. (somewhere around 5K)<br />
+<br />
+For a working example, try this post: CODE: VB Calling a DLL (http://www.baanboard.com/baanboard/showthread.php?s=&amp;threadid=1359)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">Ruskin</div><div class="date">20th March 2003, 23:07</div></div><div class="posttext">Thanks for the info Gordon, but the calling of Baan DLL's through VB, passing and returning parameters, is not the issue. The issue, is how to pass and return array parameters....<br />
+<br />
+<br />
+NS:<br />
+What you're trying to do, is exactly what I'm stuck on... I also tried the idea of using an array variable in VB and also got the error of 'Type Mismatch'. This is simply because, you are adding an array to a string, ie;<br />
+<br />
+Dim x(1 to 5) As String<br />
+Dim y As String<br />
+<br />
+y = &quot;Hi there &quot; &amp; x<br />
+<br />
+Is invalid, it's expecting something like;<br />
+<br />
+y = &quot;Hi there &quot;<br />
+For z = 1 to 5<br />
+   y = y &amp; x(z)<br />
+Next z<br />
+<br />
+Also, by converting the VB side to a single dimensional variable (ie: not an array), I get the BW error of 'expected: STRING|ARRAY|FIXED|BASED.<br />
+<br />
+The more I try to work out this problem, the more I'm convinced, that passing and returning multi-dimensional arrays, is not possible...<br />
+<br />
+As Gordon has suggested, you may have a work around. If you know the maximum number of work centers, what you could do, is create a very long string variable, to hold all the work centers and descriptions, something like;<br />
+<br />
+function extern edll100.read.rou001(ref string cwoc(1024),<br />
+ref string dsca(4096))<br />
+{<br />
+select tirou001.cwoc, tirou001.dsca<br />
+from tirou001<br />
+order by tirou001._index1<br />
+selectdo<br />
+cwoc = cwoc &amp; &quot;|&quot; &amp; tirou001.cwoc<br />
+dsca = dsca &amp; &quot;|&quot; &amp; tirou001.dsca<br />
+endselect<br />
+}<br />
+<br />
+Then in your VB script, you just use a single parameter, such as;<br />
+Dim retCwoc As String<br />
+Dim retDsca As String<br />
+retCwoc = String(1024, Chr$(32))<br />
+retDsca = String(4096, Chr$(32))<br />
+<br />
+Then call your function and the return will have;<br />
+retCwoc = &quot;xxx|yyy|zzz|....&quot;<br />
+retDsca = &quot;Description of xxx|Description of yyy|....&quot;<br />
+<br />
+So you would have to decode your returned strings, to separate the fields out of the '|' delimited values.<br />
+<br />
+Ok, so this is a work around and still doesn't resolve the original issue of how to use arrays....</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">r_nagu</div><div class="date">20th March 2003, 23:21</div></div><div class="posttext">Ruskin,<br />
+	Thanks for the suggestion. This will minimize some of the performance issues I have with the application I am trying to create. I am trying to reduce the number of calls to BaaN as much as possible. So, instead of calling a baan dll for each row, originally I though with one call I will populate an array and get it back to the VB. But, looks like that may not be possible. With what you have suggested, I can get all the data for a table in one baan call and I just have to decode it. My only concern is reading some big tables this way. But, this is better than multiple calls to baan.<br />
+<br />
+Thanks again,<br />
+NS</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

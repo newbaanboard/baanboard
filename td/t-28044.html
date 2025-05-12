@@ -1,0 +1,169 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Update a field in multiple table s, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Update a field in multiple table s Tools Development" />
+	
+	<title>Update a field in multiple table s [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Update a field in multiple table s</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">vaishrii</div><div class="date">2nd September 2006, 09:58</div></div><div class="posttext">Dear All,<br />
+<br />
+I want to update a field with some new value in multiple tables (its a primary index field).<br />
+eg. employee code is to be updated with some new value in all the reference tables. I wrote a script but errors like 'reference does not exist ' etc occurs. <br />
+<br />
+please help <br />
+<br />
+regards &amp; thanks<br />
+Vaishali</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bigjack</div><div class="date">2nd September 2006, 11:36</div></div><div class="posttext">Hi,<br />
+<br />
+Is it possible to post your code here. Most probably you are using db.insert/update to modify the records. In that case you need to populate all mandatory(for which reference checks have been defined). You can check the problematic field by using session ttstperrlog and search the database tht you are using, in my case it is log.informix.<br />
+After printing this error report search for your login alongwith date &amp; time and you can see the problematic field alongwith the values as well as the corresponfing reference table.<br />
+<br />
+Cya</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">4th September 2006, 07:51</div></div><div class="posttext">Thanx for your reply , yes we use the db.insert/update to do so m pasting the code below , can u suggest something else .<br />
+<br />
+var = 10000<br />
+<br />
+select	hrper001.*<br />
+	from	hrper001 for update<br />
+	where   hrper001._index1 inrange {:empno.f}<br />
+	                             and {:empno.t}<br />
+	order by hrper001._index1<br />
+	selectdo<br />
+             select hrper006.* from hrper006 for update where hrper006._index1    = {:hrper001.empno}<br />
+		  selectdo<br />
+		    hrper006.empno = hrper006.empno  + var<br />
+                    db.update(thrper006, db.retry)<br />
+		    count = count + 1<br />
+		    if count = 10 then<br />
+			count = 0<br />
+			commit.transaction()<br />
+		    endif<br />
+    		<br />
+             endselect<br />
+ // this way we are updating all the reference tables and at the end updating the main table i.e. hrper001 as below<br />
+<br />
+hrper001.empno = hrper001.empno + var<br />
+		 db.update(thrper001, db.retry)<br />
+		 count = count + 1<br />
+		 if count = 10 then<br />
+		 	count = 0<br />
+		 	commit.transaction()<br />
+		 endif<br />
+<br />
+                endselect<br />
+commit.transaction()</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bigjack</div><div class="date">4th September 2006, 08:01</div></div><div class="posttext">Hi Niraj,<br />
+<br />
+I believe the index for hrper006 comprises of hrper001.empno. have you defined a reference on hrper006.empno field such that it will refer to hrper001.empno ?<br />
+If that is the case then you should insert a new record in hrper001 table first and then update hrper006.<br />
+Apparently you are inserting a new record in both tables and not updating , in that case db.insert should be used in place of db.update.<br />
+<br />
+Reply back with your observations.<br />
+<br />
+Bye<br />
+<br />
+p.s. Have you checked the ttstperrlog session , actually it will point out the exact table field alonwth its value which is causing the problem.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">4th September 2006, 10:20</div></div><div class="posttext">Yes, it is clearly the problem of the new employer number not yet existing in the main table. You are trying to insert a new employee value into another &quot;sub&quot;-table which refers to the main table of employees, yet the value updated does not yet exist in the table employees. Since reference is mandatory, you receive an error.<br />
+<br />
+So you FIRST have to insert your new employee number into the table employees (hrper001 I assume) and then afterwards you can continue updating the other tables.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">4th September 2006, 14:34</div></div><div class="posttext">No the problem has not solved yet<br />
+<br />
+Now i tried this way but gettin an error<br />
+<br />
+cannot delete record bcoz reference exist on hrper001<br />
+<br />
+db.retry.point()<br />
+<br />
+select hrper001.*<br />
+from hrper001 for update<br />
+where hrper001._index1 inrange {:empno.f}<br />
+and {:empno.t}<br />
+order by hrper001._index1<br />
+selectdo<br />
+empno = hrper001.empno<br />
+hrper001.empno = hrper001.empno + var<br />
+db.update(thrper001, db.retry)<br />
+count = count + 1<br />
+if count = 10 then<br />
+count = 0<br />
+commit.transaction()<br />
+endif<br />
+<br />
+select hrper008.* from hrper008 for update where hrper008._index1 = {:empno}<br />
+selectdo<br />
+hrper008.empno = hrper008.empno + var<br />
+db.update(thrper008, db.retry)<br />
+count = count + 1<br />
+if count = 10 then<br />
+count = 0<br />
+commit.transaction()<br />
+endif<br />
+selectempty<br />
+<br />
+<br />
+endselect</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bigjack</div><div class="date">4th September 2006, 14:41</div></div><div class="posttext">Hi Niraj,<br />
+<br />
+Im not clear about following two points,<br />
+<br />
+1. Your Requirement : From what i understand you are trying to insert new record in hrper001 by adding var to empno . In that process do you want to retain old record?<br />
+<br />
+2. Are records being added correctly in hrper001? I mean which query(hrper001 or hrper008) is giving you problems, Tell us by debugging the script till the BW error occurs.<br />
+<br />
+Cya</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">4th September 2006, 14:51</div></div><div class="posttext">Actually we are replacing the empno wid the new one<br />
+<br />
+While debugging the debugger stops wid the error after reaching the select statement for hrper008<br />
+dat means the error is for d first select statement for hrper001</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">4th September 2006, 15:43</div></div><div class="posttext">You should first add a new hrper001 employee number, WITHOUT deleting the old one. Then replace all the old empnr's in the related referencing tables. Then delete the old employee number from hrper001. Does the record of hrper001 also have a reference to a different record? [check in table field settings]</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">5th September 2006, 12:36</div></div><div class="posttext">Thanx en@from ,<br />
+<br />
+This is working but now its giving problem in finance table same error , i tried inserting the code but then its not allowing me to insert</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bigjack</div><div class="date">5th September 2006, 12:39</div></div><div class="posttext">Code plzzzzzz &amp; error description</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">NirajKakodkar</div><div class="date">5th September 2006, 13:02</div></div><div class="posttext">Thanx BigJack ,<br />
+<br />
+We solved the problem there was a mandatory link in the finance table <br />
+<br />
+Thank You <br />
+<br />
+:) Untouchability is crime , keep in touch</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

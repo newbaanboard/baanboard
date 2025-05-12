@@ -1,0 +1,113 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="Group totals in the after.report section, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] Group totals in the after.report section Tools Development" />
+	
+	<title>Group totals in the after.report section [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; Group totals in the after.report section</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">spatters</div><div class="date">19th December 2005, 16:48</div></div><div class="posttext">Is it possible to print the totals of each group at the end of the report? <br />
+<br />
+I've attached an example report as it currently is. I'd like to see totals at the end for each Resp code used. <br />
+<br />
+For example:<br />
+<br />
+Total Resp 1 111.00<br />
+Total Resp 2 222.00<br />
+Total Resp 5 555.00<br />
+<br />
+<br />
+I know this should happen in the after.report section, but, how do you get it to print? The Resp column is an enumerated type.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">19th December 2005, 17:30</div></div><div class="posttext">I don't know what the resp represent in your case. I don't know if there are a fixed amount of resp's or not. But even if not, you can build a loop system querying the data, starting to check the total of resp 1, sending to spooler, force a new line, and then total of resp2, and to spooler, force new line etc... This is not the standard Baan way, and depending on your type of query it could also be a serious performance escalation, but it will work...<br />
+<br />
+If you give more details, maybe we can give you mores pecific advice...</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spatters</div><div class="date">19th December 2005, 17:37</div></div><div class="posttext">Assume the resp (responsibility code) will be variable.<br />
+<br />
+I can accumulate totals while the report is running, so, getting the data is not the problem.<br />
+<br />
+The problem I have is I don't know how to get it to go to the spooler to print on the report. I thought about creating a line in the report layout with just the resp field and total, but, I didn't know how to loop so it prints more than once with different values. How do I go about getting it to actually print on the report?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">en@frrom</div><div class="date">19th December 2005, 17:41</div></div><div class="posttext">If I understand well, you want it to be an after.report layout. For looping, just use function layout.again, as many times as necessary, like this you will get total lines of each resp.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">19th December 2005, 17:42</div></div><div class="posttext">You should write small program to show totals of each resp . &#304;f resp has many possible value , you should minimize your aim or improve your small program . if it has 3-5 diffrent value, use parameter for each resp. If has maximum 20 or 30 different value<br />
+you can use array functionality. Other I think it is impossible. Baan hasn't got total function that you wanne do. There is no group by function for finding each resp total.<br />
+<br />
+Good luck !!!</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">mr_suleyman</div><div class="date">19th December 2005, 17:47</div></div><div class="posttext">Himm your problem is different.! En.fromm said right solution for your case. !!!<br />
+Good luck !</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">spatters</div><div class="date">19th December 2005, 21:49</div></div><div class="posttext">Thanks guys...I got it to work. I forgot you can define more than one after.report section. Also, the layout.again() function was exactly what I needed. Here are the results.<br />
+<br />
+<br />
+|******************************************************************************<br />
+|* aracpo41511000   VRC B40C c4 prod<br />
+|* Estimated Not Approved<br />
+|* slp1test<br />
+|* 12-14-05 [16:18]<br />
+|******************************************************************************<br />
+<br />
+|****************************** declaration section ***************************<br />
+declaration:<br />
+<br />
+    extern	domain	tcsrnb		resp.curr  | current responsibility code<br />
+    extern	domain	tfgld.amnt	resp.total | RESPonsibility total<br />
+<br />
+|****************************** report section ********************************<br />
+before.program:<br />
+    resp.curr  = 2147483647 | MAX long<br />
+<br />
+detail.1:<br />
+after.layout:<br />
+    | Is this the least responsibility code<br />
+    if aracp013.resp &lt; resp.curr then<br />
+	resp.curr = aracp013.resp<br />
+    endif<br />
+    <br />
+after.report.2:<br />
+before.layout:<br />
+    | Populate the responsibility code and total<br />
+    select 	sum(aracp013.esfr):resp.total<br />
+    from	aracp013<br />
+    where	aracp013.appr = tcyesno.no<br />
+    and		aracp013.resp = :resp.curr<br />
+    selectdo<br />
+	aracp013.resp = resp.curr<br />
+    endselect<br />
+<br />
+after.layout:<br />
+    | Are there more responsibility codes<br />
+    select 	aracp013.resp:resp.curr<br />
+    from	aracp013<br />
+    where	aracp013.appr = tcyesno.no<br />
+    and		aracp013.resp &lt;&gt; 5<br />
+    and		aracp013.resp &gt; :resp.curr<br />
+    order by	aracp013.resp<br />
+    as set with 1 rows<br />
+    selectdo<br />
+	layout.again()<br />
+    endselect</div></div><hr />
+
+
+
+</div>
+</body>
+</html>

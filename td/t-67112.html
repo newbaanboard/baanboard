@@ -1,0 +1,286 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="keywords" content="user Exit dll 401ue, baan,baanerp,erp,forum,discussion,bulletin board" />
+	<meta name="description" content="[Archive] user Exit dll 401ue Tools Development" />
+	
+	<title>user Exit dll 401ue [Archive]  - Baanboard.com</title>
+	<link rel="stylesheet" type="text/css" href="../styles.css" />
+</head>
+<body>
+<div class="pagebody">
+<div id="navbar"><a href="../index.html">Newbaanboard</a> &gt; <a href="../index.html">Baan Quick Support: Functional &amp; Technical</a> &gt; <a href="../index.html">Tools Development</a> &gt; user Exit dll 401ue</div>
+<hr />
+<div class="pda"></div>
+
+<hr />
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">25th November 2014, 15:33</div></div><div class="posttext">I want to restrict user from decreasing the price from Sales Order Price field which by default get the prices from Price Book; any how I want to give them the authority to increase the price when needed. So, I created a User Exit dll as below which is not working.<br />
+<br />
+function extern long ue.before.before.save.object(long mode) {<br />
+        on case mode<br />
+        case DAL_NEW:<br />
+        domain tcsess calling.session<br />
+         import(&quot;prog.name$&quot;, calling.session)<br />
+         if (calling.session = &quot;tdsls4100m900&quot;) then<br />
+                 select tdpcg031.*<br />
+               	 from  tdpcg031<br />
+                 where tdpcg031._index1 = {:1,&quot;10000006&quot;,:tdsls401.item}<br />
+        	 order by tdpcg031.exdt desc<br />
+     		 as set with 1 rows<br />
+              	 selectdo<br />
+                      	 if tdsls401.pric &lt; tdpcg031.bapr then<br />
+                       	 else<br />
+                               dal.set.error.message(&quot;tigenstring&quot;,&quot;Updating processed records not allowed&quot;)<br />
+                               return(DALHOOKERROR)<br />
+                      	  endif<br />
+            endif<br />
+               	 endselect<br />
+                break<br />
+	        return(0)<br />
+        case DAL_UPDATE:<br />
+        break<br />
+        endcase<br />
+        return(0)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">soumya093</div><div class="date">25th November 2014, 16:06</div></div><div class="posttext">Hi <br />
+You have to write the same in DAL_UPDATE</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">25th November 2014, 17:23</div></div><div class="posttext">Hi,<br />
+<br />
+As said, you need a DAL_UPDATE section to capture modifications after saving.<br />
+<br />
+Also, if you want to give the error if price is below the price book price then the following will go wrong.<br />
+<br />
+if tdsls401.pric &lt; tdpcg031.bapr then <br />
+                            else <br />
+                               dal.set.error.message(&quot;tigenstring&quot;,&quot;Updating processed records not allowed&quot;) <br />
+                               return(DALHOOKERROR) <br />
+                            endif <br />
+<br />
+You can use this<br />
+<br />
+if tdsls401.pric &lt; tdpcg031.bapr then  | or if double.cmp( tdsls401.pric, tdpcg031.bapr, 0.0001 ) = 1 then<br />
+                               dal.set.error.message(&quot;tigenstring&quot;,&quot;Updating processed records not allowed&quot;) <br />
+                               return(DALHOOKERROR) <br />
+                            endif</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">25th November 2014, 18:26</div></div><div class="posttext">Should I make this in Customised VRC or standard VRC<br />
+as  tdsls401ue</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">25th November 2014, 18:27</div></div><div class="posttext">Is my logic right?</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">25th November 2014, 21:13</div></div><div class="posttext">Hi,<br />
+<br />
+As suggested write the same in DAL_UPDATE section as well and also try making the change I suggested.<br />
+<br />
+Do it in your customized VRC.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">26th November 2014, 08:12</div></div><div class="posttext">What should be the Script Type.&quot;General&quot; , &quot;DAL&quot; or other.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">26th November 2014, 08:32</div></div><div class="posttext">Hi,<br />
+<br />
+Just create a new script with name tdsls401ue and the type will be set by default.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">26th November 2014, 09:16</div></div><div class="posttext">Created. but the above script is not able to select anything from <br />
+select tdpcg031.* <br />
+from  tdpcg031 <br />
+where tdpcg031._index1 = {1,&quot;10000006&quot;,:tdsls401.item}<br />
+and	tdpcg031.efdt &lt;=:tdsls401.odat<br />
+order by tdpcg031.efdt desc<br />
+as set with 1 rows</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">26th November 2014, 09:59</div></div><div class="posttext">Its working fine with the below code.<br />
+|******************************************************************************<br />
+|* tdsls401ue  0  VRC B61U a  sfc <br />
+|* Sales Price Increase Authorization<br />
+|* baan<br />
+|* 14-11-25 [14:28]<br />
+|******************************************************************************<br />
+|* Script Type: Library<br />
+|******************************************************************************<br />
+|declaration:<br />
+	<br />
+	table ttdsls401<br />
+	table ttdpcg031  <br />
+                                                                              <br />
+#include &lt;bic_dal&gt;<br />
+<br />
+<br />
+function extern long ue.before.before.save.object(long mode)<br />
+{<br />
+	on case mode<br />
+	case DAL_NEW:<br />
+	domain tcsess calling.session  <br />
+	import(&quot;prog.name$&quot;,calling.session)<br />
+	if (calling.session = &quot;tdsls4100m900&quot;) then<br />
+		|read.tdsls401()<br />
+		select tdpcg031.*<br />
+			from   tdpcg031<br />
+			where  tdpcg031._index1 = {1,&quot;100000006&quot;,:tdsls401.item}<br />
+			and    tdpcg031.efdt&lt;=:tdsls401.odat<br />
+			and    tdpcg031.exdt&gt;=:tdsls401.odat<br />
+			order by tdpcg031.exdt desc<br />
+			as set with 1 rows<br />
+			selectdo<br />
+				if logname$ &lt;&gt; &quot;baan&quot; or logname$ &lt;&gt; &quot;yousri_d&quot; then<br />
+				else<br />
+					if tdpcg031.bapr &gt;= tdsls401.pric then<br />
+						dal.set.error.message(&quot;@You are not authorised to decrease the Sales Order Price&quot;)<br />
+						return(DALHOOKERROR)<br />
+					else<br />
+					endif<br />
+				<br />
+				endif<br />
+		endselect<br />
+	endif<br />
+		<br />
+		break<br />
+	case DAL_UPDATE:<br />
+		|read.tdsls401()		<br />
+		select tdpcg031.*<br />
+		from   tdpcg031<br />
+		where  tdpcg031._index1 = {1,&quot;100000006&quot;,:tdsls401.item}<br />
+		and    tdpcg031.efdt&lt;=:tdsls401.odat<br />
+		and    tdpcg031.exdt&gt;=:tdsls401.odat<br />
+		order by tdpcg031.exdt desc<br />
+		as set with 1 rows		<br />
+		selectdo<br />
+			if logname$ &lt;&gt; &quot;baan&quot; or logname$ &lt;&gt; &quot;yousri_d&quot; then<br />
+			else<br />
+				if tdpcg031.bapr &gt;= tdsls401.pric then<br />
+				<br />
+					dal.set.error.message(&quot;@You are not authorised to decrease the Sales Order Price&quot;)<br />
+					return(DALHOOKERROR)<br />
+				else<br />
+				endif<br />
+			<br />
+			endif<br />
+		endselect<br />
+		break	<br />
+	endcase<br />
+	return(0)<br />
+		<br />
+		<br />
+}<br />
+<br />
+function extern long ue.after.before.save.object(long mode)<br />
+{<br />
+	on case mode<br />
+	case DAL_NEW:<br />
+		break<br />
+	case DAL_UPDATE:<br />
+		break<br />
+	endcase<br />
+	return(0)<br />
+}<br />
+<br />
+function extern long ue.before.after.save.object(long mode)<br />
+{<br />
+	on case mode<br />
+	case DAL_NEW:<br />
+		break<br />
+	case DAL_UPDATE:<br />
+		break<br />
+	endcase<br />
+	return(0)<br />
+}<br />
+<br />
+function extern long ue.after.after.save.object(long mode)<br />
+{<br />
+	on case mode<br />
+	case DAL_NEW:<br />
+		<br />
+		<br />
+		break<br />
+	case DAL_UPDATE:<br />
+		break<br />
+	endcase<br />
+	return(0)<br />
+}<br />
+<br />
+function extern long ue.before.before.destroy.object()<br />
+{<br />
+	return(0)<br />
+}<br />
+<br />
+function extern long ue.after.before.destroy.object()<br />
+{<br />
+	return(0)<br />
+}<br />
+<br />
+function extern long ue.before.after.destroy.object()<br />
+{<br />
+	return(0)<br />
+}<br />
+<br />
+function extern long ue.after.after.destroy.object()<br />
+{<br />
+	return(0)<br />
+}</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">26th November 2014, 10:01</div></div><div class="posttext">I want to show the Fianance user the MAUC price when they want to decrease the price.<br />
+<br />
+I have written select whina137.* statement<br />
+but how can  I popup a message for finance user if they want to decrese the price.<br />
+<br />
+dal.set.message(&quot;MAUC Price %d&quot;, mauc.pri) is showing error.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">sachinbaan</div><div class="date">26th November 2014, 10:59</div></div><div class="posttext">hi,<br />
+<br />
+dal.set.message() will push your message to buffer, to pop up message box use dal.set.error.message() and return(DALHOOKERROR), and strat your message with &quot;@&quot;.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">26th November 2014, 11:10</div></div><div class="posttext">If I use dal.set.error.message and return(DALHOOKERROR) the message is displayed but Im not able to change the required price.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">26th November 2014, 13:51</div></div><div class="posttext">Hi,<br />
+<br />
+Use, <br />
+dal.set.info.message(&quot;@your_message&quot;)<br />
+show.dal.messages(MSG.INFO)<br />
+<br />
+<br />
+Related Thread (http://www.baanboard.com/baanboard/showthread.php?t=65393)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">26th November 2014, 14:53</div></div><div class="posttext">Thanks a lot Mr. Bhushan,<br />
+<br />
+The problem with this message is it appears but minimize at the same time.<br />
+Any other dal.message where it will appear on top of the screen.</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">bhushanchanda</div><div class="date">26th November 2014, 15:12</div></div><div class="posttext">Hi,<br />
+<br />
+<br />
+Try this,<br />
+<br />
+dal.set.warning.message(&quot;Your message&quot;)<br />
+show.dal.messages  (MSG.WARNING)</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">28th November 2014, 14:12</div></div><div class="posttext">Thanks a ton bhushan</div></div><hr />
+
+
+<div class="post"><div class="posttop"><div class="username">smusba</div><div class="date">30th November 2014, 07:52</div></div><div class="posttext">I want to add one more thing in the script.<br />
+<br />
+If any Sales Order line is having tdpur401.disc then tdpur401.pric should be same as tdpcg031.bapr</div></div><hr />
+
+
+
+</div>
+</body>
+</html>
