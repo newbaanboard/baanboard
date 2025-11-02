@@ -96,69 +96,98 @@
 </div>
 	<script src="https://unpkg.com/lunr/lunr.js"></script>
 
+<script src="https://unpkg.com/lunr/lunr.js"></script>
+
 <script>
-    var idx; // La variable que contendrá el índice Lunr
-    var data = []; // Array para almacenar los documentos (contenido original)
+    var idx; // Índice Lunr
+    var data = []; // Datos originales
+    const INDEX_KEY = 'lunrIndex_baanboard'; // Clave para LocalStorage
+    const DATA_KEY = 'lunrData_baanboard'; // Clave para los datos originales
 
-    // 1. Cargar el índice JSON al iniciar la página
-    // Asegúrate de que search_index.json está en la raíz correcta
-    fetch('./search_index.json')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('No se pudo cargar el archivo search_index.json. Verifica la ubicación y nombre.');
+    function loadIndexFromLocalStorage() {
+        try {
+            // Intenta cargar el índice Lunr y los datos desde LocalStorage
+            var storedIdx = localStorage.getItem(INDEX_KEY);
+            var storedData = localStorage.getItem(DATA_KEY);
+
+            if (storedIdx && storedData) {
+                // 1. Carga instantánea si está en caché
+                idx = lunr.Index.load(JSON.parse(storedIdx));
+                data = JSON.parse(storedData);
+                console.log("✅ Índice cargado rápidamente desde LocalStorage.");
+                return true;
             }
-            return response.json();
-        })
-        .then(docs => {
-            data = docs; // Guardamos los datos originales (título, URL)
-            
-            // 2. Construir el índice Lunr
-            idx = lunr(function () {
-                this.ref('id'); // Campo de referencia único (el ID que genera el script)
-                this.field('title', { boost: 10 }); // El título es 10 veces más importante en la búsqueda
-                this.field('content'); // Campo con el texto completo
+            return false;
+        } catch (e) {
+            console.error("Error al cargar desde LocalStorage. Descargando de nuevo.", e);
+            return false;
+        }
+    }
+
+    function downloadAndBuildIndex() {
+        // 2. Descargar y construir si no está en caché
+        fetch('/baanboard/search_index.json')
+            .then(response => response.json())
+            .then(docs => {
+                data = docs;
                 
-                docs.forEach(function (doc) {
-                    this.add(doc)
-                }, this);
+                // Construir el índice
+                idx = lunr(function () {
+                    this.ref('id');
+                    this.field('title', { boost: 10 });
+                    this.field('content');
+                    
+                    docs.forEach(function (doc) {
+                        this.add(doc)
+                    }, this);
+                });
+                
+                // 3. Guardar en LocalStorage para futuras visitas
+                try {
+                    localStorage.setItem(INDEX_KEY, JSON.stringify(idx));
+                    localStorage.setItem(DATA_KEY, JSON.stringify(data));
+                    console.log("✅ Índice construido y guardado en LocalStorage.");
+                } catch (e) {
+                    console.error("Advertencia: No se pudo guardar el índice en LocalStorage (posiblemente demasiado grande).", e);
+                }
+            })
+            .catch(error => {
+                console.error('Error fatal al cargar el índice JSON:', error);
+                document.getElementById('search-results').innerHTML = '<p style="color: red;">Error: La función de búsqueda no pudo cargar los datos.</p>';
             });
+    }
 
-            console.log("✅ Índice de búsqueda Lunr cargado y listo.");
-        })
-        .catch(error => {
-            console.error('Error al cargar el índice:', error);
-            document.getElementById('search-results').innerHTML = '<p style="color: red;">Error: No se pudo cargar la función de búsqueda estática. (Verifica consola F12)</p>';
-        });
-
-    // 3. Escuchar la entrada de texto del usuario
+    // --- Lógica Principal ---
+    if (!loadIndexFromLocalStorage()) {
+        downloadAndBuildIndex();
+    }
+    
+    // --- Escucha de Eventos (La función de búsqueda en sí) ---
     document.getElementById('search-input').addEventListener('keyup', function () {
         var query = this.value;
         var resultsContainer = document.getElementById('search-results');
-        resultsContainer.innerHTML = ''; // Limpiar resultados anteriores
+        resultsContainer.innerHTML = '';
 
+        if (!idx) {
+             resultsContainer.innerHTML = '<p>Cargando motor de búsqueda...</p>';
+             return;
+        }
         if (query.length < 3) {
             resultsContainer.innerHTML = '<p>Escribe al menos 3 caracteres para iniciar la búsqueda.</p>';
             return;
         }
 
-        // 4. Realizar la búsqueda
         var searchResults = idx.search(query);
 
         if (searchResults.length === 0) {
             resultsContainer.innerHTML = '<p>No se encontraron resultados para "' + query + '".</p>';
         } else {
-            // 5. Mostrar los resultados
             var html = '<ul>';
             searchResults.forEach(function (result) {
-                // Buscamos el documento original en el array 'data' usando el 'ref' de Lunr
                 var doc = data.find(item => item.id == result.ref);
-                
-                // Si encontramos el documento:
                 if (doc) {
                     html += '<li>';
-                    // Usamos la URL y el título del documento original
                     html += '<h3><a href="' + doc.url + '">' + doc.title + '</a></h3>';
-                    // Mostramos un fragmento del contenido (snippet)
                     html += '<p>' + doc.content.substring(0, 250) + '...</p>';
                     html += '</li>';
                 }
